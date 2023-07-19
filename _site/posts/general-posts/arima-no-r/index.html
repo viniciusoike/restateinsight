@@ -1,0 +1,756 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.2.335">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+<meta name="author" content="Vinicius Oike">
+<meta name="dcterms.date" content="2023-06-01">
+<meta name="description" content="Neste post faço um panorama geral de como estimar um modelo SARIMA no R usando majoritariamente funções base. O R vem equipado com diversas funções úteis e poderosas para lidar com séries de tempo.">
+
+<title>Vinicius Oike - Séries de Tempo no R</title>
+<style>
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1.6em;
+  vertical-align: middle;
+}
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+    color: #aaaaaa;
+  }
+pre.numberSource { margin-left: 3em; border-left: 1px solid #aaaaaa;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+code span.al { color: #ff0000; font-weight: bold; } /* Alert */
+code span.an { color: #60a0b0; font-weight: bold; font-style: italic; } /* Annotation */
+code span.at { color: #7d9029; } /* Attribute */
+code span.bn { color: #40a070; } /* BaseN */
+code span.bu { color: #008000; } /* BuiltIn */
+code span.cf { color: #007020; font-weight: bold; } /* ControlFlow */
+code span.ch { color: #4070a0; } /* Char */
+code span.cn { color: #880000; } /* Constant */
+code span.co { color: #60a0b0; font-style: italic; } /* Comment */
+code span.cv { color: #60a0b0; font-weight: bold; font-style: italic; } /* CommentVar */
+code span.do { color: #ba2121; font-style: italic; } /* Documentation */
+code span.dt { color: #902000; } /* DataType */
+code span.dv { color: #40a070; } /* DecVal */
+code span.er { color: #ff0000; font-weight: bold; } /* Error */
+code span.ex { } /* Extension */
+code span.fl { color: #40a070; } /* Float */
+code span.fu { color: #06287e; } /* Function */
+code span.im { color: #008000; font-weight: bold; } /* Import */
+code span.in { color: #60a0b0; font-weight: bold; font-style: italic; } /* Information */
+code span.kw { color: #007020; font-weight: bold; } /* Keyword */
+code span.op { color: #666666; } /* Operator */
+code span.ot { color: #007020; } /* Other */
+code span.pp { color: #bc7a00; } /* Preprocessor */
+code span.sc { color: #4070a0; } /* SpecialChar */
+code span.ss { color: #bb6688; } /* SpecialString */
+code span.st { color: #4070a0; } /* String */
+code span.va { color: #19177c; } /* Variable */
+code span.vs { color: #4070a0; } /* VerbatimString */
+code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warning */
+</style>
+
+
+<script src="../../../site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="../../../site_libs/quarto-nav/headroom.min.js"></script>
+<script src="../../../site_libs/clipboard/clipboard.min.js"></script>
+<script src="../../../site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="../../../site_libs/quarto-search/fuse.min.js"></script>
+<script src="../../../site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="../../../">
+<script src="../../../site_libs/quarto-html/quarto.js"></script>
+<script src="../../../site_libs/quarto-html/popper.min.js"></script>
+<script src="../../../site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="../../../site_libs/quarto-html/anchor.min.js"></script>
+<link href="../../../site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="../../../site_libs/quarto-html/quarto-syntax-highlighting.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="../../../site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="../../../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="../../../site_libs/bootstrap/bootstrap.min.css" rel="stylesheet" id="quarto-bootstrap" data-mode="light">
+<script id="quarto-search-options" type="application/json">{
+  "location": "navbar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "end",
+  "type": "overlay",
+  "limit": 20,
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit"
+  }
+}</script>
+
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script>
+
+<link rel="stylesheet" href="../../../styles.css">
+</head>
+
+<body class="nav-fixed">
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top">
+    <nav class="navbar navbar-expand-lg navbar-dark ">
+      <div class="navbar-container container-fluid">
+      <div class="navbar-brand-container">
+    <a class="navbar-brand" href="../../../index.html">
+    <span class="navbar-title">Vinicius Oike</span>
+    </a>
+  </div>
+          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" aria-expanded="false" aria-label="Toggle navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+  <span class="navbar-toggler-icon"></span>
+</button>
+          <div class="collapse navbar-collapse" id="navbarCollapse">
+            <ul class="navbar-nav navbar-nav-scroll ms-auto">
+  <li class="nav-item">
+    <a class="nav-link" href="../../../blog.html">
+ <span class="menu-text">Blog</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../../../my_apps.html">
+ <span class="menu-text">Apps</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../../../aboutme.html">
+ <span class="menu-text">Sobre</span></a>
+  </li>  
+  <li class="nav-item compact">
+    <a class="nav-link" href="https://github.com/viniciusoike"><i class="bi bi-github" role="img">
+</i> 
+ <span class="menu-text"></span></a>
+  </li>  
+  <li class="nav-item compact">
+    <a class="nav-link" href="https://twitter.com/viniciusoike"><i class="bi bi-twitter" role="img">
+</i> 
+ <span class="menu-text"></span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../../../archive.html">
+ <span class="menu-text">Archive</span></a>
+  </li>  
+</ul>
+              <div id="quarto-search" class="" title="Search"></div>
+          </div> <!-- /navcollapse -->
+      </div> <!-- /container-fluid -->
+    </nav>
+</header>
+<!-- content -->
+<header id="title-block-header" class="quarto-title-block default page-columns page-full">
+  <div class="quarto-title-banner page-columns page-full">
+    <div class="quarto-title column-body">
+      <h1 class="title">Séries de Tempo no R</h1>
+                  <div>
+        <div class="description">
+          Neste post faço um panorama geral de como estimar um modelo SARIMA no R usando majoritariamente funções base. O R vem equipado com diversas funções úteis e poderosas para lidar com séries de tempo.
+        </div>
+      </div>
+                          <div class="quarto-categories">
+                <div class="quarto-category">time-series</div>
+                <div class="quarto-category">tutorial-R</div>
+                <div class="quarto-category">econometria</div>
+              </div>
+                  </div>
+  </div>
+    
+  
+  <div class="quarto-title-meta">
+
+      <div>
+      <div class="quarto-title-meta-heading">Author</div>
+      <div class="quarto-title-meta-contents">
+               <p>Vinicius Oike </p>
+            </div>
+    </div>
+      
+      <div>
+      <div class="quarto-title-meta-heading">Published</div>
+      <div class="quarto-title-meta-contents">
+        <p class="date">June 1, 2023</p>
+      </div>
+    </div>
+    
+      
+    </div>
+    
+  
+  </header><div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article page-navbar">
+<!-- sidebar -->
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">On this page</h2>
+   
+  <ul>
+  <li><a href="#séries-de-tempo-no-r" id="toc-séries-de-tempo-no-r" class="nav-link active" data-scroll-target="#séries-de-tempo-no-r">Séries de tempo no R</a></li>
+  <li><a href="#os-dados" id="toc-os-dados" class="nav-link" data-scroll-target="#os-dados">Os dados</a>
+  <ul class="collapse">
+  <li><a href="#modelagem-sarima" id="toc-modelagem-sarima" class="nav-link" data-scroll-target="#modelagem-sarima">Modelagem SARIMA</a>
+  <ul class="collapse">
+  <li><a href="#teste-de-raiz-unitária" id="toc-teste-de-raiz-unitária" class="nav-link" data-scroll-target="#teste-de-raiz-unitária">Teste de raiz unitária</a></li>
+  <li><a href="#os-modelos" id="toc-os-modelos" class="nav-link" data-scroll-target="#os-modelos">Os modelos</a></li>
+  </ul></li>
+  <li><a href="#comparando-as-previsões" id="toc-comparando-as-previsões" class="nav-link" data-scroll-target="#comparando-as-previsões">Comparando as previsões</a></li>
+  </ul></li>
+  <li><a href="#resumo-geral" id="toc-resumo-geral" class="nav-link" data-scroll-target="#resumo-geral">Resumo geral</a></li>
+  </ul>
+</nav>
+    </div>
+<!-- main -->
+<main class="content quarto-banner-title-block" id="quarto-document-content">
+
+
+
+
+<section id="séries-de-tempo-no-r" class="level1">
+<h1>Séries de tempo no R</h1>
+<p>Neste post vou explorar um pouco das funções base do R para montar um modelo SARIMA. O <code>R</code> vem “pré-equipado” com um robusto conjunto de funções para lidar com séries de tempo. Inclusive, como se verá, existe uma class específica de objeto para trabalhar com séries de tempo.</p>
+</section>
+<section id="os-dados" class="level1">
+<h1>Os dados</h1>
+<p>Como exemplo, vamos usar a série <code>AirPassengers</code>, uma série bastante famosa usada no livro <em>Time Series Analysis</em> de Box &amp; Jenkins (1976). A série apresenta o volume mensal de passagens aéreas internacionais (em milhares) no período 1949-1960.</p>
+<div class="cell" data-layout-align="center">
+<div class="sourceCode cell-code" id="cb1"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">plot</span>(AirPassengers, <span class="at">col =</span> <span class="st">"#023047"</span>, <span class="at">lwd =</span> <span class="dv">2</span>)</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="fu">grid</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output-display">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="index_files/figure-html/unnamed-chunk-2-1.svg" class="img-fluid figure-img" style="width:100.0%"></p>
+</figure>
+</div>
+</div>
+</div>
+<p>Uma maneira comum de avaliar a performance preditiva de modelo é usando uma divisão train/test. Essencialmente, removemos uma parte das observações da nossa amostra para que possamos testar a taxa de acerto das previsões do nosso modelo.</p>
+<p>Como estamos no contexto de séries de tempo, é natural remover um percetual das observações finais da série. No caso, uso a função <code>window</code> para remover os últimos dois anos da amostra.</p>
+<div class="cell" data-layout-align="center">
+<div class="sourceCode cell-code" id="cb2"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>y <span class="ot">&lt;-</span> <span class="fu">log</span>(AirPassengers)</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>train <span class="ot">&lt;-</span> <span class="fu">window</span>(y, <span class="at">end =</span> <span class="fu">c</span>(<span class="dv">1958</span>, <span class="dv">12</span>))</span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>test  <span class="ot">&lt;-</span> <span class="fu">window</span>(y, <span class="at">start =</span> <span class="fu">c</span>(<span class="dv">1959</span>, <span class="dv">1</span>))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<div class="cell" data-layout-align="center">
+<div class="cell-output-display">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="index_files/figure-html/unnamed-chunk-4-1.svg" class="img-fluid figure-img" style="width:100.0%"></p>
+</figure>
+</div>
+</div>
+</div>
+<p>A rigor, seria mais correto experimentar com várias janelas diferentes e talvez fosse interessante também remover um percentual maior de observações. Até onde sei, não é tão fácil implementar esse tipo de <em>cross-validation</em> apenas usando funções base do R, mas um maneira de fazer isso está exposta no livro <a href="https://otexts.com/fpp3/tscv.html">Forecasting: Principles and Practice</a>.</p>
+<section id="modelagem-sarima" class="level2">
+<h2 class="anchored" data-anchor-id="modelagem-sarima">Modelagem SARIMA</h2>
+<p>Aqui a ideia é experimentar com alguns modelos simples. Em especial, o modelo que Box &amp; Jenkins sugerem para a série é de um SARIMA (0, 1, 1)(0, 1, 1)[12] da forma</p>
+<p><span class="math display">\[
+(1 - \Delta)(1 - \Delta^{12})y_{t} = \varepsilon_{t} + \theta_{1}\varepsilon_{t_1} + \Theta_{1}\varepsilon_{t-12}
+\]</span></p>
+<p>A metodologia correta para a análise seria primeiro fazer testes de raiz unitária para avaliar a estacionaridade da série. Mas só de olhar para as funções de autocorrelação e autocorrelação parcial, fica claro que há algum componente sazonal e que a série não é estacionária.</p>
+<div class="cell" data-layout-align="center">
+<div class="cell-output-display">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="index_files/figure-html/unnamed-chunk-5-1.svg" class="img-fluid figure-img" style="width:100.0%"></p>
+</figure>
+</div>
+</div>
+</div>
+<section id="teste-de-raiz-unitária" class="level3">
+<h3 class="anchored" data-anchor-id="teste-de-raiz-unitária">Teste de raiz unitária</h3>
+<p>Apenas a título de exemplo, faço um teste Dickey-Fuller (ADF), bastante geral, com constante e tendência temporal linear. Para uma boa revisão metodológica de como aplicar testes de raiz unitária, em partiular o teste ADF, consulte o capítulo de séries não-estacionárias do livro <a href="https://www.wiley.com/en-br/Applied+Econometric+Time+Series,+4th+Edition-p-9781118808566">Applied Econometric Time Series do Enders</a></p>
+<p>Aqui, a escolha ótima do lag é feita usando o critério BIC (também conhecido como Critério de Schwarz). Não existe uma função que aplica o teste ADF no pacote base o <code>R</code>. A implementação é feita na função <code>ur.df</code> do pacote <code>urca</code>.</p>
+<p>A estatísitica de teste mais relevante é a <code>tau3</code> e vê-se, surpreendentemente, que se rejeita a hipótese nula de raiz unitária. As estatísticas <code>phi2</code> e <code>phi3</code> são testes-F da significânica conjunta dos termos de constante e de tendência temporal. As estatísticas de teste são convencionais e seguem a notação do livro do Enders citado acima e também do clássico livro do <a href="http://www.ru.ac.bd/stat/wp-content/uploads/sites/25/2019/03/504_02_Hamilton_Time-Series-Analysis.pdf">Hamilton</a>.</p>
+<div class="cell" data-layout-align="center">
+<div class="sourceCode cell-code" id="cb3"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(urca)</span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>adf_test <span class="ot">&lt;-</span> <span class="fu">ur.df</span>(y, <span class="at">type =</span> <span class="st">"trend"</span>, <span class="at">selectlags =</span> <span class="st">"BIC"</span>, <span class="at">lags =</span> <span class="dv">13</span>)</span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(adf_test)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>
+############################################### 
+# Augmented Dickey-Fuller Test Unit Root Test # 
+############################################### 
+
+Test regression trend 
+
+
+Call:
+lm(formula = z.diff ~ z.lag.1 + 1 + tt + z.diff.lag)
+
+Residuals:
+      Min        1Q    Median        3Q       Max 
+-0.090139 -0.022382 -0.002417  0.021008  0.110003 
+
+Coefficients:
+               Estimate Std. Error t value Pr(&gt;|t|)    
+(Intercept)   0.8968049  0.3999031   2.243 0.026859 *  
+z.lag.1      -0.1809364  0.0842729  -2.147 0.033909 *  
+tt            0.0016886  0.0008609   1.961 0.052263 .  
+z.diff.lag1  -0.2588927  0.1134142  -2.283 0.024301 *  
+z.diff.lag2  -0.0986455  0.1070332  -0.922 0.358665    
+z.diff.lag3  -0.0379799  0.1045583  -0.363 0.717097    
+z.diff.lag4  -0.1392651  0.0981271  -1.419 0.158560    
+z.diff.lag5  -0.0283998  0.0963368  -0.295 0.768686    
+z.diff.lag6  -0.1326313  0.0889223  -1.492 0.138581    
+z.diff.lag7  -0.1096365  0.0865862  -1.266 0.208019    
+z.diff.lag8  -0.2348880  0.0829892  -2.830 0.005497 ** 
+z.diff.lag9  -0.0926604  0.0843594  -1.098 0.274344    
+z.diff.lag10 -0.2053937  0.0789245  -2.602 0.010487 *  
+z.diff.lag11 -0.1081091  0.0786801  -1.374 0.172127    
+z.diff.lag12  0.6633101  0.0752086   8.820 1.54e-14 ***
+z.diff.lag13  0.3197783  0.0883636   3.619 0.000443 ***
+---
+Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+
+Residual standard error: 0.04011 on 114 degrees of freedom
+Multiple R-squared:  0.8781,    Adjusted R-squared:  0.8621 
+F-statistic: 54.75 on 15 and 114 DF,  p-value: &lt; 2.2e-16
+
+
+Value of test-statistic is: -2.147 4.9781 3.4342 
+
+Critical values for test statistics: 
+      1pct  5pct 10pct
+tau3 -3.99 -3.43 -3.13
+phi2  6.22  4.75  4.07
+phi3  8.43  6.49  5.47</code></pre>
+</div>
+</div>
+<p>Pela análise do correlograma do resíduo da regressão, fica claro que ainda há autocorrelação. Novamente, o mais correto seria aplicar o teste Ljung-Box sobre os resíduos para verificar a presença de autocorrelação conjunta nas primeiras <em>k</em> defasagens, mas este não é o foco deste post. Esta pequena digressão exemplifica como a aplicação destes testes em séries de tempo pode não ser tão direto/simples.</p>
+<div class="cell" data-layout-align="center">
+<div class="cell-output-display">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="index_files/figure-html/unnamed-chunk-7-1.svg" class="img-fluid figure-img" style="width:100.0%"></p>
+</figure>
+</div>
+</div>
+</div>
+<p>Os gráficos abaixo mostram o correlograma da série após tirarmos a primeira diferença e a primeira diferença sazonal. A partir da análise destes correlogramas poderíamos inferir algumas especificações alternativas para modelos SARIMA e aí, poderíamos escolher o melhor modelo usando algum critério de informação.</p>
+<p>A metodologia Box &amp; Jenkins de análise de séries de tempo tem, certamente, um pouco de <em>arte</em> e <em>feeling</em>. Não é tão imediato entender como devemos proceder e, na prática, faz sentido experimentar com vários modelos alternativos de ordem baixa como SARIMA(1, 1, 1)(0, 1, 1), SARIMA(2, 1, 0)(0, 1, 1), etc.</p>
+<div class="cell" data-layout-align="center">
+<div class="cell-output-display">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="index_files/figure-html/unnamed-chunk-8-1.svg" class="img-fluid figure-img" style="width:100.0%"></p>
+</figure>
+</div>
+</div>
+</div>
+</section>
+<section id="os-modelos" class="level3">
+<h3 class="anchored" data-anchor-id="os-modelos">Os modelos</h3>
+<p>Para não perder muito tempo experimentando com vários modelos vou me ater a três modelos diferentes. Uma função bastante útil é a <code>auto.arima</code> do pacote <code>forecast</code> que faz a seleção automática do melhor modelo da classe SARIMA/ARIMA/ARMA.</p>
+<p>Eu sei que o Schumway/Stoffer, autores do ótimo <a href="https://github.com/nickpoison/tsa4">Time Series Analysis and Its Applications</a>, tem um <a href="https://www.stat.pitt.edu/stoffer/tsa4/Rissues.htm">post crítico ao uso</a> do <code>auto.arima</code>. Ainda assim, acho que a função tem seu mérito e costuma ser um bom ponto de partida para a sua análise. Quando temos poucas séries de tempo para analisar, podemos nos dar ao luxo de fazer a modelagem manualmente, mas quando há centenas de séries, é muito conveniente poder contar com o <code>auto.arima</code>.</p>
+<p>Como o <code>auto.arima</code> escolhe o mesmo modelo do Box &amp; Jenkins eu experimento com uma especificação diferente. Novamente, a título de exemplo eu comparo ambos os modelos SARIMA com uma regressão linear simples que considera uma tendência temporal linear e uma série de dummies sazonais. O modelo é algo da forma</p>
+<p><span class="math display">\[
+y_{t} = \alpha_{0} + \alpha_{1}t + \sum_{i = 1}^{11}\beta_{i}s_{i} + \varepsilon_{t}
+\]</span></p>
+<p>Onde <span class="math inline">\(s_{i}\)</span> é uma variável indicadora igual a 1 se <span class="math inline">\(t\)</span> corresponder ao mês <span class="math inline">\(i\)</span> e igual a 0 caso contrário. Vale notar que não podemos ter uma dummy para todos os meses se não teríamos uma matriz de regressores com colinearidade perfeita!</p>
+<p>Aqui vou contradizer um pouco o espírito do post novamente para usar o <code>forecast</code>. O ganho de conveniência vem na hora de fazer as previsões. Ainda assim, indico como estimar os mesmos modelos usando apenas funções base do <code>R</code>.</p>
+<div class="cell" data-layout-align="center">
+<div class="sourceCode cell-code" id="cb5"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Usando o forecast</span></span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(forecast)</span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>model1 <span class="ot">&lt;-</span> <span class="fu">auto.arima</span>(train)</span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>model2 <span class="ot">&lt;-</span> <span class="fu">Arima</span>(train, <span class="at">order =</span> <span class="fu">c</span>(<span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>), <span class="at">seasonal =</span> <span class="fu">c</span>(<span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">0</span>))</span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>model3 <span class="ot">&lt;-</span> <span class="fu">tslm</span>(train <span class="sc">~</span> trend <span class="sc">+</span> season)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<div class="cell" data-layout-align="center">
+<div class="sourceCode cell-code" id="cb6"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Usando apenas funções base</span></span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>model2 <span class="ot">&lt;-</span> <span class="fu">arima</span>(</span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>  trains,</span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">order =</span> <span class="fu">c</span>(<span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>),</span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">seasonal =</span> <span class="fu">list</span>(<span class="at">order =</span> <span class="fu">c</span>(<span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>), <span class="at">period =</span> <span class="dv">12</span>)</span>
+<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a><span class="co"># Extrai uma tendência temporal linear </span></span>
+<span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a>trend <span class="ot">&lt;-</span> <span class="fu">time</span>(train)</span>
+<span id="cb6-10"><a href="#cb6-10" aria-hidden="true" tabindex="-1"></a><span class="co"># Cria variáveis dummies mensais</span></span>
+<span id="cb6-11"><a href="#cb6-11" aria-hidden="true" tabindex="-1"></a>season <span class="ot">&lt;-</span> <span class="fu">cycle</span>(train)</span>
+<span id="cb6-12"><a href="#cb6-12" aria-hidden="true" tabindex="-1"></a>model3 <span class="ot">&lt;-</span> <span class="fu">lm</span>(train <span class="sc">~</span> trend <span class="sc">+</span> season)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>A saída dos modelos segue abaixo. As saídas dos modelos SARIMA não são muito interessantes. Em geral, não é muito comum avaliar nem a significância e nem o sinal dos coeficientes, já que eles não têm muito valor interpretativo. Uma coisa que fica evidente dos dois modelos abaixo é que o primeiro parece melhor ajustado aos dados pois tem valores menores em todos os critérios de informação considerados.</p>
+<div class="cell" data-layout-align="center">
+<div class="sourceCode cell-code" id="cb7"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>model1</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Series: train 
+ARIMA(0,1,1)(0,1,1)[12] 
+
+Coefficients:
+          ma1     sma1
+      -0.3424  -0.5405
+s.e.   0.1009   0.0877
+
+sigma^2 = 0.001432:  log likelihood = 197.51
+AIC=-389.02   AICc=-388.78   BIC=-381</code></pre>
+</div>
+</div>
+<div class="cell" data-layout-align="center">
+<div class="sourceCode cell-code" id="cb9"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>model2</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Series: train 
+ARIMA(1,1,1)(1,1,0)[12] 
+
+Coefficients:
+         ar1      ma1     sar1
+      0.0668  -0.4518  -0.4426
+s.e.  0.3046   0.2825   0.0875
+
+sigma^2 = 0.001532:  log likelihood = 195.14
+AIC=-382.28   AICc=-381.89   BIC=-371.59</code></pre>
+</div>
+</div>
+<p>Já o modelo de regressão linear tem uma saída mais interessante. Note que, por padrão, o primeiro mês foi omitido e seu efeito aparece no termo constante. Na tabela abaixo, vemos que há um efeito positivo e significativo, por exemplo, nos meses 6-8 (junho a agosto), que coincidem com o período de férias de verão no hemisfério norte. Já, em novembro (mês 11) parece haver uma queda na demanda por passagens aéreas.</p>
+<p>Note que o R quadrado da regressão é extremamente elevado e isso é um indício de que algo está errado. Isto, muito provavelmente é resultado da não-estacionaridade da série.</p>
+<div class="cell" data-layout-align="center">
+<div class="sourceCode cell-code" id="cb11"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a>broom<span class="sc">::</span><span class="fu">tidy</span>(model3)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code># A tibble: 13 × 5
+   term        estimate std.error statistic   p.value
+   &lt;chr&gt;          &lt;dbl&gt;     &lt;dbl&gt;     &lt;dbl&gt;     &lt;dbl&gt;
+ 1 (Intercept)  4.71     0.0191    247.     2.81e-149
+ 2 trend        0.0106   0.000145   73.2    3.09e- 93
+ 3 season2     -0.0134   0.0245     -0.549  5.84e-  1
+ 4 season3      0.120    0.0245      4.91   3.32e-  6
+ 5 season4      0.0771   0.0245      3.15   2.14e-  3
+ 6 season5      0.0675   0.0245      2.75   6.93e-  3
+ 7 season6      0.191    0.0245      7.81   4.23e- 12
+ 8 season7      0.288    0.0245     11.7    6.32e- 21
+ 9 season8      0.278    0.0245     11.4    4.36e- 20
+10 season9      0.143    0.0245      5.82   6.13e-  8
+11 season10     0.00108  0.0245      0.0441 9.65e-  1
+12 season11    -0.141    0.0245     -5.77   7.97e-  8
+13 season12    -0.0248   0.0245     -1.01   3.14e-  1</code></pre>
+</div>
+</div>
+<p>De fato, olhando para a função de autocorrelação do resíduo do modelo de regressão linear, fica evidente que há autocorrelação. Uma forma de contornar isso seria de incluir um termo ARMA no termo de erro. Novamente, este não é o foco do post e vamos seguir normalmente.</p>
+<div class="cell" data-layout-align="center">
+<div class="sourceCode cell-code" id="cb13"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a><span class="fu">acf</span>(<span class="fu">resid</span>(model3))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output-display">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="index_files/figure-html/unnamed-chunk-14-1.svg" class="img-fluid figure-img" style="width:100.0%"></p>
+</figure>
+</div>
+</div>
+</div>
+</section>
+</section>
+<section id="comparando-as-previsões" class="level2">
+<h2 class="anchored" data-anchor-id="comparando-as-previsões">Comparando as previsões</h2>
+<p>A maneira mais prática de trabalhar com vários modelos ao mesmo tempo é agregando eles em listas e aplicando funções nessas listas.</p>
+<p>Abaixo eu aplico a função <code>forecast</code> para gerar as previsões 24 períodos a frente nos três modelos. Depois, eu extraio somente a estimativa pontual de cada previsão.</p>
+<div class="cell" data-layout-align="center">
+<div class="sourceCode cell-code" id="cb14"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a>models <span class="ot">&lt;-</span> <span class="fu">list</span>(model1, model2, model3)</span>
+<span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a>yhat <span class="ot">&lt;-</span> <span class="fu">lapply</span>(models, forecast, <span class="at">h =</span> <span class="dv">24</span>)</span>
+<span id="cb14-3"><a href="#cb14-3" aria-hidden="true" tabindex="-1"></a>yhat_mean <span class="ot">&lt;-</span> <span class="fu">lapply</span>(yhat, <span class="cf">function</span>(x) x<span class="sc">$</span>mean)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>Comparamos a performance de modelos de duas formas: (1) olhando para medidas de erro (o quão bem o modelo prevê os dados do <em>test</em>) e (2) olhando para critérios de informação (o quão bem o modelo se ajusta aos dados do <em>train</em>).</p>
+<p>Os critérios de informação têm todos uma interpretação bastante simples: quanto menor, melhor. Tipicamente, o AIC tende a escolher modelos sobreparametrizados enquanto o BIC tende a escolher modelos mais parcimoniosos.</p>
+<p>Já a comparação de medidas de erro não é tão simples. Pois ainda que um modelo tenha, por exemplo, um erro médio quadrático menor do que outro, não é claro se esta diferença é significante. Uma maneira de testar isso é via o teste Diebold-Mariano, que compara os erros de previsão de dois modelos. Implicitamente, contudo, ele assume que a diferença entre os erros de previsão é covariância-estacionária (também conhecido como estacionário de segunda ordem ou fracamente estacionário). Dependendo do contexto, esta pode ser uma hipótese mais ou menos razoável.</p>
+<div class="cell" data-layout-align="center">
+<div class="sourceCode cell-code" id="cb15"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a>compute_error <span class="ot">&lt;-</span> <span class="cf">function</span>(model, test) {</span>
+<span id="cb15-2"><a href="#cb15-2" aria-hidden="true" tabindex="-1"></a>  y <span class="ot">&lt;-</span> test</span>
+<span id="cb15-3"><a href="#cb15-3" aria-hidden="true" tabindex="-1"></a>    yhat <span class="ot">&lt;-</span> model<span class="sc">$</span>mean</span>
+<span id="cb15-4"><a href="#cb15-4" aria-hidden="true" tabindex="-1"></a>    train <span class="ot">&lt;-</span> model<span class="sc">$</span>x</span>
+<span id="cb15-5"><a href="#cb15-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-6"><a href="#cb15-6" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Calcula o erro de previsao</span></span>
+<span id="cb15-7"><a href="#cb15-7" aria-hidden="true" tabindex="-1"></a>    y <span class="sc">-</span> yhat</span>
+<span id="cb15-8"><a href="#cb15-8" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb15-9"><a href="#cb15-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-10"><a href="#cb15-10" aria-hidden="true" tabindex="-1"></a>compute_error_metrics <span class="ot">&lt;-</span> <span class="cf">function</span>(model, test) {</span>
+<span id="cb15-11"><a href="#cb15-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-12"><a href="#cb15-12" aria-hidden="true" tabindex="-1"></a>    y <span class="ot">&lt;-</span> test</span>
+<span id="cb15-13"><a href="#cb15-13" aria-hidden="true" tabindex="-1"></a>    yhat <span class="ot">&lt;-</span> model<span class="sc">$</span>mean</span>
+<span id="cb15-14"><a href="#cb15-14" aria-hidden="true" tabindex="-1"></a>    train <span class="ot">&lt;-</span> model<span class="sc">$</span>x</span>
+<span id="cb15-15"><a href="#cb15-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-16"><a href="#cb15-16" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Calcula o erro de previsao</span></span>
+<span id="cb15-17"><a href="#cb15-17" aria-hidden="true" tabindex="-1"></a>    error <span class="ot">&lt;-</span> y <span class="sc">-</span> yhat</span>
+<span id="cb15-18"><a href="#cb15-18" aria-hidden="true" tabindex="-1"></a>    </span>
+<span id="cb15-19"><a href="#cb15-19" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Raiz do erro quadrado medio</span></span>
+<span id="cb15-20"><a href="#cb15-20" aria-hidden="true" tabindex="-1"></a>    rmse <span class="ot">&lt;-</span> <span class="fu">sqrt</span>(<span class="fu">mean</span>(error<span class="sc">^</span><span class="dv">2</span>))</span>
+<span id="cb15-21"><a href="#cb15-21" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Erro medio absoluto</span></span>
+<span id="cb15-22"><a href="#cb15-22" aria-hidden="true" tabindex="-1"></a>    mae <span class="ot">&lt;-</span> <span class="fu">mean</span>(<span class="fu">abs</span>(error))</span>
+<span id="cb15-23"><a href="#cb15-23" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Erro medio percentual</span></span>
+<span id="cb15-24"><a href="#cb15-24" aria-hidden="true" tabindex="-1"></a>    mape <span class="ot">&lt;-</span> <span class="fu">mean</span>(<span class="fu">abs</span>(<span class="dv">100</span> <span class="sc">*</span> error <span class="sc">/</span> y))</span>
+<span id="cb15-25"><a href="#cb15-25" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Root mean squared scaled error</span></span>
+<span id="cb15-26"><a href="#cb15-26" aria-hidden="true" tabindex="-1"></a>    rmsse <span class="ot">&lt;-</span> <span class="fu">sqrt</span>(<span class="fu">mean</span>(error<span class="sc">^</span><span class="dv">2</span> <span class="sc">/</span> <span class="fu">snaive</span>(train)<span class="sc">$</span>mean))</span>
+<span id="cb15-27"><a href="#cb15-27" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-28"><a href="#cb15-28" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Devolve os resultados num list</span></span>
+<span id="cb15-29"><a href="#cb15-29" aria-hidden="true" tabindex="-1"></a>    <span class="fu">list</span>(<span class="at">rmse =</span> rmse, <span class="at">mae =</span> mae, <span class="at">mape =</span> mape, <span class="at">rmsse =</span> rmsse)</span>
+<span id="cb15-30"><a href="#cb15-30" aria-hidden="true" tabindex="-1"></a>    </span>
+<span id="cb15-31"><a href="#cb15-31" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-32"><a href="#cb15-32" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb15-33"><a href="#cb15-33" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-34"><a href="#cb15-34" aria-hidden="true" tabindex="-1"></a>compute_ics <span class="ot">&lt;-</span> <span class="cf">function</span>(model) {</span>
+<span id="cb15-35"><a href="#cb15-35" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-36"><a href="#cb15-36" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Extrai criterios de informacao</span></span>
+<span id="cb15-37"><a href="#cb15-37" aria-hidden="true" tabindex="-1"></a>    aic  <span class="ot">&lt;-</span> <span class="fu">AIC</span>(model)</span>
+<span id="cb15-38"><a href="#cb15-38" aria-hidden="true" tabindex="-1"></a>    bic  <span class="ot">&lt;-</span> <span class="fu">BIC</span>(model)</span>
+<span id="cb15-39"><a href="#cb15-39" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-40"><a href="#cb15-40" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Devolve os resultados num list</span></span>
+<span id="cb15-41"><a href="#cb15-41" aria-hidden="true" tabindex="-1"></a>    <span class="fu">list</span>(<span class="at">aic =</span> aic, <span class="at">bic =</span> bic)</span>
+<span id="cb15-42"><a href="#cb15-42" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-43"><a href="#cb15-43" aria-hidden="true" tabindex="-1"></a>} </span>
+<span id="cb15-44"><a href="#cb15-44" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-45"><a href="#cb15-45" aria-hidden="true" tabindex="-1"></a>fcomparison <span class="ot">&lt;-</span> <span class="fu">lapply</span>(yhat, <span class="cf">function</span>(yhat) <span class="fu">compute_error_metrics</span>(yhat, test))</span>
+<span id="cb15-46"><a href="#cb15-46" aria-hidden="true" tabindex="-1"></a>icc <span class="ot">&lt;-</span> <span class="fu">lapply</span>(models, compute_ics)</span>
+<span id="cb15-47"><a href="#cb15-47" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-48"><a href="#cb15-48" aria-hidden="true" tabindex="-1"></a>comp_error <span class="ot">&lt;-</span> <span class="fu">do.call</span>(rbind.data.frame, fcomparison)</span>
+<span id="cb15-49"><a href="#cb15-49" aria-hidden="true" tabindex="-1"></a><span class="fu">rownames</span>(comp_error) <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="st">"AutoArima"</span>, <span class="st">"Manual SARIMA"</span>, <span class="st">"OLS"</span>)</span>
+<span id="cb15-50"><a href="#cb15-50" aria-hidden="true" tabindex="-1"></a>comp_ics <span class="ot">&lt;-</span> <span class="fu">do.call</span>(rbind.data.frame, icc)</span>
+<span id="cb15-51"><a href="#cb15-51" aria-hidden="true" tabindex="-1"></a><span class="fu">rownames</span>(comp_ics) <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="st">"AutoArima"</span>, <span class="st">"Manual SARIMA"</span>, <span class="st">"OLS"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>A tabela abaixo mostra os critérios AIC e BIC para os três modelos. Em ambos os casos, o SARIMA(0, 1, 1)(0, 1, 1)[12] parece ser o escolhido. Este tipo de feliz coincidência não costuma acontecer frequentemente na prática, mas neste caso ambos os critérios apontam para o mesmo modelo.</p>
+<div class="cell" data-layout-align="center">
+<div class="sourceCode cell-code" id="cb16"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a>comp_ics</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>                    aic       bic
+AutoArima     -389.0155 -380.9970
+Manual SARIMA -382.2807 -371.5894
+OLS           -342.2930 -303.2681</code></pre>
+</div>
+</div>
+<p>Na comparação de medidas de erro, o SARIMA(0, 1, 1)(0, 1, 1)[12] realmente tem uma melhor performance, seguido pelo OLS e pelo SARIMA(1, 1, 1)(1, 1, 0)[12].</p>
+<div class="cell" data-layout-align="center">
+<div class="sourceCode cell-code" id="cb18"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a>comp_error</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>                    rmse        mae     mape      rmsse
+AutoArima     0.09593236 0.08959921 1.463477 0.03939512
+Manual SARIMA 0.11688549 0.10780460 1.762201 0.04806577
+OLS           0.10333715 0.09384411 1.549261 0.04266214</code></pre>
+</div>
+</div>
+<p>Será que esta diferença é significante? Vamos comparar os modelos SARIMA. Pelo teste DM ela é sim. Lembre-se que o teste DM é, essencialmente, um teste Z de que <span class="math inline">\(e_{1} - e_{2} = 0\)</span> ou <span class="math inline">\(e_{1} = e_{2}\)</span>, onde os valores são a média dos erros de previsão dos modelos.</p>
+<div class="cell" data-layout-align="center">
+<div class="sourceCode cell-code" id="cb20"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a>errors <span class="ot">&lt;-</span> <span class="fu">lapply</span>(yhat, <span class="cf">function</span>(yhat) <span class="fu">compute_error</span>(yhat, test))</span>
+<span id="cb20-2"><a href="#cb20-2" aria-hidden="true" tabindex="-1"></a>e1 <span class="ot">&lt;-</span> errors[[<span class="dv">1</span>]]</span>
+<span id="cb20-3"><a href="#cb20-3" aria-hidden="true" tabindex="-1"></a>e2 <span class="ot">&lt;-</span> errors[[<span class="dv">2</span>]]</span>
+<span id="cb20-4"><a href="#cb20-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-5"><a href="#cb20-5" aria-hidden="true" tabindex="-1"></a><span class="fu">dm.test</span>(e1, e2, <span class="at">power =</span> <span class="dv">2</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>
+    Diebold-Mariano Test
+
+data:  e1e2
+DM = -4.4826, Forecast horizon = 1, Loss function power = 2, p-value =
+0.0001691
+alternative hypothesis: two.sided</code></pre>
+</div>
+</div>
+<p>Vale notar que o teste DM serve para comparar os erros de previsão de quaisquer modelos. Como o teste não faz qualquer hipótese sobre “de onde vem” os erros de previsão, ele pode ser utilizado livremente. Vale lembrar também que este teste não deve ser utilizado para escolher o melhor modelo, já que ele compara apenas a capacidade preditiva de dois modelos alternativos.</p>
+<p>Outro ponto, também complicado, é de qual a medida de erro que se deve escolher. O teste DM implicitamente usa o erro médio quadrático, mas há várias outras alternativas. <a href="https://otexts.com/fpp3/accuracy.html">Uma breve discussão pode ser vista aqui</a>.</p>
+<p>Por fim, o gráfico abaixo mostra as previsões dos modelos alternativos contra a série real.</p>
+<div class="cell" data-layout-align="center">
+<div class="sourceCode cell-code" id="cb22"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb22-1"><a href="#cb22-1" aria-hidden="true" tabindex="-1"></a><span class="fu">plot</span>(test, <span class="at">ylim =</span> <span class="fu">c</span>(<span class="fl">5.8</span>, <span class="fl">6.5</span>), <span class="at">col =</span> <span class="st">"#8ecae6"</span>, <span class="at">lwd =</span> <span class="dv">2</span>, <span class="at">type =</span> <span class="st">"o"</span>)</span>
+<span id="cb22-2"><a href="#cb22-2" aria-hidden="true" tabindex="-1"></a><span class="fu">lines</span>(yhat_mean[[<span class="dv">1</span>]], <span class="at">col =</span> <span class="st">"#ffb703"</span>)</span>
+<span id="cb22-3"><a href="#cb22-3" aria-hidden="true" tabindex="-1"></a><span class="fu">lines</span>(yhat_mean[[<span class="dv">2</span>]], <span class="at">col =</span> <span class="st">"#fb8500"</span>)</span>
+<span id="cb22-4"><a href="#cb22-4" aria-hidden="true" tabindex="-1"></a><span class="fu">lines</span>(yhat_mean[[<span class="dv">3</span>]], <span class="at">col =</span> <span class="st">"#B86200"</span>)</span>
+<span id="cb22-5"><a href="#cb22-5" aria-hidden="true" tabindex="-1"></a><span class="fu">grid</span>()</span>
+<span id="cb22-6"><a href="#cb22-6" aria-hidden="true" tabindex="-1"></a><span class="fu">legend</span>(<span class="st">"topleft"</span>, <span class="at">lty =</span> <span class="dv">1</span>,</span>
+<span id="cb22-7"><a href="#cb22-7" aria-hidden="true" tabindex="-1"></a>       <span class="at">legend =</span> <span class="fu">c</span>(<span class="st">"Test"</span>, <span class="st">"AutoArima"</span>, <span class="st">"Arima"</span>, <span class="st">"OLS"</span>),</span>
+<span id="cb22-8"><a href="#cb22-8" aria-hidden="true" tabindex="-1"></a>       <span class="at">col =</span> <span class="fu">c</span>(<span class="st">"#8ecae6"</span>, <span class="st">"#ffb703"</span>, <span class="st">"#fb8500"</span>, <span class="st">"#B86200"</span>))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output-display">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="index_files/figure-html/unnamed-chunk-20-1.svg" class="img-fluid figure-img" style="width:100.0%"></p>
+</figure>
+</div>
+</div>
+</div>
+</section>
+</section>
+<section id="resumo-geral" class="level1">
+<h1>Resumo geral</h1>
+<p>Algumas conclusões gerais para amarrar este post:</p>
+<ol type="1">
+<li><p>A metodologia Box-Jenkins não é tão direta. A interpretação do correlograma é muitas vezes incerta e a melhor opção costuma ser testar vários modelos.</p></li>
+<li><p>Escolher o melhor modelo não é tão trivial. Uma saída simples é escolher o modelo com menor AIC ou BIC. Ainda assim, é importante levar em conta a capacidade preditiva do modelo.</p></li>
+<li><p>Mesmo usando apenas funções base do <code>R</code> já é possível fazer boas análises com séries de tempo.</p></li>
+</ol>
+
+
+</section>
+
+</main> <!-- /main -->
+<script id="quarto-html-after-body" type="application/javascript">
+window.document.addEventListener("DOMContentLoaded", function (event) {
+  const toggleBodyColorMode = (bsSheetEl) => {
+    const mode = bsSheetEl.getAttribute("data-mode");
+    const bodyEl = window.document.querySelector("body");
+    if (mode === "dark") {
+      bodyEl.classList.add("quarto-dark");
+      bodyEl.classList.remove("quarto-light");
+    } else {
+      bodyEl.classList.add("quarto-light");
+      bodyEl.classList.remove("quarto-dark");
+    }
+  }
+  const toggleBodyColorPrimary = () => {
+    const bsSheetEl = window.document.querySelector("link#quarto-bootstrap");
+    if (bsSheetEl) {
+      toggleBodyColorMode(bsSheetEl);
+    }
+  }
+  toggleBodyColorPrimary();  
+  const icon = "";
+  const anchorJS = new window.AnchorJS();
+  anchorJS.options = {
+    placement: 'right',
+    icon: icon
+  };
+  anchorJS.add('.anchored');
+  const clipboard = new window.ClipboardJS('.code-copy-button', {
+    target: function(trigger) {
+      return trigger.previousElementSibling;
+    }
+  });
+  clipboard.on('success', function(e) {
+    // button target
+    const button = e.trigger;
+    // don't keep focus
+    button.blur();
+    // flash "checked"
+    button.classList.add('code-copy-button-checked');
+    var currentTitle = button.getAttribute("title");
+    button.setAttribute("title", "Copied!");
+    let tooltip;
+    if (window.bootstrap) {
+      button.setAttribute("data-bs-toggle", "tooltip");
+      button.setAttribute("data-bs-placement", "left");
+      button.setAttribute("data-bs-title", "Copied!");
+      tooltip = new bootstrap.Tooltip(button, 
+        { trigger: "manual", 
+          customClass: "code-copy-button-tooltip",
+          offset: [0, -8]});
+      tooltip.show();    
+    }
+    setTimeout(function() {
+      if (tooltip) {
+        tooltip.hide();
+        button.removeAttribute("data-bs-title");
+        button.removeAttribute("data-bs-toggle");
+        button.removeAttribute("data-bs-placement");
+      }
+      button.setAttribute("title", currentTitle);
+      button.classList.remove('code-copy-button-checked');
+    }, 1000);
+    // clear code selection
+    e.clearSelection();
+  });
+  function tippyHover(el, contentFn) {
+    const config = {
+      allowHTML: true,
+      content: contentFn,
+      maxWidth: 500,
+      delay: 100,
+      arrow: false,
+      appendTo: function(el) {
+          return el.parentElement;
+      },
+      interactive: true,
+      interactiveBorder: 10,
+      theme: 'quarto',
+      placement: 'bottom-start'
+    };
+    window.tippy(el, config); 
+  }
+  const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+  for (var i=0; i<noterefs.length; i++) {
+    const ref = noterefs[i];
+    tippyHover(ref, function() {
+      // use id or data attribute instead here
+      let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+      try { href = new URL(href).hash; } catch {}
+      const id = href.replace(/^#\/?/, "");
+      const note = window.document.getElementById(id);
+      return note.innerHTML;
+    });
+  }
+  const findCites = (el) => {
+    const parentEl = el.parentElement;
+    if (parentEl) {
+      const cites = parentEl.dataset.cites;
+      if (cites) {
+        return {
+          el,
+          cites: cites.split(' ')
+        };
+      } else {
+        return findCites(el.parentElement)
+      }
+    } else {
+      return undefined;
+    }
+  };
+  var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+  for (var i=0; i<bibliorefs.length; i++) {
+    const ref = bibliorefs[i];
+    const citeInfo = findCites(ref);
+    if (citeInfo) {
+      tippyHover(citeInfo.el, function() {
+        var popup = window.document.createElement('div');
+        citeInfo.cites.forEach(function(cite) {
+          var citeDiv = window.document.createElement('div');
+          citeDiv.classList.add('hanging-indent');
+          citeDiv.classList.add('csl-entry');
+          var biblioDiv = window.document.getElementById('ref-' + cite);
+          if (biblioDiv) {
+            citeDiv.innerHTML = biblioDiv.innerHTML;
+          }
+          popup.appendChild(citeDiv);
+        });
+        return popup.innerHTML;
+      });
+    }
+  }
+});
+</script>
+<script src="https://giscus.app/client.js" data-repo="viniciusoike/modelodomundo" data-repo-id="" data-category="General" data-category-id="" data-mapping="title" data-reactions-enabled="1" data-emit-metadata="0" data-input-position="top" data-theme="light" data-lang="en" crossorigin="anonymous" async="">
+</script>
+</div> <!-- /content -->
+
+
+
+</body></html>

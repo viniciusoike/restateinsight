@@ -1,0 +1,766 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.2.335">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+<meta name="author" content="Vinicius Oike">
+<meta name="dcterms.date" content="2019-01-01">
+<meta name="description" content="Um tutorial conciso sobre como utilizar o modelo SARIMA para análise e previsão de séries temporais no R. Aprenda a identificar componentes sazonais, ajustar parâmetros e fazer previsões precisas com este guia passo a passo.">
+
+<title>Vinicius Oike - SARIMA no R</title>
+<style>
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1.6em;
+  vertical-align: middle;
+}
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+    color: #aaaaaa;
+  }
+pre.numberSource { margin-left: 3em; border-left: 1px solid #aaaaaa;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+code span.al { color: #ff0000; font-weight: bold; } /* Alert */
+code span.an { color: #60a0b0; font-weight: bold; font-style: italic; } /* Annotation */
+code span.at { color: #7d9029; } /* Attribute */
+code span.bn { color: #40a070; } /* BaseN */
+code span.bu { color: #008000; } /* BuiltIn */
+code span.cf { color: #007020; font-weight: bold; } /* ControlFlow */
+code span.ch { color: #4070a0; } /* Char */
+code span.cn { color: #880000; } /* Constant */
+code span.co { color: #60a0b0; font-style: italic; } /* Comment */
+code span.cv { color: #60a0b0; font-weight: bold; font-style: italic; } /* CommentVar */
+code span.do { color: #ba2121; font-style: italic; } /* Documentation */
+code span.dt { color: #902000; } /* DataType */
+code span.dv { color: #40a070; } /* DecVal */
+code span.er { color: #ff0000; font-weight: bold; } /* Error */
+code span.ex { } /* Extension */
+code span.fl { color: #40a070; } /* Float */
+code span.fu { color: #06287e; } /* Function */
+code span.im { color: #008000; font-weight: bold; } /* Import */
+code span.in { color: #60a0b0; font-weight: bold; font-style: italic; } /* Information */
+code span.kw { color: #007020; font-weight: bold; } /* Keyword */
+code span.op { color: #666666; } /* Operator */
+code span.ot { color: #007020; } /* Other */
+code span.pp { color: #bc7a00; } /* Preprocessor */
+code span.sc { color: #4070a0; } /* SpecialChar */
+code span.ss { color: #bb6688; } /* SpecialString */
+code span.st { color: #4070a0; } /* String */
+code span.va { color: #19177c; } /* Variable */
+code span.vs { color: #4070a0; } /* VerbatimString */
+code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warning */
+</style>
+
+
+<script src="../../../site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="../../../site_libs/quarto-nav/headroom.min.js"></script>
+<script src="../../../site_libs/clipboard/clipboard.min.js"></script>
+<script src="../../../site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="../../../site_libs/quarto-search/fuse.min.js"></script>
+<script src="../../../site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="../../../">
+<script src="../../../site_libs/quarto-html/quarto.js"></script>
+<script src="../../../site_libs/quarto-html/popper.min.js"></script>
+<script src="../../../site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="../../../site_libs/quarto-html/anchor.min.js"></script>
+<link href="../../../site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="../../../site_libs/quarto-html/quarto-syntax-highlighting.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="../../../site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="../../../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="../../../site_libs/bootstrap/bootstrap.min.css" rel="stylesheet" id="quarto-bootstrap" data-mode="light">
+<script id="quarto-search-options" type="application/json">{
+  "location": "navbar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "end",
+  "type": "overlay",
+  "limit": 20,
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit"
+  }
+}</script>
+
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script>
+
+<link rel="stylesheet" href="../../../styles.css">
+</head>
+
+<body class="nav-fixed">
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top">
+    <nav class="navbar navbar-expand-lg navbar-dark ">
+      <div class="navbar-container container-fluid">
+      <div class="navbar-brand-container">
+    <a class="navbar-brand" href="../../../index.html">
+    <span class="navbar-title">Vinicius Oike</span>
+    </a>
+  </div>
+          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" aria-expanded="false" aria-label="Toggle navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+  <span class="navbar-toggler-icon"></span>
+</button>
+          <div class="collapse navbar-collapse" id="navbarCollapse">
+            <ul class="navbar-nav navbar-nav-scroll ms-auto">
+  <li class="nav-item">
+    <a class="nav-link" href="../../../blog.html">
+ <span class="menu-text">Blog</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../../../my_apps.html">
+ <span class="menu-text">Apps</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../../../aboutme.html">
+ <span class="menu-text">Sobre</span></a>
+  </li>  
+  <li class="nav-item compact">
+    <a class="nav-link" href="https://github.com/viniciusoike"><i class="bi bi-github" role="img">
+</i> 
+ <span class="menu-text"></span></a>
+  </li>  
+  <li class="nav-item compact">
+    <a class="nav-link" href="https://twitter.com/viniciusoike"><i class="bi bi-twitter" role="img">
+</i> 
+ <span class="menu-text"></span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../../../archive.html">
+ <span class="menu-text">Archive</span></a>
+  </li>  
+</ul>
+              <div id="quarto-search" class="" title="Search"></div>
+          </div> <!-- /navcollapse -->
+      </div> <!-- /container-fluid -->
+    </nav>
+</header>
+<!-- content -->
+<header id="title-block-header" class="quarto-title-block default page-columns page-full">
+  <div class="quarto-title-banner page-columns page-full">
+    <div class="quarto-title column-body">
+      <h1 class="title">SARIMA no R</h1>
+                  <div>
+        <div class="description">
+          Um tutorial conciso sobre como utilizar o modelo SARIMA para análise e previsão de séries temporais no R. Aprenda a identificar componentes sazonais, ajustar parâmetros e fazer previsões precisas com este guia passo a passo.
+        </div>
+      </div>
+                          <div class="quarto-categories">
+                <div class="quarto-category">econometria</div>
+                <div class="quarto-category">time-series</div>
+                <div class="quarto-category">repost</div>
+                <div class="quarto-category">tutorial-R</div>
+              </div>
+                  </div>
+  </div>
+    
+  
+  <div class="quarto-title-meta">
+
+      <div>
+      <div class="quarto-title-meta-heading">Author</div>
+      <div class="quarto-title-meta-contents">
+               <p>Vinicius Oike </p>
+            </div>
+    </div>
+      
+      <div>
+      <div class="quarto-title-meta-heading">Published</div>
+      <div class="quarto-title-meta-contents">
+        <p class="date">January 1, 2019</p>
+      </div>
+    </div>
+    
+      
+    </div>
+    
+  
+  </header><div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article page-navbar">
+<!-- sidebar -->
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">On this page</h2>
+   
+  <ul>
+  <li><a href="#introdução" id="toc-introdução" class="nav-link active" data-scroll-target="#introdução">Introdução</a></li>
+  <li><a href="#o-modelo" id="toc-o-modelo" class="nav-link" data-scroll-target="#o-modelo">O modelo</a></li>
+  <li><a href="#exemplo-passagens-aéreas" id="toc-exemplo-passagens-aéreas" class="nav-link" data-scroll-target="#exemplo-passagens-aéreas">Exemplo: passagens aéreas</a>
+  <ul class="collapse">
+  <li><a href="#identificação-e-tranformações" id="toc-identificação-e-tranformações" class="nav-link" data-scroll-target="#identificação-e-tranformações">Identificação e tranformações</a></li>
+  <li><a href="#estimação" id="toc-estimação" class="nav-link" data-scroll-target="#estimação">Estimação</a></li>
+  <li><a href="#previsão" id="toc-previsão" class="nav-link" data-scroll-target="#previsão">Previsão</a></li>
+  </ul></li>
+  <li><a href="#conclusão" id="toc-conclusão" class="nav-link" data-scroll-target="#conclusão">Conclusão</a></li>
+  </ul>
+</nav>
+    </div>
+<!-- main -->
+<main class="content quarto-banner-title-block" id="quarto-document-content">
+
+
+
+
+<section id="introdução" class="level1">
+<h1>Introdução</h1>
+<p>Neste post apresento como estimar um modelo SARIMA simples no R usando os pacotes <code>astsa</code> e <code>forecast</code>. O pacote <code>astsa</code> foi elaborado pelos autores do livro <a href="https://www.stat.pitt.edu/stoffer/tsa4/">Time Series Analysis</a>. Já o <code>forecast</code> foi desenvolvido por Rob. Hyndman, autor do livro <a href="https://otexts.com/fpp2/">Forecasting: Principles and Practice</a>.</p>
+</section>
+<section id="o-modelo" class="level1">
+<h1>O modelo</h1>
+<p>O SARIMA adiciona sazonalidade estocástica multiplicativa ao modelo ARIMA. Lembre-se que o modelo ARMA(p,q) geral é da forma: <span class="math display">\[\begin{equation}
+  y_{t} = \mu + \phi_{1}y_{t-1} + \phi_{2}y_{t-2} + \dots + \phi_{p}y_{t-p} + \epsilon_{t} + \theta_{1}\epsilon_{t-1} + \theta_{2}\epsilon_{t-2} + \dots + \theta_{q}\epsilon_{t-q}
+\end{equation}\]</span> Podemos reescrever a expressão acima usando o operador defasagem e os polinômios <span class="math display">\[\begin{align}
+\phi(L) &amp; = 1-\phi_{1}L - \phi_{2}L^{2} - \dots - \phi_{p}L^{p} \\
+\theta(L) &amp; = 1+\theta_{1}L + \theta_{2}L^{2} + \dots + \theta_{q}L^{q}
+\end{align}\]</span> Assim a expressão pode ser resumida como <span class="math display">\[\begin{equation}
+  \phi(L)y_{t} = \mu + \theta(L)\epsilon_{t}
+\end{equation}\]</span> O modelo ARIMA tira diferenças <span class="math inline">\(d\)</span> de <span class="math inline">\(y_{t}\)</span>: <span class="math display">\[\begin{equation}
+  \phi(L)(1-L)^{d}y_{t} = \theta(L)\epsilon_{t}
+\end{equation}\]</span> A princípio não há restrição sobre o valor de <span class="math inline">\(d\)</span> mas na prática sabemos que <span class="math inline">\(d = 1\)</span> ou <span class="math inline">\(d = 2\)</span>. Agora vamos definir os polinômios sazonais: <span class="math inline">\(\Phi(L^{s}) = 1-\Phi_{1}L^{s} - \Phi_{2}L^{2s} - \dots - \Phi_{p}L^{Ps}\)</span> e <span class="math inline">\(\Theta(L^{s}) = 1+\Theta_{1}L^{s} + \Theta_{2}L^{2s} + \dots + \Theta_{q}L^{Qs}\)</span>. Ou seja, digamos que a série <span class="math inline">\(y_{t}\)</span> seja mensurada mensalmente e apresente alguma sazonalidade anual. <span class="math inline">\(y_{t}\)</span> pode ser, por exemplo, a receita de vendas de uma empresa de varejo. É provável que a receita no mês de dezembro seja mais alta que a média do ano. Como isto se repete todo ano vamos encontrar um padrão anual nos dados que deve ser modelado. Neste exemplo, como <span class="math inline">\(y_{t}\)</span> é mensal temos que <span class="math inline">\(s = 12\)</span> nos polinômios sazonais. Logo teremos que: <span class="math display">\[\begin{align}
+  \Phi(L)y_{t} &amp; = 1 + \Phi_{1}y_{t-12} + \Phi_{2}y_{t-24} + \dots + \Phi_{p}y_{t-Ps}\\
+  \Theta(L)\epsilon_{t} &amp; = 1+\Theta_{1}\epsilon_{t-12} + \Theta_{2}\epsilon_{t-24} + \dots + \Theta_{q}\epsilon_{t-Qs}
+\end{align}\]</span> Podemos então montar modelos SARMA(p,q)(P,Q)[s]. Para tornar a notação mais clara vamos escrever o caso em que <span class="math inline">\(y_{t} \sim \text{SARMA}(2,1)(1,3)[12]\)</span> <span class="math display">\[\begin{equation}
+  y_{t} = \phi_{1}y_{t-1} + \phi_{2}y_{t-2} + \Phi_{1}y_{t-12} + \epsilon_{t} + \theta_{1}\epsilon_{t-1} + \Theta_{1}\epsilon_{t-12} + \Theta_{2}\epsilon_{t-24} + \Theta_{3}\epsilon_{t-36}
+\end{equation}\]</span> De forma geral, temos que: <span class="math display">\[\begin{equation}
+  \Phi(L^{s})\phi(L)y_{t} = \mu + \theta(L^{s})\theta(L)\epsilon_{t}
+\end{equation}\]</span> Finalmente, de forma análoga ao ARIMA, tiramos diferenças sazonais <span class="math inline">\(D\)</span> para chegar em: <span class="math display">\[\begin{equation}
+  \Phi(L^{s})\phi(L)(1-L)^{d}(1-L^{s})^{D}y_{t} = \mu + \theta(L^{s})\theta(L)\epsilon_{t}
+\end{equation}\]</span> Assim, como na análise do ARIMA o procedimento para identificação parte da comparação entre o correlograma empírico com as correlações teóricas do processo SARMA(p,q)(P,Q)[s]. Digamos, por exemplo, que a série de interesse <span class="math inline">\(y_{t}\)</span> siga um SARIMA(p,0,q)(P,1,Q). Então, temos que</p>
+<p><span class="math display">\[
+x_{t} = (1-L^{12})y_{t}
+\]</span></p>
+<p>a série diferenciada sazonalmente, segue um SARMA(p,q)(P,Q). A partir das funções de autocorrelação e autocorrelação parcial de <span class="math inline">\(x_{t}\)</span> podemos tentar recuperar o verdadeiro valor de <span class="math inline">\(p\)</span>, <span class="math inline">\(q\)</span>, <span class="math inline">\(P\)</span> e <span class="math inline">\(Q\)</span>.</p>
+</section>
+<section id="exemplo-passagens-aéreas" class="level1">
+<h1>Exemplo: passagens aéreas</h1>
+<p>Primeiro vamos carregar os pacotes.</p>
+<div class="cell" data-layout-align="center">
+<div class="sourceCode cell-code" id="cb1"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(astsa)    <span class="co"># acf2() e sarima()</span></span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(forecast) <span class="co"># forecast() e autoplot()</span></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(ggplot2)  <span class="co"># carregar temas para a função autoplot()</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>Vamos analisar o comportamento da demanda por passagens aéreas internacionais. Este é um exemplo clássico estudado em Box &amp; Jenkins (1976). Esta séria apresenta tanto uma tendência de crescimento como uma clara sazonalidade.</p>
+<div class="cell" data-layout-align="center">
+<div class="sourceCode cell-code" id="cb2"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="fu">autoplot</span>(AirPassengers) <span class="sc">+</span></span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_point</span>(<span class="at">shape =</span> <span class="dv">21</span>) <span class="sc">+</span></span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="st">""</span>, <span class="at">y =</span> <span class="st">"Passagens aéreas (milhares)"</span>, </span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>       <span class="at">title =</span> <span class="st">"Demanda mensal de passagens aéreas internacionais"</span>, </span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>       <span class="at">caption =</span> <span class="st">"Fonte: Box &amp; Jenkins (1976)"</span>) <span class="sc">+</span></span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_bw</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output-display">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="index_files/figure-html/unnamed-chunk-3-1.svg" class="img-fluid figure-img" style="width:100.0%"></p>
+</figure>
+</div>
+</div>
+</div>
+<p>Uma maneira interessante de visualizar a sazonalidade da série é “empilhando” os ciclos. No caso, parece haver uma sazonalidade que se repete a cada ano. A função <code>ggseasonplot</code> do pacote <code>forecast</code> facilita esta visualização. Os meses de junho, julho e agosto parecem sempre ter valores mais elevados. De fato, estes são os meses do verão no hemisfério norte e da alta estação do turismo.</p>
+<div class="cell" data-layout-align="center">
+<div class="sourceCode cell-code" id="cb3"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Gráfico mensal</span></span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="fu">ggseasonplot</span>(AirPassengers) <span class="sc">+</span></span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ggtitle</span>(<span class="st">"Sazonalidade"</span>) <span class="sc">+</span></span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="st">""</span>) <span class="sc">+</span></span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_colour_discrete</span>(<span class="at">name =</span> <span class="st">"Ano"</span>) <span class="sc">+</span></span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_bw</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output-display">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="index_files/figure-html/unnamed-chunk-4-1.svg" class="img-fluid figure-img" style="width:100.0%"></p>
+</figure>
+</div>
+</div>
+</div>
+<section id="identificação-e-tranformações" class="level2">
+<h2 class="anchored" data-anchor-id="identificação-e-tranformações">Identificação e tranformações</h2>
+<p>Como a variância da série cresce ao longo do tempo aplico uma transformação log nos valores da série. Seja <span class="math inline">\(y_{t}\)</span> nossa série. Então fazemos <span class="math inline">\(ly_{t} \equiv \text{log}(y_{t}).\)</span></p>
+<div class="cell" data-layout-align="center">
+<div class="sourceCode cell-code" id="cb4"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Aplica transformação log (logaritmo natural)</span></span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>ly <span class="ot">&lt;-</span> <span class="fu">log</span>(AirPassengers)</span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a><span class="co"># Gráfico</span></span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a><span class="fu">autoplot</span>(ly) <span class="sc">+</span></span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_point</span>(<span class="at">shape =</span> <span class="dv">21</span>) <span class="sc">+</span></span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="st">""</span>,</span>
+<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a>       <span class="at">y =</span> <span class="st">"Passagens aéreas (log)"</span>,</span>
+<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a>       <span class="at">title =</span> <span class="st">"Demanda mensal de passagens aéreas internacionais"</span>) <span class="sc">+</span></span>
+<span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_bw</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output-display">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="index_files/figure-html/unnamed-chunk-5-1.svg" class="img-fluid figure-img" style="width:100.0%"></p>
+</figure>
+</div>
+</div>
+</div>
+<p>Para testar a acurácia do modelo vamos remover algumas das últimas observações. Estas serão testadas contra as previsões do modelo. Aqui sigo a nomenclatura de <em>train</em> (treino) e <em>test</em> (teste). O gráfico abaixo permite visualizar esta divisão, onde os valores em vermelho foram excluídos da nossa amostra.</p>
+<div class="cell" data-layout-align="center">
+<div class="sourceCode cell-code" id="cb5"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>train <span class="ot">&lt;-</span> <span class="fu">window</span>(ly, <span class="at">end =</span> <span class="fu">c</span>(<span class="dv">1957</span>, <span class="dv">12</span>))</span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>test <span class="ot">&lt;-</span> <span class="fu">window</span>(ly, <span class="at">start =</span> <span class="fu">c</span>(<span class="dv">1958</span>, <span class="dv">1</span>))</span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a><span class="fu">autoplot</span>(train) <span class="sc">+</span></span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">autolayer</span>(test) <span class="sc">+</span></span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_bw</span>() <span class="sc">+</span></span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme</span>(<span class="at">legend.position =</span> <span class="st">"bottom"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output-display">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="index_files/figure-html/unnamed-chunk-6-1.svg" class="img-fluid figure-img" style="width:100.0%"></p>
+</figure>
+</div>
+</div>
+</div>
+<p>Tirando a primeira diferença da série removemos a sua tendência de crescimento. Fazemos <span class="math inline">\(dly_{t} \equiv (1-L)ly_{t} = ly_{t} - ly_{t-1}\)</span> usando a função <code>diff()</code>. Note pelo gráfico que ainda parece haver forte sazonalidade na série.</p>
+<div class="cell" data-layout-align="center">
+<div class="sourceCode cell-code" id="cb6"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Tira a primeira diferença da série</span></span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>dly <span class="ot">&lt;-</span> <span class="fu">diff</span>(train)</span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a><span class="fu">autoplot</span>(dly) <span class="sc">+</span></span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ggtitle</span>(<span class="st">"Primeira diferença do log da série"</span>) <span class="sc">+</span></span>
+<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_bw</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output-display">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="index_files/figure-html/unnamed-chunk-7-1.svg" class="img-fluid figure-img" style="width:100.0%"></p>
+</figure>
+</div>
+</div>
+</div>
+<p>Podemos ver isto mais claramente na análise do correlograma da série diferenciada. No gráfico abaixo, os “lags” seguem a periodicidade da série, isto é, cada “lag” representa o equivalente a 12 meses. Parece haver uma forte correlação entre <span class="math inline">\(dly_{t}\)</span> com <span class="math inline">\(dly_{t-12}, dly_{t-24}, \dots, dly_{t-12k}\)</span> com <span class="math inline">\(k = 1, 2, \dots\)</span>.</p>
+<div class="cell" data-layout-align="center">
+<div class="sourceCode cell-code" id="cb7"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Gráfico da FAC e FACP</span></span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a><span class="fu">acf2</span>(dly)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output-display">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="index_files/figure-html/unnamed-chunk-8-1.svg" class="img-fluid figure-img" style="width:100.0%"></p>
+</figure>
+</div>
+</div>
+</div>
+<p>Agora tiramos uma diferença sazonal de 12 meses. A série resultante, <span class="math inline">\(sdly_{t}\)</span> fica: <span class="math display">\[\begin{align}
+  sdly_{t} \equiv (1-L^{12})dly_{t} &amp; = (1-L^{12})(1-L)ly_{t} \\
+                                    &amp; = (1 - L^{12} - L + L^{13})ly_{t} \\
+                                    &amp; = ly_{t} - ly_{t-1} - ly_{t-12} + ly_{t-13}
+\end{align}\]</span></p>
+<p>Abaixo temos o correlograma de <span class="math inline">\(sdly_{t}\)</span>. A primeira defasagem é significativa tanto no ACF como no PACF. Além disso a 12ª defasagem também é significativa em ambos. Assim, vamos primeiro tentar um modelo de “ordem máxima” SARIMA<span class="math inline">\((1,1,1)(1,1,1)[12]\)</span>. A partir deste modelo, vamos tentar estimar outros de ordens mais baixas para evitar o problema de sobreparametrização.</p>
+<div class="cell" data-layout-align="center">
+<div class="sourceCode cell-code" id="cb8"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Tira a primeira diferença sazonal da série</span></span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>sdly <span class="ot">&lt;-</span> <span class="fu">diff</span>(dly, <span class="dv">12</span>)</span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a><span class="co"># Gráfico da FAC e FACP</span></span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a><span class="fu">acf2</span>(sdly)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output-display">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="index_files/figure-html/unnamed-chunk-9-1.svg" class="img-fluid figure-img" style="width:100.0%"></p>
+</figure>
+</div>
+</div>
+</div>
+</section>
+<section id="estimação" class="level2">
+<h2 class="anchored" data-anchor-id="estimação">Estimação</h2>
+<p>A equação do modelo que estamos estimando é: <span class="math display">\[
+  (1 - \phi L)(1 - \Phi L^{12})(1 - L)(1 - L^{12})ly_{t} = (1 + \theta L)(1 + \Theta L^{12})\epsilon_{t}
+\]</span> Vamos o usar o comando <code>sarima</code> do pacote <code>astsa</code>. Note que os resíduos do modelo parecem se comportar como ruído branco, indicando que nosso modelo está bem ajustado.</p>
+<div class="cell" data-layout-align="center">
+<div class="sourceCode cell-code" id="cb9"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>(m1 <span class="ot">&lt;-</span> <span class="fu">sarima</span>(<span class="at">p =</span> <span class="dv">1</span>, <span class="at">d =</span> <span class="dv">1</span>, <span class="at">q =</span> <span class="dv">1</span>, <span class="at">P =</span> <span class="dv">1</span>, <span class="at">D =</span> <span class="dv">1</span>, <span class="at">Q =</span> <span class="dv">1</span>, <span class="at">S =</span> <span class="dv">12</span>, <span class="at">xdata =</span> train))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>initial  value -3.031632 
+iter   2 value -3.170590
+iter   3 value -3.246467
+iter   4 value -3.246688
+iter   5 value -3.247295
+iter   6 value -3.247539
+iter   7 value -3.247841
+iter   8 value -3.248283
+iter   9 value -3.248794
+iter  10 value -3.249345
+iter  11 value -3.249360
+iter  12 value -3.249378
+iter  13 value -3.249379
+iter  14 value -3.249380
+iter  15 value -3.249381
+iter  16 value -3.249381
+iter  17 value -3.249381
+iter  17 value -3.249381
+iter  17 value -3.249381
+final  value -3.249381 
+converged
+initial  value -3.248923 
+iter   2 value -3.252561
+iter   3 value -3.258267
+iter   4 value -3.265627
+iter   5 value -3.267071
+iter   6 value -3.267585
+iter   7 value -3.267745
+iter   8 value -3.268029
+iter   9 value -3.268401
+iter  10 value -3.268494
+iter  11 value -3.268499
+iter  12 value -3.268506
+iter  13 value -3.268511
+iter  14 value -3.268511
+iter  15 value -3.268511
+iter  15 value -3.268511
+iter  15 value -3.268511
+final  value -3.268511 
+converged</code></pre>
+</div>
+<div class="cell-output-display">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="index_files/figure-html/unnamed-chunk-10-1.svg" class="img-fluid figure-img" style="width:100.0%"></p>
+</figure>
+</div>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>$fit
+
+Call:
+arima(x = xdata, order = c(p, d, q), seasonal = list(order = c(P, D, Q), period = S), 
+    include.mean = !no.constant, transform.pars = trans, fixed = fixed, optim.control = list(trace = trc, 
+        REPORT = 1, reltol = tol))
+
+Coefficients:
+         ar1      ma1     sar1     sma1
+      0.2565  -0.6243  -0.0599  -0.5574
+s.e.  0.2759   0.2289   0.1765   0.1670
+
+sigma^2 estimated as 0.001367:  log likelihood = 175.71,  aic = -341.42
+
+$degrees_of_freedom
+[1] 91
+
+$ttable
+     Estimate     SE t.value p.value
+ar1    0.2565 0.2759  0.9299  0.3549
+ma1   -0.6243 0.2289 -2.7271  0.0077
+sar1  -0.0599 0.1765 -0.3392  0.7353
+sma1  -0.5574 0.1670 -3.3380  0.0012
+
+$AIC
+[1] -3.593882
+
+$AICc
+[1] -3.589203
+
+$BIC
+[1] -3.459467</code></pre>
+</div>
+</div>
+<p>Para evitar o problema de sobreparametrização (<em>overfitting</em>) temos que tentar ajustar modelos de ordens similares, porém mais baixas. Este processo costuma ser iterativo, isto é, na base da tentativa e erro seguindo algum critério de informação (i.e.: AIC, AICc, BIC, etc.). Depois de tentar vários modelos diferentes chegamos, por exemplo, no SARIMA<span class="math inline">\((0,1,1)(0,1,1)[12]\)</span>. A equação do modelo pode ser expressa como: <span class="math display">\[
+  (1 - L)(1 - L^{12})ly_{t} = (1 + \theta L)(1 + \Theta L^{12})\epsilon_{t}
+\]</span></p>
+<p>Novamente, os resíduos do modelo indicam que ele está bem ajustado aos dados.</p>
+<div class="cell" data-layout-align="center">
+<div class="sourceCode cell-code" id="cb12"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a>m2 <span class="ot">&lt;-</span> <span class="fu">sarima</span>(<span class="at">p =</span> <span class="dv">0</span>, <span class="at">d =</span> <span class="dv">1</span>, <span class="at">q =</span> <span class="dv">1</span>, <span class="at">P =</span> <span class="dv">0</span>, <span class="at">D =</span> <span class="dv">1</span>, <span class="at">Q =</span> <span class="dv">1</span>, <span class="at">S =</span> <span class="dv">12</span>, <span class="at">xdata =</span> train)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>initial  value -3.047456 
+iter   2 value -3.251231
+iter   3 value -3.251514
+iter   4 value -3.268396
+iter   5 value -3.270049
+iter   6 value -3.270196
+iter   7 value -3.270197
+iter   8 value -3.270198
+iter   8 value -3.270198
+iter   8 value -3.270198
+final  value -3.270198 
+converged
+initial  value -3.263453 
+iter   2 value -3.264133
+iter   3 value -3.264159
+iter   4 value -3.264160
+iter   4 value -3.264160
+iter   4 value -3.264160
+final  value -3.264160 
+converged</code></pre>
+</div>
+<div class="cell-output-display">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="index_files/figure-html/unnamed-chunk-11-1.svg" class="img-fluid figure-img" style="width:100.0%"></p>
+</figure>
+</div>
+</div>
+</div>
+<div class="cell" data-layout-align="center">
+<div class="sourceCode cell-code" id="cb14"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a>m2<span class="sc">$</span>fit</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>
+Call:
+arima(x = xdata, order = c(p, d, q), seasonal = list(order = c(P, D, Q), period = S), 
+    include.mean = !no.constant, transform.pars = trans, fixed = fixed, optim.control = list(trace = trc, 
+        REPORT = 1, reltol = tol))
+
+Coefficients:
+          ma1     sma1
+      -0.3864  -0.5885
+s.e.   0.1097   0.0927
+
+sigma^2 estimated as 0.001383:  log likelihood = 175.3,  aic = -344.59</code></pre>
+</div>
+</div>
+<p>A estimativa tem a forma:</p>
+<p><span class="math display">\[
+  (1 - L)(1 - L^{12})ly_{t} = (1 - 0.3864 L)(1 - 0.5885 L^{12})\epsilon_{t}
+\]</span></p>
+</section>
+<section id="previsão" class="level2">
+<h2 class="anchored" data-anchor-id="previsão">Previsão</h2>
+<p>Para computar as previsões do modelo usamos a função <code>sarima.for</code>. Aqui podemos comparar as previsões do modelo (construindo usando apenas as observações dentro de <em>train</em>) com as observações. Esta função automaticametne retorna um gráfico com as previsões fora da amostra.</p>
+<div class="cell" data-layout-align="center">
+<div class="sourceCode cell-code" id="cb16"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a>pred <span class="ot">&lt;-</span> <span class="fu">sarima.for</span>(train, <span class="at">n.ahead =</span> <span class="fu">length</span>(test),</span>
+<span id="cb16-2"><a href="#cb16-2" aria-hidden="true" tabindex="-1"></a>                   <span class="at">p =</span> <span class="dv">0</span>, <span class="at">d =</span> <span class="dv">1</span>, <span class="at">q =</span> <span class="dv">1</span>, <span class="at">P =</span> <span class="dv">0</span>, <span class="at">D =</span> <span class="dv">1</span>, <span class="at">Q =</span> <span class="dv">1</span>, <span class="at">S =</span> <span class="dv">12</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output-display">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="index_files/figure-html/unnamed-chunk-13-1.svg" class="img-fluid figure-img" style="width:100.0%"></p>
+</figure>
+</div>
+</div>
+</div>
+<p>Podemos construir um gráfico que inclui as observações reservadas no <em>test</em> usando as seguintes funções base do R.</p>
+<div class="cell" data-layout-align="center">
+<div class="sourceCode cell-code" id="cb17"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a><span class="fu">plot.ts</span>(pred<span class="sc">$</span>pred, <span class="at">col =</span> <span class="st">"red"</span>, <span class="at">ylim =</span> <span class="fu">c</span>(<span class="fl">5.7</span>, <span class="fl">6.5</span>),</span>
+<span id="cb17-2"><a href="#cb17-2" aria-hidden="true" tabindex="-1"></a>        <span class="at">ylab =</span> <span class="st">""</span>,</span>
+<span id="cb17-3"><a href="#cb17-3" aria-hidden="true" tabindex="-1"></a>        <span class="at">main =</span> <span class="st">"Previsão do modelo SARIMA(0, 1, 1)(0, 1, 1)[12]"</span>)</span>
+<span id="cb17-4"><a href="#cb17-4" aria-hidden="true" tabindex="-1"></a><span class="fu">lines</span>(test, <span class="at">type =</span> <span class="st">"o"</span>)</span>
+<span id="cb17-5"><a href="#cb17-5" aria-hidden="true" tabindex="-1"></a><span class="fu">legend</span>(<span class="st">"topleft"</span>, <span class="at">legend =</span> <span class="fu">c</span>(<span class="st">"Previsto"</span>, <span class="st">"Observado"</span>), <span class="at">lty =</span> <span class="dv">1</span>,</span>
+<span id="cb17-6"><a href="#cb17-6" aria-hidden="true" tabindex="-1"></a>       <span class="at">pch =</span> <span class="fu">c</span>(<span class="cn">NA</span>, <span class="dv">1</span>), <span class="at">col =</span> <span class="fu">c</span>(<span class="st">"red"</span>, <span class="st">"black"</span>))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output-display">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="index_files/figure-html/unnamed-chunk-14-1.svg" class="img-fluid figure-img" style="width:100.0%"></p>
+</figure>
+</div>
+</div>
+</div>
+<p>Como comentado em outro post, pode-se produzir visualizações mais elegantes usando o <code>ggplot2</code>, mas o pacote não “conversa” bem com os objetos típicos de séries de tempo. Um jeito de contornar isto é usando a função <code>autoplot()</code> do pacote <code>forecast</code>. Abaixo, reestimo o modelo usando a função <code>arima</code>. Este passo é necessário para usar a função <code>autoplot()</code>.</p>
+<div class="cell" data-layout-align="center">
+<div class="sourceCode cell-code" id="cb18"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a>m <span class="ot">&lt;-</span> <span class="fu">arima</span>(train, <span class="at">order =</span> <span class="fu">c</span>(<span class="dv">0</span>, <span class="dv">1</span>, <span class="dv">1</span>), <span class="at">seasonal =</span> <span class="fu">list</span>(<span class="at">order =</span> <span class="fu">c</span>(<span class="dv">0</span>, <span class="dv">1</span>, <span class="dv">1</span>), <span class="at">period =</span> <span class="dv">12</span>))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>Agora podemos verificar a qualidade das nossas previsões. O gráfico abaixo foi construído funções base do R. A linha azul representa as previsões do modelo SARIMA especificado acima, enquanto que a linha vermelha representa as observações. As áreas sombreadas são intervalos de confiança: o mais escuro é de 80% e o mais claro de 95%.</p>
+<div class="cell" data-layout-align="center">
+<div class="sourceCode cell-code" id="cb19"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a><span class="fu">plot</span>(<span class="fu">forecast</span>(m, <span class="at">h =</span> <span class="fu">length</span>(test)))</span>
+<span id="cb19-2"><a href="#cb19-2" aria-hidden="true" tabindex="-1"></a><span class="fu">lines</span>(test, <span class="at">col =</span> <span class="st">"black"</span>)</span>
+<span id="cb19-3"><a href="#cb19-3" aria-hidden="true" tabindex="-1"></a><span class="fu">legend</span>(<span class="st">"topleft"</span>,</span>
+<span id="cb19-4"><a href="#cb19-4" aria-hidden="true" tabindex="-1"></a>       <span class="at">legend =</span> <span class="fu">c</span>(<span class="st">"Previsto"</span>, <span class="st">"Observado"</span>),</span>
+<span id="cb19-5"><a href="#cb19-5" aria-hidden="true" tabindex="-1"></a>       <span class="at">lty =</span> <span class="dv">1</span>, <span class="at">col =</span> <span class="fu">c</span>(<span class="st">"red"</span>, <span class="st">"black"</span>))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output-display">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="index_files/figure-html/unnamed-chunk-16-1.svg" class="img-fluid figure-img" style="width:100.0%"></p>
+</figure>
+</div>
+</div>
+</div>
+<p>Usando o autoplot temos o seguinte resultado:</p>
+<div class="cell" data-layout-align="center">
+<div class="sourceCode cell-code" id="cb20"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a><span class="fu">autoplot</span>(<span class="fu">forecast</span>(m, <span class="at">h =</span> <span class="fu">length</span>(test)), <span class="at">include =</span> <span class="dv">50</span>) <span class="sc">+</span></span>
+<span id="cb20-2"><a href="#cb20-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">autolayer</span>(test) <span class="sc">+</span></span>
+<span id="cb20-3"><a href="#cb20-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="st">""</span>, <span class="at">y =</span> <span class="st">""</span>) <span class="sc">+</span> </span>
+<span id="cb20-4"><a href="#cb20-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_bw</span>() <span class="sc">+</span></span>
+<span id="cb20-5"><a href="#cb20-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme</span>(<span class="at">legend.position =</span> <span class="st">"none"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output-display">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="index_files/figure-html/unnamed-chunk-17-1.svg" class="img-fluid figure-img" style="width:100.0%"></p>
+</figure>
+</div>
+</div>
+</div>
+</section>
+</section>
+<section id="conclusão" class="level1">
+<h1>Conclusão</h1>
+<p>Os modelos SARIMA são uma extensão aos modelos ARIMA que acrescentam um componente sazonal nos dados. O exemplo acima mostrou uma série com frequência mensal, mas a mesma lógica se aplica a séries com sazonalidade semestral, trimestral, etc.</p>
+<p>Estes modelos geram boas previsões e são fáceis de estimar o que explica a sua popularidade.</p>
+
+
+</section>
+
+</main> <!-- /main -->
+<script id="quarto-html-after-body" type="application/javascript">
+window.document.addEventListener("DOMContentLoaded", function (event) {
+  const toggleBodyColorMode = (bsSheetEl) => {
+    const mode = bsSheetEl.getAttribute("data-mode");
+    const bodyEl = window.document.querySelector("body");
+    if (mode === "dark") {
+      bodyEl.classList.add("quarto-dark");
+      bodyEl.classList.remove("quarto-light");
+    } else {
+      bodyEl.classList.add("quarto-light");
+      bodyEl.classList.remove("quarto-dark");
+    }
+  }
+  const toggleBodyColorPrimary = () => {
+    const bsSheetEl = window.document.querySelector("link#quarto-bootstrap");
+    if (bsSheetEl) {
+      toggleBodyColorMode(bsSheetEl);
+    }
+  }
+  toggleBodyColorPrimary();  
+  const icon = "";
+  const anchorJS = new window.AnchorJS();
+  anchorJS.options = {
+    placement: 'right',
+    icon: icon
+  };
+  anchorJS.add('.anchored');
+  const clipboard = new window.ClipboardJS('.code-copy-button', {
+    target: function(trigger) {
+      return trigger.previousElementSibling;
+    }
+  });
+  clipboard.on('success', function(e) {
+    // button target
+    const button = e.trigger;
+    // don't keep focus
+    button.blur();
+    // flash "checked"
+    button.classList.add('code-copy-button-checked');
+    var currentTitle = button.getAttribute("title");
+    button.setAttribute("title", "Copied!");
+    let tooltip;
+    if (window.bootstrap) {
+      button.setAttribute("data-bs-toggle", "tooltip");
+      button.setAttribute("data-bs-placement", "left");
+      button.setAttribute("data-bs-title", "Copied!");
+      tooltip = new bootstrap.Tooltip(button, 
+        { trigger: "manual", 
+          customClass: "code-copy-button-tooltip",
+          offset: [0, -8]});
+      tooltip.show();    
+    }
+    setTimeout(function() {
+      if (tooltip) {
+        tooltip.hide();
+        button.removeAttribute("data-bs-title");
+        button.removeAttribute("data-bs-toggle");
+        button.removeAttribute("data-bs-placement");
+      }
+      button.setAttribute("title", currentTitle);
+      button.classList.remove('code-copy-button-checked');
+    }, 1000);
+    // clear code selection
+    e.clearSelection();
+  });
+  function tippyHover(el, contentFn) {
+    const config = {
+      allowHTML: true,
+      content: contentFn,
+      maxWidth: 500,
+      delay: 100,
+      arrow: false,
+      appendTo: function(el) {
+          return el.parentElement;
+      },
+      interactive: true,
+      interactiveBorder: 10,
+      theme: 'quarto',
+      placement: 'bottom-start'
+    };
+    window.tippy(el, config); 
+  }
+  const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+  for (var i=0; i<noterefs.length; i++) {
+    const ref = noterefs[i];
+    tippyHover(ref, function() {
+      // use id or data attribute instead here
+      let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+      try { href = new URL(href).hash; } catch {}
+      const id = href.replace(/^#\/?/, "");
+      const note = window.document.getElementById(id);
+      return note.innerHTML;
+    });
+  }
+  const findCites = (el) => {
+    const parentEl = el.parentElement;
+    if (parentEl) {
+      const cites = parentEl.dataset.cites;
+      if (cites) {
+        return {
+          el,
+          cites: cites.split(' ')
+        };
+      } else {
+        return findCites(el.parentElement)
+      }
+    } else {
+      return undefined;
+    }
+  };
+  var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+  for (var i=0; i<bibliorefs.length; i++) {
+    const ref = bibliorefs[i];
+    const citeInfo = findCites(ref);
+    if (citeInfo) {
+      tippyHover(citeInfo.el, function() {
+        var popup = window.document.createElement('div');
+        citeInfo.cites.forEach(function(cite) {
+          var citeDiv = window.document.createElement('div');
+          citeDiv.classList.add('hanging-indent');
+          citeDiv.classList.add('csl-entry');
+          var biblioDiv = window.document.getElementById('ref-' + cite);
+          if (biblioDiv) {
+            citeDiv.innerHTML = biblioDiv.innerHTML;
+          }
+          popup.appendChild(citeDiv);
+        });
+        return popup.innerHTML;
+      });
+    }
+  }
+});
+</script>
+<script src="https://giscus.app/client.js" data-repo="viniciusoike/modelodomundo" data-repo-id="" data-category="General" data-category-id="" data-mapping="title" data-reactions-enabled="1" data-emit-metadata="0" data-input-position="top" data-theme="light" data-lang="en" crossorigin="anonymous" async="">
+</script>
+</div> <!-- /content -->
+
+
+
+</body></html>

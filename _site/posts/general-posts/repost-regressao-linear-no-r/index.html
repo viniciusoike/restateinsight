@@ -1,0 +1,1480 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.2.335">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+<meta name="author" content="Vinicius Oike">
+<meta name="dcterms.date" content="2019-03-21">
+<meta name="description" content="Fazendo regressão linear simples no R">
+
+<title>Vinicius Oike - Regressão Linear no R</title>
+<style>
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1.6em;
+  vertical-align: middle;
+}
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+    color: #aaaaaa;
+  }
+pre.numberSource { margin-left: 3em; border-left: 1px solid #aaaaaa;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+code span.al { color: #ff0000; font-weight: bold; } /* Alert */
+code span.an { color: #60a0b0; font-weight: bold; font-style: italic; } /* Annotation */
+code span.at { color: #7d9029; } /* Attribute */
+code span.bn { color: #40a070; } /* BaseN */
+code span.bu { color: #008000; } /* BuiltIn */
+code span.cf { color: #007020; font-weight: bold; } /* ControlFlow */
+code span.ch { color: #4070a0; } /* Char */
+code span.cn { color: #880000; } /* Constant */
+code span.co { color: #60a0b0; font-style: italic; } /* Comment */
+code span.cv { color: #60a0b0; font-weight: bold; font-style: italic; } /* CommentVar */
+code span.do { color: #ba2121; font-style: italic; } /* Documentation */
+code span.dt { color: #902000; } /* DataType */
+code span.dv { color: #40a070; } /* DecVal */
+code span.er { color: #ff0000; font-weight: bold; } /* Error */
+code span.ex { } /* Extension */
+code span.fl { color: #40a070; } /* Float */
+code span.fu { color: #06287e; } /* Function */
+code span.im { color: #008000; font-weight: bold; } /* Import */
+code span.in { color: #60a0b0; font-weight: bold; font-style: italic; } /* Information */
+code span.kw { color: #007020; font-weight: bold; } /* Keyword */
+code span.op { color: #666666; } /* Operator */
+code span.ot { color: #007020; } /* Other */
+code span.pp { color: #bc7a00; } /* Preprocessor */
+code span.sc { color: #4070a0; } /* SpecialChar */
+code span.ss { color: #bb6688; } /* SpecialString */
+code span.st { color: #4070a0; } /* String */
+code span.va { color: #19177c; } /* Variable */
+code span.vs { color: #4070a0; } /* VerbatimString */
+code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warning */
+</style>
+
+
+<script src="../../../site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="../../../site_libs/quarto-nav/headroom.min.js"></script>
+<script src="../../../site_libs/clipboard/clipboard.min.js"></script>
+<script src="../../../site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="../../../site_libs/quarto-search/fuse.min.js"></script>
+<script src="../../../site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="../../../">
+<script src="../../../site_libs/quarto-html/quarto.js"></script>
+<script src="../../../site_libs/quarto-html/popper.min.js"></script>
+<script src="../../../site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="../../../site_libs/quarto-html/anchor.min.js"></script>
+<link href="../../../site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="../../../site_libs/quarto-html/quarto-syntax-highlighting.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="../../../site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="../../../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="../../../site_libs/bootstrap/bootstrap.min.css" rel="stylesheet" id="quarto-bootstrap" data-mode="light">
+<script id="quarto-search-options" type="application/json">{
+  "location": "navbar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "end",
+  "type": "overlay",
+  "limit": 20,
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit"
+  }
+}</script>
+
+<script src="../../../site_libs/kePrint-0.0.1/kePrint.js"></script>
+<link href="../../../site_libs/lightable-0.0.1/lightable.css" rel="stylesheet">
+
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script>
+
+<link rel="stylesheet" href="../../../styles.css">
+</head>
+
+<body class="nav-fixed">
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top">
+    <nav class="navbar navbar-expand-lg navbar-dark ">
+      <div class="navbar-container container-fluid">
+      <div class="navbar-brand-container">
+    <a class="navbar-brand" href="../../../index.html">
+    <span class="navbar-title">Vinicius Oike</span>
+    </a>
+  </div>
+          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" aria-expanded="false" aria-label="Toggle navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+  <span class="navbar-toggler-icon"></span>
+</button>
+          <div class="collapse navbar-collapse" id="navbarCollapse">
+            <ul class="navbar-nav navbar-nav-scroll ms-auto">
+  <li class="nav-item">
+    <a class="nav-link" href="../../../blog.html">
+ <span class="menu-text">Blog</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../../../my_apps.html">
+ <span class="menu-text">Apps</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../../../aboutme.html">
+ <span class="menu-text">Sobre</span></a>
+  </li>  
+  <li class="nav-item compact">
+    <a class="nav-link" href="https://github.com/viniciusoike"><i class="bi bi-github" role="img">
+</i> 
+ <span class="menu-text"></span></a>
+  </li>  
+  <li class="nav-item compact">
+    <a class="nav-link" href="https://twitter.com/viniciusoike"><i class="bi bi-twitter" role="img">
+</i> 
+ <span class="menu-text"></span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../../../archive.html">
+ <span class="menu-text">Archive</span></a>
+  </li>  
+</ul>
+              <div id="quarto-search" class="" title="Search"></div>
+          </div> <!-- /navcollapse -->
+      </div> <!-- /container-fluid -->
+    </nav>
+</header>
+<!-- content -->
+<header id="title-block-header" class="quarto-title-block default page-columns page-full">
+  <div class="quarto-title-banner page-columns page-full">
+    <div class="quarto-title column-body">
+      <h1 class="title">Regressão Linear no R</h1>
+                  <div>
+        <div class="description">
+          Fazendo regressão linear simples no R
+        </div>
+      </div>
+                          <div class="quarto-categories">
+                <div class="quarto-category">econometria</div>
+                <div class="quarto-category">tutorial-R</div>
+              </div>
+                  </div>
+  </div>
+    
+  
+  <div class="quarto-title-meta">
+
+      <div>
+      <div class="quarto-title-meta-heading">Author</div>
+      <div class="quarto-title-meta-contents">
+               <p>Vinicius Oike </p>
+            </div>
+    </div>
+      
+      <div>
+      <div class="quarto-title-meta-heading">Published</div>
+      <div class="quarto-title-meta-contents">
+        <p class="date">March 21, 2019</p>
+      </div>
+    </div>
+    
+      
+    </div>
+    
+  
+  </header><div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article page-navbar">
+<!-- sidebar -->
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">On this page</h2>
+   
+  <ul>
+  <li><a href="#introdução" id="toc-introdução" class="nav-link active" data-scroll-target="#introdução">Introdução</a>
+  <ul class="collapse">
+  <li><a href="#pacotes" id="toc-pacotes" class="nav-link" data-scroll-target="#pacotes">Pacotes</a></li>
+  <li><a href="#teoria" id="toc-teoria" class="nav-link" data-scroll-target="#teoria">Teoria</a>
+  <ul class="collapse">
+  <li><a href="#exemplo-cigarros" id="toc-exemplo-cigarros" class="nav-link" data-scroll-target="#exemplo-cigarros">Exemplo: Cigarros</a></li>
+  </ul></li>
+  <li><a href="#regressão-múltipla" id="toc-regressão-múltipla" class="nav-link" data-scroll-target="#regressão-múltipla">Regressão múltipla</a>
+  <ul class="collapse">
+  <li><a href="#exemplo-cigarros-de-novo" id="toc-exemplo-cigarros-de-novo" class="nav-link" data-scroll-target="#exemplo-cigarros-de-novo">Exemplo: cigarros (de novo)</a></li>
+  <li><a href="#exemplo-salário" id="toc-exemplo-salário" class="nav-link" data-scroll-target="#exemplo-salário">Exemplo: salário</a></li>
+  </ul></li>
+  <li><a href="#não-linearidades" id="toc-não-linearidades" class="nav-link" data-scroll-target="#não-linearidades">Não-linearidades</a>
+  <ul class="collapse">
+  <li><a href="#logaritmos-e-potências" id="toc-logaritmos-e-potências" class="nav-link" data-scroll-target="#logaritmos-e-potências">Logaritmos e potências</a></li>
+  <li><a href="#interações-entre-variáveis" id="toc-interações-entre-variáveis" class="nav-link" data-scroll-target="#interações-entre-variáveis">Interações entre variáveis</a></li>
+  <li><a href="#exemplo-variáveis-dummy" id="toc-exemplo-variáveis-dummy" class="nav-link" data-scroll-target="#exemplo-variáveis-dummy">Exemplo: variáveis dummy</a></li>
+  </ul></li>
+  <li><a href="#testes" id="toc-testes" class="nav-link" data-scroll-target="#testes">Testes</a>
+  <ul class="collapse">
+  <li><a href="#usando-o-stargazer" id="toc-usando-o-stargazer" class="nav-link" data-scroll-target="#usando-o-stargazer">Usando o stargazer</a></li>
+  <li><a href="#usando-o-ggplot2" id="toc-usando-o-ggplot2" class="nav-link" data-scroll-target="#usando-o-ggplot2">Usando o ggplot2</a></li>
+  </ul></li>
+  </ul></li>
+  </ul>
+</nav>
+    </div>
+<!-- main -->
+<main class="content quarto-banner-title-block" id="quarto-document-content">
+
+
+
+
+<div class="cell">
+<div class="sourceCode cell-code" id="cb1"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(stargazer)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stderr">
+<pre><code>
+Please cite as: </code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code> Hlavac, Marek (2022). stargazer: Well-Formatted Regression and Summary Statistics Tables.</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code> R package version 5.2.3. https://CRAN.R-project.org/package=stargazer </code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb5"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(kableExtra)</span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(magrittr)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<section id="introdução" class="level1">
+<h1>Introdução</h1>
+<section id="pacotes" class="level2">
+<h2 class="anchored" data-anchor-id="pacotes">Pacotes</h2>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb6"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Instalar os pacotes se necessário</span></span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a><span class="fu">install.packages</span>(<span class="fu">c</span>(<span class="st">"AER"</span>, <span class="st">"lmtest"</span>, <span class="st">"stargazer"</span>, <span class="st">"wooldridge"</span>))</span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(AER)</span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(lmtest)</span>
+<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(stargazer)</span>
+<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(wooldridge)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+</section>
+<section id="teoria" class="level2">
+<h2 class="anchored" data-anchor-id="teoria">Teoria</h2>
+<p>Em econometria queremos explicar uma variável <span class="math inline">\(y\)</span> em função de um conjunto de regressores, ou variáveis explicativas, <span class="math inline">\(x_{1}, x_{2}, \dots, x_{k}\)</span>. Isto é, criamos um modelo matemático que explica <span class="math inline">\(y\)</span> em função destes regressores, <span class="math inline">\(y = f(x_{1}, x_{2}, \dots, x_{k})\)</span>. A forma mais simples para <span class="math inline">\(f(\dot)\)</span> é a linear, isto é,</p>
+<span class="math display">\[\begin{equation}
+  y_{t} = \beta_{0} + \beta_{1}x_{1,t} + \beta_{2}x_{2,t} + \dots + \beta_{k}x_{k,t} + u_{t}
+\end{equation}\]</span>
+<p>onde queremos estimar os valores de <span class="math inline">\(\beta_{0}, \beta_{1}, \dots, \beta_{k}\)</span>. O último termo da equação, <span class="math inline">\(u_{t}\)</span>, é geralmente denominado “ruído” ou “erro”. Os parâmetros <span class="math inline">\(\beta_{0}, \beta_{1}, \dots, \beta_{k}\)</span> nos informam os “efeitos marginais” que a variável <span class="math inline">\(x_{i}\)</span> respectiva tem sobre a variável de interesse <span class="math inline">\(y\)</span>. Em alguns casos, pode-se inclusive afirmar que o valor estimado de <span class="math inline">\(\beta_{i}\)</span> é o efeito <em>causal</em> que <span class="math inline">\(x_{i}\)</span> tem sobre <span class="math inline">\(y\)</span>.</p>
+<section id="exemplo-cigarros" class="level3">
+<h3 class="anchored" data-anchor-id="exemplo-cigarros">Exemplo: Cigarros</h3>
+<p>Digamos que o consumo de cigarros seja linearmente relacionado ao preço do maço. A base <code>CigarettesB</code> traz informações do preço do maço de cigarros e do consumo (per capita) de cigarros para 46 estados dos EUA no ano de 1992. Para carregar esta precisamos primeiro do pactoe <code>AER</code>.</p>
+<p>Para carregar pacotes no R use a função <code>library()</code>, caso ainda não tenha instalado o pacote use <code>install.packages("AER")</code> e depois carregue o pacote. Para carregar a base de dados usamos a função <code>data()</code> com o nome da base de dados como argumento, isto é, <code>data("CigarettesB")</code>.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb7"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(<span class="st">"AER"</span>)</span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a><span class="fu">data</span>(<span class="st">"CigarettesB"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<div class="cell-output-display">
+
+<table class="table table-striped table-hover table-condensed table-bordered" style="margin-left: auto; margin-right: auto;">
+ <thead>
+  <tr>
+   <th style="text-align:left;">   </th>
+   <th style="text-align:center;"> packs </th>
+   <th style="text-align:center;"> price </th>
+   <th style="text-align:center;"> income </th>
+  </tr>
+ </thead>
+<tbody>
+  <tr>
+   <td style="text-align:left;"> AL </td>
+   <td style="text-align:center;"> 4.96213 </td>
+   <td style="text-align:center;"> 0.20487 </td>
+   <td style="text-align:center;"> 4.64039 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> AZ </td>
+   <td style="text-align:center;"> 4.66312 </td>
+   <td style="text-align:center;"> 0.16640 </td>
+   <td style="text-align:center;"> 4.68389 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> AR </td>
+   <td style="text-align:center;"> 5.10709 </td>
+   <td style="text-align:center;"> 0.23406 </td>
+   <td style="text-align:center;"> 4.59435 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> CA </td>
+   <td style="text-align:center;"> 4.50449 </td>
+   <td style="text-align:center;"> 0.36399 </td>
+   <td style="text-align:center;"> 4.88147 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> CT </td>
+   <td style="text-align:center;"> 4.66983 </td>
+   <td style="text-align:center;"> 0.32149 </td>
+   <td style="text-align:center;"> 5.09472 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> DE </td>
+   <td style="text-align:center;"> 5.04705 </td>
+   <td style="text-align:center;"> 0.21929 </td>
+   <td style="text-align:center;"> 4.87087 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> DC </td>
+   <td style="text-align:center;"> 4.65637 </td>
+   <td style="text-align:center;"> 0.28946 </td>
+   <td style="text-align:center;"> 5.05960 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> FL </td>
+   <td style="text-align:center;"> 4.80081 </td>
+   <td style="text-align:center;"> 0.28733 </td>
+   <td style="text-align:center;"> 4.81155 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> GA </td>
+   <td style="text-align:center;"> 4.97974 </td>
+   <td style="text-align:center;"> 0.12826 </td>
+   <td style="text-align:center;"> 4.73299 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> ID </td>
+   <td style="text-align:center;"> 4.74902 </td>
+   <td style="text-align:center;"> 0.17541 </td>
+   <td style="text-align:center;"> 4.64307 </td>
+  </tr>
+</tbody>
+</table>
+
+</div>
+<p>Temos 46 observações de cada uma das três variáveis. Indexando cada uma delas pela letra <span class="math inline">\(i = 1, 2, \dots, 46\)</span> queremos estimar o seguinte modelo:</p>
+<p><span class="math display">\[
+  \text{Packs}_{i} = \beta_{0} + \beta_{1}\text{Price}_{i} + u_{t}
+\]</span></p>
+<p>Isto é, queremos estimar <span class="math inline">\(\beta_{0}\)</span> e <span class="math inline">\(\beta_{1}\)</span> acima. Adicionalmente, como se trata de um modelo de regressão simples (i.e., com apenas uma variável explicativa) queremos também visualizar a relação linear graficamente. Vamos começar com um gráfico de dispersão. Para montar o gráfico usamos a função <code>plot()</code>. Além disso, é conveniente trabalhar com um nome mais simples do que “CigarettesB”. Recomenda-se, em geral, que se crie objetos com nomes curtos e com letras minúsculas. Neste caso, uma opção intuitiva seria “cigar”.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb8"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="co"># "Renomeia" a tabela CigarettesB</span></span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>cigar <span class="ot">&lt;-</span> CigarettesB</span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a><span class="co"># Gráfico de dispersão</span></span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a><span class="fu">plot</span>(</span>
+<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a>  packs <span class="sc">~</span> price,</span>
+<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a>  <span class="at">data =</span> cigar,</span>
+<span id="cb8-7"><a href="#cb8-7" aria-hidden="true" tabindex="-1"></a>  <span class="at">main =</span> <span class="st">"Gráfico de dispersão entre consumo de cigarros e seu preço"</span>,</span>
+<span id="cb8-8"><a href="#cb8-8" aria-hidden="true" tabindex="-1"></a>  <span class="at">xlab =</span> <span class="st">"Consumo agregado"</span>,</span>
+<span id="cb8-9"><a href="#cb8-9" aria-hidden="true" tabindex="-1"></a>  <span class="at">ylab =</span> <span class="st">"Renda disponível"</span></span>
+<span id="cb8-10"><a href="#cb8-10" aria-hidden="true" tabindex="-1"></a>  )</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output-display">
+<p><img src="index_files/figure-html/unnamed-chunk-5-1.png" class="img-fluid" width="672"></p>
+</div>
+</div>
+<p>Para estimar o modelo usamos a função <code>lm()</code>. Esta função devolve um objeto do tipo “lm”, que é, essencialmente, uma lista de valores. Usando o operador “$” podemos acessar os diferentes valores guardados dentro do objeto “lm” criado. Usando a função a summary em torno do “lm” retorna uma saída com informações gerais sobre a regressão.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb9"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Regressão linear</span></span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>fit <span class="ot">&lt;-</span> <span class="fu">lm</span>(packs <span class="sc">~</span> price, <span class="at">data =</span> cigar)</span>
+<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a><span class="co"># Exibe os principais resultados da regressão</span></span>
+<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(fit)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>
+Call:
+lm(formula = packs ~ price, data = cigar)
+
+Residuals:
+     Min       1Q   Median       3Q      Max 
+-0.45472 -0.09968  0.00612  0.11553  0.29346 
+
+Coefficients:
+            Estimate Std. Error t value Pr(&gt;|t|)    
+(Intercept)   5.0941     0.0627  81.247  &lt; 2e-16 ***
+price        -1.1983     0.2818  -4.253 0.000108 ***
+---
+Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+
+Residual standard error: 0.163 on 44 degrees of freedom
+Multiple R-squared:  0.2913,    Adjusted R-squared:  0.2752 
+F-statistic: 18.08 on 1 and 44 DF,  p-value: 0.0001085</code></pre>
+</div>
+</div>
+<p>Como se vê parece haver uma relação linear significante entre o preço do pacote de cigarro e o seu consumo per-capita. Em particular, esta relação é negativa, como seria esperado. Para visualizar graficamente o ajuste do modelo usamos a função <code>abline()</code>.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb11"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Regressão linear</span></span>
+<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a><span class="fu">plot</span>(</span>
+<span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a>  packs <span class="sc">~</span> price,</span>
+<span id="cb11-4"><a href="#cb11-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">data =</span> cigar,</span>
+<span id="cb11-5"><a href="#cb11-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">main =</span> <span class="st">"Gráfico de dispersão entre consumo de cigarros e seu preço"</span>, </span>
+<span id="cb11-6"><a href="#cb11-6" aria-hidden="true" tabindex="-1"></a>  <span class="at">xlab =</span> <span class="st">"Consumo agregado"</span>,</span>
+<span id="cb11-7"><a href="#cb11-7" aria-hidden="true" tabindex="-1"></a>  <span class="at">ylab =</span> <span class="st">"Renda disponível"</span></span>
+<span id="cb11-8"><a href="#cb11-8" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb11-9"><a href="#cb11-9" aria-hidden="true" tabindex="-1"></a><span class="fu">abline</span>(fit<span class="sc">$</span>coefficients, <span class="at">col =</span> <span class="st">'red'</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output-display">
+<p><img src="index_files/figure-html/unnamed-chunk-7-1.png" class="img-fluid" width="672"></p>
+</div>
+</div>
+<p>Podemos facilmente visualizar o resíduo desta regressão. A função <code>residuals()</code> ou <code>resid()</code> captura os resíduos do modelo. Assim, o código abaixo salva o resíduo da estimação acima num objeto chamada <code>residuo</code>.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb12"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a>residuo <span class="ot">&lt;-</span> <span class="fu">resid</span>(fit)</span>
+<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a><span class="co"># Histograma do resíduo</span></span>
+<span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a><span class="fu">hist</span>(residuo, <span class="at">breaks =</span> <span class="st">"FD"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output-display">
+<p><img src="index_files/figure-html/unnamed-chunk-8-1.png" class="img-fluid" width="672"></p>
+</div>
+</div>
+<p>Existem outras funções que facilitam a extração de elementos específicos da estimação da regressão. O código abaixo mostra alguns exemplos.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb13"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Extrair coeficientes</span></span>
+<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a><span class="fu">coefficients</span>(fit)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>(Intercept)       price 
+   5.094108   -1.198316 </code></pre>
+</div>
+</div>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb15"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Computa o critério de Akaike</span></span>
+<span id="cb15-2"><a href="#cb15-2" aria-hidden="true" tabindex="-1"></a><span class="fu">AIC</span>(fit)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>[1] -32.39041</code></pre>
+</div>
+</div>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb17"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Extrai o R2</span></span>
+<span id="cb17-2"><a href="#cb17-2" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(fit)<span class="sc">$</span>r.squared</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>[1] 0.2912836</code></pre>
+</div>
+</div>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb19"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Extrai os valores ajustados</span></span>
+<span id="cb19-2"><a href="#cb19-2" aria-hidden="true" tabindex="-1"></a>y_estimado <span class="ot">&lt;-</span> <span class="fu">fitted</span>(fit)</span>
+<span id="cb19-3"><a href="#cb19-3" aria-hidden="true" tabindex="-1"></a><span class="co"># Plota no gráfico contra os valores observados</span></span>
+<span id="cb19-4"><a href="#cb19-4" aria-hidden="true" tabindex="-1"></a><span class="fu">plot</span>(y_estimado, cigar<span class="sc">$</span>packs)</span>
+<span id="cb19-5"><a href="#cb19-5" aria-hidden="true" tabindex="-1"></a><span class="fu">abline</span>(<span class="at">a =</span> <span class="dv">0</span>, <span class="at">b =</span> <span class="dv">1</span>, <span class="at">lty =</span> <span class="dv">2</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output-display">
+<p><img src="index_files/figure-html/unnamed-chunk-12-1.png" class="img-fluid" width="672"></p>
+</div>
+</div>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb20"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Plot do resíduo contra a variável explicativa</span></span>
+<span id="cb20-2"><a href="#cb20-2" aria-hidden="true" tabindex="-1"></a><span class="fu">plot</span>(residuo, cigar<span class="sc">$</span>price)</span>
+<span id="cb20-3"><a href="#cb20-3" aria-hidden="true" tabindex="-1"></a><span class="fu">abline</span>(<span class="at">h =</span> <span class="dv">0</span>)</span>
+<span id="cb20-4"><a href="#cb20-4" aria-hidden="true" tabindex="-1"></a><span class="fu">abline</span>(<span class="at">v =</span> <span class="dv">0</span>)</span>
+<span id="cb20-5"><a href="#cb20-5" aria-hidden="true" tabindex="-1"></a><span class="fu">grid</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output-display">
+<p><img src="index_files/figure-html/unnamed-chunk-13-1.png" class="img-fluid" width="672"></p>
+</div>
+</div>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb21"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb21-1"><a href="#cb21-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Alguns gráficos úteis para detectar outliers e o ajuste do modelo</span></span>
+<span id="cb21-2"><a href="#cb21-2" aria-hidden="true" tabindex="-1"></a><span class="fu">plot</span>(fit)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output-display">
+<p><img src="index_files/figure-html/unnamed-chunk-14-1.png" class="img-fluid" width="672"></p>
+</div>
+<div class="cell-output-display">
+<p><img src="index_files/figure-html/unnamed-chunk-14-2.png" class="img-fluid" width="672"></p>
+</div>
+<div class="cell-output-display">
+<p><img src="index_files/figure-html/unnamed-chunk-14-3.png" class="img-fluid" width="672"></p>
+</div>
+<div class="cell-output-display">
+<p><img src="index_files/figure-html/unnamed-chunk-14-4.png" class="img-fluid" width="672"></p>
+</div>
+</div>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb22"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb22-1"><a href="#cb22-1" aria-hidden="true" tabindex="-1"></a><span class="fu">predict</span>(fit, <span class="fu">data.frame</span>(<span class="at">price =</span> <span class="fl">0.5</span>), <span class="at">se.fit =</span> <span class="cn">TRUE</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>$fit
+      1 
+4.49495 
+
+$se.fit
+[1] 0.08639435
+
+$df
+[1] 44
+
+$residual.scale
+[1] 0.1630009</code></pre>
+</div>
+</div>
+</section>
+</section>
+<section id="regressão-múltipla" class="level2">
+<h2 class="anchored" data-anchor-id="regressão-múltipla">Regressão múltipla</h2>
+<section id="exemplo-cigarros-de-novo" class="level3">
+<h3 class="anchored" data-anchor-id="exemplo-cigarros-de-novo">Exemplo: cigarros (de novo)</h3>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb24"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb24-1"><a href="#cb24-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Regressão linear</span></span>
+<span id="cb24-2"><a href="#cb24-2" aria-hidden="true" tabindex="-1"></a>fit_mult <span class="ot">&lt;-</span> <span class="fu">lm</span>(packs <span class="sc">~</span> price <span class="sc">+</span> income, <span class="at">data =</span> cigar)</span>
+<span id="cb24-3"><a href="#cb24-3" aria-hidden="true" tabindex="-1"></a><span class="co"># Exibe os principais resultados da regressão</span></span>
+<span id="cb24-4"><a href="#cb24-4" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(fit_mult)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>
+Call:
+lm(formula = packs ~ price + income, data = cigar)
+
+Residuals:
+     Min       1Q   Median       3Q      Max 
+-0.41867 -0.10683  0.00757  0.11738  0.32868 
+
+Coefficients:
+            Estimate Std. Error t value Pr(&gt;|t|)    
+(Intercept)   4.2997     0.9089   4.730 2.43e-05 ***
+price        -1.3383     0.3246  -4.123 0.000168 ***
+income        0.1724     0.1968   0.876 0.385818    
+---
+Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+
+Residual standard error: 0.1634 on 43 degrees of freedom
+Multiple R-squared:  0.3037,    Adjusted R-squared:  0.2713 
+F-statistic: 9.378 on 2 and 43 DF,  p-value: 0.0004168</code></pre>
+</div>
+</div>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb26"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb26-1"><a href="#cb26-1" aria-hidden="true" tabindex="-1"></a>lmtest<span class="sc">::</span><span class="fu">waldtest</span>(fit, fit_mult)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Wald test
+
+Model 1: packs ~ price
+Model 2: packs ~ price + income
+  Res.Df Df      F Pr(&gt;F)
+1     44                 
+2     43  1 0.7676 0.3858</code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb28"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb28-1"><a href="#cb28-1" aria-hidden="true" tabindex="-1"></a>lmtest<span class="sc">::</span><span class="fu">coeftest</span>(fit_mult)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>
+t test of coefficients:
+
+            Estimate Std. Error t value  Pr(&gt;|t|)    
+(Intercept)  4.29966    0.90893  4.7305 2.434e-05 ***
+price       -1.33833    0.32460 -4.1230 0.0001676 ***
+income       0.17239    0.19675  0.8761 0.3858180    
+---
+Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1</code></pre>
+</div>
+</div>
+</section>
+<section id="exemplo-salário" class="level3">
+<h3 class="anchored" data-anchor-id="exemplo-salário">Exemplo: salário</h3>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb30"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb30-1"><a href="#cb30-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(wooldridge)</span>
+<span id="cb30-2"><a href="#cb30-2" aria-hidden="true" tabindex="-1"></a><span class="fu">data</span>(<span class="st">"wage2"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<div class="cell">
+<div class="cell-output-display">
+
+<table class="table table-hover table-bordered table-striped" style="margin-left: auto; margin-right: auto;">
+ <thead>
+  <tr>
+   <th style="text-align:center;"> wage </th>
+   <th style="text-align:center;"> hours </th>
+   <th style="text-align:center;"> IQ </th>
+   <th style="text-align:center;"> KWW </th>
+   <th style="text-align:center;"> educ </th>
+   <th style="text-align:center;"> exper </th>
+   <th style="text-align:center;"> tenure </th>
+   <th style="text-align:center;"> age </th>
+   <th style="text-align:center;"> married </th>
+   <th style="text-align:center;"> black </th>
+   <th style="text-align:center;"> south </th>
+   <th style="text-align:center;"> urban </th>
+   <th style="text-align:center;"> sibs </th>
+   <th style="text-align:center;"> brthord </th>
+   <th style="text-align:center;"> meduc </th>
+   <th style="text-align:center;"> feduc </th>
+   <th style="text-align:center;"> lwage </th>
+  </tr>
+ </thead>
+<tbody>
+  <tr>
+   <td style="text-align:center;"> 769 </td>
+   <td style="text-align:center;"> 40 </td>
+   <td style="text-align:center;"> 93 </td>
+   <td style="text-align:center;"> 35 </td>
+   <td style="text-align:center;"> 12 </td>
+   <td style="text-align:center;"> 11 </td>
+   <td style="text-align:center;"> 2 </td>
+   <td style="text-align:center;"> 31 </td>
+   <td style="text-align:center;"> 1 </td>
+   <td style="text-align:center;"> 0 </td>
+   <td style="text-align:center;"> 0 </td>
+   <td style="text-align:center;"> 1 </td>
+   <td style="text-align:center;"> 1 </td>
+   <td style="text-align:center;"> 2 </td>
+   <td style="text-align:center;"> 8 </td>
+   <td style="text-align:center;"> 8 </td>
+   <td style="text-align:center;"> 6.645091 </td>
+  </tr>
+  <tr>
+   <td style="text-align:center;"> 808 </td>
+   <td style="text-align:center;"> 50 </td>
+   <td style="text-align:center;"> 119 </td>
+   <td style="text-align:center;"> 41 </td>
+   <td style="text-align:center;"> 18 </td>
+   <td style="text-align:center;"> 11 </td>
+   <td style="text-align:center;"> 16 </td>
+   <td style="text-align:center;"> 37 </td>
+   <td style="text-align:center;"> 1 </td>
+   <td style="text-align:center;"> 0 </td>
+   <td style="text-align:center;"> 0 </td>
+   <td style="text-align:center;"> 1 </td>
+   <td style="text-align:center;"> 1 </td>
+   <td style="text-align:center;"> NA </td>
+   <td style="text-align:center;"> 14 </td>
+   <td style="text-align:center;"> 14 </td>
+   <td style="text-align:center;"> 6.694562 </td>
+  </tr>
+  <tr>
+   <td style="text-align:center;"> 825 </td>
+   <td style="text-align:center;"> 40 </td>
+   <td style="text-align:center;"> 108 </td>
+   <td style="text-align:center;"> 46 </td>
+   <td style="text-align:center;"> 14 </td>
+   <td style="text-align:center;"> 11 </td>
+   <td style="text-align:center;"> 9 </td>
+   <td style="text-align:center;"> 33 </td>
+   <td style="text-align:center;"> 1 </td>
+   <td style="text-align:center;"> 0 </td>
+   <td style="text-align:center;"> 0 </td>
+   <td style="text-align:center;"> 1 </td>
+   <td style="text-align:center;"> 1 </td>
+   <td style="text-align:center;"> 2 </td>
+   <td style="text-align:center;"> 14 </td>
+   <td style="text-align:center;"> 14 </td>
+   <td style="text-align:center;"> 6.715383 </td>
+  </tr>
+  <tr>
+   <td style="text-align:center;"> 650 </td>
+   <td style="text-align:center;"> 40 </td>
+   <td style="text-align:center;"> 96 </td>
+   <td style="text-align:center;"> 32 </td>
+   <td style="text-align:center;"> 12 </td>
+   <td style="text-align:center;"> 13 </td>
+   <td style="text-align:center;"> 7 </td>
+   <td style="text-align:center;"> 32 </td>
+   <td style="text-align:center;"> 1 </td>
+   <td style="text-align:center;"> 0 </td>
+   <td style="text-align:center;"> 0 </td>
+   <td style="text-align:center;"> 1 </td>
+   <td style="text-align:center;"> 4 </td>
+   <td style="text-align:center;"> 3 </td>
+   <td style="text-align:center;"> 12 </td>
+   <td style="text-align:center;"> 12 </td>
+   <td style="text-align:center;"> 6.476973 </td>
+  </tr>
+  <tr>
+   <td style="text-align:center;"> 562 </td>
+   <td style="text-align:center;"> 40 </td>
+   <td style="text-align:center;"> 74 </td>
+   <td style="text-align:center;"> 27 </td>
+   <td style="text-align:center;"> 11 </td>
+   <td style="text-align:center;"> 14 </td>
+   <td style="text-align:center;"> 5 </td>
+   <td style="text-align:center;"> 34 </td>
+   <td style="text-align:center;"> 1 </td>
+   <td style="text-align:center;"> 0 </td>
+   <td style="text-align:center;"> 0 </td>
+   <td style="text-align:center;"> 1 </td>
+   <td style="text-align:center;"> 10 </td>
+   <td style="text-align:center;"> 6 </td>
+   <td style="text-align:center;"> 6 </td>
+   <td style="text-align:center;"> 11 </td>
+   <td style="text-align:center;"> 6.331502 </td>
+  </tr>
+  <tr>
+   <td style="text-align:center;"> 1400 </td>
+   <td style="text-align:center;"> 40 </td>
+   <td style="text-align:center;"> 116 </td>
+   <td style="text-align:center;"> 43 </td>
+   <td style="text-align:center;"> 16 </td>
+   <td style="text-align:center;"> 14 </td>
+   <td style="text-align:center;"> 2 </td>
+   <td style="text-align:center;"> 35 </td>
+   <td style="text-align:center;"> 1 </td>
+   <td style="text-align:center;"> 1 </td>
+   <td style="text-align:center;"> 0 </td>
+   <td style="text-align:center;"> 1 </td>
+   <td style="text-align:center;"> 1 </td>
+   <td style="text-align:center;"> 2 </td>
+   <td style="text-align:center;"> 8 </td>
+   <td style="text-align:center;"> NA </td>
+   <td style="text-align:center;"> 7.244227 </td>
+  </tr>
+</tbody>
+</table>
+
+</div>
+</div>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb31"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb31-1"><a href="#cb31-1" aria-hidden="true" tabindex="-1"></a><span class="fu">names</span>(wage2)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code> [1] "wage"    "hours"   "IQ"      "KWW"     "educ"    "exper"   "tenure" 
+ [8] "age"     "married" "black"   "south"   "urban"   "sibs"    "brthord"
+[15] "meduc"   "feduc"   "lwage"  </code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb33"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb33-1"><a href="#cb33-1" aria-hidden="true" tabindex="-1"></a>fit <span class="ot">&lt;-</span> <span class="fu">lm</span>(lwage <span class="sc">~</span> educ <span class="sc">+</span> exper <span class="sc">+</span> IQ <span class="sc">+</span> tenure <span class="sc">+</span> age <span class="sc">+</span> married, <span class="at">data =</span> wage2)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+</section>
+</section>
+<section id="não-linearidades" class="level2">
+<h2 class="anchored" data-anchor-id="não-linearidades">Não-linearidades</h2>
+<p>A restrição de linearidade do modelo é somente sobre os <em>parâmetros</em>, isto é, sobre os betas. Pode-se incorporar não-linearidades de outras forma. O modelo abaixo, por exemplo, continua sendo um modelo de regressão linear:</p>
+<p><span class="math display">\[
+  y_{t} = \beta_{0} + \beta_{1}x_{1t}^{3} + \beta_{2}\frac{1}{x_{2t}} + \beta_{3}\text{log}(x_{3t}) + \epsilon_{t}
+\]</span></p>
+<section id="logaritmos-e-potências" class="level3">
+<h3 class="anchored" data-anchor-id="logaritmos-e-potências">Logaritmos e potências</h3>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb34"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb34-1"><a href="#cb34-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(<span class="st">"wooldridge"</span>)</span>
+<span id="cb34-2"><a href="#cb34-2" aria-hidden="true" tabindex="-1"></a><span class="fu">data</span>(<span class="st">"hprice2"</span>)</span>
+<span id="cb34-3"><a href="#cb34-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb34-4"><a href="#cb34-4" aria-hidden="true" tabindex="-1"></a>fit <span class="ot">&lt;-</span> <span class="fu">lm</span>(</span>
+<span id="cb34-5"><a href="#cb34-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">log</span>(price) <span class="sc">~</span> <span class="fu">log</span>(nox) <span class="sc">+</span> <span class="fu">log</span>(dist) <span class="sc">+</span> rooms <span class="sc">+</span> <span class="fu">I</span>(rooms<span class="sc">^</span><span class="dv">2</span>) <span class="sc">+</span> stratio,</span>
+<span id="cb34-6"><a href="#cb34-6" aria-hidden="true" tabindex="-1"></a>  <span class="at">data =</span> hprice2)</span>
+<span id="cb34-7"><a href="#cb34-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb34-8"><a href="#cb34-8" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(fit)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>
+Call:
+lm(formula = log(price) ~ log(nox) + log(dist) + rooms + I(rooms^2) + 
+    stratio, data = hprice2)
+
+Residuals:
+     Min       1Q   Median       3Q      Max 
+-1.04285 -0.12774  0.02038  0.12650  1.25272 
+
+Coefficients:
+             Estimate Std. Error t value Pr(&gt;|t|)    
+(Intercept) 13.385477   0.566473  23.630  &lt; 2e-16 ***
+log(nox)    -0.901682   0.114687  -7.862 2.34e-14 ***
+log(dist)   -0.086781   0.043281  -2.005  0.04549 *  
+rooms       -0.545113   0.165454  -3.295  0.00106 ** 
+I(rooms^2)   0.062261   0.012805   4.862 1.56e-06 ***
+stratio     -0.047590   0.005854  -8.129 3.42e-15 ***
+---
+Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+
+Residual standard error: 0.2592 on 500 degrees of freedom
+Multiple R-squared:  0.6028,    Adjusted R-squared:  0.5988 
+F-statistic: 151.8 on 5 and 500 DF,  p-value: &lt; 2.2e-16</code></pre>
+</div>
+</div>
+<p><span class="math display">\[
+  \frac{\partial log(y_{t})}{\partial log(x_{1t})}
+\]</span></p>
+</section>
+<section id="interações-entre-variáveis" class="level3">
+<h3 class="anchored" data-anchor-id="interações-entre-variáveis">Interações entre variáveis</h3>
+</section>
+<section id="exemplo-variáveis-dummy" class="level3">
+<h3 class="anchored" data-anchor-id="exemplo-variáveis-dummy">Exemplo: variáveis dummy</h3>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb36"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb36-1"><a href="#cb36-1" aria-hidden="true" tabindex="-1"></a><span class="fu">data</span>(<span class="st">"lawsch85"</span>)</span>
+<span id="cb36-2"><a href="#cb36-2" aria-hidden="true" tabindex="-1"></a>d <span class="ot">&lt;-</span> lawsch85</span>
+<span id="cb36-3"><a href="#cb36-3" aria-hidden="true" tabindex="-1"></a>d<span class="sc">$</span>top10   <span class="ot">&lt;-</span> <span class="fu">ifelse</span>(<span class="at">test =</span> d<span class="sc">$</span>rank <span class="sc">&lt;=</span> <span class="dv">10</span>, <span class="at">yes =</span> <span class="dv">1</span>, <span class="at">no =</span> <span class="dv">0</span>)</span>
+<span id="cb36-4"><a href="#cb36-4" aria-hidden="true" tabindex="-1"></a>d<span class="sc">$</span>r11_25  <span class="ot">&lt;-</span> <span class="fu">ifelse</span>(<span class="at">test =</span> d<span class="sc">$</span>rank <span class="sc">&gt;</span> <span class="dv">10</span> <span class="sc">&amp;</span> d<span class="sc">$</span>rank <span class="sc">&lt;=</span> <span class="dv">25</span>, <span class="at">yes =</span> <span class="dv">1</span>, <span class="at">no =</span> <span class="dv">0</span>)</span>
+<span id="cb36-5"><a href="#cb36-5" aria-hidden="true" tabindex="-1"></a>d<span class="sc">$</span>r26_40  <span class="ot">&lt;-</span> <span class="fu">ifelse</span>(<span class="at">test =</span> d<span class="sc">$</span>rank <span class="sc">&gt;</span> <span class="dv">25</span> <span class="sc">&amp;</span> d<span class="sc">$</span>rank <span class="sc">&lt;=</span> <span class="dv">40</span>, <span class="at">yes =</span> <span class="dv">1</span>, <span class="at">no =</span> <span class="dv">0</span>)</span>
+<span id="cb36-6"><a href="#cb36-6" aria-hidden="true" tabindex="-1"></a>d<span class="sc">$</span>r41_60  <span class="ot">&lt;-</span> <span class="fu">ifelse</span>(<span class="at">test =</span> d<span class="sc">$</span>rank <span class="sc">&gt;</span> <span class="dv">40</span> <span class="sc">&amp;</span> d<span class="sc">$</span>rank <span class="sc">&lt;=</span> <span class="dv">60</span>, <span class="at">yes =</span> <span class="dv">1</span>, <span class="at">no =</span> <span class="dv">0</span>)</span>
+<span id="cb36-7"><a href="#cb36-7" aria-hidden="true" tabindex="-1"></a>d<span class="sc">$</span>r61_100 <span class="ot">&lt;-</span> <span class="fu">ifelse</span>(<span class="at">test =</span> d<span class="sc">$</span>rank <span class="sc">&gt;</span> <span class="dv">60</span> <span class="sc">&amp;</span> d<span class="sc">$</span>rank <span class="sc">&lt;=</span> <span class="dv">100</span>, <span class="at">yes =</span> <span class="dv">1</span>, <span class="at">no =</span> <span class="dv">0</span>)</span>
+<span id="cb36-8"><a href="#cb36-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb36-9"><a href="#cb36-9" aria-hidden="true" tabindex="-1"></a>fit <span class="ot">&lt;-</span> <span class="fu">lm</span>(</span>
+<span id="cb36-10"><a href="#cb36-10" aria-hidden="true" tabindex="-1"></a>  <span class="fu">log</span>(salary) <span class="sc">~</span> top10 <span class="sc">+</span> r11_25 <span class="sc">+</span> r26_40 <span class="sc">+</span> r41_60 <span class="sc">+</span> r61_100 <span class="sc">+</span> LSAT <span class="sc">+</span></span>
+<span id="cb36-11"><a href="#cb36-11" aria-hidden="true" tabindex="-1"></a>                GPA <span class="sc">+</span> <span class="fu">log</span>(llibvol) <span class="sc">+</span> lcost,</span>
+<span id="cb36-12"><a href="#cb36-12" aria-hidden="true" tabindex="-1"></a>  <span class="at">data =</span> d)</span>
+<span id="cb36-13"><a href="#cb36-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb36-14"><a href="#cb36-14" aria-hidden="true" tabindex="-1"></a>fit</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>
+Call:
+lm(formula = log(salary) ~ top10 + r11_25 + r26_40 + r41_60 + 
+    r61_100 + LSAT + GPA + log(llibvol) + lcost, data = d)
+
+Coefficients:
+ (Intercept)         top10        r11_25        r26_40        r41_60  
+   9.0089365     0.7005341     0.5937752     0.3747281     0.2623565  
+     r61_100          LSAT           GPA  log(llibvol)         lcost  
+   0.1312513     0.0056522     0.0147991     0.2110607     0.0007824  </code></pre>
+</div>
+</div>
+</section>
+</section>
+<section id="testes" class="level2">
+<h2 class="anchored" data-anchor-id="testes">Testes</h2>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb38"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb38-1"><a href="#cb38-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(wooldridge)</span>
+<span id="cb38-2"><a href="#cb38-2" aria-hidden="true" tabindex="-1"></a><span class="fu">data</span>(<span class="st">"wage2"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<div class="cell">
+<div class="cell-output-display">
+
+<table class="table table-hover table-striped table-bordered" style="margin-left: auto; margin-right: auto;">
+ <thead>
+  <tr>
+   <th style="text-align:center;"> wage </th>
+   <th style="text-align:center;"> hours </th>
+   <th style="text-align:center;"> IQ </th>
+   <th style="text-align:center;"> KWW </th>
+   <th style="text-align:center;"> educ </th>
+   <th style="text-align:center;"> exper </th>
+   <th style="text-align:center;"> tenure </th>
+   <th style="text-align:center;"> age </th>
+   <th style="text-align:center;"> married </th>
+   <th style="text-align:center;"> black </th>
+   <th style="text-align:center;"> south </th>
+   <th style="text-align:center;"> urban </th>
+   <th style="text-align:center;"> sibs </th>
+   <th style="text-align:center;"> brthord </th>
+   <th style="text-align:center;"> meduc </th>
+   <th style="text-align:center;"> feduc </th>
+   <th style="text-align:center;"> lwage </th>
+  </tr>
+ </thead>
+<tbody>
+  <tr>
+   <td style="text-align:center;"> 769 </td>
+   <td style="text-align:center;"> 40 </td>
+   <td style="text-align:center;"> 93 </td>
+   <td style="text-align:center;"> 35 </td>
+   <td style="text-align:center;"> 12 </td>
+   <td style="text-align:center;"> 11 </td>
+   <td style="text-align:center;"> 2 </td>
+   <td style="text-align:center;"> 31 </td>
+   <td style="text-align:center;"> 1 </td>
+   <td style="text-align:center;"> 0 </td>
+   <td style="text-align:center;"> 0 </td>
+   <td style="text-align:center;"> 1 </td>
+   <td style="text-align:center;"> 1 </td>
+   <td style="text-align:center;"> 2 </td>
+   <td style="text-align:center;"> 8 </td>
+   <td style="text-align:center;"> 8 </td>
+   <td style="text-align:center;"> 6.645091 </td>
+  </tr>
+  <tr>
+   <td style="text-align:center;"> 808 </td>
+   <td style="text-align:center;"> 50 </td>
+   <td style="text-align:center;"> 119 </td>
+   <td style="text-align:center;"> 41 </td>
+   <td style="text-align:center;"> 18 </td>
+   <td style="text-align:center;"> 11 </td>
+   <td style="text-align:center;"> 16 </td>
+   <td style="text-align:center;"> 37 </td>
+   <td style="text-align:center;"> 1 </td>
+   <td style="text-align:center;"> 0 </td>
+   <td style="text-align:center;"> 0 </td>
+   <td style="text-align:center;"> 1 </td>
+   <td style="text-align:center;"> 1 </td>
+   <td style="text-align:center;"> NA </td>
+   <td style="text-align:center;"> 14 </td>
+   <td style="text-align:center;"> 14 </td>
+   <td style="text-align:center;"> 6.694562 </td>
+  </tr>
+  <tr>
+   <td style="text-align:center;"> 825 </td>
+   <td style="text-align:center;"> 40 </td>
+   <td style="text-align:center;"> 108 </td>
+   <td style="text-align:center;"> 46 </td>
+   <td style="text-align:center;"> 14 </td>
+   <td style="text-align:center;"> 11 </td>
+   <td style="text-align:center;"> 9 </td>
+   <td style="text-align:center;"> 33 </td>
+   <td style="text-align:center;"> 1 </td>
+   <td style="text-align:center;"> 0 </td>
+   <td style="text-align:center;"> 0 </td>
+   <td style="text-align:center;"> 1 </td>
+   <td style="text-align:center;"> 1 </td>
+   <td style="text-align:center;"> 2 </td>
+   <td style="text-align:center;"> 14 </td>
+   <td style="text-align:center;"> 14 </td>
+   <td style="text-align:center;"> 6.715383 </td>
+  </tr>
+  <tr>
+   <td style="text-align:center;"> 650 </td>
+   <td style="text-align:center;"> 40 </td>
+   <td style="text-align:center;"> 96 </td>
+   <td style="text-align:center;"> 32 </td>
+   <td style="text-align:center;"> 12 </td>
+   <td style="text-align:center;"> 13 </td>
+   <td style="text-align:center;"> 7 </td>
+   <td style="text-align:center;"> 32 </td>
+   <td style="text-align:center;"> 1 </td>
+   <td style="text-align:center;"> 0 </td>
+   <td style="text-align:center;"> 0 </td>
+   <td style="text-align:center;"> 1 </td>
+   <td style="text-align:center;"> 4 </td>
+   <td style="text-align:center;"> 3 </td>
+   <td style="text-align:center;"> 12 </td>
+   <td style="text-align:center;"> 12 </td>
+   <td style="text-align:center;"> 6.476973 </td>
+  </tr>
+  <tr>
+   <td style="text-align:center;"> 562 </td>
+   <td style="text-align:center;"> 40 </td>
+   <td style="text-align:center;"> 74 </td>
+   <td style="text-align:center;"> 27 </td>
+   <td style="text-align:center;"> 11 </td>
+   <td style="text-align:center;"> 14 </td>
+   <td style="text-align:center;"> 5 </td>
+   <td style="text-align:center;"> 34 </td>
+   <td style="text-align:center;"> 1 </td>
+   <td style="text-align:center;"> 0 </td>
+   <td style="text-align:center;"> 0 </td>
+   <td style="text-align:center;"> 1 </td>
+   <td style="text-align:center;"> 10 </td>
+   <td style="text-align:center;"> 6 </td>
+   <td style="text-align:center;"> 6 </td>
+   <td style="text-align:center;"> 11 </td>
+   <td style="text-align:center;"> 6.331502 </td>
+  </tr>
+  <tr>
+   <td style="text-align:center;"> 1400 </td>
+   <td style="text-align:center;"> 40 </td>
+   <td style="text-align:center;"> 116 </td>
+   <td style="text-align:center;"> 43 </td>
+   <td style="text-align:center;"> 16 </td>
+   <td style="text-align:center;"> 14 </td>
+   <td style="text-align:center;"> 2 </td>
+   <td style="text-align:center;"> 35 </td>
+   <td style="text-align:center;"> 1 </td>
+   <td style="text-align:center;"> 1 </td>
+   <td style="text-align:center;"> 0 </td>
+   <td style="text-align:center;"> 1 </td>
+   <td style="text-align:center;"> 1 </td>
+   <td style="text-align:center;"> 2 </td>
+   <td style="text-align:center;"> 8 </td>
+   <td style="text-align:center;"> NA </td>
+   <td style="text-align:center;"> 7.244227 </td>
+  </tr>
+</tbody>
+</table>
+
+</div>
+</div>
+<section id="usando-o-stargazer" class="level3">
+<h3 class="anchored" data-anchor-id="usando-o-stargazer">Usando o stargazer</h3>
+<p>O pacote <code>stargazer</code> facilita muito a publicação dos resultados de uma regressão. Depois de carregar o pacote simplesmente use a função <code>stargazer()</code> num objeto <code>lm</code>. Lembre-se que para verificar a classe de um objeto usamos a função <code>class()</code>.</p>
+<div class="cell">
+
+</div>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb39"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb39-1"><a href="#cb39-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Carregar pacote adicional de temas</span></span>
+<span id="cb39-2"><a href="#cb39-2" aria-hidden="true" tabindex="-1"></a><span class="fu">class</span>(fit)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>[1] "lm"</code></pre>
+</div>
+</div>
+<p>Note que abaixo chamo a função usando o argumento <code>type = 'html'</code>, pois estou usando o RMarkdown para fazer este site. Outras opções incluem <code>type = 'text'</code>, que retorna uma tabela simples estilo .txt, e <code>type = 'latex'</code>, que retorna uma tabela no formato <a href="https://www.latex-project.org/">LaTeX</a>.</p>
+<div class="sourceCode cell-code" id="cb41"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb41-1"><a href="#cb41-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Carregar pacote adicional de temas</span></span>
+<span id="cb41-2"><a href="#cb41-2" aria-hidden="true" tabindex="-1"></a><span class="fu">stargazer</span>(fit,</span>
+<span id="cb41-3"><a href="#cb41-3" aria-hidden="true" tabindex="-1"></a>          <span class="at">type =</span> <span class="st">"html"</span>,</span>
+<span id="cb41-4"><a href="#cb41-4" aria-hidden="true" tabindex="-1"></a>          <span class="at">title =</span> <span class="st">"Resultados da regressão"</span>,</span>
+<span id="cb41-5"><a href="#cb41-5" aria-hidden="true" tabindex="-1"></a>          <span class="at">covariate.labels =</span> <span class="fu">c</span>(<span class="st">"Preço"</span>, <span class="st">"Renda individual"</span>, <span class="st">"constante"</span>),</span>
+<span id="cb41-6"><a href="#cb41-6" aria-hidden="true" tabindex="-1"></a>          <span class="at">dep.var.labels =</span> <span class="st">"Pacotes de cigarro"</span></span>
+<span id="cb41-7"><a href="#cb41-7" aria-hidden="true" tabindex="-1"></a>          )</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+
+<table style="text-align:center">
+<caption>
+<strong>Resultados da regressão</strong>
+</caption>
+<tbody><tr>
+<td colspan="2" style="border-bottom: 1px solid black">
+</td>
+</tr>
+<tr>
+<td style="text-align:left">
+</td>
+<td>
+<em>Dependent variable:</em>
+</td>
+</tr>
+<tr>
+<td>
+</td>
+<td colspan="1" style="border-bottom: 1px solid black">
+</td>
+</tr>
+<tr>
+<td style="text-align:left">
+</td>
+<td>
+Pacotes de cigarro
+</td>
+</tr>
+<tr>
+<td colspan="2" style="border-bottom: 1px solid black">
+</td>
+</tr>
+<tr>
+<td style="text-align:left">
+Preço
+</td>
+<td>
+0.701<sup>***</sup>
+</td>
+</tr>
+<tr>
+<td style="text-align:left">
+</td>
+<td>
+(0.053)
+</td>
+</tr>
+<tr>
+<td style="text-align:left">
+</td>
+<td>
+</td>
+</tr>
+<tr>
+<td style="text-align:left">
+Renda individual
+</td>
+<td>
+0.594<sup>***</sup>
+</td>
+</tr>
+<tr>
+<td style="text-align:left">
+</td>
+<td>
+(0.039)
+</td>
+</tr>
+<tr>
+<td style="text-align:left">
+</td>
+<td>
+</td>
+</tr>
+<tr>
+<td style="text-align:left">
+constante
+</td>
+<td>
+0.375<sup>***</sup>
+</td>
+</tr>
+<tr>
+<td style="text-align:left">
+</td>
+<td>
+(0.034)
+</td>
+</tr>
+<tr>
+<td style="text-align:left">
+</td>
+<td>
+</td>
+</tr>
+<tr>
+<td style="text-align:left">
+r41_60
+</td>
+<td>
+0.262<sup>***</sup>
+</td>
+</tr>
+<tr>
+<td style="text-align:left">
+</td>
+<td>
+(0.028)
+</td>
+</tr>
+<tr>
+<td style="text-align:left">
+</td>
+<td>
+</td>
+</tr>
+<tr>
+<td style="text-align:left">
+r61_100
+</td>
+<td>
+0.131<sup>***</sup>
+</td>
+</tr>
+<tr>
+<td style="text-align:left">
+</td>
+<td>
+(0.021)
+</td>
+</tr>
+<tr>
+<td style="text-align:left">
+</td>
+<td>
+</td>
+</tr>
+<tr>
+<td style="text-align:left">
+LSAT
+</td>
+<td>
+0.006<sup>*</sup>
+</td>
+</tr>
+<tr>
+<td style="text-align:left">
+</td>
+<td>
+(0.003)
+</td>
+</tr>
+<tr>
+<td style="text-align:left">
+</td>
+<td>
+</td>
+</tr>
+<tr>
+<td style="text-align:left">
+GPA
+</td>
+<td>
+0.015
+</td>
+</tr>
+<tr>
+<td style="text-align:left">
+</td>
+<td>
+(0.074)
+</td>
+</tr>
+<tr>
+<td style="text-align:left">
+</td>
+<td>
+</td>
+</tr>
+<tr>
+<td style="text-align:left">
+log(llibvol)
+</td>
+<td>
+0.211
+</td>
+</tr>
+<tr>
+<td style="text-align:left">
+</td>
+<td>
+(0.152)
+</td>
+</tr>
+<tr>
+<td style="text-align:left">
+</td>
+<td>
+</td>
+</tr>
+<tr>
+<td style="text-align:left">
+lcost
+</td>
+<td>
+0.001
+</td>
+</tr>
+<tr>
+<td style="text-align:left">
+</td>
+<td>
+(0.025)
+</td>
+</tr>
+<tr>
+<td style="text-align:left">
+</td>
+<td>
+</td>
+</tr>
+<tr>
+<td style="text-align:left">
+Constant
+</td>
+<td>
+9.009<sup>***</sup>
+</td>
+</tr>
+<tr>
+<td style="text-align:left">
+</td>
+<td>
+(0.445)
+</td>
+</tr>
+<tr>
+<td style="text-align:left">
+</td>
+<td>
+</td>
+</tr>
+<tr>
+<td colspan="2" style="border-bottom: 1px solid black">
+</td>
+</tr>
+<tr>
+<td style="text-align:left">
+Observations
+</td>
+<td>
+136
+</td>
+</tr>
+<tr>
+<td style="text-align:left">
+R<sup>2</sup>
+</td>
+<td>
+0.911
+</td>
+</tr>
+<tr>
+<td style="text-align:left">
+Adjusted R<sup>2</sup>
+</td>
+<td>
+0.905
+</td>
+</tr>
+<tr>
+<td style="text-align:left">
+Residual Std. Error
+</td>
+<td>
+0.086 (df = 126)
+</td>
+</tr>
+<tr>
+<td style="text-align:left">
+F Statistic
+</td>
+<td>
+143.176<sup>***</sup> (df = 9; 126)
+</td>
+</tr>
+<tr>
+<td colspan="2" style="border-bottom: 1px solid black">
+</td>
+</tr>
+<tr>
+<td style="text-align:left">
+<em>Note:</em>
+</td>
+<td style="text-align:right">
+<sup><em></em></sup><em>p&lt;0.1; <sup><strong></strong></sup><strong>p&lt;0.05; <sup></sup></strong></em>p&lt;0.01
+</td>
+</tr>
+
+</tbody></table>
+</section>
+<section id="usando-o-ggplot2" class="level3">
+<h3 class="anchored" data-anchor-id="usando-o-ggplot2">Usando o ggplot2</h3>
+<p>O pacote <code>ggplot2</code> oferece formas alternativas de visualizar a mesma relação linear que encontramos acima. Em particular, a função <code>qplot()</code> tem uma sintaxe muito similar à da função <code>plot()</code>.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb42"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb42-1"><a href="#cb42-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Carrega o pacote</span></span>
+<span id="cb42-2"><a href="#cb42-2" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(ggplot2)</span>
+<span id="cb42-3"><a href="#cb42-3" aria-hidden="true" tabindex="-1"></a><span class="co"># Função qplot</span></span>
+<span id="cb42-4"><a href="#cb42-4" aria-hidden="true" tabindex="-1"></a>p <span class="ot">&lt;-</span> <span class="fu">qplot</span>(<span class="at">x =</span> price, <span class="at">y =</span> packs, <span class="at">data =</span> cigar, <span class="at">geom =</span> <span class="st">"point"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stderr">
+<pre><code>Warning: `qplot()` was deprecated in ggplot2 3.4.0.</code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb44"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb44-1"><a href="#cb44-1" aria-hidden="true" tabindex="-1"></a>p</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output-display">
+<p><img src="index_files/figure-html/unnamed-chunk-28-1.png" class="img-fluid" width="672"></p>
+</div>
+</div>
+<p>Para adicionar uma linha de regressão acrescentamos <code>geom_smooth</code>. Especificamos que queremos um modelo linear adicionando o argumento ‘lm’</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb45"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb45-1"><a href="#cb45-1" aria-hidden="true" tabindex="-1"></a>p <span class="sc">+</span></span>
+<span id="cb45-2"><a href="#cb45-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_smooth</span>(<span class="at">method =</span> <span class="st">"lm"</span>) <span class="sc">+</span></span>
+<span id="cb45-3"><a href="#cb45-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_bw</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stderr">
+<pre><code>`geom_smooth()` using formula = 'y ~ x'</code></pre>
+</div>
+<div class="cell-output-display">
+<p><img src="index_files/figure-html/unnamed-chunk-29-1.png" class="img-fluid" width="672"></p>
+</div>
+</div>
+
+
+</section>
+</section>
+</section>
+
+</main> <!-- /main -->
+<script id="quarto-html-after-body" type="application/javascript">
+window.document.addEventListener("DOMContentLoaded", function (event) {
+  const toggleBodyColorMode = (bsSheetEl) => {
+    const mode = bsSheetEl.getAttribute("data-mode");
+    const bodyEl = window.document.querySelector("body");
+    if (mode === "dark") {
+      bodyEl.classList.add("quarto-dark");
+      bodyEl.classList.remove("quarto-light");
+    } else {
+      bodyEl.classList.add("quarto-light");
+      bodyEl.classList.remove("quarto-dark");
+    }
+  }
+  const toggleBodyColorPrimary = () => {
+    const bsSheetEl = window.document.querySelector("link#quarto-bootstrap");
+    if (bsSheetEl) {
+      toggleBodyColorMode(bsSheetEl);
+    }
+  }
+  toggleBodyColorPrimary();  
+  const icon = "";
+  const anchorJS = new window.AnchorJS();
+  anchorJS.options = {
+    placement: 'right',
+    icon: icon
+  };
+  anchorJS.add('.anchored');
+  const clipboard = new window.ClipboardJS('.code-copy-button', {
+    target: function(trigger) {
+      return trigger.previousElementSibling;
+    }
+  });
+  clipboard.on('success', function(e) {
+    // button target
+    const button = e.trigger;
+    // don't keep focus
+    button.blur();
+    // flash "checked"
+    button.classList.add('code-copy-button-checked');
+    var currentTitle = button.getAttribute("title");
+    button.setAttribute("title", "Copied!");
+    let tooltip;
+    if (window.bootstrap) {
+      button.setAttribute("data-bs-toggle", "tooltip");
+      button.setAttribute("data-bs-placement", "left");
+      button.setAttribute("data-bs-title", "Copied!");
+      tooltip = new bootstrap.Tooltip(button, 
+        { trigger: "manual", 
+          customClass: "code-copy-button-tooltip",
+          offset: [0, -8]});
+      tooltip.show();    
+    }
+    setTimeout(function() {
+      if (tooltip) {
+        tooltip.hide();
+        button.removeAttribute("data-bs-title");
+        button.removeAttribute("data-bs-toggle");
+        button.removeAttribute("data-bs-placement");
+      }
+      button.setAttribute("title", currentTitle);
+      button.classList.remove('code-copy-button-checked');
+    }, 1000);
+    // clear code selection
+    e.clearSelection();
+  });
+  function tippyHover(el, contentFn) {
+    const config = {
+      allowHTML: true,
+      content: contentFn,
+      maxWidth: 500,
+      delay: 100,
+      arrow: false,
+      appendTo: function(el) {
+          return el.parentElement;
+      },
+      interactive: true,
+      interactiveBorder: 10,
+      theme: 'quarto',
+      placement: 'bottom-start'
+    };
+    window.tippy(el, config); 
+  }
+  const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+  for (var i=0; i<noterefs.length; i++) {
+    const ref = noterefs[i];
+    tippyHover(ref, function() {
+      // use id or data attribute instead here
+      let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+      try { href = new URL(href).hash; } catch {}
+      const id = href.replace(/^#\/?/, "");
+      const note = window.document.getElementById(id);
+      return note.innerHTML;
+    });
+  }
+  const findCites = (el) => {
+    const parentEl = el.parentElement;
+    if (parentEl) {
+      const cites = parentEl.dataset.cites;
+      if (cites) {
+        return {
+          el,
+          cites: cites.split(' ')
+        };
+      } else {
+        return findCites(el.parentElement)
+      }
+    } else {
+      return undefined;
+    }
+  };
+  var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+  for (var i=0; i<bibliorefs.length; i++) {
+    const ref = bibliorefs[i];
+    const citeInfo = findCites(ref);
+    if (citeInfo) {
+      tippyHover(citeInfo.el, function() {
+        var popup = window.document.createElement('div');
+        citeInfo.cites.forEach(function(cite) {
+          var citeDiv = window.document.createElement('div');
+          citeDiv.classList.add('hanging-indent');
+          citeDiv.classList.add('csl-entry');
+          var biblioDiv = window.document.getElementById('ref-' + cite);
+          if (biblioDiv) {
+            citeDiv.innerHTML = biblioDiv.innerHTML;
+          }
+          popup.appendChild(citeDiv);
+        });
+        return popup.innerHTML;
+      });
+    }
+  }
+});
+</script>
+<script src="https://giscus.app/client.js" data-repo="viniciusoike/modelodomundo" data-repo-id="" data-category="General" data-category-id="" data-mapping="title" data-reactions-enabled="1" data-emit-metadata="0" data-input-position="top" data-theme="light" data-lang="en" crossorigin="anonymous" async="">
+</script>
+</div> <!-- /content -->
+
+
+
+</body></html>
