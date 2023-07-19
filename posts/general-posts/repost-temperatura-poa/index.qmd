@@ -1,0 +1,108 @@
+---
+title: "Temperatura Porto Alegre"
+date: '2019-03-22'
+categories: ['data visualization', 'time-series']
+description: 'Visualizando a temperatura de Porto Alegre (RS)'
+draft: true
+execute: 
+  eval: false
+---
+
+# Temperatura de Porto Alegre
+
+```{r, echo = FALSE, message = FALSE}
+options(warn = -1)
+library(extrafont)
+library(ggplot2)
+library(broom)
+library(xts)
+library(dplyr)
+library(stringr)
+#########################
+
+temp <- read.csv("~/Charts/Clima/Temperatura/Dados/porto_alegre.csv.txt")
+# Criei uma função para tirar o //// usando o mutate_all. Tentei usar lapply com gsub mas tranforma
+# o data.frame em matriz???
+censor <- function(x){str_replace(x, "////", "NA")}
+temp <- temp %>% mutate_all(funs(censor))
+temp$data <- as.Date(temp$data, format = "%d/%m/%Y")
+temp <- temp %>% mutate_if(is.character, as.numeric)
+# 26 observações ausentes
+# temp %>% select(temp_inst) %>% filter(is.na(temp_inst)) %>% summarise(count = n())
+# Algumas modificações pra transformar a data/hora num formato pro xts
+temp <- temp %>% arrange(hora) %>% arrange(data)
+temp$hora <- ifelse(nchar(temp$hora) == 1, paste("0", temp$hora, sep = ""), temp$hora)
+temp <- mutate(temp, index = paste(data, paste(hora, ":00", sep = "")))
+
+temp$index <- as.POSIXct(temp$index, format = "%Y-%m-%d %H:%M")
+
+linha_vazia1 <- c(rep(NA, 20), "2018-06-16 10:00")
+linha_vazia2 <- c(rep(NA, 20), "2018-06-16 11:00")
+index_completo <- seq(from = as.POSIXct("2017-07-26 00:00", format = "%Y-%m-%d %H:%M"),
+                      to = as.POSIXct("2018-07-25 22:00"), by = "hour"
+)
+
+temp <- rbind(temp[25:7834,], linha_vazia1, linha_vazia2, temp[7835:8781,])
+
+#serie_teste <- xts(c(temp$temp_inst, temp$temp_max, temp$temp_min), order.by = index_completo)
+temp_inst <- xts(temp$temp_inst, order.by = index_completo)
+temp_max <- xts(temp$temp_max, order.by = index_completo)
+temp_min <- xts(temp$temp_min, order.by = index_completo)
+precip <- xts(temp$precipitacao, order.by = index_completo)
+
+# Interpolate NAs
+temp_inst <- na.spline(temp$temp_inst)
+temp_max <- na.spline(temp$temp_inst)
+temp_min <- na.spline(temp$temp_min)
+precip <- na.spline(temp$precipitacao)
+
+t <- xts(temp_inst, order.by = index_completo)
+
+# Column-bind the series and change names
+mseries <- cbind(temp_inst, temp_max, temp_min, precip)
+mseries <- xts(mseries, order.by = index_completo)
+names(mseries) <- c("temp_inst", "temp_max", "temp_min", "precip")
+index(mseries) <- as.Date(index(mseries))
+
+# Data frame (ignorando os problemas dos 2 NAs)
+temp_df <- temp[25:8759,] %>% select(index, data, hora, temp_inst) %>% mutate(data_fact = as.factor(data)) %>% mutate(temp_inst = as.numeric(temp_inst))
+temp_max_diaria <- temp_df %>% select(data, temp_inst) %>% group_by(data) %>% summarise(temp_max = max(temp_inst, na.rm = TRUE))
+temp_min_diaria <- temp_df %>% select(data, temp_inst) %>% group_by(data) %>% summarise(temp_min = min(temp_inst, na.rm = TRUE))
+temp_media_diaria <- temp_df %>% select(data, temp_inst) %>% group_by(data) %>% summarise(temp_media = mean(temp_inst, na.rm = TRUE))
+dias_quentes <- temp_df %>% select(data, temp_inst) %>% group_by(data) %>% summarise(temp_max = max(temp_inst, na.rm = TRUE)) %>% arrange(desc(temp_max)) %>%
+  .[1:10,]
+dias_frios <- temp_df %>% select(data, temp_inst) %>% group_by(data) %>% summarise(temp_min = min(temp_inst, na.rm = TRUE)) %>% arrange(temp_min) %>% head() %>% .[1:10,]
+
+d <- data.frame(dia = unique(temp_df$data), 
+                tmax = temp_max_diaria$temp_max, 
+                tmin = temp_min_diaria$temp_min, 
+                tmedia = temp_media_diaria$temp_media)
+```
+
+```{r, echo = FALSE}
+dados <- temp %>% 
+  select(index, data, hora, temp_inst) %>% 
+  mutate(data_fact = as.factor(data)) %>% 
+  mutate(temp_inst = as.numeric(temp_inst))
+d <- d[1:364, ]
+```
+
+```{r}
+ggplot() +
+  geom_errorbar(data = d, aes(dia, ymin = tmin, ymax = tmax), colour = "salmon", alpha = .35, size = 1) +
+  geom_point(data = dias_quentes, aes(data, temp_max), fill = "firebrick2", colour = "gray20", shape = 21, size = 3) +
+  geom_point(data = dias_frios, aes(data, temp_min), fill = "dodgerblue3", colour = "gray20", shape = 21, size = 3) +
+  geom_line(data = d, aes(dia, tmedia, group = 1), colour = "black", size = 1) +
+  labs(x = "", y = "", title = "Temperatura em Porto Alegre (07/2017-07/2018)",
+       caption = "Fonte: CPTEC",
+       subtitle = "Temperatura registrada a cada hora do dia. As barras indicam a maior e a menor temperatura do dia.\nA linha escura representa a temperatura média de cada dia.\nOs dias mais frios/quentes estão indicados pelos círculos azuis/vermelhos.") +
+  scale_x_date(date_breaks = "1 month", date_labels = "%b", expand = c(.01,0)) +
+  scale_y_continuous(breaks = seq(0, 40, 5), labels = paste(seq(0, 40, 5), "º", sep = "")) +
+  theme_classic() +
+  theme(
+    panel.grid.major.x = element_line(colour = "wheat4", linetype = 3, size = .5),
+    text = element_text(family = "Georgia"),
+    plot.title = element_text(size = 18),
+    plot.subtitle = element_text(size = 8)
+  )
+```

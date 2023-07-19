@@ -1,0 +1,618 @@
+---
+title: 'Indo além: mapas de calor'
+author: Vinicius Oike
+date: '2023-01-05'
+categories: ['data visualization', 'ggplot2', 'turorial-R']
+description: "Facets são pequenos gráficos que, lado a lado, ajudam a comparar várias informações ao mesmo tempo. Este post intermediário ensina a fazer gráficos de facets no R usando o ggplot2."
+title-block-banner: true
+page-layout: article
+execute: 
+  message: false
+  warning: false
+format:
+  html:
+    code-fold: false
+    code-tools: true
+freeze: true
+draft: true
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(
+  warning = FALSE,
+  message = FALSE,
+  fig.align = "center",
+  fig.showtext = TRUE,
+  fig.width = 10,
+  fig.asp = 0.618,
+  out.width = "100%",
+  fig.retina = 2,
+  dpi = 72
+  )
+
+library(tidyverse)
+library(pwt10)
+library(patchwork)
+
+print_table <- function(x) {
+  
+  x |> 
+    knitr::kable(align = "c", digits = 0) |> 
+    kableExtra::kable_styling(
+        full_width = FALSE,
+        bootstrap_options = c("condensed", "responsive", "hover", "striped")
+    )
+
+}
+```
+
+# Graficos ou mapas de calor
+
+Mapas de calor apresentam a variação de uma variável num plano bidimensional. Há dois tipos principais de mapas de calor: o mapa de calor espacial e o mapa de calor de clusters.
+
+O primeiro tipicamente é superimposto sobre um mapa e representa a intensidade de alguma variável, como a pluviosidade, temperatura, concentração de C02 e assim por diante.
+
+Já o mapa de calor de clusters é disposto numa matriz bidimensional para sugerir padrões, tendências, ou mesmo para visualizar a evolução de uma variável num grupo de classes.
+
+```{r, echo = FALSE}
+x <- c(
+  "Houston", "Dallas", "Denton County", "Austin", "Galveston", "Midland",
+  "Bay Area", "Fort Bend", "Montgomery County")
+
+sub <- txhousing |> 
+  filter(
+    year == 2007,
+    city %in% x) |> 
+  mutate(city = fct_rev(city))
+
+p1 <- ggplot(data = sub, aes(x = month, y = city, fill = median / 1000)) +
+  geom_tile() +
+  scale_fill_viridis_c(
+    name = "Median Sale Price (thousand)",
+    option = "inferno",
+    breaks = seq(140, 200, 10)) +
+  scale_x_continuous(breaks = 1:12, expand = c(0, 0)) +
+  scale_y_discrete(labels = function(x) str_wrap(x, width = 10)) +
+  labs(title = "Mapa de Clusters") +
+  theme_minimal() +
+  theme(
+    axis.title = element_blank(),
+    axis.text.y = element_text(hjust = 0.5),
+    legend.position = "top",
+    legend.key.size = unit(1, "cm")
+  )
+
+p2 <- ggplot(faithfuld, aes(waiting, eruptions)) +
+ geom_raster(aes(fill = density), interpolate = TRUE) +
+  labs(title = "Mapa de calor") +
+  scale_fill_viridis_c()
+
+p1 + p2
+```
+
+O pacote `ggplot2` não tem uma única função para montar mapas de calor, então vamos explorar uma abordagem simples focada na função `geom_tile()`. Contudo, é possível montar mapas de calor também com as funções `geom_bin_2d()`, `geom_density_2d()`, `geom_raster()` ou `geom_hex()`.
+
+Neste post vamos nos focar em mapas de clusters para depois apresentar apenas brevemente alguns mapas de calor.
+
+O código abaixo carrega os pacotes necessários. Para a paleta de cores vou utilizar o pacote `MetBrewer`, que oferece algumas paletas de cores interessantes, inspiradas em artistas famosos do [Metropolitan Museum de NY.](https://github.com/BlakeRMills/MetBrewer). O pacote `pwt10` carrega a base de dados da Penn World Table que traz uma série de informações socioeconômicas dos países ao longo dos anos. Por fim, o pacote `astsa` carrega diversas funções de séries de tempo, mas vamos utilizá-la aqui somente pela base de dados `globtemp`.
+
+```{r, eval = FALSE}
+# Para instalar um pacote do GitHub
+remotes::install_github("BlakeRMills/MetBrewer")
+```
+
+```{r}
+# Carrega os pacotes
+library(dplyr)
+library(tidyr)
+library(forcats)
+library(ggplot2)
+# Paletas de cores (ver acima como instalar)
+library(MetBrewer)
+# Dados da Penn World Table
+library(pwt10)
+# Para carregar a base globtemp
+library(astsa)
+
+# Colors
+colors_hiroshige <- met.brewer(name = "Hiroshige")
+```
+
+# Gráfico de calor (clusters)
+
+## Exemplo: Crescimento Econômico
+
+Primeiro vamos importar a base de dados da Penn World Table usando o pacote `pwt10`.
+
+```{r}
+# A base de dados
+pwt <- as_tibble(pwt10::pwt10.0)
+```
+
+A base tem várias colunas mas vamos nos focar somente nas colunas `country`, `pop` (população do país em milhões de habitante) e `rgdpe`, que o é o PIB (pela ótica da despesa) em milhões de US\$ constantes (2017).
+
+```{r, echo = FALSE}
+pwt |> 
+  filter(country == "Brazil") |> 
+  slice(1:10) |> 
+  print_table() |> 
+  kableExtra::scroll_box(width = "100%")
+```
+
+Vamos selecionar apenas os principais países da América Latina para montar nossa visualização.
+
+O primeiro painel que iremos explorar vai exibir os ciclos de expansão e de recessão nos países latino-americanos ao longo dos anos, desde 1950. Para isto vamos primeiro calcular o PIB per capital real de cada país e depois criar uma variável *dummy* que indica com o valor 1 se o país teve crescimento do PIB per capita real e 0 caso contrário.
+
+```{r}
+# Vetor com países
+latam_countries <- c(
+  "ARG", "BOL", "BRA", "CHL", "COL", "CUB", "DOM", "ECU", "GTM", "HND", "HTI",
+  "MEX", "PER", "VEN")
+
+latam <- pwt |> 
+  # Filtra apenas as linhas dos países selecionados
+  filter(isocode %in% latam_countries) |> 
+  # Agrupa por país
+  group_by(country) |> 
+  mutate(
+    # Calcula o PIB per capita de cada país
+    gdppc = rgdpe / pop,
+    # Calcula a variação do PIB per capita de cada país
+    d_gdppc = gdppc / lag(gdppc) - 1,
+    # Cria uma variável binária para indicar se houve crescimento 
+    growth = factor(if_else(d_gdppc > 0, 1L, 0L)),
+    # Remove parêntesis e o texto dentro dele
+    country = str_remove(country, " \\(.+\\)"),
+    # Abrevia o nome da República Dominicana
+    country = str_replace(country, "Dominican Republic", "Dominican Rep.")
+  ) |> 
+  ungroup()
+```
+
+## Gráfico de Calor
+
+Apesar de bidimensional, um heatmap serve para representar dados em três dimensões. No nosso caso, a função `geom_tile()` mapeia as variáveis `x` e `y` nas coordenadas enquanto a variável `fill` representa uma variável numérica adicional, seja ela categórica ou contínua.
+
+O código abaixo monta um heatmap simples. No gráfico, os anos de crescimento e de recessão são destacados em cada país.
+
+```{r}
+ggplot(data = latam, aes(x = year, y = country)) +
+  geom_tile(aes(fill = growth))
+```
+
+O gráfico acima é bastante interessante, mas pode ser melhorado em diversos aspectos. Vamos implementar as melhorias sequencialmente.
+
+### Reordenar as colunas
+
+Note que os países no gráfico acima estão organizados de forma alfabética, mas a ordem está invertida. Para alterar a ordem de uma variável categórica temos que alterar os seus níveis. No `R` variáveis categóricas tem uma classe especial `factor` e seus níveis são definidos pelo argumento `levels`.
+
+Tipicamente, isto envolve definir um vetor com a ordem dos níveis e criar uma variável nova como no exemplo abaixo.
+
+```{r}
+# Vetor com o nome de todos os países latino-americanos
+lvls <- unique(latam[["country"]])
+# Inverte a ordem do vetor
+lvls <- rev(lvls)
+# Redefine os níveis da variável country
+latam <- latam |> 
+  mutate(country = factor(country, levels = lvls))
+```
+
+Há, contudo, vários atalhos para melhor lidar com `factors`. Em particular, o pacote `forcats` carrregado junto no `tidyverse` tem uma série de funções que facilitam o trato de variáveis categóricas. A função `fct_rev()`, por exemplo, serve para inverter a ordem de uma variável categórica.
+
+Assim, o código abaixo chega no mesmo resultado.
+
+```{r, eval = FALSE}
+# Inverte a ordem da variável country
+latam <- latam |> 
+  mutate(country = fct_rev(country))
+```
+
+Note que agora o gráfico está em ordem alfabética, começando na Argentina e terminando na Venezuela. Agora a ordem dos países está mais natural, já que está em ordem alfabética e de cima para baixo.
+
+```{r}
+# Monta o gráfico
+ggplot(data = latam, aes(x = year, y = country)) +
+  geom_tile(aes(fill = growth))
+```
+
+### Dimensionar o gráfico
+
+Podemos inserir um pouco de espaço entre as séries de cada país alterando o argumento `height` da função `geom_tile()`.
+
+```{r}
+ggplot(data = latam, aes(x = year, y = country)) +
+  geom_tile(aes(fill = growth), height = 0.9)
+```
+
+### Alterar as cores
+
+A escolha do esquema de cores é talvez o aspecto mais importante de um heat map. Não é fácil encontrar boas cores que sejam intuitivas e que também sejam inclusivas.
+
+Aqui utilizamos uma paleta inspirada no artista plástico Hiroshige Utagawa para conseguir alguns tons de azul/vermelho para representar os anos de expansão/recessão.
+
+```{r}
+# Colors
+colors_hiroshige <- met.brewer(name = "Hiroshige")
+colors_binary <- colors_hiroshige[c(1, 8)]
+
+p <- ggplot(data = latam, aes(x = year, y = country)) +
+  geom_tile(aes(fill = growth), height = 0.9) +
+  # Altera a paleta de cores e controla a legenda  
+  scale_fill_manual(
+    # Título da legenda (opcional)
+    name = "",
+    # Paleta de cores
+    values = colors_binary,
+    # Nome das classes na legenda
+    labels = c("Recession", "Growth"),
+    # Omite o grupo NA
+    na.translate = FALSE
+  )
+
+p
+```
+
+### Ajustar e duplicar o eixo
+
+A leitura dos anos no gráfico acima pode ser melhorada. Primeiro, vamos inserir mais quebras no eixo-x e sinalizar que a série tem início em 1951 e tem fim em 2019. Para ajustar o eixo usamos a função `scale_x_continuous()` variando o argumento `breaks`.
+
+Quando temos um gráfico grande, pode ser útil duplicar os eixos para facilitar a sua leitura. Vamos duplicar o eixo-x (anos) usando `sec.axis = dup_axis()`.
+
+Por fim, note que há espaço ocioso tanto no lado esquerdo como no lado direito do gráfico. O argumento `expand = c(0, 0)` para remover o espaço entre as barras e o limite do painel.
+
+```{r}
+latam_na <- latam |> 
+  filter(!is.na(growth))
+
+p <- p +
+  # Controla o eixo-x (anos)
+  scale_x_continuous(
+    # Define as quebras do gráfico 
+    breaks = c(1951, seq(1960, 2010, 10), 2019),
+    # Preenche 100% do painel
+    expand = c(0, 0),
+    # Duplica o eixo
+    sec.axis = dup_axis()
+    )
+
+p
+```
+
+### Ajustar o tema
+
+Os ajustes finos de um gráfico são feitos com a função `theme()`. Neste caso, queremos um gráfico com poucos elementos. Uma abordagem simples para modificar os detalhes do gráfico é inicar com um template, um tema padrão. Neste caso, começamos como um tema chamado `theme_minimal()`.
+
+```{r}
+p <- p +
+  # Tema minimalista que serve de template
+  theme_minimal() +
+  theme(
+    # Remove o título dos eixos x e y
+    axis.title = element_blank(),
+    # Remove as linhas horizontais e verticais no fundo do gráfico
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    # Coloca a legenda acima do gráfico
+    legend.position = "top"
+  )
+
+p
+```
+
+### Adicionar linhas de grade
+
+As linhas de grade de um gráfico facilitam a interpretação dos dados, mas a função `geom_tile()` fica por cima delas. Podemos sobrepor linhas verticais no gráfico para sinalizar o início de cada uma das décadas.
+
+O código abaixo faz isto com a função `geom_vline()` que serve para desenhar linhas verticais num gráfico com o argumento `xintercept`. O argumento `linetype = 2` indica que a linha deve ser tracejada.
+
+```{r}
+p <- p +
+  # Desenha linhas verticais no gráfico
+  geom_vline(
+    # Define a posição das linhas verticais
+    xintercept = c(1951, seq(1960, 2010, 10), 2019),
+    # Tipo de linha (2 = tracejado)
+    linetype = 2,
+    # Cor da linha
+    colour = "gray75"
+    )
+
+p
+```
+
+### Ajustar o nome dos eixos
+
+```{r}
+p <- p + 
+  labs(
+    title = "Growth/Recession across Latin America",
+    subtitle = "Cycles are synchronized across countries. The 1980s was a difficult period for most countries, while the mid 2000s\nonwards was more positive overall due to the commodtiy boom.",
+    caption = "Source: Penn World Table (pwt10)"
+  )
+
+p
+```
+
+### O gráfico final
+
+O código abaixo gera o gráfico finalizado.
+
+```{r}
+ggplot(data = latam, aes(x = year, y = country)) +
+  geom_tile(aes(fill = growth), height = 0.9) +
+  geom_vline(
+    xintercept = c(1951, seq(1960, 2010, 10), 2019),
+    linetype = 2,
+    colour = "gray75") +
+  scale_fill_manual(
+    name = "",
+    values = colors_binary,
+    labels = c("Recession", "Growth"),
+    na.translate = FALSE
+    ) +
+  scale_x_continuous(
+    breaks = c(1951, seq(1960, 2010, 10), 2019),
+    expand = c(0, 0),
+    sec.axis = dup_axis()
+    ) +
+  labs(
+    title = "Growth/Recession across Latin America",
+    subtitle = "Cycles are synchronized across countries. The 1980s was a difficult period for most countries, while the mid 2000s\nonwards was more positive overall due to the commodtiy boom.",
+    caption = "Source: Penn World Table (pwt10)"
+  ) +
+  theme_minimal() +
+  theme(
+    axis.title = element_blank(),
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    legend.position = "top"
+  )
+
+```
+
+## Usando variáveis contínuas
+
+O exemplo acima mostra os ciclos de expansão e recessão usando uma simples variável binária. Este tipo de variável é também chamada de "discreta" (ou, às vezes, "contável").
+
+Pode-se adaptar o código acima para montar gráficos de calor para variáveis contínuas. Para evitar a repetição excessiva de código podemos criar uma função. Funções permitem que você automatize tarefas repetitivas; no fundo, evita que você tenha que ficar copiando e colando código.
+
+Vou criar uma função simples que: (1) adiciona as linhas verticais tracejadas sempre nos mesmos anos; (2) ajusta e duplica o eixo-x do gráfico; e (3) aplica um tema padrão sobre o gráfico. O nome desta função será `gg_heatmap()` e o argumento da função será um gráfico "base" de `ggplot2`. Isto deve ficar mais compreensível após os exemplos.
+
+O código abaixo mostra a implementação da função.
+
+### Funções
+
+```{r}
+# Cria um tema para os gráficos
+theme_heatmap <- theme_minimal() +
+  theme(
+    axis.title = element_blank(),
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    legend.position = "top",
+    legend.key.size = unit(1, "cm"),
+    legend.title = element_text(vjust = 0.5, hjust = 0.5),
+    legend.title.align = 0.5
+  )
+
+gg_heatmap <- function(plot) {
+  
+  plot <- plot +
+    # Desenha linhas verticais no gráfico
+    geom_vline(
+      # Define a posição das linhas verticais
+      xintercept = c(1951, seq(1960, 2010, 10), 2019),
+      # Tipo de linha (2 = tracejado)
+      linetype = 2,
+      # Cor da linha
+      colour = "gray75"
+      ) +
+    # Controla o eixo-x (anos)
+    scale_x_continuous(
+      # Define as quebras do gráfico 
+      breaks = c(seq(1950, 2010, 10), 2019),
+      # Preenche 100% do painel
+      expand = c(0, 0),
+      # Duplica o eixo
+      sec.axis = dup_axis()) +
+    # Adiciona o tema
+    theme_heatmap
+  
+  return(plot)
+  
+}
+```
+
+## Exemplo: PIB per capita
+
+Como exemplo vamos olhar para o PIB per capita dos países da América Latina. Para melhorar a visualização uso os dados em escala logarítmica.
+
+No código abaixo eu utilizo a função `gg_heatmap()` criada acima. Primeiro eu crio um gráfico de calor "base" usando apenas `geom_tile()` e modificando a escala de cor. Depois, aplico a função neste objeto e o resultado é o gráfico final.
+
+```{r}
+# Monta o mapa
+p <- ggplot(data = latam, aes(x = year, y = country)) +
+  geom_tile(aes(fill = log(gdppc)), height = 0.9) +
+  scale_fill_gradientn(
+    name = "PIB per capita (log)",
+    colours = met.brewer("Hokusai1")
+    )
+
+# Aplica a função
+gg_heatmap(p)
+```
+
+O gráfico de calor abaixo apresenta o PIB per capita em nível e com uma paleta de cores diferente. Note como o uso da função `gg_heatmap()` economiza muitas linhas de código.
+
+```{r}
+p <- ggplot(data = latam, aes(x = year, y = country)) +
+  geom_tile(aes(fill = gdppc / 1000), height = 0.9) +
+  scale_fill_viridis_c(name = "PIB per capita (mil)")
+
+gg_heatmap(p)
+```
+
+## Escala divergente
+
+Outra aplicação de gráficos de calor é de mostrar uma variável num gradiente de cores "divergente". Um caso comum é quando quer-se mostrar uma variável como um desvio em relação a alguma média.
+
+O exemplo abaixo usa a base `globtemp` que mensura as "anomalias de temperatura" nos últimos anos. Por anomalia de temperatura, entende-se, o desvio da temperatura média anual em relação à média histórica (1951-1980).
+
+Na visualização, fica evidente que os anos recentes concentram um grande número de "anomalias positivas", isto é, anos em que a temperatura média esteve acima da média histórica.
+
+```{r}
+# Carrega a base de dados 'globtemp'
+data("globtemp")
+# Converte o objeto para data.frame
+df <- data.frame(ano = as.numeric(time(globtemp)),
+ temp = as.numeric(globtemp))
+
+# Monta o gráfico
+ggplot(data = df, aes(x = ano, y = 0, fill = temp)) +
+ geom_tile() +
+  scale_fill_gradientn(
+    name = "Percent Deviation\nin relation to\nWorld average",
+    breaks = seq(-1, 1, 0.25),
+    colors = rev(met.brewer("Hiroshige")), 
+  ) +
+  theme_heatmap
+```
+
+### Exemplo: desvio em relação à média
+
+Vamos voltar ao gráfico do crescimento do PIB per capita na América Latina. Suponha que seja interessante descobrir quais países estão crescendo acima ou abaixo da média mundial. Para chegar nesta resposta precisa-se primeiro fazer um pouco de manipulação nos dados.
+
+```{r}
+# Calcula o PIB per capita mundial e o seu crescimento 
+world <- pwt |> 
+  group_by(year) |> 
+  summarise(
+    gdp = sum(rgdpe, na.rm = TRUE),
+    n = sum(pop, na.rm = TRUE)) |> 
+  mutate(
+    gdppc_world = gdp / n,
+    d_gdppc_world = gdppc_world / lag(gdppc_world) - 1) |> 
+  select(year, gdppc_world, d_gdppc_world)
+
+# Calcula a razão do PIB per capita local x mundial e o desvio do 
+# crescimento do PIB per capita em relação à média mundial
+# 
+latam_scaled <- latam |> 
+  left_join(world, by = "year") |> 
+  mutate(
+    scaled = gdppc / gdppc_world * 100,
+    deviation = (d_gdppc - d_gdppc_world) / d_gdppc_world)
+
+# Trunca os outliers para melhorar a visualização
+outlier <- boxplot.stats(latam_scaled$deviation)$stats[c(1, 5)]
+
+latam_scaled <- latam_scaled %>%
+  mutate(
+    deviation_trunc = if_else(deviation > 5, 5, deviation),
+    deviation_trunc = if_else(deviation < -5, -5, deviation_trunc)
+  )
+```
+
+Após a manipulação de dados acima, pode-se visualizar o crescimento da América Latina em relação ao resto do mundo. O primeiro gráfico abaixo o desvio percentual do crescimento doméstico em relação à média mundial naquele ano.
+
+Vê-se como, de maneira geral, os países latino-americanos tiveram dificuldades para acompanhar o resto do mundo nos anos 1980. Além disso, a maior parte dos países parece ficar próxima ou abaixo da média. A exceção é durante o começo dos anos 1990 e os anos do boom de commodities (2000-2012).
+
+```{r}
+p <- ggplot(data = latam_scaled, aes(x = year, y = country)) +
+  geom_tile(aes(fill = deviation_trunc), height = 0.8) +
+  scale_fill_gradientn(
+    name = "Percent Deviation\nin relation to\nWorld average",
+    breaks = seq(-5, 5, 1),
+    colors = met.brewer("Hiroshige")
+  )
+
+gg_heatmap(p)
+```
+
+### Exemplo: desvio em relação ao grupo
+
+Restringindo a análise somente à América Latina, há duas maneiras intuitivas de olhar os dados: (1) relativamente ao ano; (2) relativamente ao país.
+
+o primeiro caso, compara-se a performance entre os países em cada ano: vê-se quais foram os países que cresceram mais ou menos em determinado ano.
+
+No segundo caso, compara-se a trajetória de cada país individualmente: fica mais evidente quais foram os anos de maior ou de menor crescimento.
+
+O código abaixo usa a função `scale` para "normalizar" os dados.
+
+```{r}
+# Escala os dados em relação ao país
+scale_country <- latam |> 
+  group_by(country) |> 
+  mutate(scaled = as.numeric(scale(d_gdppc)))
+
+# Escala os dados em relação ao ano
+scale_year <- latam |> 
+  group_by(year) |> 
+  mutate(scaled = as.numeric(scale(d_gdppc)))
+```
+
+O primeiro gráfico mostra o crescimento do PIB per capita anual relativamente ao crescimento médio do país.
+
+Note como oscila o crescimento da Argentina: anos de crescimento acima da média são imediatamente seguidos por anos de crescimento abaixo da média durante quase toda a sua história.
+
+Já o Brasil parece ter um crescimento mais ao estilo "voos de galinha", com alguns poucos anos de crescimento excepcionais aglomerados.
+
+```{r}
+p <- ggplot(data = scale_country, aes(x = year, y = country)) +
+  geom_tile(aes(fill = scaled)) +
+  scale_fill_gradientn(
+    name = "Desvio em relação\nao crescimento\nmédio do país",
+    breaks = seq(-4, 4, 1),
+    colours = colors_hiroshige
+    )
+
+gg_heatmap(p) +
+  ggtitle("Crescimento relativo ao país")
+```
+
+Agora o gráfico mostra o crescimento anual de cada país em comparação com os demais países. O padrão revela quais países cresceram mais ou menos em cada ano.
+
+De maneira geral, o Brasil parece crescer ligeiramente acima da média da região. A Venezuela, que no gráfico anterior parecia exibir um crescimento relativamente estável ao longo dos anos, agora apresenta um padrão com maior oscilação.
+
+Dos anos 2000 em diante, Bolivia, Chile, Colombia e Peru são os países que consistentemente crescem acima da média da região.
+
+```{r}
+p <- ggplot(data = scale_year, aes(x = year, y = country)) +
+  geom_tile(aes(fill = scaled)) +
+  scale_fill_gradientn(
+    name = "Desvio em relação\nao crescimento\nmédio de cada ano",
+    breaks = seq(-4, 4, 1),
+    colours = colors_hiroshige
+    )
+
+gg_heatmap(p) +
+  ggtitle("Crescimento relativo ao ano")
+```
+
+# Gráfico de calor espacial
+
+```{r}
+library(here)
+imoveis <- read_csv(here("posts/ggplot2-tutorial/sample_imoveis_sp.csv"))
+imoveis <- dplyr::distinct(imoveis, lng, lat, .keep_all = TRUE)
+```
+
+```{r}
+ggplot(data = imoveis, aes(x = lng, y = lat)) +
+  geom_bin_2d()
+```
+
+```{r}
+ggplot(data = imoveis, aes(x = lng, y = lat)) +
+  geom_hex(aes(weight = price))
+```
+
+# Resumo
+
+Vale explorar outros pacotes que incluem paletas de cores como
+
+-   [ColorBrewer](https://colorbrewer2.org/#type=sequential&scheme=BuGn&n=3): `scale_fill_brewer()`
+-   [Viridis](https://cran.r-project.org/web/packages/viridis/vignettes/intro-to-viridis.html): `scale_fill_viridis_c()`, `scale_fill_viridis_d()`
+-   [Paletteer](https://github.com/EmilHvitfeldt/paletteer): `scale_color_paletteer_d()`
+-   Para os cinéfilos: [Wes Anderson](https://github.com/karthik/wesanderson), [Ghibli](https://github.com/ewenme/ghibli)

@@ -1,0 +1,141 @@
+---
+title: "Apêndice: manipular para enxergar"
+date: '2023-01-04'
+categories: ['data-visualization', 'ggplot2', 'tutorial-R']
+title-block-banner: true
+page-layout: article
+execute: 
+  message: false
+  warning: false
+format:
+  html:
+    code-fold: false
+    code-tools: true
+    fig-align: center
+    fig-asp: 0.618
+draft: true
+freeze: true
+---
+
+```{r setup, include = FALSE}
+library(dplyr)
+library(tidyr)
+library(stringr)
+library(readr)
+library(forcats)
+library(lubridate)
+library(GetBCBData)
+
+knitr::opts_chunk$set(
+  fig.align = "center",
+  fig.asp = 0.618,
+  fig.width = 8,
+  out.width = "80%",
+  fig.dev = "svg"
+  )
+
+print_table <- function(x) {
+  
+  x |> 
+    knitr::kable(align = "c", digits = 0) |> 
+    kableExtra::kable_styling(
+        full_width = FALSE,
+        bootstrap_options = c("condensed", "responsive", "hover", "striped")
+    )
+
+}
+```
+
+O primeiro passo para montar uma visualização é ter os dados no formato certo. Em geral, isto envolve três etapas: (1) importar os dados no `R`; (2) limpar os dados; e (3) transformar os dados no formato apropriado. Neste tutorial vamos focar sobretudo na última etapa.
+
+Apesar de funcionar como um repositório de pacotes, o `R` já vem com diversas funções "de fábrica" que permitem a importação e manipulação de dados. Estas funções que já vem carregadas no `R` são chamadas de funções "base". Alguns pacotes foram criados para melhorar estas funções "base".
+
+Vamos começar instalando o conjunto de pacotes `tidyverse`. Para instalar um pacote no `R` utilizamos a função `install.packages()`. Para carregar o pacote utilizamos a função `library()` com o nome do pacote.
+
+### Você tem um momento para falar sobre o `tidyverse`?
+
+```{r, eval = FALSE}
+# Instala o pacote tidyverse
+install.packages("tidyverse")
+# Carrega o pacote tidyverse
+library("tidyverse")
+```
+
+Todos os pacotes e funções que vamos utilizar serão carregados nesta única linha de código.
+
+* `readr`/`vroom` - importação e exportação de dados.
+* `dplyr` - manipulação de dados.
+* `tidyr` - manipulação de dados.
+* `stringr` - manipulacao de strings (`character`)
+* `forcats` - manipulacao de `factors`
+* `lubridate` - manipulação de datas (`Date`)
+
+## Exemplos aplicados
+
+### dplyr
+
+O pacote `dplyr` é uma das ferramentas mais populares e úteis para manipulação de dados no R. Ele fornece uma série de funções simples e poderosas para filtrar, agrupar, modificar e resumir dados. Neste tutorial, vamos explorar algumas dessas funções e ver como elas podem ser usadas para realizar tarefas comuns de manipulação de dados.
+
+```{r}
+# create example data
+df <- tibble(
+  x = c(1, 2, 3, 4, 5),
+  y = c(2, 4, 6, 8, 10),
+  z = c("a", "b", "c", "d", "e")
+)
+```
+
+Agora, vamos ver algumas das funções mais úteis do dplyr:
+
+* rename(): permite renomear colunas de um tibble
+* mutate(): permite criar novas colunas baseadas em outras colunas
+* filter(): permite selecionar apenas as linhas que atendem a determinadas condições
+* arrange(): permite ordenar os dados por uma ou mais colunas
+* group_by(): permite agrupar os dados por uma ou mais colunas
+* summarise(): permite resumir os dados de várias maneiras, como fazer médias, somas, etc.
+
+Agora que temos os dados em um tibble, podemos começar a limpar e transformar os dados. O primeiro passo é verificar se os dados estão no formato tidy. O formato tidy é um padrão para organizar os dados de maneira consistente e fácil de trabalhar. Ele consiste em três regras básicas:
+
+Cada coluna deve conter apenas um tipo de variável
+Cada linha deve conter uma única observação
+Cada tipo de observação deve ter sua própria tabela
+
+
+Ambas as funções são muito úteis para criar novas colunas baseadas em condições lógicas. No entanto, é importante lembrar que a linguagem lógica do R é um pouco diferente da linguagem lógica em outras linguagens de programação. Alguns dos operadores lógicos mais comuns são:
+
+|: operador "ou"
+&: operador "e"
+!: operador "não"
+==: operador de igualdade
+Por exemplo, para verificar se um número é maior que 5 e menor que 10, podemos usar a seguinte condição:
+
+Além dessas funções, o pacote dplyr também inclui uma série de funções de agregação, como mean(), sum(), median(), sd(), var(), etc. Essas funções são muito úteis quando usamos group_by() e summarise() para resumir os dados.
+
+```{r}
+df <- tibble(
+  id = c(1, 2, 3),
+  value_1 = c(10, 20, 30),
+  value_2 = c(15, 25, 35)
+)
+```
+
+
+```{r}
+df
+```
+
+```{r}
+pivot_longer(data = df, cols = c(value_1, value_2))
+```
+
+```{r}
+pivot_longer(data = df, cols = -id)
+```
+
+```{r}
+pivot_longer(data = df, cols = starts_with("value"))
+```
+
+
+
+

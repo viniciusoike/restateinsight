@@ -1,0 +1,442 @@
+---
+title: "Repost: Expectativa de vida e Crescimento Econômico"
+date: '2019-05-06'
+categories: ['data-visualization', 'economia', 'repost', 'tutorial-R']
+description: 'Neste tutorial mostro como criar visualizações ricas mostrando correlações, usando os dados de crescimento econômico e expectativa de vida do Gapminder.'
+image: '/static/gapminder.png'
+image-alt: '/static/gapminder.png'
+---
+
+```{r, echo = FALSE}
+knitr::opts_chunk$set(
+  fig.align = "center",
+  fig.asp = 0.618,
+  fig.width = 9,
+  out.width = "90%",
+  fig.dev = "svg",
+  fig.retina = 2,
+  warning = FALSE,
+  message = FALSE
+  )
+```
+
+# Disclaimer
+
+Este é um post antigo que estou repostando porque ainda pode ser útil como um tutorial básico para `R`. Fiz apenas algumas modificações no código para deixar ele
+
+# Análise Exploratória
+
+## Preparativos
+
+### Carregando os pacotes
+
+Muitos já devem estar familiarizados com a [apresentação do historiador Hans Rosling](https://www.ted.com/talks/hans_rosling_shows_the_best_stats_you_ve_ever_seen?language=en) sobre a evolução da expectativa de vida e do PIB per capita dos países em torno do mundo. Este post vai mostrar como usar o `ggplot2` e o `tidyverse` para explorar estes dados. Pode-se acessar uma versão simplificada da base de dados pelo pacote `gapminder`.
+
+```{r, message = FALSE}
+# Tutorial Gapminder
+
+# Pacotes
+library(dplyr)
+library(ggplot2)
+library(gapminder)
+library(kableExtra)
+library(ggrepel)
+library(showtext)
+
+# Carregar fontes
+sysfonts::font_add_google("Jost", "Jost")
+showtext::showtext_auto()
+# Carregar os dados
+data("gapminder")
+data("continent_colors")
+```
+
+### Checagem dos dados
+
+De início é sempre importante verificar se há problemas com os dados. Como estamos usando uma base que já foi tratada é de se esperar que tudo esteja em ordem. Tipicamente, queremos verificar quantas observações ausentes (NAs) existem; se as variáveis estão no formato correto (ex: variáveis de texto como factor, números como numeric, etc.). Neste caso, além destas checagens também vamos criar uma nova variável que é o log do PIB per capita.
+
+```{r}
+# Checagens iniciais #
+# Verifica se há valores ausentes
+gapminder %>%
+  summarise(across(everything(), ~sum(is.na(.x))))
+
+# Informações gerais sobre os dados
+str(gapminder)
+# Nome das variáveis minúsculas
+names(gapminder) <- tolower(names(gapminder))
+# Tranformações #
+# Computa o log do pib per capita
+gapminder <- mutate(gapminder, lgdppc = log10(gdppercap))
+```
+
+### Tema dos gráficos
+
+Para manter o padrão das visualizações pode-se criar um tema personalizado. A maneira mais simples de fazer isto é a partir de um tema padrão do `ggplot2` mas é possível começar do zero. Aqui, por simplicidade, começo com o tema `bw` e apenas mudo a posição da legenda e o tamanho e a fonte do texto que será plotado nos eixos e no título do gráfico. Além disso, como o nome dos eixos vai ser repetido muitas vezes defino uma lista com o nome mais comum deles.
+
+```{r}
+# Tema customizado #
+theme_vini <- theme_bw() +
+  theme(
+    text = element_text(family = "Jost", size = 12, colour = "gray20"),
+  	plot.title = element_text(size = 16),
+  	legend.text = element_text(size = 12),
+  	legend.position = "bottom"
+    )
+
+# Nomes que serão usados várias vezes para os eixos
+nomes <- list(
+  title = "Expectativa de vida e PIB per capita",
+	x = "Log do PIB per capita (US$ 2010)",
+	y = "Expectativa de vida ao nascer",
+	fonte = "Fonte: Gapmineder (www.gapminder.org) e World Bank Open Data."
+  )
+```
+
+## Visualizando
+
+### Correlações
+
+Note que não temos dados para todos os anos do período. Os dados estão disponíveis de cinco em cinco anos começando em 1952 e terminando em 2007. Podemos começar com um gráfico de dispersão para ver a relação entre a "economia" (PIB per capita) e a "qualidade da saúde/vida" (expectativa de vida ao nascer) de um país. Apenas como exemplo incluo também uma linha de regressão quadrática no gráfico.
+
+```{r}
+unique(gapminder$year)
+```
+
+```{r}
+gap2007 <- filter(gapminder, year == 2007)
+
+ggplot(gap2007, aes(lgdppc, lifeexp)) +
+  geom_point() +
+  geom_smooth(method = "lm", se = FALSE) +
+  labs(
+    title = paste(nomes$title, "(2007)"),
+  	caption = nomes$fonte,
+  	subtitle = "Relação entre expectativa de vida ao nascer e o logaritmo do PIB per capita (fit linear)",
+  	x = nomes$x,
+  	y = nomes$y
+    ) +
+  theme_vini
+```
+
+Podemos nos valer de outras informações disponíveis na base para alterar atributos estéticos do gráfico. O tamanho de cada círculo pode refletir o tamanho da população daquele país; a cor do círculo, por sua vez, pode representar o continente daquele país. Por conveniência uso as cores pré-definidas do pacote `gapminder`. Além disso também podemos destacar o nome de alguns países usando o pacote `ggrepel`.
+
+```{r, out.width="100%", fig.width=9}
+destaque <- c(
+  "Australia", "Argentina", "Brazil", "Chile", "India", "Nigeria", 
+  "Sudan", "Taiwan", "Mozambique", "Angola", "Vietnam"
+  )
+
+gap_highlight <- gap2007 %>%
+  mutate(country = as.character(country)) %>%
+  mutate(sel = ifelse(country %in% destaque, country, ""))
+
+ggplot(gap_highlight, aes(lgdppc, lifeexp)) +
+  geom_point(aes(size = pop, colour = continent), alpha = .75) +
+  geom_smooth(method = "lm", se = FALSE, color = "black") +
+  geom_text_repel(
+    aes(label = sel),
+    family = "Jost",
+    force = 20,
+    max.overlaps = 30,
+  	size = 5
+    ) + 
+  labs(
+    title = paste(nomes$title, "(2007)"),
+  	caption = nomes$fonte,
+  	x = nomes$x,
+  	y = nomes$y
+    ) +
+  scale_color_manual(values = continent_colors, name = "") +
+  scale_size_continuous(range = c(1, 20)) +
+  guides(size = FALSE) + 
+  theme_vini
+```
+
+O gráfico acima é um retrato do momento, mas pode ser interessante entender como estas variáveis se comportaram ao longo do tempo.
+
+### Expectativa de vida (média mundial)
+
+```{r}
+# Calcula a expectativa de vida média
+gap_life <- gapminder %>%
+  group_by(year) %>%
+  summarise(media = mean(lifeexp))
+
+ggplot(gap_life, aes(year, media)) +
+  geom_line() +
+  geom_point() +
+  labs(
+    title = paste(nomes$title, "(média mundial)"),
+  	caption = nomes$fonte,
+  	x = nomes$x,
+  	y = nomes$y
+    ) +
+  theme_vini
+```
+
+### Expectativa de vida (todos os países)
+
+Podemos desagregar a análise acima por país. É claro que fica difícil discernir um país específico, mas pode-se ver uma tendência geral de crescimento, ainda que haja alguns outliers. A maior parte das quedas significativas pode ser relacionada com alguma guerra. O país cuja expectativa de vida cai bruscamente no começo dos anos 90, por exemplo, é a Ruanda, que vivia uma guerra civil nesta época.
+
+```{r}
+ggplot(gapminder, aes(year, lifeexp, group = country, colour = continent)) +
+  geom_line() +
+  scale_y_continuous(breaks = seq(from = 30, to = 80, by = 10)) +
+  scale_color_brewer(palette = 6, type = "qual", name = "") +
+  labs(
+    title = "Expectativa de vida (1952/2007)",
+  	caption = nomes$fonte,
+  	x = "",
+  	y = nomes$y
+    ) +
+  theme_vini
+```
+
+Se nos atermos somente ao nível de continente a visualização fica mais simples.
+
+```{r}
+gap_life_continent <- gapminder %>%
+  group_by(year, continent) %>%
+  summarise(expec_media = mean(lifeexp))
+
+ggplot(gap_life_continent, aes(year, expec_media, colour = continent)) +
+  geom_line() +
+  geom_point() +
+  scale_color_brewer(palette = 6, type = "qual", name = "") +
+  labs(
+    title = "Expectativa de vida média (1952/2007)",
+  	caption = nomes$fonte,
+  	x = "",
+  	y = nomes$y
+    ) +
+  theme_vini
+```
+
+### PIB per capita (continentes)
+
+Podemos fazer o mesmo para o log do PIB per capita. Aqui o gráfico é feito usando o log do PIB per capita, mas no eixo indico o valor equivalente em dólares para facilitar a interpretação.
+
+```{r}
+# Calcula o PIB per capita médio por continente a cada ano
+gap_gdp <- gapminder %>%
+  group_by(year, continent) %>%
+  summarise(avg_gdp = mean(gdppercap))
+
+ggplot(gap_gdp, aes(year, avg_gdp, colour = continent)) +
+  geom_line() +
+  geom_point() +
+  # Escala log
+  scale_y_log10() +
+  scale_color_brewer(palette = 6, type = "qual", name = "") +
+  labs(
+    title = "PIB per capita médio (1952/2007)",
+  	caption = nomes$fonte,
+  	x = "",
+  	y = nomes$x
+    ) +
+  theme_vini
+```
+
+## Analisando os dados
+
+Antes de começar a análise tabular dos dados vale definir uma função simples para apresentar as tabelas.
+
+```{r}
+print_table <- function(df, ...) {
+  
+  str_title <- function(string) {
+    
+    x <- stringr::str_replace_all(string, "_", " ")
+    x <- stringr::str_to_title(x)
+    return(x)
+    
+  }
+  
+  knitr::kable(df, col.names = str_title(colnames(df)), ...) %>%
+    kableExtra::kable_styling(
+      full_width = FALSE,
+      bootstrap_options = c("hover", "condensed")
+    )
+  
+}
+```
+
+Podemos encontrar fatos interessantes simplesmente agregando e reorganizando os dados. No gráfico anterior vimos que o continente com maior PIB per capita médio é a Oceania. Curiosamente, a base inclui somente dois países na Oceania: Austrália e Nove Zelândia.
+
+```{r}
+# Note que na Oceania os dados só incluem Autrália e Nova Zelândia
+gapminder %>%
+  filter(continent == "Oceania") %>%
+  count(country) %>%
+  print_table()
+```
+
+Podemos encontrar os países que mais cresceram (em termos absolutos e relativos) durante o período observado. Note como há vários países asiáticos listados qual seja a métrica escolhida.
+
+```{r}
+# Países que mais cresceram no período da amostra em termos absolutos
+gapminder %>%
+  group_by(country) %>%
+  summarise(growth = last(gdppercap) - first(gdppercap)) %>%
+  slice_max(growth, n = 10) %>%
+  print_table(caption = "Países que mais cresceram de 1952 a 2007")
+```
+
+```{r}
+# Países que mais cresceram no período da amostra em termos relativos
+gapminder %>%
+  group_by(country) %>%
+  summarise(growth = (last(gdppercap) / first(gdppercap) - 1) * 100) %>%
+  slice_max(growth, n = 10) %>%
+  print_table(
+    caption = "Países que mais cresceram de 1952 a 2007 (%)",
+    digits = 2
+    )
+```
+
+A mesma análise também pode ser feita para a expectativa de vida. Adicionalmente também podemos encontrar qual foi a maior variação (negativa) entre um ponto observado e outro dentro da amostra.
+
+```{r}
+gapminder %>%
+  group_by(country) %>%
+  summarise(life_growth = last(lifeexp) - first(lifeexp)) %>%
+  slice_max(life_growth, n = 10) %>%
+  print_table(digits = 0)
+```
+
+```{r}
+gapminder %>%
+  group_by(country) %>%
+  summarise(life_growth = (last(lifeexp) / first(lifeexp) - 1) * 100) %>%
+  slice_max(life_growth, n = 10) %>%
+  print_table(digits = 2)
+```
+
+```{r}
+gapminder %>%
+  group_by(country) %>%
+  mutate(
+    life_diff = lifeexp - lag(lifeexp),
+    life_abs  = abs(lifeexp - lag(lifeexp))) %>%
+  ungroup() %>%
+  arrange(desc(life_abs)) %>%
+  select(country, year, life_diff) %>%
+  slice(1:10) %>%
+  print_table(digits = 1)
+```
+
+# Visualizando o Brasil
+
+Agora vamos analisar o Brasil mais de perto. Para tornar a análise mais concreta escolho um pequeno grupo de países para acompanhar.
+
+```{r}
+# Visualizando a trajetória do Brasil
+countries <- c("Argentina", "Brazil", "Chile", "Korea, Rep.", "Venezuela")
+sub_gapminder <- filter(gapminder, country %in% countries)
+
+ggplot() +
+  geom_line(
+    data = gapminder,
+    aes(x = year, y = gdppercap, group = country),
+  	colour = "gray60",
+    alpha = 0.5) +
+  geom_point(
+    data = sub_gapminder,
+    aes(x = year, y = gdppercap, colour = country)) +
+  geom_line(
+    data = sub_gapminder,
+    aes(x = year, y = gdppercap, color = country),
+    linewidth = 1
+  ) +
+  scale_y_log10() +
+  scale_color_brewer(palette = 6, type = "qual", name = "") +
+  labs(
+    title = "PIB per capita (1952/2007)",
+  	caption = nomes$fonte,
+  	x = "",
+  	y = nomes$x
+    ) +
+  theme_vini
+```
+
+O Brasil em 2007 tinha a 68ª maior expectativa de vida ao nascer a 60º PIB per capita (numa amostra de 142 países). Olhando para a distribuição dos dados, o Brasil não está tão mal em termos de expectativa de vida, mas ainda está bastante atrás dos demais países em termos de PIB. Note que neste último gráfico uso os valores absolutos para facilitar a interpretação. A posição do Brasil é indicada por uma linha vertical em vermelho.
+
+```{r}
+bra_life <- gap2007 %>%
+  filter(country == "Brazil") %>%
+  pull(lifeexp)
+
+ggplot(gap2007, aes(lifeexp)) +
+  geom_histogram(bins = 10, color = "#ffffff") + 
+  geom_vline(xintercept = bra_life, color = "tomato", linewidth = 1) +
+  labs(
+    title = "Distribuição da expectativa de vida",
+    subtitle = "A linha vermelha indica a posição do Brasil.",
+    y = "",
+    x = nomes$y,
+  	caption = nomes$fonte
+    ) +
+  theme_vini
+```
+
+```{r}
+bra_gdp <- gap2007 %>%
+  filter(country == "Brazil") %>%
+  pull(lgdppc)
+
+ggplot(gap2007, aes(lgdppc)) +
+  geom_histogram(bins = 15, color = "#ffffff") +
+  geom_vline(xintercept = bra_gdp, colour = "tomato", linewidth = 1) +
+  scale_x_continuous(
+    breaks = seq(2.5, 4.5, 0.5),
+    labels = round(10^seq(2.5, 4.5, 0.5))
+    ) +
+  labs(
+    title = "Distribuição do PIB per capita (2007)",
+    subtitle = "A linha vermelha indica a posição do Brasil.",
+  	caption = nomes$fonte,
+    x = "PIB per capita (US$ 2010)",
+    y = ""
+    ) +
+  theme_vini
+```
+
+# Gráfico interativo
+
+Também é possível produzir gráficos interativos com o R. Estes dados são particularmente bem adaptados a este de visualização pois eles mudam no tempo.
+
+```{r}
+library(plotly)
+```
+
+```{r, out.width="100%"}
+info <- list(
+  symbol = "circle",
+  sizemode = "diameter",
+	line = list(width = 2, color = '#FFFFFF')
+  )
+
+plot_ly(
+  data = gapminder,
+	x = ~lgdppc,
+	y = ~lifeexp,
+	color = ~continent,
+	colors = continent_colors,
+	size = ~pop,
+	frame = ~year,
+	type = "scatter",
+	mode = "markers",
+	marker = info,
+	text = ~paste(
+	  "Country:", country,
+		"<br>Life Expectancy:", round(lifeexp, 2),
+		"<br>GDP per capita:", round(gdppercap, 2),
+		"<br>Pop.:", format(pop, big.mark = ","))
+  ) %>%
+  plotly::layout( 
+    title = "Expectativa de vida e PIB per capita",
+    xaxis = list(title = "GDP per capita (US$, log)"),
+    yaxis = list(title = "Life Expectancy (years)")
+    )
+```

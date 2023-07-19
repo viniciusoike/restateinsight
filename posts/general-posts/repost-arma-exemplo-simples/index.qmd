@@ -1,0 +1,317 @@
+---
+title: "ARMA: um exemplo simples"
+date: "2021-03-01"
+description: "Neste post mostro como modelar um ARMA simples no R usando o pacote {astsa}."
+categories: ["econometria", "time-series", "repost", "tutorial-R"]
+execute: 
+  message: false
+  warning: false
+knitr:
+  opts_chunk:
+    out.width: '100%'
+    collapse: true
+    comment: "#>"
+---
+
+```{r, echo = FALSE}
+knitr::opts_chunk$set(
+  warning = FALSE,
+  message = FALSE,
+  fig.asp = 0.618,
+  out.width = "90%",
+  fig.dpi = 72,
+  fig.retina = 2,
+  dev = "svg",
+  fig.align = "center"
+  )
+
+library(kableExtra)
+library(magrittr)
+```
+
+# Introdução
+
+Neste post apresento como estimar e diagnosticar um modelo ARMA simples no R. O modelo ARMA decompõe uma série em função de suas observações passadas e de "passados" (às vezes chamados de inovações). O ARMA(1, 1) com constante tem a seguinte forma.
+
+$$
+y_{t} = \phi_{0} +\phi_{1}y_{t-1} + \varepsilon_{t} + \theta_{1}\varepsilon_{t - 1}
+$$
+
+onde ambas as condições de estacionaridade como de invertibilidade devem ser atendidas. Assume-se que o termo $\varepsilon_{t}$ é um ruído branco. De maneira mais geral, um modelo ARMA(p, q) tem a forma:
+
+$$
+y_{t} = \phi_{0} +\phi_{1}y_{t-1} + \dots + \phi_{p}y_{t-p} + \varepsilon_{t} + \theta_{1}\varepsilon_{t - 1} + \dots + \theta_{q}\varepsilon_{t- q}
+$$
+
+# Crescimento do PNB
+
+Vamos usar a série do PNB disponbilizada pelo pacote `astsa`. Este pacote foi montado pelos autores do livro [Time Series Analysis](https://www.stat.pitt.edu/stoffer/tsa4/). Para visualizar a série usamos a função `plot.ts`.
+
+```{r}
+library(astsa)
+library(forecast)
+data("gnp")
+```
+
+```{r}
+plot.ts(gnp,
+        main = "Produto Nacional Bruto EUA (trimestre)",
+        xlab = "",
+        ylab = "US$ (bilhões)")
+```
+
+Precisamos transformar a série primeiro. Para encontrar a variação percentual de uma variável $y_{t}$ qualquer fazemos
+
+$$
+  \Delta y_{t} = \frac{y_{t} - y_{t-1}}{y_{t-1}}
+$$
+
+Uma aproximação comumumente usada no lugar da equação acima é a diferença em log. Na literatura de finanças a equação acima também é conhecida como *retorno* e a diferença em log como *log-retorno*. Na prática, além da aproximação ser boa para valores pequenos (em torno de zero) costuma ser mais cômodo trabalhar com log-retornos.
+
+$$
+  \Delta y_{t} = \frac{y_{t} - y_{t-1}}{y_{t-1}} \approx \text{ln}(1 + \Delta y_{t}) = \text{ln}(y_{t}/y_{t-1}) = \text{ln}(y_{t}) - \text{ln}(y_{t-1})
+$$
+
+No R podemos combinar duas funções para facilitar o cômputo da diferença dos logs: usamos `diff()` que computa $y_{t} - y_{t - 1}$ junto com a função `log()` que computa o logaritmo. Note que a função `log()` usa o número $e$ como base; é possível trocar a base usando o argumento `base = 10`, por exemplo, ou usar simplesmente uma outra função `log10()`.
+
+```{r}
+# Computa log(y[t]) - log(y[t-1])
+y <- diff(log(gnp))
+# Gráfico da série transformada
+plot.ts(y * 100, main = "Variação percentual do PIB", xlab = "", ylab = "(%)")
+abline(h = 0, col = "gray30")
+```
+
+Para avaliar a qualidade do modelo vamos reservar a parte final dos dados: a ideia é gerar previsões usando apenas a informação da primeira parte da amostra e então comparar estas previsões com as observações. Esta metodologia às vezes é denominada de *train* (treino) e *test* (teste).
+
+Treinamos o modelo com as primeiras observações e depois testamos as suas previsões contra as observações finais (que ficaram fora do modelo). Aqui também cabe uma breve observação sobre dados em série de tempo. Se tivéssemos dados em cross-section o correto seria formar as bases *train* e *test* usando algum tipo de amostragem aleatória. Como os dados de série de tempo são encadeados não podemos fazer isto: por isto "cortamos" as observações num determinado instante do tempo.
+
+Abaixo escolho um tanto arbitrariamente cortar os dados em janeiro de 1992. Em azul destaco os dados que serão utilizados para alimentar o modelo. As previsões serão testasdas contra as observações em vermelho.
+
+```{r}
+# Cria a janela temporal
+train <- window(y, end = c(1991, 4))
+teste <- window(y, start = c(1992, 1))
+
+# Plota o gráfico destacando as observações finais que foram removidas.
+plot.ts(y)
+lines(train, col = "blue")
+lines(teste, col = "red")
+```
+
+# Identificação
+
+O primeiro trabalho que temos é o de identificar a ordem do modelo, isto é, encontrar os valores verdadeiros de $p$ e $q$. A maneira mais comum de começar é tentar comparar os gráficos das funções de autocorrelação (FAC) e autocorrelação parcial (FACP) com suas contrapartidas teóricas. O R tem as funções `acf()` e `pacf()` que calculam estes valores junto com intervalos de confiança assintóticos.
+
+```{r}
+# Modifica parâmetros para apresentar dois gráficos numa mesma figura
+par(mfrow = c(2, 1))
+acf(train,  main = "Função de autocorrelação", xlab = "Defasagem", ylab = "ACF")
+pacf(train, main = "Função de autocorrelação parcial", xlab = "Defasagem", ylab = "PACF")
+```
+
+Note que a escala das defasagens é agrupada pela frequência dos dados, isto é, são contadas de quatro em quatro. Há alguns problemas com a visualização acima. Primeiro, a função de autocorrelãção começa no lag zero, isto é, $\rho(0)$. Sabemos que este valor sempre será igual a um pois, por definição: $\rho(0) = \frac{\gamma(0)}{\gamma(0)} = 1$. Logo, seria melhor que esta defasagem fosse suprimida. Além disso, é um tanto inconveniente ter que modificar os parâmetros gráficos usando `par(mfrow = c(2, 1))`. Uma saída é usar a função `acf2()` do pacote `astsa`. Esta função também imprime uma lista com os valores estimados da FAC e da FACP.
+
+```{r}
+acf2(train)
+```
+
+Agora está mais claro que as duas primeiras defasagens da FAC são significantes e que a primeira defasagem da FACP é significante. Note também que a 5ª defasagem na FAC é um pouco significante e há uma defasagem de ordem elevada (lag 12) que é um pouco significante na FACP. Em geral, podemos desprezar estas autocorrelações de ordens muito elevadas até porque vamos querer modelos mais parcimoniosos (i.e. com poucos parâmetros).
+
+Apenas olhando para os gráficos acima poderíamos chutar um modelo ARMA(1,1), ARMA(1,2) ou mesmo um AR(1). Depois disto teríamos que checar os resíduos para ver se o modelo está bem ajustado. Por fim, poderíamos escolher o melhor modelo segundo algum critério de informação como o Critério de Akaike (AIC). Alternativamente, poderíamos identificar a ordem do modelo usando algum algoritmo. A função `auto.arima()` do pacote `forecast()` verifica vários modelos e compara eles via uma série de critérios.
+
+# Estimação e diagnóstico
+
+## Modelo 1
+
+Vou primeiro estimar o ARMA(1, 2) usando a função `arima()` do R.
+
+```{r}
+(m1 <- arima(train, order = c(1, 0, 2)))
+```
+
+A estimativa tem a forma: $$
+  y_{t} = \underset{(0.0012)}{0.0084} + \underset{(0.2324)}{0.2294}y_{t - 1} + \underset{(0.2247)}{0.0971}\epsilon_{t-1} + \underset{(0.0958)}{0.1623}\epsilon_{t-2}
+$$ Note que os erros-padrão de $\hat{\phi_{1}}$ e $\hat{\theta_{1}}$ são bastante elevados. De fato, um teste-t revela que estes coeficientes não são significantes.
+
+### Diagnóstico de resíduos
+
+Pode-se verificar os resíduos do modelo de muitas formas. Idealmente, quer-se que os resíduos não apresentem autocorrelação alguma. Uma forma gráfica de ver isto é usando a função `lag1.plot` que apresenta gráficos de dispersão entre o resíduo $u_{t}$ contra suas defasagens $u_{t-1}, u_{t-2}, \dots$. Abaixo faço isto para as primieras quatro defasagens.
+
+```{r}
+residuos <- resid(m1)
+lag1.plot(residuos, max.lag = 4)
+```
+
+Na prática, é mais conveniente analisar diretamente os gráficos da FAC e da FACP dos resíduos.
+
+```{r, message = FALSE}
+acf2(residuos)
+```
+
+Um teste basatante usual para verificar a presença de autocorrelação nos resíduos é o Ljung-Box. Para computá-lo uso a função `Box.test()` do pacote `tseries`. Note que é preciso suplementar o argumento `fitdf` com o número de parâmetros estimados do modelo. Isto serve para corrigir a estatística do teste. A escolha da ordem do teste é um tanto arbitrária e, na prática, seria recomendado fazer o teste para várias ordens diferentes. O código abaixo computa a estatística do teste para uma defasagem igual a 8.
+
+Note o uso do argumento `fitdf` que leva em conta o número de parâmetros estimados no modelo. Segundo o p-valor, não temos evidência para rejeitar a hipótese nula de que os resíduos *não* são conjuntamente autocorrelacionados. Isto é, temos evidência de que o modelo está bem ajustado pois os resíduos parecem se comportar como ruído branco.
+
+```{r}
+library(tseries)
+Box.test(residuos, type = "Ljung-Box", lag = 8, fitdf = 4)
+```
+
+Na prática, é bom repetir o teste para várias defasagens diferentes. A tabela abaixo resume os valores do teste para várias ordens de defasagem. Vale lembrar que o teste Ljung-Box tende a não-rejeitar H0 para defasagens muito elevadas.
+
+```{r, echo = FALSE, results = "asis"}
+est <- c(); pval <- c()
+for(i in c(8:20)) {
+  est[i - 7] <- Box.test(residuos, type = "Ljung-Box", lag = i, fitdf = 4)$statistic
+  pval[i - 7] <- Box.test(residuos, type = "Ljung-Box", lag = i, fitdf = 4)$p.value
+}
+ljung <- data.frame(Defasagem = 8:20, round(est, 4), round(pval, 4))
+names(ljung)[2:3] <- c("Estatística de teste", "P-valor")
+
+ljung %>%
+  kable(align = "c") %>%
+  kable_styling(bootstrap_options = c("bordered"), full_width = FALSE)
+```
+
+### Usando o pacote `astsa`
+
+Uma forma bastante conveniente de trabalhar com modelos ARMA é com a função `sarima` do pacote `astsa`. Esta função apresenta automaticamente algumas valiosas informações para o diagnóstico dos resíduos: o gráfico do ACF, o gráfico qq-plot (para verificar a normalidade dos resíduos) e os p-valores do teste Ljung-Box para várias ordens de defasagem.
+
+A saída abaixo reúne quatro gráficos. O primeiro deles apresenta o resíduo normalizado (ou escalado). Este gráfico não deve apresentar um padrão claro. O segundo gráfico é a FAC do resíduo: idealmente, nenhuma defasagem deve ser significativa neste gráfico. Ao lado da FAC temos o QQ-plot: se todos os pontos caem sobre a linha azul temos evidência de que os resíduos são normalmente distribuídos.
+
+Por fim, o último gráfico mostra o p-valor do teste Ljung-Box (já ajustado pelo número de parâmetros do modelo estimado) para diferentes defasagens. A linha tracejada em azul indica o valor 0.05. Idealmente, todos os pontos devem estar acima desta linha.
+
+```{r, message = FALSE}
+sarima(train, p = 1, d = 0, q = 2)
+```
+
+## Modelo 2
+
+Estimo também o modelo ARMA(1, 1). A análise de resíduos é análoga à apresentada acima.
+
+```{r}
+m2 <- arima(train, order = c(1, 0, 1))
+```
+
+## Modelo 3
+
+Para o terceiro modelo uso o método automático do `auto.arima()`. A função escolhe o AR(1) com constante como melhor modelo para representar os dados. Note que a na inspeação visual também tínhamos verificado que o AR(1) seria um possível candidato.
+
+```{r}
+(m3 <- auto.arima(train))
+```
+
+### Seleção
+
+Para escolher o melhor modelo pode-se usar algum critério de informação. Abaixo comparo os modelos segundo os critérios AIC, AICc (AIC corrigido) e BIC (Bayesian Information Criterion). Na prática, não é comum que os três critérios escolham o mesmo modelo; em particular, o BIC penaliza o número de parâmetros mais fortemente que o AIC. Neste caso específico, os três critérios escolhem o AR(1).
+
+```{r, message = FALSE, echo = FALSE}
+X <- data.frame(AIC = c(m1$aic, m2$aic, m3$aic),
+	            AICc = c(m1$aicc, m2$aicc, m3$aicc),
+	            BIC = c(m1$bic, m2$bic, m3$bic))
+
+rownames(X) <- c("ARMA(1, 2)",
+	             "ARMA(1, 1)",
+	             "AR(1)")
+
+X %>% 
+  kable(align = "c") %>%
+  kable_styling(bootstrap_options = c("bordered"), full_width = FALSE)
+```
+
+### Previsão
+
+Para gerar previsões usamos a função `forecast()` (outra opção é usar a função base `predict()`). Abaixo computo previsões para os três modelos acima mais um modelo ingênuo que será usado como bench-mark. O modelo ingênuo é simplesmente um random-walk que prevê sempre o valor anterior, isto é, $\hat{y_{T+1}} = y_{T}$.
+
+```{r}
+prev1 <- forecast(m1, h = length(teste))
+prev2 <- forecast(m2, h = length(teste))
+prev3 <- forecast(m3, h = length(teste))
+prev4 <- forecast(naive(train, h = length(teste)), h = length(teste))
+
+erros <- t(matrix(c(teste - prev1$mean,
+                    teste - prev2$mean,
+                    teste - prev3$mean,
+                    teste - prev4$mean),
+                    ncol = 4))
+erros <- as.data.frame(erros)
+colnames(erros) <- paste("t =", as.numeric(time(teste)))
+row.names(erros) <- c("ARMA(1, 2)",
+                      "ARMA(1, 1)",
+                      "AR(1)",
+                      "Y[t+1] = Y[t]")
+```
+
+Os erros de previsão são apresentados na tabela abaixo.
+
+```{r, message = FALSE, asis = TRUE, echo = FALSE}
+erros %>%
+  kable(align = "c") %>%
+  kable_styling(bootstrap_options = c("striped", "bordered", "hover")) %>%
+  scroll_box(width = "100%")
+```
+
+Pode-se melhor comparar a performance das previsões usando alguma medida agregada de erro. Duas medidas bastante comuns são o Erro Absoluto Médio (EAM) e o Erro Quadrático Médio. A primeira toma o módulo da diferença entre o previsto ($\hat{y}$) e o observado ($y$) e tira uma média, enquanto a última toma a diferença quadrática. Formalmente, para um horizonte de previsão $h$ começando na última observação $T$:
+
+```{=tex}
+\begin{align}
+\text{EAM} & = \frac{1}{h}\sum_{i = T + 1}^{T + h} |y_{i} - \hat{y}_{i}| \\
+\text{EQM} & = \frac{1}{h}\sum_{i = T + 1}^{T + h} (y_{i} - \hat{y}_{i})^2
+\end{align}
+```
+A tabela abaixo compara os modelos segundo estas medidas de erro.
+
+```{r, echo = FALSE}
+eam <- function(x, y) {
+  mean(abs(x - y))
+  }
+eqm <- function(x, y) {
+  mean((x - y)^2)
+  }
+
+erros <- matrix(c(eam(teste, prev1$mean), eqm(teste, prev1$mean),
+                  eam(teste, prev2$mean), eqm(teste, prev2$mean),
+                  eam(teste, prev3$mean), eqm(teste, prev3$mean),
+                  eam(teste, prev4$mean), eqm(teste, prev4$mean)),
+                  ncol = 2
+                  )
+colnames(erros) <- c("EAM", "EQM")
+row.names(erros) <- c("ARMA(1, 2)",
+                      "ARMA(1, 1)",
+                      "AR(1)",
+                      "Y[t+1] = Y[t]")
+```
+
+```{r, message = FALSE, asis = TRUE, echo = FALSE}
+erros %>%
+  kable(align = "c") %>%
+  kable_styling(bootstrap_options = c("striped", "bordered", "hover")) %>%
+  scroll_box(width = "100%")
+```
+
+Nem sempre é fácil comparar estas medidas, i.e., verificar se elas são estatisticamente significantes. Pode-se usar o teste Diebold-Mariano para comparar estas medidas de erro, mas é importante frisar que ele contém uma série de hipóteses sobre a distribuição dos erros. A função `dm.test` do pacote `forecast` faz este teste e mais informações sobre ele podem ser encontradas usando `?dm.test`.
+
+Pode-se visualizar as previsões usando as funções `autoplot()` e `autolayer()` do pacote `forecast`. Abaixo mostro os resultados para o modelo AR(1) e também para o modelo ingênuo. note como o erros-padrão deste último cresce muito rapidamente (pois a variância de um processo random-walk cresce sem limite).
+
+```{r}
+library(ggplot2)
+
+autoplot(prev2, include = 50) +
+  autolayer(teste) +
+  theme_bw()
+
+autoplot(prev3, include = 50) +
+  autolayer(teste) +
+  labs(x = "", y = "(%)") + 
+  theme_bw()
+
+autoplot(prev4, include = 50) +
+  autolayer(teste) +
+  labs(x = "", y = "(%)") + 
+  theme_bw()
+```
+
+# Conclusão
+
+Os modelos da classe ARMA são bastante populares em séries de tempo pois geram boas previsões de curto prazo. Além disso, estes modelos são estimados facilmente e usam apenas a informação da própria série. No post acima, vimos como estimar um modelo ARMA e algumas das facilidades que tanto o pacote `astsa` como o `forecast` nos oferecem.

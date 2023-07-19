@@ -1,0 +1,249 @@
+---
+title: "Censo 2022: As regiões metropolitanas"
+draft: true
+---
+
+```{r}
+knitr::opts_chunk$set(
+  echo = FALSE,
+  message = FALSE,
+  warning = FALSE,
+  fig.align = "center",
+  dev = "svg",
+  fig.retina = 2
+)
+```
+
+```{r}
+library(sidrar)
+library(dplyr)
+library(tidyr)
+library(stringr)
+library(ggplot2)
+library(geobr)
+library(sf)
+library(gt)
+library(gtExtras)
+```
+
+```{r}
+pop2022 <- get_sidra(4709, variable = 93, geo = "City")
+
+pop_series <- get_sidra(
+  136,
+  variable = 93,
+  period = "1991-2010",
+  geo = "City",
+  classific = c("c86"),
+  category = list(0)
+  )
+```
+
+```{r}
+clean_sidra <- function(df, name_value = "pop") {
+  
+  cols <- c("code_muni" = "municipio_codigo", "year" = "ano", x = "valor")
+  names(cols)[3] <- name_value
+  
+  df %>%
+    as_tibble() %>%
+    janitor::clean_names() %>%
+    dplyr::select(dplyr::all_of(cols)) %>%
+    dplyr::mutate(dplyr::across(dplyr::everything(), as.numeric)) 
+  
+  
+}
+```
+
+```{r}
+metro_region <- read_metro_area(showProgress = FALSE)
+dim_metro <- as_tibble(st_drop_geometry(metro_region))
+dim_metro <- select(dim_metro, code_muni, name_muni, abbrev_state, name_metro)
+```
+
+```{r}
+cpop_series <- clean_sidra(pop_series)
+cpop2022 <- clean_sidra(pop2022)
+
+census_pop <- rbind(cpop_series, cpop2022)
+census_pop <- left_join(census_pop, dim_metro, by = "code_muni")
+```
+
+```{r}
+shorten_ride_names <- function(x) {
+  
+  ride_names <- c(
+  "RIDE - Região Integrada de Desenvolvimento do Distrito Federal e Entorno" = "RIDE DF",
+  "RIDE TERESINA - Região Integrada de Desenvolvimento da Grande Teresina" = "RIDE Teresina",
+  "RIDE Petrolina/Juazeiro Região Administrativa Integrada de Desenvolvimento do Polo Petrolina/PE e Juazeiro/BA" = "RIDE Petrolina/Juazeiro"
+)
+  
+  unname(ride_names[x])
+  
+}
+
+tbl_pop_metro <- census_pop %>%
+  filter(!is.na(name_metro)) %>%
+  mutate(
+    name_metro = str_remove(name_metro, "RM d[a-z]"),
+    name_metro = str_remove(name_metro, "RM"),
+    name_metro = str_replace(name_metro, "Aglomeração Urbana", "AU"),
+    name_metro = ifelse(
+      str_detect(name_metro, "^RIDE"), shorten_ride_names(name_metro), name_metro
+      ),
+    name_metro = str_trim(name_metro, side = "both")
+    ) %>%
+  summarise(
+    total = sum(pop, na.rm = TRUE),
+    state = paste(unique(abbrev_state), collapse = ", "),
+    .by = c("year", "name_metro")
+    ) %>%
+  arrange(year) %>%
+  arrange(name_metro)
+```
+
+```{r}
+big_metros <- tbl_pop_metro %>%
+  filter(year == 2022, total > 5*1e5) %>%
+  pull(name_metro)
+```
+
+```{r}
+# Get only 500k cities and compute average geometric growth
+tbl_major <- tbl_pop_metro %>%
+  filter(name_metro %in% big_metros) %>%
+  # Not so trivial since year intervals are not the same between Census editions
+  group_by(name_metro) %>%
+  mutate(tcg = (total / lag(total))^(1/(year - lag(year) + 1)) - 1) %>%
+  ungroup()
+
+# Convert to wider and arrange by 2022 population
+tbl_major_wide <- tbl_major %>%
+  pivot_wider(
+    id_cols = c("name_metro", "state"),
+    names_from = "year",
+    values_from = c("total", "tcg")
+    ) %>%
+  select(-tcg_1991) %>%
+  arrange(desc(total_2022))
+```
+
+```{r}
+# tbl_major_wide <- tbl_major_wide %>%
+#   mutate(
+#     is_growth = factor(ifelse(tcg_2022 > tcg_2010, 1L, 0L))
+#   )
+
+timeline <- tbl_major %>%
+  summarise(
+    TCG = list(na.omit(c(tcg * 100))),
+    .by = "name_metro"
+  )
+
+col_names <- c(
+  "Região Metro", "Estado", "1991", "2000", "2010", "2022", "1991/2000", "2000/2010",
+  "2010/2022"
+)
+
+names(col_names) <- names(tbl_major_wide)
+
+tbl_major_wide %>%
+  left_join(timeline) %>%
+  gt() %>%
+  cols_label(.list = col_names) %>%
+  tab_spanner("Populacao", columns = 3:6) %>%
+  tab_spanner("Crescimento (%)", columns = 7:9) %>%
+  fmt_number(starts_with("total"), decimals = 0, sep_mark = ".") %>%
+  fmt_percent(starts_with("tcg"), decimals = 2) %>%
+  ## Target Timeline column
+  gt_plt_sparkline(
+    column = TCG,
+    palette = c("gray30", "black", "firebrick", "dodgerblue", "lightgrey"),
+    fig_dim = c(5, 28)
+  ) %>%
+  gt_theme_538() %>%
+  gt_color_rows(
+    columns = tcg_2022,
+    domain = seq(-0.005, 0.03, 0.005),
+    #domain = c(min(tbl_major_wide$tcg_2022), 0, max(tbl_major_wide$tcg_2022)),
+    palette = c(
+      "#E63946", "#F1FAEE", "#CDEAE5", "#BBE2E1", "#A8DADC", "#90C3CD", "#77ABBD",
+      "#457B9D", "#31587A", "#1D3557")
+  )
+```
+
+```{r}
+pop_sul <- get_sidra(
+  4709,
+  variable = c(93, 10605),
+  geo = "City",
+  geo.filter = list("Region" = 4)
+  )
+```
+
+```{r}
+muni <- read_municipality(year = 2020, showProgress = FALSE)
+muni <- filter(muni, code_region == 4)
+
+state <- read_state(showProgress = FALSE)
+state <- filter(state, code_region == 4)
+```
+
+```{r}
+tbl_pop_sul <- pop_sul %>%
+  janitor::clean_names() %>%
+  select(
+    code_muni = municipio_codigo,
+    name_series = variavel,
+    value = valor
+  ) %>%
+  mutate(
+    code_muni = as.numeric(code_muni),
+    name_series = ifelse(str_detect(name_series, "^Pop"), "pop", "tgc")
+    ) %>%
+  pivot_wider(
+    id_cols = "code_muni",
+    names_from = "name_series",
+    values_from = "value")
+```
+
+```{r}
+muni <- left_join(muni, tbl_pop_sul, by = "code_muni")
+
+bks <- c(-2.23, -0.85, 0, 0.5, 1.2, 2.1, 3.5, 6.32)
+lvls <- findInterval(muni$tgc, bks, rightmost.closed = TRUE)
+fill_labels <- c(
+  "-2.22, -0.85", "-0.85, 0", "0, 0.5", "0.5, 1.2", "1.2, ")
+fill_labels <- paste(bks, bks[-1], sep = ",")
+fill_labels
+
+muni <- muni %>%
+  mutate(
+    group_tgc = classInt::classify_intervals(tgc, n = 7, style = "jenks")
+  )
+```
+
+```{r}
+ggplot() +
+  geom_sf(data = muni, aes(fill = as.factor(group_tgc)), color = "gray50") +
+  geom_sf(data = state, fill = NA, linewidth = 0.6) +
+  scale_fill_brewer(type = "div") +
+  theme_void()
+```
+
+```{r}
+dfsul <- as_tibble(st_drop_geometry(muni))
+
+ggplot(dfsul, aes(x = log(pop), y = tgc)) +
+  geom_point(aes(color = abbrev_state), alpha = 0.5)
+```
+
+```{r}
+# Domicílios particulares ocupados (total e média de moradores)
+domi22 <- get_sidra(4712, variable = c(381, 5930), geo = "City")
+
+# Domicílios particulares ocupados
+domi_series <- get_sidra(156, variable = 2048, geo = "City", period = "1991-2010")
+# Número médio de moradores (por domicílio particular ocupado)
+domi_media <- get_sidra(156, variable = 619, geo = "City", period = "1991-2010")
+```

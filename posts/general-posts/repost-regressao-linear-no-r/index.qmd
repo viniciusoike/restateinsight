@@ -1,0 +1,291 @@
+---
+title: "Regressão Linear no R"
+date: '2019-03-21'
+categories: ['econometria', 'tutorial-R']
+description: 'Fazendo regressão linear simples no R'
+draft: true
+---
+
+```{r}
+library(stargazer)
+library(kableExtra)
+library(magrittr)
+```
+
+# Introdução
+
+## Pacotes
+
+```{r, eval = FALSE}
+# Instalar os pacotes se necessário
+install.packages(c("AER", "lmtest", "stargazer", "wooldridge"))
+
+library(AER)
+library(lmtest)
+library(stargazer)
+library(wooldridge)
+```
+
+## Teoria
+
+Em econometria queremos explicar uma variável $y$ em função de um conjunto de regressores, ou variáveis explicativas, $x_{1}, x_{2}, \dots, x_{k}$. Isto é, criamos um modelo matemático que explica $y$ em função destes regressores, $y = f(x_{1}, x_{2}, \dots, x_{k})$. A forma mais simples para $f(\dot)$ é a linear, isto é,
+
+```{=tex}
+\begin{equation}
+  y_{t} = \beta_{0} + \beta_{1}x_{1,t} + \beta_{2}x_{2,t} + \dots + \beta_{k}x_{k,t} + u_{t}
+\end{equation}
+```
+onde queremos estimar os valores de $\beta_{0}, \beta_{1}, \dots, \beta_{k}$. O último termo da equação, $u_{t}$, é geralmente denominado "ruído" ou "erro". Os parâmetros $\beta_{0}, \beta_{1}, \dots, \beta_{k}$ nos informam os "efeitos marginais" que a variável $x_{i}$ respectiva tem sobre a variável de interesse $y$. Em alguns casos, pode-se inclusive afirmar que o valor estimado de $\beta_{i}$ é o efeito *causal* que $x_{i}$ tem sobre $y$.
+
+### Exemplo: Cigarros
+
+Digamos que o consumo de cigarros seja linearmente relacionado ao preço do maço. A base `CigarettesB` traz informações do preço do maço de cigarros e do consumo (per capita) de cigarros para 46 estados dos EUA no ano de 1992. Para carregar esta precisamos primeiro do pactoe `AER`.
+
+Para carregar pacotes no R use a função `library()`, caso ainda não tenha instalado o pacote use `install.packages("AER")` e depois carregue o pacote. Para carregar a base de dados usamos a função `data()` com o nome da base de dados como argumento, isto é, `data("CigarettesB")`.
+
+```{r, message = FALSE}
+library("AER")
+data("CigarettesB")
+```
+
+```{r, message = FALSE, results = "asis", echo = FALSE}
+tabela <- head(CigarettesB, 10)
+tabela %>%
+  kable(align = 'c') %>%
+  kable_styling(bootstrap_options = c("striped",
+                                      "hover",
+                                      "condensed",
+                                      "bordered"))
+```
+
+Temos 46 observações de cada uma das três variáveis. Indexando cada uma delas pela letra $i = 1, 2, \dots, 46$ queremos estimar o seguinte modelo:
+
+$$
+  \text{Packs}_{i} = \beta_{0} + \beta_{1}\text{Price}_{i} + u_{t}
+$$
+
+Isto é, queremos estimar $\beta_{0}$ e $\beta_{1}$ acima. Adicionalmente, como se trata de um modelo de regressão simples (i.e., com apenas uma variável explicativa) queremos também visualizar a relação linear graficamente. Vamos começar com um gráfico de dispersão. Para montar o gráfico usamos a função `plot()`. Além disso, é conveniente trabalhar com um nome mais simples do que "CigarettesB". Recomenda-se, em geral, que se crie objetos com nomes curtos e com letras minúsculas. Neste caso, uma opção intuitiva seria "cigar".
+
+```{r}
+# "Renomeia" a tabela CigarettesB
+cigar <- CigarettesB
+# Gráfico de dispersão
+plot(
+  packs ~ price,
+  data = cigar,
+  main = "Gráfico de dispersão entre consumo de cigarros e seu preço",
+  xlab = "Consumo agregado",
+  ylab = "Renda disponível"
+  )
+```
+
+Para estimar o modelo usamos a função `lm()`. Esta função devolve um objeto do tipo "lm", que é, essencialmente, uma lista de valores. Usando o operador "\$" podemos acessar os diferentes valores guardados dentro do objeto "lm" criado. Usando a função a summary em torno do "lm" retorna uma saída com informações gerais sobre a regressão.
+
+```{r}
+# Regressão linear
+fit <- lm(packs ~ price, data = cigar)
+# Exibe os principais resultados da regressão
+summary(fit)
+```
+
+Como se vê parece haver uma relação linear significante entre o preço do pacote de cigarro e o seu consumo per-capita. Em particular, esta relação é negativa, como seria esperado. Para visualizar graficamente o ajuste do modelo usamos a função `abline()`.
+
+```{r}
+# Regressão linear
+plot(
+  packs ~ price,
+  data = cigar,
+  main = "Gráfico de dispersão entre consumo de cigarros e seu preço", 
+  xlab = "Consumo agregado",
+  ylab = "Renda disponível"
+  )
+abline(fit$coefficients, col = 'red')
+```
+
+Podemos facilmente visualizar o resíduo desta regressão. A função `residuals()` ou `resid()` captura os resíduos do modelo. Assim, o código abaixo salva o resíduo da estimação acima num objeto chamada `residuo`.
+
+```{r}
+residuo <- resid(fit)
+# Histograma do resíduo
+hist(residuo, breaks = "FD")
+```
+
+Existem outras funções que facilitam a extração de elementos específicos da estimação da regressão. O código abaixo mostra alguns exemplos.
+
+```{r}
+# Extrair coeficientes
+coefficients(fit)
+```
+
+```{r}
+# Computa o critério de Akaike
+AIC(fit)
+```
+
+```{r}
+# Extrai o R2
+summary(fit)$r.squared
+```
+
+```{r}
+# Extrai os valores ajustados
+y_estimado <- fitted(fit)
+# Plota no gráfico contra os valores observados
+plot(y_estimado, cigar$packs)
+abline(a = 0, b = 1, lty = 2)
+```
+
+```{r}
+# Plot do resíduo contra a variável explicativa
+plot(residuo, cigar$price)
+abline(h = 0)
+abline(v = 0)
+grid()
+```
+
+```{r}
+# Alguns gráficos úteis para detectar outliers e o ajuste do modelo
+plot(fit)
+```
+
+```{r}
+predict(fit, data.frame(price = 0.5), se.fit = TRUE)
+```
+
+## Regressão múltipla
+
+### Exemplo: cigarros (de novo)
+
+```{r}
+# Regressão linear
+fit_mult <- lm(packs ~ price + income, data = cigar)
+# Exibe os principais resultados da regressão
+summary(fit_mult)
+```
+
+```{r}
+lmtest::waldtest(fit, fit_mult)
+lmtest::coeftest(fit_mult)
+```
+
+### Exemplo: salário
+
+```{r}
+library(wooldridge)
+data("wage2")
+```
+
+```{r, echo = FALSE}
+head(wage2) %>%
+  kable(align = "c") %>%
+  kable_styling(bootstrap_options = c("hover", "bordered", "striped"))
+```
+
+```{r}
+names(wage2)
+fit <- lm(lwage ~ educ + exper + IQ + tenure + age + married, data = wage2)
+```
+
+## Não-linearidades
+
+A restrição de linearidade do modelo é somente sobre os *parâmetros*, isto é, sobre os betas. Pode-se incorporar não-linearidades de outras forma. O modelo abaixo, por exemplo, continua sendo um modelo de regressão linear:
+
+$$
+  y_{t} = \beta_{0} + \beta_{1}x_{1t}^{3} + \beta_{2}\frac{1}{x_{2t}} + \beta_{3}\text{log}(x_{3t}) + \epsilon_{t} 
+$$
+
+### Logaritmos e potências
+
+```{r}
+library("wooldridge")
+data("hprice2")
+
+fit <- lm(
+  log(price) ~ log(nox) + log(dist) + rooms + I(rooms^2) + stratio,
+  data = hprice2)
+
+summary(fit)
+```
+
+$$
+  \frac{\partial log(y_{t})}{\partial log(x_{1t})}
+$$
+
+### Interações entre variáveis
+
+### Exemplo: variáveis dummy
+
+```{r}
+data("lawsch85")
+d <- lawsch85
+d$top10   <- ifelse(test = d$rank <= 10, yes = 1, no = 0)
+d$r11_25  <- ifelse(test = d$rank > 10 & d$rank <= 25, yes = 1, no = 0)
+d$r26_40  <- ifelse(test = d$rank > 25 & d$rank <= 40, yes = 1, no = 0)
+d$r41_60  <- ifelse(test = d$rank > 40 & d$rank <= 60, yes = 1, no = 0)
+d$r61_100 <- ifelse(test = d$rank > 60 & d$rank <= 100, yes = 1, no = 0)
+
+fit <- lm(
+  log(salary) ~ top10 + r11_25 + r26_40 + r41_60 + r61_100 + LSAT +
+                GPA + log(llibvol) + lcost,
+  data = d)
+
+fit
+```
+
+## Testes
+
+```{r}
+library(wooldridge)
+data("wage2")
+```
+
+```{r, echo = FALSE}
+head(wage2) %>%
+  kable("html", align = "c") %>%
+  kable_styling(bootstrap_options = c("hover", "striped", "bordered"))
+```
+
+### Usando o stargazer
+
+O pacote `stargazer` facilita muito a publicação dos resultados de uma regressão. Depois de carregar o pacote simplesmente use a função `stargazer()` num objeto `lm`. Lembre-se que para verificar a classe de um objeto usamos a função `class()`.
+
+```{r, echo = FALSE, message = FALSE}
+library(stargazer)
+```
+
+```{r}
+# Carregar pacote adicional de temas
+class(fit)
+```
+
+Note que abaixo chamo a função usando o argumento `type = 'html'`, pois estou usando o RMarkdown para fazer este site. Outras opções incluem `type = 'text'`, que retorna uma tabela simples estilo .txt, e `type = 'latex'`, que retorna uma tabela no formato [LaTeX](https://www.latex-project.org/).
+
+```{r, message = FALSE, results = 'asis'}
+# Carregar pacote adicional de temas
+stargazer(fit,
+          type = "html",
+          title = "Resultados da regressão",
+          covariate.labels = c("Preço", "Renda individual", "constante"),
+          dep.var.labels = "Pacotes de cigarro"
+          )
+```
+
+### Usando o ggplot2
+
+O pacote `ggplot2` oferece formas alternativas de visualizar a mesma relação linear que encontramos acima. Em particular, a função `qplot()` tem uma sintaxe muito similar à da função `plot()`.
+
+```{r}
+# Carrega o pacote
+library(ggplot2)
+# Função qplot
+p <- qplot(x = price, y = packs, data = cigar, geom = "point")
+p
+```
+
+Para adicionar uma linha de regressão acrescentamos `geom_smooth`. Especificamos que queremos um modelo linear adicionando o argumento 'lm'
+
+```{r}
+p +
+  geom_smooth(method = "lm") +
+  theme_bw()
+```
