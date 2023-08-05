@@ -1,0 +1,517 @@
+---
+title: Importando dados do SIDRA
+date: '2023-08-08'
+categories: ['data-science', 'economia', 'tutorial-R']
+description: 'Importando dados abertos do IBGE via API usando o sidrar no R.'
+draft: true
+---
+
+```{r}
+#| echo: false
+#| results: 'hide'
+renv::use(lockfile = "renv.lock")
+```
+
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(
+  warning = FALSE,
+  message = FALSE,
+  fig.align = "center",
+  fig.showtext = TRUE,
+  fig.width = 7,
+  fig.asp = 0.618,
+  out.width = "90%")
+
+library(sidrar)
+library(dplyr)
+library(tidyr)
+library(janitor)
+library(tmap)
+library(tmaptools)
+tmap_mode(mode = "view")
+
+print_table <- function(x) {
+  
+  x |> 
+    knitr::kable(align = "c", digits = 0) |> 
+    kableExtra::kable_styling(
+        full_width = FALSE,
+        bootstrap_options = c("condensed", "responsive", "hover", "striped")
+    )
+
+}
+```
+
+O SIDRA, ou Sistema IBGE de Recuperação Automática, é um sistema automatizado de coleta de dados do IBGE, que disponbiliza tabelas das várias pesquisas feitas pelo IBGE. O sistema é centralizado no [site](https://sidra.ibge.gov.br/home/pnadcm). Encontrar pesquisas e dados pode não ser fácil e, em geral, exige conhecimento prévio sobre as pesquisas do IBGE. O site oferece uma página de [ajuda](https://sidra.ibge.gov.br/ajuda).
+
+Neste post vou comentar mais especificamente sobre o pacote `sidrar` que dialoga diretamente com a API do SIDRA para importar tabelas diretamente para dentro do `R`. O pacote tem duas funções centrais:
+
+* `info_sidra()` - busca os metadados e informações de uma tabela.
+* `get_sidra()` - importa uma tabela do SIDRA seguindo um conjunto de parâmetros.
+
+# R
+
+Primeiro, temos que instalar o pacote `sidrar` e chamá-lo usando a função `library()`. Além disso, para a primeira parte deste tutorial mostro também como utilizar os pacotes `dplyr`, `tidyr` e `janitor` para limpar os dados.
+
+```{r install-pkgs}
+#| eval: false
+# Instale o pacote (caso necessário)
+install.packages("sidrar")
+# Outros pacotes usados neste tutorial
+install.packages(c("janitor", "dplyr", "tidyr"))
+
+library("sidrar")
+library("janitor")
+library("dplyr")
+library("tidyr")
+```
+
+# Importando dados
+
+Vamos começar olhando para a tabela de estimativas da população dos municípios. A tabela [6579](https://sidra.ibge.gov.br/tabela/6579) reúne os dados da pesquisa "Estimativas da População", uma contagem anual da população de todos os municípios do Brasil.
+
+Primeiro vamos usar a função `info_sidra` para verificar o conteúdo desta tabela.
+
+```{r}
+info_sidra(6579)
+```
+
+A tabela, neste caso, é bastante simples. Os dados são anuais e estão disponíveis de 2001 a 2021. Há apenas uma variável: `População residente estimada (Pessoas)` com código `9324`. Por fim, os dados estão desagregados no nível nacional, regional, estadual e municipal.
+
+Vamos importar a população de todos os municipios em 2021. Note que no código abaixo o argumento do ano é inserido como um `character`.
+
+```{r, eval = FALSE}
+pop21 <- get_sidra(6579, period = "2021", geo = "City")
+
+pop21
+```
+
+A tabela já vem formatada dentro do R.
+
+```{r, echo = TRUE}
+pop21 <- get_sidra(6579, period = "2021", geo = "City")
+head(pop21)
+```
+
+Ainda que os dados não estejam "sujos", eles não estão num formato agradável para se trabalhar. Vamos fazer uma limpeza básica dos dados. Primeiro, vamos simplificar os nomes das colunas e selecionar apenas as colunas de maior interesse.
+
+```{r}
+pop21 <- janitor::clean_names(pop21)
+pop21 <- dplyr::select(pop21, municipio_codigo, municipio, ano, valor)
+```
+
+```{r, echo = FALSE}
+print_table(head(pop21))
+```
+
+Note que o nome dos municípios contém também a abreviação do estado ao qual o município pertence. Podemos deixar isto mais claro separando esta informação em duas colunas distintas.
+
+```{r}
+pop21 <- tidyr::separate(
+  pop21,
+  col = "municipio",
+  into = c("nome_muni", "abr_estado"),
+  sep = " - ")
+```
+
+```{r, echo = FALSE}
+print_table(head(pop21))
+```
+
+Por fim, podemos padronizar melhor o nome das colunas. Vamos utilizar as convenções do pacote `geobr`, por exemplo, e traduzir as variáveis para o inglês.
+
+```{r}
+pop21 <- dplyr::rename(
+  pop21,
+  name_muni = nome_muni,
+  abbrev_state = abr_estado,
+  code_muni = municipio_codigo,
+  year = ano,
+  population = valor)
+```
+
+A tabela final aparece abaixo.
+
+```{r, echo = FALSE}
+print_table(head(pop21))
+```
+
+A padronização dos nomes traz como vantagem facilitar o `join` com o shapefile dos municípios usando o pacote `geobr`.
+
+## Variando os parâmetros de busca
+
+A função `get_sidra()` permite refinar a query que gera a tabela final que é importada dentro do `R`. Os principais argumentos são:
+
+* `period` - escolhe a janela temporal dos dados.
+* `variable` - escolhe a variável a ser importada.
+* `geo` - nível geográfico dos dados (e.g. `"Brazil"`, `"City"`, `"Neighborhood"`, etc.).
+* `geo.filter` - lista com filtros geográficos.
+* `classific` - classificação dos dados.
+* `category` - escolhe quais categorias (do `classific`) importar.
+
+De maneira geral, todos os parâmetros acima tem algumas nuances. Vamos explorá-los caso a caso
+
+## Importando dados de vários períodos
+
+Para selecionar múltiplos períodos podemos montar um vetor `character` com os períodos desejados. Para selecionar uma sequência de períodos deve-se montar um string único encadeando os períodos com o sinal de "-". O código abaixo deve deixar isto mais claro.
+
+Note que se você rodar o código abaixo, provavelmente, vai enfrentar um problema de limite de query. A API do SIDRA restringe o número de linhas que um usuário pode chamar de uma só vez. Assim, para importar bases de dados maiores é preciso montar estratégias para particionar os dados.
+
+```{r, eval = FALSE}
+# Importa os dados de 2010 e de 2020
+pop <- get_sidra(6579, period = c("2010", "2020"), geo = "City")
+
+# Importa todos os dados de 2010 até 2020 (erro: limite de requisição)
+pop <- get_sidra(6579, period = c("2010-2020"), geo = "City")
+```
+
+Um detalhe curioso é que a função não retorna erros quando o período extrapola os valores disponíveis nos dados. Assim a função abaixo retorna apenas os valores de 2021.
+
+```{r, eval = FALSE}
+# Importa todos os dados de 2021 até 2030
+pop <- get_sidra(6579, period = c("2021-2030"), geo = "City")
+```
+
+A mesma lógica acima vale para quando os dados são mensais ou trimestrais. Considere o exemplo da taxa de desocupação, levantada pela PNADC Trimestral. Note que os períodos estão no formato `YYYYQQ`.
+
+```{r, eval = FALSE}
+info_sidra(4099)
+```
+
+Vamos importar todos as observações da taxa de desocupação em 2012. Note que agora há múltiplas variáveis na mesma tabela e que o resultado já está em formato "long".
+
+```{r}
+unemp <- get_sidra(4099, period = "201201-201204")
+```
+
+```{r}
+head(unemp)
+```
+
+Para refinar a busca acima temos de usar o argumento `variable`.
+
+```{r}
+unemp <- get_sidra(4099, period = "201201-202203", variable = 4099)
+```
+
+```{r}
+head(unemp)
+```
+
+Agora temos a série completa apenas da taxa de desocupação no Brasil. Podemos buscar também a taxa em cada uma das cidades do Brasil.
+
+```{r}
+unemp <- get_sidra(
+  4099,
+  period = "201201-202203",
+  variable = 4099,
+  geo = "City"
+  )
+```
+
+```{r, echo = FALSE}
+head(arrange(unemp, Trimestre))
+```
+
+Note, contudo, que temos o resultado somente nas capitais. Apesar do argumento "City" ser o mesmo que usamos na pesquisa de Estimativas da População, aqui o argumento "City" retorna apenas as capitais. Isto acontece porque a PNADC é uma pesquisa que é feita apenas nas capitais brasileiras e não tem uma desagregação a nível municipal para todos os municípios do Brasil. Este importante detalhe não fica evidente e depende do conhecimento prévio do usuário a respeito das pesquisas do IBGE.
+
+## Importando muitos dados
+
+Como comentei acima, a  API do SIDRA tem um limite de linhas nas queries. Isto significa que é preciso montar algumas estratégias para pegar as tabelas em partes menores. Na prática, isto vai depender muito da tabela e da informação que se quer.
+
+O exemplo abaixo é bastante simples mas pode eventualmente ser útil em alguma outra aplicação. O código importa a tabela de estimativas populacionais ano a ano. O mesmo poderia ter sido feito num for-loop, mas prefiro usar o `lapply` por simplicidade.
+
+Para acelerar o processo pode-se trocar o `lapply` por `parallel::mclapply` que roda a função em paralelo. Contudo, na minha experiência, esta estratégia acaba resultando em erros imprevistos. Não sei se isto é resultado de alguma restrição da API. Na prática, é mais seguro evitar o `mclapply`.
+
+```{r, eval = FALSE}
+# Define um vetor com todos os anos da pesquisa
+periods <- seq(2001:2021)
+# Converte para character
+periods <- as.character(periods)
+# Aplica a função get_sidra a cada elemento de periods (a cada ano)
+req <- lapply(periods, function(p) get_sidra(6579, period = p, geo = "City"))
+# Junta o resultado numa única tabela
+tab <- dplyr::bind_rows(req)
+```
+
+# Refinando a busca em casos complexos
+
+## Tabelas do Censo
+
+Tabelas que vem do Censo costumam ter maior complexidade. Considere, por exemplo, a tabela 1378, que retorna a população residente, por situação do domicílio (urbano x rural), sexo e idade, segundo a condição no domicílio e compartilhamento da responsabilidade (responsável, cônjuge, filho, etc.)
+
+O resultado da função abaixo é omitido para poupar espaço pois a saída é muito grande. Em casos como este é muito importante filtrar o resultado para conseguir uma tabela que faça sentido.
+
+```{r, eval = FALSE}
+info_sidra(1378)
+```
+
+Vamos nos focar somente na população residente (var 93) de pessoas responsáveis do domicílio (cod 11941) por bairro de Porto Alegre (4314902).
+
+```{r}
+resp <- get_sidra(
+  1378,
+  variable = 93,
+  classific = c("c455"),
+  geo = "Neighborhood",
+  geo.filter = list("City" = 4314902)
+  )
+```
+
+Após um pouco de limpeza no nome das colunas podemos ver o resultado abaixo.
+
+```{r, echo = FALSE}
+tbl_resp <- resp |> 
+  janitor::clean_names() |> 
+  select(
+    bairro,
+    cond_domi = condicao_no_domicilio_e_o_compartilhamento_da_responsabilidade_pelo_domicilio,
+    sexo,
+    idade,
+    situacao_domi = situacao_do_domicilio,
+    valor
+  )  |> 
+  mutate(bairro = stringr::str_remove(bairro, " - Porto Alegre - RS"))
+
+print_table(head(tbl_resp, 15))
+```
+
+Note que temos a coluna da condição do domicílio desagregada (c455), mas todas as outras (sexo, idade, etc.) estão agregadas.
+
+## API do SIDRA
+
+Então imagine, por exemplo, que queremos esta mesma informação, por grupos de idade. Esta requisição quebra o limite da query. Além disso, os grupos de idade disponíveis são caóticos e não é possível filtrar dentro deste grupo da mesma maneira como fazemos com o argumento `variable`.
+
+A solução é interagir diretamente com a API do SIDRA! O código acaba sendo bastante complexo/confuso. Muito provavelmente há maneiras de melhorar o código abaixo, mas foi como fiz para conseguir esta informação. Por conveniência chamo explicitamente todos os pacotes que uso. A limpeza dos dados foi a parte mais desafiadora do processo visto que não foi possível transformar o input de JSON para um `data.frame` de maneira direta.
+
+Em partes, acho que dei o azar de ter escolhido uma tabela especialmente complicada. Se `jsonlite::fromJSON(x, simplifyDataFrame = TRUE)` tivesse funcionado, o código seria muito mais simples.
+
+```{r}
+#| code-fold: true
+#| eval: false
+
+# Bibliotecas usadas
+library(dplyr)
+library(tidyr)
+library(stringr)
+library(janitor)
+library(tidyjson)
+library(httr)
+library(jsonlite)
+library(geobr)
+
+# 1. Montar a query
+
+# Montar um vetor com o código de todos os bairros de Porto Alegre
+
+# Importa o shapefile de todos os bairros IBGE (2010)
+bairros <- geobr::read_neighborhood()
+
+bairros_poa <- bairros |> 
+  # Pega apenas os códigos dos bairros de POA
+  filter(code_muni == 4314902) |> 
+  # O código do bairro tem alguns números sobrando no meio
+  mutate(code_nb = paste0(
+    str_sub(code_neighborhood, 1, 7),
+    str_sub(code_neighborhood, 10, 12))
+    )
+# Extrai o vetor com os códgios dos bairros
+codenb_poa <- bairros_poa[["code_nb"]]
+# Colapsa o vetor num único string separado por vírgulas
+local = paste(codenb_poa, collapse = ",")
+# Insere o string no formato da API
+local = stringr::str_glue("localidades=N102[{local}]")
+
+# Base do url da API
+base = "https://servicodados.ibge.gov.br/api/v3/agregados"
+# Número da tabela
+table <- 1378
+# Período da extração (ano)
+period <- 2010
+# Código da variável (Pessoas residentes)
+variable <- 93
+# Códigos das classes
+class <- c(1, 2, 287, 455)
+# Filtro das classes (veja info_sidra(1378))
+category <- list(c(1), c(4, 5), c(93087:93100), c(11941))
+# Colapsa os strings
+category <- sapply(category, paste, collapse = ",")
+# Coloca os strings no format da API
+cat_filter <- stringr::str_glue("{class}[{category}]")
+# Colapsa os strings num único string separado pelo operador booleano |
+cat_filter <- paste(cat_filter, collapse = "|")
+
+# Monta a query
+query <- stringr::str_glue(
+  "{base}/{table}/periodos/{period}/variaveis/{variable}?{local}&classificacao={cat_filter}"
+)
+
+# 2. Importar dados
+
+# Importar os dados da API
+req <- httr::GET(url = query)
+json <- httr::content(req, as = "text", encoding = "UTF-8")
+json <- jsonlite::fromJSON(json, simplifyVector = FALSE)
+
+# 3. Limpar os dados
+
+# Simplificar os dados de JSON para um tibble
+valores <- json |> 
+  spread_all() |> 
+  enter_object(resultados) |> 
+  gather_array() |> 
+  spread_all() |> 
+  enter_object(series) |> 
+  gather_array() |> 
+  spread_all()
+
+# Extrair somente os valores da série
+valores <- valores |> 
+  as_tibble() |> 
+  mutate(serie.2010 = as.numeric(serie.2010)) |> 
+  pivot_wider(
+    id_cols = "array.index",
+    names_from = "localidade.id",
+    values_from = "serie.2010"
+  )
+
+# Extrair a classificação das variáveis (sexo, idade)
+classificacao <- json |> 
+  spread_all() |> 
+  enter_object(resultados) |> 
+  gather_array() |> 
+  spread_all() |> 
+  enter_object(classificacoes) |> 
+  gather_array() |> 
+  spread_all()
+
+# Extrai somente a coluna com os grupos de idade
+tblage <- classificacao |> 
+  select(contains("93")) |>
+  as_tibble() |> 
+  unite("age_group", everything(), na.rm = TRUE) |> 
+  filter(age_group != "") |> 
+  distinct()
+
+# Cria um grid com todas as classificações na ordem correta
+tblclass <- expand_grid(
+  situacao_domicilio = "urban",
+  resp = "Responsável pelo Domicilio",
+  sex = c("male", "female"),
+  age_group = tblage$age_group
+)
+
+# Junta as classificações com os valores 
+tab <- cbind(valores, tblclass)
+
+# Converte os dados para wide
+tab <- tab |> 
+  pivot_longer(starts_with("431"), names_to = "code_nb") |> 
+  select(code_nb, situacao_domicilio, resp, sex, age_group, value)
+
+# Converte os dados para uma tabela final
+respnb <- tab |> 
+  pivot_wider(
+    id_cols = c("code_nb", "age_group"),
+    names_from = "sex",
+    values_from = "value"
+  ) |> 
+  mutate(total = male + female)|> 
+  group_by(code_nb) |> 
+  mutate(total_nb = sum(total)) |> 
+  ungroup() |> 
+  mutate(share_nb = total / total_nb * 100)
+```
+
+A tabela abaixo mostra o resultado final do código. A tabela apresenta o número total de pessoas responsáveis por domicílios em grupos de idade quinquenais por sexo e por bairro de Porto Alegre. Além disso, a coluna `total_nb` traz o número total de pessoas responsáveis por domicílio no bairro e `share_nb` computa a participação relativa de cada faixa de idade no total do bairro.
+
+```{r, echo = FALSE}
+respnb <- readRDS(here::here("static/data/sidra_1378.rds"))
+
+respnb |> 
+  head(15) |> 
+  print_table()
+```
+
+Apesar de claramente não ser o foco do post, pareceu um desperdício de esforço não fazer algo com esta informação. O código abaixo agrupa os dados um pouco mais e monta um mapa interativo dos domicílios por grupo de idade da pessoa responsável. Não seria difícil transformar isto num aplicativo para ver esta mesma info nas outras faixas de idade, mas isto fica para outro post.
+
+```{r}
+#| code-fold: true
+bairros <- geobr::read_neighborhood(showProgress = FALSE)
+
+bairros_poa <- bairros |> 
+  # Pega apenas os códigos dos bairros de POA
+  filter(code_muni == 4314902) |> 
+  # O código do bairro tem alguns números sobrando no meio
+  mutate(code_nb = paste0(
+    stringr::str_sub(code_neighborhood, 1, 7),
+    stringr::str_sub(code_neighborhood, 10, 12))
+    )
+
+
+respnb <- respnb |>
+  separate(age_group, into = c("age_min", "age_max"), sep = " a ") |> 
+  mutate(
+    age_generation = case_when(
+      age_min >= 25 & age_min < 40 ~ "25-39",
+      age_min >= 40 & age_min < 60 ~ "40-59",
+      age_min >= 60 & age_min < 80 ~ "60-79",
+      age_min >= 80 ~ "80+",
+      TRUE ~ "<25"
+    )
+  )
+
+resp_grouped_nb <- respnb |> 
+  group_by(code_nb, age_generation) |> 
+  summarise(pop = sum(total, na.rm = TRUE)) |> 
+  group_by(code_nb) |> 
+  mutate(total_nb = sum(pop)) |> 
+  ungroup() |> 
+  mutate(share_nb = pop / total_nb * 100)
+
+resp_ages <- pivot_wider(
+  resp_grouped_nb,
+  id_cols = "code_nb",
+  names_from = "age_generation",
+  names_prefix = "age_",
+  values_from = "share_nb"
+)
+
+resp_ages <- janitor::clean_names(resp_ages)
+
+resp_bairros <- left_join(bairros_poa, resp_ages, by = "code_nb")
+```
+
+O mapa é gerado pelo código abaixo. O mapa mostra o share de domicílios, em cada bairro, que são chefiados por "adultos-jovens", isto é, de 25 a 39 anos. Nota-se que os bairros que tem maiores percentuais estão mais na periferia da cidade. Alguns bairros de classe alta como Moinhos de Vento, Três Figueiras e Vila Assunção tem os menores percentuais.
+
+```{r}
+#| code-fold: true
+library(tmap)
+library(tmaptools)
+tmap_mode(mode = "view")
+
+m <- tm_shape(resp_bairros) +
+  tm_fill(
+    col = "age_25_39",
+    palette = "inferno",
+    alpha = 0.8,
+    style = "jenks",
+    n = 7,
+    id = "name_neighborhood",
+    title = "Percentual de domicílios<br>chefiados por pessoas<br>de 25 a 39 anos (%).",
+    popup.vars = c(
+      "Menos de 25 anos" = "age_25",
+      "25 a 39 anos" = "age_25_39",
+      "40 a 59 anos" = "age_40_59",
+      "60 a 79 anos" = "age_60_79",
+      "80 anos ou mais" = "age_80"),
+    popup.format = list(digits = 1),
+    legend.format = list(digits = 0)) +
+  tm_borders() +
+  tm_basemap(server = "CartoDB.Positron") +
+  tm_view(set.view = c(-51.179152, -30.025976, 13))
+
+leaf <- tmap_leaflet(m)
+widgetframe::frameWidget(leaf, width = "100%")
+```
