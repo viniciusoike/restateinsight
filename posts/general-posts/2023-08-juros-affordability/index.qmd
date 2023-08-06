@@ -1,0 +1,411 @@
+---
+title: "Quanto que os juros ..."
+execute: 
+  warning: false
+  echo: false
+  message: false
+---
+
+```{r}
+library(realestatebr)
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(FinCal)
+library(gt)
+library(gtExtras)
+library(sidrar)
+
+theme_vini <- theme_minimal() +
+  theme(
+    panel.grid.minor = element_blank(),
+    legend.position = "top",
+    text = "Helvetica"
+  )
+
+```
+
+```{r}
+loan <- function(p, ltv = 0.7, i, ic = 12, n = 360, method = "sac", comp = 0.3) {
+  
+  if (n < 1) {message("Prazo tem que ser maior que 1.")}
+  
+  # Savings
+  S = (1 - ltv) * p
+  # Debt (to be financed)
+  D = p - S
+  if (D < 0) {message("Valor financiado menor que 0.")}
+  if (i > 1) {i = i / 100}
+  taxa = (1 + i) ^ (1 / ic) - 1
+  
+  if (method == "sac") {
+    
+    # Vetor do valor da parcela (PMT)
+    pmt = vector(mode = "numeric", length = n)
+    # Vetor do valor da divida a saldar (D)
+    divida = vector(mode = "numeric", length = n + 1)
+    # Vetor do valor dos juros cobrados (i)
+    juros = vector(mode = "numeric", length = n)
+    # Valor inicial da divida
+    divida[1] = D
+    # No SAC o valor de amort eh constante
+    amort = D/n
+    
+    for (i in 1:n) {
+      
+      divida[i + 1] = divida[i] - amort
+      juros[i] = taxa * divida[i]
+      pmt[i] = juros[i] + amort
+      
+    }
+    
+    renda_minima = pmt[1] / comp
+    out = list(juros = juros, amort = amort, divida = divida,
+               valor_inicial = p, renda = renda_minima,
+               parcela = pmt)
+    return(out)
+  }
+  
+    if (method == "price") {
+    
+    # Vetor do valor da parcela (PMT)
+    pmt = p * (taxa * (1 + taxa)^n) / ((1 + taxa)^n - 1)
+    # Vetor do valor da divida a saldar (D)
+    divida = vector(mode = "numeric", length = n)
+    # Vetor do valor dos juros cobrados (i)
+    juros = vector(mode = "numeric", length = n)
+    # Vetor do valor da amortizacao (A)
+    amort = vector(mode = "numeric", length = n)
+    
+    # Valor inicial da divida
+    divida[1] = D
+    
+    for (i in 1:n) {
+      # Computa os juros
+      juros[i] = taxa * divida[i]
+      amort[i] = pmt - juros[i]
+      divida[i + 1] = divida[i] - amort[i]
+    }
+    renda_minima = pmt[1] / comp
+    out = list(juros = juros, amort = amort, divida = divida,
+               valor_inicial = p, renda = renda_minima)
+    return(out)
+  }
+  
+}
+
+renda_minima <- function(
+  # Final price
+  p,
+  # Loan-to-Value (LTV)
+  ltv = 0.7,
+  # Interest rate (anual)
+  i,
+  # Capitalize (anual to monthly)
+  ic = 12,
+  # Number of periods (months)
+  n = 360,
+  # Payment method (SAC is default)
+  method = "sac",
+  # Compromised Income (percent of income that is compromised)
+  comp = 0.3) {
+  
+  if (n < 1) {message("Prazo tem que ser maior que 1.")}
+  
+  # Savings
+  S = (1 - ltv) * p
+  # Debt (to be financed)
+  D = p - S
+  if (D < 0) {message("Valor financiado menor que 0.")}
+  # Check for error in inputed interest rate
+  if (i > 1) {i = i / 100}
+  # Convert yearly to montlhy rate
+  taxa = (1 + i) ^ (1 / ic) - 1
+  
+  # Renda = (amort + juros) / comp
+  
+  amort = D/n
+  juros = taxa * D
+  pgto  = amort + juros
+  renda_minima = pgto / comp
+  
+  out = list(
+    amort = amort,
+    juros = juros,
+    pgto = pgto,
+    renda = renda_minima
+  )
+  return(out)
+}
+```
+
+```{r}
+bcb <- get_bcb_realestate(cached = TRUE)
+bcb_series <- get_bcb_series(cached = TRUE)
+```
+
+# Juros e financiamento
+
+A taxa de juros é talvez a variável macroeconômica mais importante para se observar quando se pensa em financiamento imobiliário. O financiamento imobiliário nada mais é do que um empréstimo que uma família contrai com o sistema financeiro (um banco); este empréstimo é uma dívida que a família deve repagar em parcelas mensais e sobre cada pagamento incide um valor de juros.
+
+Quanto maior for a taxa de juros, mais "caro" fica o financiamento habitacional. Ou seja, mais difícil fica de comprar um imóvel.
+
+A taxa de juros tem um efeito geral sobre a economia, mas o seu efeito é mais notável para o consumidor na hora de fazer compras grandes, de longo prazo: caso de um automóvel ou de um imóvel.
+
+# Financiamento de um imóvel
+
+O típico financiamento de um imóvel envolve o pagamento de um valor de entrada e a contratação de uma dívida que será paga mensalmente ao longo de um período de tempo, tipicamente em torno de 25 a 30 anos. A modalidade de financiamento mais comum envolve um sistema de parcelas decrescentes com amortização constante, chamado, assim, de Sistema de Amortização Constante (SAC).
+
+A matemática por trás deste sistema é bastante simples. Do preço do imóvel $P$ subtraí-se o valor de entrada $E$. O valor restante forma a dívida $D = P-E$ que deve ser paga de volta. A razão entre estes valores é chamada de "loan-to-value ratio" (LTV), isto é $LTV = \frac{D}{P} = \frac{P-E}{P} = 1-\frac{E}{P}$.
+
+Valores comuns de LTV giram em torno de 80%, mas isto varia bastante. Um LTV de 80%, essencialmente, significa que o devedor pagou 20% do valor de imóvel como entrada; assim, um *LTV alto* significa um *valor de entrada baixo* e uma *dívida grande*; inversamente, um *LTV baixo* significa um *valor entrada elevado* e uma *dívida pequena*.
+
+No típico financiamento SAC, o valor da dívida é amortizada em "parcelas" constantes, isto é, o valor da amortização é $A = D / N$ onde $N$ é o número de períodos do financiamento. No caso de um financiamento de 30 anos com pagamentos mensais, $A = D/360$.
+
+O pagamento de juros que incide sobre a dívida costuma ser a soma de uma parcela pré-fixada com uma parte variável, atrelada a algum indexador monetário. O caso mais comum é de uma parte fixa (e.g. 8,99%) somada à TR (taxa referencial)[^1]. O valor da TR depende de outros fatores, mas não costuma passar de 0,2% a.m.
+
+[^1]: Em abril de 2023, cerca de 95% do estoque de contratos de financiamentos imobiliários para pessoas físicas era indexado pela TR. O IPCA era utilizado em cerca de 2% e outros indexadores eram utilizados em 2,2% dos contratos. Apenas 0,8% dos contratos eram pré-fixados.
+
+## Exemplo Guiado
+
+### O empréstimo
+
+Vamos simular o financiamento de um imóvel de $R\$450.000$. Supondo um LTV de 80%, o valor da entrada é de $R\$90.000$ e o valor a ser financiado, portanto, é de \$360.000\$. Num contrato de 30 anos, o valor da amortização é de:
+
+$$
+A = \frac{R\$360.000}{R\$360} = R\$1.000
+$$
+
+Vamos começar assumindo que a taxa de juros total seja de 10%a.a. A tabela abaixo mostra o fluxo de pagamentos do primeiro ano do empréstimo. Note como o valor da amortização é sempre o mesmo. À medida que a dívida vai sendo paga, o valor cobrado de juros também diminui e, por conseguinte, diminui também o valor da parcela mensal.
+
+```{r}
+flux <- loan(450000, ltv = 0.8, i = 0.1)
+
+tbl <- tibble(
+  periodo = 1:360,
+  amort = flux$amort,
+  juros = flux$juros,
+  pmt = flux$parcela,
+  divida = head(flux$divida, 360)
+)
+```
+
+```{r}
+new_names <- c("Período (mês)", "Amortização", "Juros", "Parcela", "Dívida")
+names(new_names) <- names(tbl)
+
+head(tbl, 12) %>%
+  gt() %>%
+  cols_label(.list = new_names) %>%
+  fmt_currency(
+    juros:pmt,
+    currency = "BRL",
+    decimals = 2,
+    sep_mark = ".",
+    dec_mark = ","
+    ) %>%
+  fmt_currency(
+    c(amort, divida),
+    currency = "BRL",
+    decimals = 0,
+    sep_mark = ".",
+    dec_mark = ","
+  ) %>%
+  opt_stylize(style = 5, color = "cyan")
+
+```
+
+Ao longo dos 360 meses do financiamento, o valor dos juros e da parcela vão diminuindo até que a dívida tenha sido totalmente paga. Note como no início do financiamento, a parcela mensal está na faixa de R\$3800, mas já no final está próxima de R\$1000.
+
+```{r}
+tbl %>%
+  select(-divida) %>%
+  pivot_longer(-periodo) %>%
+  ggplot(aes(x = periodo, y = value, color = name)) +
+  geom_line(linewidth = 1) +
+  geom_hline(yintercept = 0) +
+  scale_x_continuous(breaks = c(0, 100, 200, 300, 360)) +
+  scale_y_continuous(labels = scales::label_dollar(prefix = "R$")) +
+  scale_color_manual(
+    name = "",
+    values = c("#a8dadc", "#457b9d", "#1d3557"),
+    labels = c("Amortização", "Juros", "Parcela")) +
+  theme_light() +
+  labs(title = "Evolução do valor da parcela", x = "Período", y = NULL) +
+  theme(
+    panel.grid.minor = element_blank(),
+    legend.position = "top"
+    )
+
+
+```
+
+### Renda necessária
+
+Agora podemos responder uma dúvida importante: qual a renda necessária para financiar este imóvel? Cada banco ou instituição financeira usa regras próprias para decidir se libera ou não o valor do financiamento imobiliário. Uma regra de bolso comum é de que o valor da parcela inicial não pode ser maior do que 30% da renda mensal da pessoa solicitando pelo empréstimo.
+
+No exemplo acima, o valor da primeira parcela é de R\$3870. A renda mínima necessária (RMN) para estar elegível a este financiamento é:
+
+$$
+RMN = \frac{3.870,69}{0,3} = R\$ 12.902,3
+$$
+
+Como que este resultado final depende da taxa de juros? Podemos simular o mesmo financiamento para diferentes taxas juros e calcular novamente a renda mínima necessária. A tabela abaixo mostra como a renda varia para valores de taxa de juros de 7% a 12%. É notável como a taxa de juros tem impacto direto no poder de compra e capacidade de pagamento das famílias. A uma taxa favorável de 7%, é necessário ter uma renda de R\$10 mil para ser aprovado no financimento; já a uma taxa de 12% é necessário ter quase R\$15 mil.
+
+```{r}
+juros <- seq(0.07, 0.12, 0.005)
+
+renda <- sapply(juros, \(j) {
+  renda_minima(p = 450000, ltv = 0.8, i = j)$renda
+})
+
+tbl <- tibble(
+  i = juros,
+  renda = renda
+)
+
+gt(tbl) %>%
+  cols_label(i = "Juros (% a.a)", renda = "Renda Mínima") %>%
+  fmt_percent(i, dec_mark = ",") %>%
+  fmt_currency(renda, sep_mark = ".", dec_mark = ",", currency = "BRL")
+```
+
+Vale notar que os dois outros fatores que examinamos acima, o valor da entrada e
+
+# Acessibilidade à moradia
+
+```{r}
+bcb_series %>%
+  filter(name_simplified == "taxa_fimob_pf_total") %>%
+  ggplot(aes(x = date, y = value)) +
+  geom_line()
+```
+```{r}
+renda <- readr::read_csv(here::here("static/data/renda_br_imputado.csv"))
+renda <- select(renda, date, income = renda_imput)
+renda_pnad <- get_sidra(6472, variable = 5929, period = "201201-202301")
+
+renda_pnad <- renda_pnad %>%
+  janitor::clean_names() %>%
+  select(date = trimestre_codigo, income = valor) %>%
+  mutate(
+    date = zoo::as.Date(zoo::as.yearqtr(date, "%Y%q"))
+  )
+
+renda <- bind_rows(list(renda, anti_join(renda_pnad, renda, by = "date")))
+```
+
+```{r}
+ivgr <- get_rppi_ivgr()
+igmi <- get_rppi_igmi()
+igmi <- filter(igmi, name_muni == "Brasil")
+```
+
+```{r}
+
+dat <- left_join(select(ivgr, date, price = index), renda, by = "date")
+
+base_index <- dat %>%
+  mutate(year = lubridate::year(date)) %>%
+  filter(year == 2003) %>%
+  select(-year) %>%
+  pivot_longer(-date, names_to = "series") %>%
+  summarise(base = mean(value, na.rm = TRUE), .by = "series")
+
+dat |> 
+  pivot_longer(-date, names_to = "series") %>%
+  left_join(base_index, by = "series") %>%
+  group_by(series) %>%
+  mutate(
+    index = value / base * 100,
+    index = forecast::na.interp(index)
+    ) %>%
+  ggplot(aes(x = date, y = index)) +
+  geom_line(aes(color = series), linewidth = 1) +
+  scale_color_manual(values = c("#457b9d", "#e63946")) +
+  theme_light()
+
+```
+
+
+
+```{r}
+dat <- left_join(ivgr, renda, by = "date")
+
+dat <- dat %>%
+  filter(date >= as.Date("2012-01-01")) %>%
+  select(date, price = index, income) %>%
+  pivot_longer(-date, names_to = "series")
+
+base_index <- dat %>%
+  filter(date >= as.Date("2012-01-01"), date <= as.Date("2012-12-01")) %>%
+  summarise(base = mean(value, na.rm = TRUE), .by = "series")
+
+dat <- dat %>%
+  left_join(base_index, by = "series") %>%
+  mutate(index = value / base * 100) %>%
+  group_by(series) %>%
+  mutate(index = forecast::na.interp(index))
+
+```
+
+```{r}
+ggplot(dat, aes(x = date, y = index, color = series)) + 
+  geom_line()
+```
+
+
+
+```{r}
+library(FinCal)
+
+P = 450000
+ltv = 0.8
+D = ltv * P
+N = 30
+rate = (1 + 0.1)^(1/12) - 1
+
+pmt(rate, n = N * 12, pv = -D, fv = 0)
+```
+
+```{r}
+bcb %>%
+  filter(
+    date == as.Date("2023-04-30"),
+    category == "credito",
+    type == "estoque",
+    v1 == "indexador",
+    v2 == "pf",
+    abbrev_state == "BR"
+  ) %>%
+  summarise(total = sum(value), .by = "v3") %>%
+  mutate(share = total / sum(total) * 100)
+```
+
+```{r}
+taxas_brasil <- bcb %>%
+  filter(
+    category == "credito",
+    type == "contratacao",
+    v1 == "taxa",
+    v2 == "pf",
+    abbrev_state == "BR")
+
+```
+
+```{r}
+ggplot(taxas_brasil, aes(x = date, y = value)) +
+  geom_line(aes(color = v3))
+```
+
+```{r}
+bcb %>%
+  filter(
+    category == "credito",
+    type == "contratacao",
+    v1 == "prazo",
+    v2 == "mediana",
+    v3 == "pf",
+    abbrev_state == "BR") %>%
+  count(v4)
+```
