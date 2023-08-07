@@ -1,9 +1,11 @@
 ---
-title: "Quanto que os juros ..."
+title: "O impacto dos juros na demanda imobiliário"
+categories: ['real-estate', 'economia']
 execute: 
   warning: false
   echo: false
   message: false
+draft: true
 ---
 
 ```{r}
@@ -11,18 +13,26 @@ library(realestatebr)
 library(dplyr)
 library(tidyr)
 library(ggplot2)
-library(FinCal)
 library(gt)
 library(gtExtras)
 library(sidrar)
+
+knitr::opts_chunk$set(
+  fig.align = "center",
+  fig.showtext = TRUE,
+  fig.width = 7,
+  fig.asp = 0.618,
+  out.width = "80%"
+)
 
 theme_vini <- theme_minimal() +
   theme(
     panel.grid.minor = element_blank(),
     legend.position = "top",
-    text = "Helvetica"
+    text = element_text(family = "Helvetica")
   )
-
+sysfonts::font_add("Helvetica", "Helvetica.ttc")
+showtext::showtext_auto()
 ```
 
 ```{r}
@@ -211,7 +221,8 @@ head(tbl, 12) %>%
     sep_mark = ".",
     dec_mark = ","
   ) %>%
-  opt_stylize(style = 5, color = "cyan")
+  opt_stylize(style = 5, color = "cyan") %>%
+  tab_caption(caption = "Fluxo de pagamento do financiamento de um imóvel de 450.000 (SAC).")
 
 ```
 
@@ -270,17 +281,108 @@ gt(tbl) %>%
   fmt_currency(renda, sep_mark = ".", dec_mark = ",", currency = "BRL")
 ```
 
-Vale notar que os dois outros fatores que examinamos acima, o valor da entrada e
-
 # Acessibilidade à moradia
 
+O Brasil, historicamente, tem taxas de juros bastante elevadas e isto também é verdadeiro sobre o financiamento habitacional. É importante notar que há múltiplas taxas de juros que se aplicam sobre financiamentos habitacionais, porque há várias linhas de crédito. O Banco Central do Brasil reconhece cinco linhas distintas: comercial, livre, Home Equity, FGTS e SFH. As duas últimas linhas são as mais conhecidas e representativas do mercado: em abril de 2023, elas acontavam conjuntamente por 90% do estoque de contratos de financiamento imobiliários para pessoas físicas.
+
+O gráfico abaixo mostra a evolução destas linhas de financiamento. As linhas são as médias móveis suavaizadas de cada série. Pelo comportamento do gráfico, nota-se como todas as taxas tendem a subir em períodos de alta da SELIC, como durante o período 2016-2017, quando a taxa SELIC chegou a 14,25%. Já nos períodos de baixa, como em 2020, as taxas livres tendem a cair enquanto a taxa do FGTS não se altera, já que ela é vinculada ao programa habitacional.
+
+Por fim, é interessante perceber que, a despeito da alta recente da SELIC, as taxas de juros das linhas de financiamento habitacional estão abaixo dos seus picos de 2016. Isto pode ser um indício de que houve uma melhoria institucional no sistema de crédito habitacional, relacionado a várias mudanças positivas levadas a cabo pelo Banco Central do Brasil[^2].
+
+[^2]: Alguns exemplos incluem: cadastro positivo, regulamentação das fintechs de crédito, regulamentação das Letras Imobiliárias Garantidas (LIGs), portabilidade de crédito. Para mais informações veja a [Agenda BC#](https://www.bcb.gov.br/acessoinformacao/bchashtag?modalAberto=sobre_agenda).
+
 ```{r}
-bcb_series %>%
-  filter(name_simplified == "taxa_fimob_pf_total") %>%
-  ggplot(aes(x = date, y = value)) +
-  geom_line()
+taxas_brasil <- bcb %>%
+  filter(
+    category == "credito",
+    type == "contratacao",
+    v1 == "taxa",
+    v2 == "pf",
+    abbrev_state == "BR") %>%
+  select(date, credit_line = v3, value) %>%
+  group_by(credit_line) %>%
+  mutate(trend = RcppRoll::roll_mean(value, n = 3, fill = NA)) %>%
+  ungroup()
 ```
+
 ```{r}
+ggplot(taxas_brasil, aes(x = date, y = trend)) +
+  geom_hline(yintercept = 0) +
+  geom_line(aes(color = credit_line), linewidth = 1) +
+  scale_x_date(date_breaks = "1 year", date_labels = "%Y") +
+  scale_color_manual(
+    name = "Linha",
+    values = c("#1D3557", "#457B9D", "#A8DADC", "#EC9A9A", "#E63946"),
+    labels = c("Comercial", "FGTS", "Home-Equity", "Livre", "SFH")
+  ) +
+  labs(
+    title = "Taxas médias segundo linhas de financiamento",
+    x = NULL,
+    y = "%",
+    caption = "Fonte: Banco Central do Brasil (BCB)"
+  ) +
+  theme_vini
+
+```
+
+Grosso modo, todas as taxas de juros da economia são balizadas pela taxa SELIC. O gráfico abaixo mostra como as taxas de financiamento habitacional reguladas (FGTS, SFH) e de mercado reagem às mudanças na SELIC.
+
+É interessante perceber como a distância entre as taxas de mercado e as taxas reguladas diminuiu ao longo dos anos. Além disso, nota-se como o tempo de repasse da SELIC para o consumidor final varia ao longo dos ciclos econômicos. Mais recentemente, vê-se como houve uma defasagem inicial entre os aumentos da SELIC e os respectivos aumentos das taxas de financiamento.
+
+```{r}
+sel_series <- c(
+  "taxa_fimob_pf_mercado",
+  "taxa_fimob_pf_regulado",
+  "selic"
+)
+
+dat <- bcb_series %>%
+  filter(
+    name_simplified %in% sel_series,
+    date >= as.Date("2011-01-01")
+    )
+
+ggplot() +
+  geom_line(
+    data = filter(dat, name_simplified != "selic"),
+    aes(x = date, y = value, color = name_simplified),
+    linewidth = 1) +
+  geom_step(
+    data = filter(dat, name_simplified == "selic"),
+    aes(x = date, y = value, color = name_simplified),
+    linewidth = 1) +
+  scale_x_date(date_breaks = "1 year", date_labels = "%Y") +
+  scale_color_manual(
+    name = "",
+    labels = c("Taxa SELIC", "Média Mercado", "Média Regulado"),
+    values = c("gray20", "#a8dadc", "#457b9d")
+  ) +
+  labs(
+    x = NULL,
+    y = "%",
+    title = "Taxas de juros médias na economia",
+    caption = "Fonte: Banco Central do Brasil (BCB).") +
+  theme_vini
+
+```
+
+## O impacto do aumento dos juros
+
+Nos últimos anos vimos uma alta significativa das taxas de juros. A taxa média de financiamento habitacional era próxima de 7% em 2020 e subiu para 11,5%. Considerando o imóvel do exemplo acima, seria necessário um aumento de mais de R\$4000 na renda para conseguir comprar o mesmo imóvel - sem levar em conta o aumento de preço do imóvel.
+
+Vamos retomar o exemplo do imóvel de R\\\$450.000 acima. Mantendo este preço constante, podemos calcular qual a renda necessária para financiar este mesmo imóvel à medida que a taxa de juros foi aumentando. Por simplicidade, uso a taxa de juros média mensal em cada período[^3].
+
+[^3]: A taxa de juros média do financiamento habitacional para pessoas físicas pega as cinco taxas apresentadas e pondera elas pelo volume de crédito. Assim, as principais linhas (FGTS e SFH) têm maior peso.
+
+O gráfico abaixo apresenta, a cada mês, a renda necessária para financiar um imóvel de R\\\$450.000[^4]. No ponto mais baixo da taxa, seria necessário R\\\$8.550 (a uma taxa de 6,63%) para ser aprovado num financiamento; já no ponto mais recente, seria necessário R\\\$12.600 (a uma taxa de 11,6%).
+
+[^4]: Por simplicidade, suponho um financiamento estilo SAC com LTV de 70% e prazo de 360 meses.
+
+```{r, import series}
+ivgr <- get_rppi_ivgr()
+igmi <- get_rppi_igmi()
+igmi <- filter(igmi, name_muni == "Brasil")
+
 renda <- readr::read_csv(here::here("static/data/renda_br_imputado.csv"))
 renda <- select(renda, date, income = renda_imput)
 renda_pnad <- get_sidra(6472, variable = 5929, period = "201201-202301")
@@ -295,14 +397,94 @@ renda_pnad <- renda_pnad %>%
 renda <- bind_rows(list(renda, anti_join(renda_pnad, renda, by = "date")))
 ```
 
-```{r}
-ivgr <- get_rppi_ivgr()
-igmi <- get_rppi_igmi()
-igmi <- filter(igmi, name_muni == "Brasil")
+```{r join-data}
+tab_price <- igmi %>%
+  filter(date >= as.Date("2018-01-01")) %>%
+  mutate(
+    new_index = index / first(index),
+    est_price = 450000 * new_index) %>%
+  select(date, est_price, new_index)
+
+tab_rate <- bcb_series %>%
+  filter(name_simplified == "taxa_fimob_pf_total") %>%
+  select(date, rate = value)
+
+tab_income <- renda_pnad
+
+dat <- inner_join(tab_price, tab_rate, by = "date")
+
+dat <- dat %>%
+  mutate(
+    rmn = purrr::map_dbl(rate, \(x) {
+      renda_minima(p = 450000, i = x)$renda
+    }),
+    rmn_adj = purrr::map2_dbl(est_price, rate, \(x, y) {
+      renda_minima(p = x, i = y)$renda
+    })
+  )
 ```
 
 ```{r}
+ggplot(dat, aes(x = date, y = rmn)) +
+  geom_line(color = "#1D3557") +
+  geom_point(color = "#1D3557") +
+  scale_x_date(date_breaks = "1 year", date_labels = "%Y") +
+  scale_y_continuous(labels = scales::label_number(big.mark = ".")) +
+  labs(
+    title = "Impacto do juros na Acessibilidade Financeira",
+    subtitle = "Renda necessária para financiar um imóvel de R$450k sem ajuste de preços.",
+    x = NULL,
+    y = "R$") +
+  theme_vini
+```
 
+A análise acima olha somente o impacto do aumento dos juros e não leva em consideração o aumento médio do preços dos imóveis durante este período. Segundo o IGMI-R (Abrainc/FGV), de janeiro de 2018 a abril 2023, houve um aumento médio de 58% no preços dos imóveis. A tabela abaixo mostra a variação acumulada do IGMI-R em cada ano. Nota-se como os preços aumentam significativamente a partir de 2020.
+
+```{r}
+igmi %>%
+  mutate(year = lubridate::year(date)) %>%
+  filter(year >= 2018, date <= as.Date("2023-04-01")) %>%
+  summarise(total = prod(1 + chg) - 1, .by = "year") %>%
+  gt() %>%
+  cols_label(year = "Ano", total = "Var. Acum. (%)") %>%
+  fmt_percent(total) %>%
+  opt_stylize(style = 5, color = "cyan") %>%
+  tab_caption(caption = "Variação acumulada do IGMI-R por ano.")
+```
+
+O gráfico abaixo refaz o experimento acima, mas leva em conta também o aumento médio dos preços dos imóveis. Fica evidente como a combinação simultânea de aumento de juros e de preços tornou os imóveis menos acessíveis.
+
+```{r}
+dat %>%
+  select(date, rmn, rmn_adj) %>%
+  pivot_longer(-date, names_to = "series") %>%
+  ggplot(aes(x = date, y = value, color = series)) +
+  geom_line() +
+  geom_point() +
+  scale_x_date(date_breaks = "1 year", date_labels = "%Y") +
+  scale_y_continuous(labels = scales::label_number(big.mark = ".")) +
+  scale_color_manual(
+    name = "Ajuste IGMI",
+    values = c("#1D3557", "#457B9D"),
+    labels = c("Sem ajuste", "Com ajuste")
+    ) +
+  labs(
+    title = "Impacto do juros na Acessibilidade Financeira",
+    subtitle = "Renda necessária para financiar um imóvel de R$450k",
+    x = NULL,
+    y = "R$") +
+  theme_vini
+```
+
+## O caminho futuro
+
+Na última semana o COPOM decidiu reduzir a taxa SELIC em 0.5 p.p., diminuindo a taxa de 13,75% para 13,25%. Esta foi a primeira queda desde que se iniciou o ciclo de altas no início de 2021. Espera-se que o Banco Central agora entre num ciclo de queda de taxa de juros que devem se estabilizar em torno de 8,5% no longo prazo.
+
+Como se viu na análise acima, as oscilações de SELIC eventualmente traduzem-se em mudanças nas taxas do financiamento imobiliário. Além da queda na taxa de juros, os índices de preços imobiliários, como o IGMI-R e o IVGR, começam a apontar para uma relativa estabilidade nos preços dos imóveis. Esta combinação deve aumentar o poder de compras das famílias e melhorar a acessibilidade financeira à moradia.
+
+Há um último componente, da equação da acessibilidade à moradia, que ficou inexplorado neste post: a renda das famílias. Evidentemente, um aumento da renda média das famílias permite que elas tenham acesso a imóveis melhores e mais caros. Deixo esta discussão, contudo, para um outro momento.
+
+```{r, eval = FALSE}
 dat <- left_join(select(ivgr, date, price = index), renda, by = "date")
 
 base_index <- dat %>%
@@ -325,11 +507,6 @@ dat |>
   scale_color_manual(values = c("#457b9d", "#e63946")) +
   theme_light()
 
-```
-
-
-
-```{r}
 dat <- left_join(ivgr, renda, by = "date")
 
 dat <- dat %>%
@@ -347,28 +524,9 @@ dat <- dat %>%
   group_by(series) %>%
   mutate(index = forecast::na.interp(index))
 
-```
-
-```{r}
 ggplot(dat, aes(x = date, y = index, color = series)) + 
   geom_line()
-```
 
-
-
-```{r}
-library(FinCal)
-
-P = 450000
-ltv = 0.8
-D = ltv * P
-N = 30
-rate = (1 + 0.1)^(1/12) - 1
-
-pmt(rate, n = N * 12, pv = -D, fv = 0)
-```
-
-```{r}
 bcb %>%
   filter(
     date == as.Date("2023-04-30"),
@@ -380,32 +538,28 @@ bcb %>%
   ) %>%
   summarise(total = sum(value), .by = "v3") %>%
   mutate(share = total / sum(total) * 100)
-```
 
-```{r}
-taxas_brasil <- bcb %>%
-  filter(
-    category == "credito",
-    type == "contratacao",
-    v1 == "taxa",
-    v2 == "pf",
-    abbrev_state == "BR")
-
-```
-
-```{r}
-ggplot(taxas_brasil, aes(x = date, y = value)) +
-  geom_line(aes(color = v3))
-```
-
-```{r}
 bcb %>%
   filter(
+    date == as.Date("2023-04-30"),
     category == "credito",
     type == "contratacao",
-    v1 == "prazo",
-    v2 == "mediana",
+    v1 == "contratado",
+    abbrev_state == "BR"
+  ) %>%
+  summarise(total = sum(value), .by = "v3") %>%
+  mutate(share = total / sum(total) * 100)
+
+bcb %>%
+  filter(
+    date == max(date),
+    category == "credito",
+    type == "estoque",
+    v1 == "carteira",
+    v2 == "credito",
     v3 == "pf",
-    abbrev_state == "BR") %>%
-  count(v4)
+    abbrev_state == "BR"
+    ) %>%
+  summarise(total = sum(value), .by = "v4") %>%
+  mutate(share = total / sum(total) * 100)
 ```
