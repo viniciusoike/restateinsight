@@ -1,11 +1,12 @@
 ---
 title: "O impacto dos juros na demanda imobiliário"
+date: '2023-08-17'
 categories: ['real-estate', 'economia']
+description: 'A taxa de juros é talvez a variável macroeconômica mais importante para se observar quando se pensa em financiamento imobiliário. Neste post apresento o básico do financiamento habitacional e mostro como o aumento dos juros impactou a acessibilidade à moradia. Por fim, comento sobre a recente queda na taxa SELIC.'
 execute: 
   warning: false
   echo: false
   message: false
-draft: true
 ---
 
 ```{r}
@@ -154,13 +155,42 @@ bcb <- get_bcb_realestate(cached = TRUE)
 bcb_series <- get_bcb_series(cached = TRUE)
 ```
 
-# Juros e financiamento
+# Juros e financiamento imobiliário
 
-A taxa de juros é talvez a variável macroeconômica mais importante para se observar quando se pensa em financiamento imobiliário. O financiamento imobiliário nada mais é do que um empréstimo que uma família contrai com o sistema financeiro (um banco); este empréstimo é uma dívida que a família deve repagar em parcelas mensais e sobre cada pagamento incide um valor de juros.
+A taxa de juros é talvez a variável macroeconômica mais importante para se observar quando se pensa em financiamento imobiliário. Quanto maior for a taxa de juros, mais "caro" fica o financiamento habitacional. Ou seja, mais difícil fica de comprar um imóvel.
 
-Quanto maior for a taxa de juros, mais "caro" fica o financiamento habitacional. Ou seja, mais difícil fica de comprar um imóvel.
+O financiamento imobiliário nada mais é do que um empréstimo que uma família contrai com o sistema financeiro (um banco); este empréstimo é uma dívida que a família deve repagar em parcelas mensais e sobre cada pagamento incide um valor de juros.
 
-A taxa de juros tem um efeito geral sobre a economia, mas o seu efeito é mais notável para o consumidor na hora de fazer compras grandes, de longo prazo: caso de um automóvel ou de um imóvel.
+## Um pouco sobre juros
+
+A taxa de juros tem um efeito geral sobre a economia, mas o seu efeito é mais notável para o consumidor na hora de fazer compras grandes, de longo prazo: caso de um automóvel ou de um imóvel. Uma taxa menor significa que fica mais "barato" tomar crédito, enquanto uma taxa maior significa o contrário.
+
+Quem define a taxa de juros "geral" da economia, a taxa SELIC, é o Cômite de Política Monetária (COPOM). A SELIC é, na verdade, uma meta de taxa de juros, que o Banco Central do Brasil (BCB) deve perseguir. O COPOM se reúne periodicamente para definir a taxa SELIC; na ocasião mais recente, no início de agosto, decidiu-se reduzir a taxa de 13,75% a.a. para 13,25% a.a. - a primeira queda depois de um ciclo de alta de 3 anos.
+
+Tipicamente, a taxa de juros é a ferramenta de política monetária que se usa para controlar a inflação: quando a taxa de inflação aumenta muito, o COPOM decide aumentar a taxa de juros. Foi isto o que aconteceu em 2014-16 e também em 2021-23.
+
+```{r}
+selic <- bcb_series |> 
+  filter(name_simplified == "selic", date >= as.Date("2016-01-01"))
+
+ggplot(selic, aes(x = date, y = value)) +
+  geom_step(linewidth = 1) +
+  geom_hline(yintercept = 0) +
+  scale_x_date(date_breaks = "1 year", date_labels = "%Y") +
+  scale_y_continuous(name = "(%)", breaks = seq(0, 14, 2)) +
+  labs(
+    x = NULL,
+    y = "(%)",
+    title = "As oscilações da taxa SELIC",
+    subtitle = "",
+    caption = "Fonte: Banco Central do Brasil"
+  ) +
+  theme_vini
+```
+
+O gráfico acima mostra as oscilações recentes da SELIC. No final de 2016 encerrou-se um longo ciclo de alta que começou em reação à escalada da inflação em 2014. A taxa, então, chegou a cair até 2% a.a. no final de 2020, acompanhando a tendência internacional de taxas de juros baixíssimas, muito próximas de 0% a.a. A volta da inflação com a pandemia levou o COPOM a agressivamente aumentar a taxa SELIC nos meses seguintes. A taxa manteve-se estável em 13,75% a.a. desde agosto do ano passado.
+
+A taxa SELIC influencia as demais taxas de juros da economia indiretamente. Como será mostrado mais adiante, há várias taxas de financiamento imobiliário disponíveis.
 
 # Financiamento de um imóvel
 
@@ -168,9 +198,9 @@ O típico financiamento de um imóvel envolve o pagamento de um valor de entrada
 
 A matemática por trás deste sistema é bastante simples. Do preço do imóvel $P$ subtraí-se o valor de entrada $E$. O valor restante forma a dívida $D = P-E$ que deve ser paga de volta. A razão entre estes valores é chamada de "loan-to-value ratio" (LTV), isto é $LTV = \frac{D}{P} = \frac{P-E}{P} = 1-\frac{E}{P}$.
 
-Valores comuns de LTV giram em torno de 80%, mas isto varia bastante. Um LTV de 80%, essencialmente, significa que o devedor pagou 20% do valor de imóvel como entrada; assim, um *LTV alto* significa um *valor de entrada baixo* e uma *dívida grande*; inversamente, um *LTV baixo* significa um *valor entrada elevado* e uma *dívida pequena*.
+Valores comuns de LTV giram em torno de 70-80%, mas isto varia bastante. Um LTV de 80%, essencialmente, significa que o devedor pagou 20% do valor de imóvel como entrada; assim, um *LTV alto* significa um *valor de entrada baixo* e uma *dívida grande*; inversamente, um *LTV baixo* significa um *valor entrada elevado* e uma *dívida pequena*.
 
-No típico financiamento SAC, o valor da dívida é amortizada em "parcelas" constantes, isto é, o valor da amortização é $A = D / N$ onde $N$ é o número de períodos do financiamento. No caso de um financiamento de 30 anos com pagamentos mensais, $A = D/360$.
+No típico financiamento SAC, o valor da dívida é amortizado em "parcelas" constantes, isto é, o valor da amortização é $A = D / N$ onde $N$ é o número de períodos do financiamento. No caso de um financiamento de 30 anos com pagamentos mensais, $A = \frac{D}{360}$.
 
 O pagamento de juros que incide sobre a dívida costuma ser a soma de uma parcela pré-fixada com uma parte variável, atrelada a algum indexador monetário. O caso mais comum é de uma parte fixa (e.g. 8,99%) somada à TR (taxa referencial)[^1]. O valor da TR depende de outros fatores, mas não costuma passar de 0,2% a.m.
 
@@ -180,13 +210,13 @@ O pagamento de juros que incide sobre a dívida costuma ser a soma de uma parcel
 
 ### O empréstimo
 
-Vamos simular o financiamento de um imóvel de $R\$450.000$. Supondo um LTV de 80%, o valor da entrada é de $R\$90.000$ e o valor a ser financiado, portanto, é de \$360.000\$. Num contrato de 30 anos, o valor da amortização é de:
+Vamos simular o financiamento de um imóvel de R\$450.000. Supondo um LTV de 80%, o valor da entrada é de R\$90.000 e o valor a ser financiado, portanto, é de R\$360.000. Num contrato de 30 anos, o valor da amortização é de:
 
 $$
 A = \frac{R\$360.000}{R\$360} = R\$1.000
 $$
 
-Vamos começar assumindo que a taxa de juros total seja de 10%a.a. A tabela abaixo mostra o fluxo de pagamentos do primeiro ano do empréstimo. Note como o valor da amortização é sempre o mesmo. À medida que a dívida vai sendo paga, o valor cobrado de juros também diminui e, por conseguinte, diminui também o valor da parcela mensal.
+Vamos começar assumindo que a taxa de juros seja de 10% a.a. A tabela abaixo mostra o fluxo de pagamentos do primeiro ano do empréstimo. Note como o valor da amortização é sempre o mesmo. À medida que a dívida vai sendo paga, o valor cobrado de juros também diminui e, por conseguinte, diminui também o valor da parcela mensal.
 
 ```{r}
 flux <- loan(450000, ltv = 0.8, i = 0.1)
@@ -247,18 +277,16 @@ tbl %>%
     panel.grid.minor = element_blank(),
     legend.position = "top"
     )
-
-
 ```
 
 ### Renda necessária
 
-Agora podemos responder uma dúvida importante: qual a renda necessária para financiar este imóvel? Cada banco ou instituição financeira usa regras próprias para decidir se libera ou não o valor do financiamento imobiliário. Uma regra de bolso comum é de que o valor da parcela inicial não pode ser maior do que 30% da renda mensal da pessoa solicitando pelo empréstimo.
+Agora podemos responder uma dúvida importante: qual a renda necessária para financiar este imóvel? Cada banco ou instituição financeira usa regras próprias para decidir se libera ou não o valor do financiamento imobiliário. Uma regra de bolso comum é de que o valor da parcela inicial não pode ser maior do que 30% da renda do requerente.
 
 No exemplo acima, o valor da primeira parcela é de R\$3870. A renda mínima necessária (RMN) para estar elegível a este financiamento é:
 
 $$
-RMN = \frac{3.870,69}{0,3} = R\$ 12.902,3
+RMN = \frac{R\$ 3.870,69}{0,3} = R\$ 12.902,3
 $$
 
 Como que este resultado final depende da taxa de juros? Podemos simular o mesmo financiamento para diferentes taxas juros e calcular novamente a renda mínima necessária. A tabela abaixo mostra como a renda varia para valores de taxa de juros de 7% a 12%. É notável como a taxa de juros tem impacto direto no poder de compra e capacidade de pagamento das famílias. A uma taxa favorável de 7%, é necessário ter uma renda de R\$10 mil para ser aprovado no financimento; já a uma taxa de 12% é necessário ter quase R\$15 mil.
@@ -278,16 +306,18 @@ tbl <- tibble(
 gt(tbl) %>%
   cols_label(i = "Juros (% a.a)", renda = "Renda Mínima") %>%
   fmt_percent(i, dec_mark = ",") %>%
-  fmt_currency(renda, sep_mark = ".", dec_mark = ",", currency = "BRL")
+  fmt_currency(renda, sep_mark = ".", dec_mark = ",", currency = "BRL") %>%
+  opt_stylize(style = 5, color = "cyan") %>%
+  tab_caption(caption = "Renda mínima necessária para financiar um imóvel de R$450.000 a diferentes taxas de juros.")
 ```
 
 # Acessibilidade à moradia
 
-O Brasil, historicamente, tem taxas de juros bastante elevadas e isto também é verdadeiro sobre o financiamento habitacional. É importante notar que há múltiplas taxas de juros que se aplicam sobre financiamentos habitacionais, porque há várias linhas de crédito. O Banco Central do Brasil reconhece cinco linhas distintas: comercial, livre, Home Equity, FGTS e SFH. As duas últimas linhas são as mais conhecidas e representativas do mercado: em abril de 2023, elas acontavam conjuntamente por 90% do estoque de contratos de financiamento imobiliários para pessoas físicas.
+O Brasil, historicamente, tem taxas de juros bastante elevadas e isto também é verdadeiro sobre as taxas do financiamento habitacional. É importante notar que há múltiplas taxas de juros que se aplicam sobre financiamentos habitacionais, porque há várias linhas de crédito. O Banco Central do Brasil reconhece cinco linhas distintas: comercial, livre, Home Equity, FGTS e SFH. As duas últimas linhas são as mais conhecidas e representativas do mercado: em abril de 2023, elas acontavam conjuntamente por 90% do estoque de contratos de financiamento imobiliários para pessoas físicas.
 
 O gráfico abaixo mostra a evolução destas linhas de financiamento. As linhas são as médias móveis suavaizadas de cada série. Pelo comportamento do gráfico, nota-se como todas as taxas tendem a subir em períodos de alta da SELIC, como durante o período 2016-2017, quando a taxa SELIC chegou a 14,25%. Já nos períodos de baixa, como em 2020, as taxas livres tendem a cair enquanto a taxa do FGTS não se altera, já que ela é vinculada ao programa habitacional.
 
-Por fim, é interessante perceber que, a despeito da alta recente da SELIC, as taxas de juros das linhas de financiamento habitacional estão abaixo dos seus picos de 2016. Isto pode ser um indício de que houve uma melhoria institucional no sistema de crédito habitacional, relacionado a várias mudanças positivas levadas a cabo pelo Banco Central do Brasil[^2].
+Por fim, é interessante perceber que, a despeito da alta recente da SELIC, as taxas de juros das linhas de financiamento habitacional estão abaixo dos seus picos de 2016. Isto pode ser um indício de que houve uma melhoria institucional no sistema de crédito habitacional, relacionado a várias mudanças positivas levadas a cabo nos últimos anos pelo Banco Central do Brasil[^2].
 
 [^2]: Alguns exemplos incluem: cadastro positivo, regulamentação das fintechs de crédito, regulamentação das Letras Imobiliárias Garantidas (LIGs), portabilidade de crédito. Para mais informações veja a [Agenda BC#](https://www.bcb.gov.br/acessoinformacao/bchashtag?modalAberto=sobre_agenda).
 
@@ -368,33 +398,33 @@ ggplot() +
 
 ## O impacto do aumento dos juros
 
-Nos últimos anos vimos uma alta significativa das taxas de juros. A taxa média de financiamento habitacional era próxima de 7% em 2020 e subiu para 11,5%. Considerando o imóvel do exemplo acima, seria necessário um aumento de mais de R\$4000 na renda para conseguir comprar o mesmo imóvel - sem levar em conta o aumento de preço do imóvel.
+Nos últimos anos vimos uma alta significativa das taxas de juros. A taxa média de financiamento habitacional era próxima de 7% em 2020 e subiu para 11,6%. Considerando o imóvel do exemplo acima, seria necessário um aumento de mais de R\$4000 na renda para conseguir comprar o mesmo imóvel - sem levar em conta o aumento de preço do imóvel.
 
-Vamos retomar o exemplo do imóvel de R\\\$450.000 acima. Mantendo este preço constante, podemos calcular qual a renda necessária para financiar este mesmo imóvel à medida que a taxa de juros foi aumentando. Por simplicidade, uso a taxa de juros média mensal em cada período[^3].
+Vamos retomar o exemplo do imóvel de R\$450.000 acima. Mantendo este preço constante, podemos calcular qual a renda necessária para financiar este mesmo imóvel à medida que a taxa de juros foi aumentando. Por simplicidade, uso a taxa de juros média mensal em cada período[^3].
 
-[^3]: A taxa de juros média do financiamento habitacional para pessoas físicas pega as cinco taxas apresentadas e pondera elas pelo volume de crédito. Assim, as principais linhas (FGTS e SFH) têm maior peso.
+[^3]: A taxa de juros média do financiamento habitacional para pessoas físicas toma as cinco taxas apresentadas e pondera elas pelo volume de crédito. Assim, as principais linhas (FGTS e SFH) têm maior peso.
 
-O gráfico abaixo apresenta, a cada mês, a renda necessária para financiar um imóvel de R\\\$450.000[^4]. No ponto mais baixo da taxa, seria necessário R\\\$8.550 (a uma taxa de 6,63%) para ser aprovado num financiamento; já no ponto mais recente, seria necessário R\\\$12.600 (a uma taxa de 11,6%).
+O gráfico abaixo apresenta, a cada mês, a renda necessária para financiar um imóvel de R\$450.000[^4]. No ponto mais baixo da taxa, seria necessário R\$8.550 (a uma taxa de 6,63%) para ser aprovado num financiamento; já no ponto mais recente, seria necessário R\$12.600 (a uma taxa de 11,6%).
 
-[^4]: Por simplicidade, suponho um financiamento estilo SAC com LTV de 70% e prazo de 360 meses.
+[^4]: Por simplicidade, suponho um financiamento estilo SAC com LTV de 70% e prazo de 360 meses. Para ser aprovado no financiamento, suponho que o valor da primeira parcela não possa ser maior do que 30% da renda familiar bruta.
 
 ```{r, import series}
 ivgr <- get_rppi_ivgr()
 igmi <- get_rppi_igmi()
 igmi <- filter(igmi, name_muni == "Brasil")
 
-renda <- readr::read_csv(here::here("static/data/renda_br_imputado.csv"))
-renda <- select(renda, date, income = renda_imput)
-renda_pnad <- get_sidra(6472, variable = 5929, period = "201201-202301")
-
-renda_pnad <- renda_pnad %>%
-  janitor::clean_names() %>%
-  select(date = trimestre_codigo, income = valor) %>%
-  mutate(
-    date = zoo::as.Date(zoo::as.yearqtr(date, "%Y%q"))
-  )
-
-renda <- bind_rows(list(renda, anti_join(renda_pnad, renda, by = "date")))
+# renda <- readr::read_csv(here::here("static/data/renda_br_imputado.csv"))
+# renda <- select(renda, date, income = renda_imput)
+# renda_pnad <- get_sidra(6472, variable = 5929, period = "201201-202301")
+# 
+# renda_pnad <- renda_pnad %>%
+#   janitor::clean_names() %>%
+#   select(date = trimestre_codigo, income = valor) %>%
+#   mutate(
+#     date = zoo::as.Date(zoo::as.yearqtr(date, "%Y%q"))
+#   )
+# 
+# renda <- bind_rows(list(renda, anti_join(renda_pnad, renda, by = "date")))
 ```
 
 ```{r join-data}
@@ -409,7 +439,7 @@ tab_rate <- bcb_series %>%
   filter(name_simplified == "taxa_fimob_pf_total") %>%
   select(date, rate = value)
 
-tab_income <- renda_pnad
+# tab_income <- renda_pnad
 
 dat <- inner_join(tab_price, tab_rate, by = "date")
 
@@ -432,7 +462,7 @@ ggplot(dat, aes(x = date, y = rmn)) +
   scale_y_continuous(labels = scales::label_number(big.mark = ".")) +
   labs(
     title = "Impacto do juros na Acessibilidade Financeira",
-    subtitle = "Renda necessária para financiar um imóvel de R$450k sem ajuste de preços.",
+    subtitle = "Renda necessária para financiar um imóvel de R$450k (em jan-18) sem ajuste de preços.",
     x = NULL,
     y = "R$") +
   theme_vini
@@ -452,7 +482,11 @@ igmi %>%
   tab_caption(caption = "Variação acumulada do IGMI-R por ano.")
 ```
 
-O gráfico abaixo refaz o experimento acima, mas leva em conta também o aumento médio dos preços dos imóveis. Fica evidente como a combinação simultânea de aumento de juros e de preços tornou os imóveis menos acessíveis.
+O gráfico abaixo refaz o experimento acima, mas leva em conta também o aumento médio do preços dos imóveis. Em cada mês vê-se a renda necessária para financiar um imóvel médio, que em janeiro de 2018 valia R\\\$450.000.
+
+Fica evidente como a combinação simultânea de aumento de juros e de preços tornou os imóveis menos acessíveis. Em abril de 2023, seria necessário uma renda em torno de R\\\$20.000 para financiar o mesmo imóvel[^5].
+
+[^5]: Vale notar que o IGMI-R é um índice de preços hedônico então ele provê um índice de preços "ajustado pela qualidade", isto é, um quality adjusted price index. Assim, este aumento de preços não reflete meramente uma mudança no mix de imóveis disponíveis no mercado.
 
 ```{r}
 dat %>%
@@ -476,13 +510,19 @@ dat %>%
   theme_vini
 ```
 
+A análise omite ainda um fator: o crescimento médio da renda ao longo do tempo. No Brasil, o salário mínimo é indexado à variação da inflação e, de maneira geral, quando a economia vai bem a renda média costuma crescer. Deixo esta última etapa da análise de acessibilidade financeira para outro post.
+
+Além disso, o programa habitacional do Brasil, o Minha Casa Minha Vida (MCMV) oferece empréstimos com taxas mais atrativas do que as taxas médias de mercado, conforme a renda da família e o preço do imóvel[^6]. Como o programa foi revisto recentemente, vou dedicar um post somente ao MCMV e como ele deve impactar a acessibilidade à moradia no Brasil.
+
+[^6]: O preço de R\\\$450.000 não foi escolhido ao acaso já que ele supera o teto atual do Minha Casa Minha Vida e não estaria elegível ao programa.
+
 ## O caminho futuro
 
 Na última semana o COPOM decidiu reduzir a taxa SELIC em 0.5 p.p., diminuindo a taxa de 13,75% para 13,25%. Esta foi a primeira queda desde que se iniciou o ciclo de altas no início de 2021. Espera-se que o Banco Central agora entre num ciclo de queda de taxa de juros que devem se estabilizar em torno de 8,5% no longo prazo.
 
 Como se viu na análise acima, as oscilações de SELIC eventualmente traduzem-se em mudanças nas taxas do financiamento imobiliário. Além da queda na taxa de juros, os índices de preços imobiliários, como o IGMI-R e o IVGR, começam a apontar para uma relativa estabilidade nos preços dos imóveis. Esta combinação deve aumentar o poder de compras das famílias e melhorar a acessibilidade financeira à moradia.
 
-Há um último componente, da equação da acessibilidade à moradia, que ficou inexplorado neste post: a renda das famílias. Evidentemente, um aumento da renda média das famílias permite que elas tenham acesso a imóveis melhores e mais caros. Deixo esta discussão, contudo, para um outro momento.
+Há um último componente, da equação da acessibilidade à moradia, que ficou inexplorado neste post: a renda das famílias. Evidentemente, um aumento da renda média das famílias permite que elas tenham acesso a imóveis melhores e mais caros. Além disso, para imóveis com ticket menores, o MCMV oferece condições mais favoráveis de financiamento. Deixo esta discussão, contudo, para um outro momento.
 
 ```{r, eval = FALSE}
 dat <- left_join(select(ivgr, date, price = index), renda, by = "date")
