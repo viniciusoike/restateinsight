@@ -14,7 +14,6 @@ format:
     code-fold: false
     code-tools: true
 freeze: true
-draft: true
 ---
 
 ```{r setup, include = FALSE}
@@ -279,47 +278,9 @@ ggplot(data = consumo, aes(x = ref.date, y = value)) +
   geom_point()
 ```
 
-## Começando o gráfico do zero
+## Mapeando elementos estéticos
 
-Os gráficos de linha gerados pelo `ggplot2` não começam do zero no eixo-y. Isto pode ser um problema e, visualmente, criar a ilusão de que há mais volatilidade nos dados do que realmente existe.
-
-Há muitas formas de forçar o gráfico a iniciar no zero. Uma das mais efetivas é incluir uma linha horizontal no eixo ($y = 0$). Pode-se desenhar esta linha horizontal com a função `geom_hline()` (onde o "hline" sinaliza "horizontal line", *linha horizontal*).
-
-```{r}
-ggplot(data = consumo, aes(x = ref.date, y = value)) +
-  # Linha horizontal y = 0
-  geom_hline(yintercept = 0) +
-  # Linha da série
-  geom_line()
-```
-
-Outra forma de chegar no mesmo resultado é manipular o eixo-y para forçá-lo a iniciar no zero. No exemplo abaixo utilizamos a função `scale_y_continuous()`. Esta função controla todos os aspectos visuais da escala no eixo-y. O sufixo `_continuous` indica que a variável no eixo-y é contínua.
-
-Para redefinir os limites do eixo-y variamos o argumento `limits` que aceita um par de valores. O primeiro valor é o limite inferior e o segundo valor é o limite superior. Por padrão ambos são definidos como `NA`.
-
-```{r}
-ggplot(data = consumo, aes(x = ref.date, y = value)) +
-  # Linha da série
-  geom_line() +
-  # Manipular o eixo-y para inicar no zero
-  scale_y_continuous(limits = c(0, NA))
-```
-
-## Séries de tempo em degraus
-
-Algumas séries de tempo variam de maneira "descontínua" no tempo. É o caso, por exemplo, da taxa SELIC, que é periodicamente definida como uma meta a ser perseguida pelo Banco Central. Neste caso, faz sentido ressaltar isto fazendo um gráfico que varia em "degraus".
-
-A função `geom_step()` faz este tipo de gráfico e possui os mesmos argumentos que a função `geom_line()`. O gráfico abaixo mostra a variação da taxa SELIC (meta) nos últimos anos.
-
-```{r}
-# Importa a série diária da SELIC (meta) anualizada
-selic <- gbcbd_get_series(id = 1178, first.date = as.Date("2016-01-01"))
-
-ggplot(data = selic, aes(x = ref.date, y = value)) +
-  geom_step()
-```
-
-## Usando cores para representar variáveis
+### Cores
 
 Como de costume, as características estéticas do gráfico podem refletir grupos de variáveis. No caso de gráficos de linha é comum querer representar séries de tempo distintas com cores diferentes.
 
@@ -400,6 +361,8 @@ ggplot(data = series, aes(x = ref.date, y = value)) +
   )
 ```
 
+### Tipo de linha
+
 Da mesma forma que modificamos a cor das linhas, podemos variar outros aspectos estéticos como, por exemplo, o tracejado da linha de cada série. Este tipo de modificação pode ser útil no caso de uma publicação que vai ser visualizada ou impressa em escala de cinza.
 
 ```{r}
@@ -468,6 +431,48 @@ ggplot(data = consumo, aes(x = ref.date, y = value)) +
     caption = "Fonte: Eletrobras."
     )
 ```
+
+
+## Começando o gráfico do zero
+
+Os gráficos de linha gerados pelo `ggplot2` não começam do zero no eixo-y. Isto pode ser um problema e, visualmente, criar a ilusão de que há mais volatilidade nos dados do que realmente existe.
+
+Há muitas formas de forçar o gráfico a iniciar no zero. Uma das mais efetivas é incluir uma linha horizontal no eixo ($y = 0$). Pode-se desenhar esta linha horizontal com a função `geom_hline()` (onde o "hline" sinaliza "horizontal line", *linha horizontal*).
+
+```{r}
+ggplot(data = consumo, aes(x = ref.date, y = value)) +
+  # Linha horizontal y = 0
+  geom_hline(yintercept = 0) +
+  # Linha da série
+  geom_line()
+```
+
+Outra forma de chegar no mesmo resultado é manipular o eixo-y para forçá-lo a iniciar no zero. No exemplo abaixo utilizamos a função `scale_y_continuous()`. Esta função controla todos os aspectos visuais da escala no eixo-y. O sufixo `_continuous` indica que a variável no eixo-y é contínua.
+
+Para redefinir os limites do eixo-y variamos o argumento `limits` que aceita um par de valores. O primeiro valor é o limite inferior e o segundo valor é o limite superior. Por padrão ambos são definidos como `NA`.
+
+```{r}
+ggplot(data = consumo, aes(x = ref.date, y = value)) +
+  # Linha da série
+  geom_line() +
+  # Manipular o eixo-y para inicar no zero
+  scale_y_continuous(limits = c(0, NA))
+```
+
+## Séries de tempo em degraus
+
+Algumas séries de tempo variam de maneira "descontínua" no tempo. É o caso, por exemplo, da taxa SELIC, que é periodicamente definida como uma meta a ser perseguida pelo Banco Central. Neste caso, faz sentido ressaltar isto fazendo um gráfico que varia em "degraus".
+
+A função `geom_step()` faz este tipo de gráfico e possui os mesmos argumentos que a função `geom_line()`. O gráfico abaixo mostra a variação da taxa SELIC (meta) nos últimos anos.
+
+```{r}
+# Importa a série diária da SELIC (meta) anualizada
+selic <- gbcbd_get_series(id = 1178, first.date = as.Date("2016-01-01"))
+
+ggplot(data = selic, aes(x = ref.date, y = value)) +
+  geom_step()
+```
+
 
 ## Resumo
 
