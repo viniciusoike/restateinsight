@@ -1635,527 +1635,6 @@
   <pubDate>Thu, 17 Aug 2023 03:00:00 GMT</pubDate>
 </item>
 <item>
-  <title>Sazonalidade</title>
-  <dc:creator>Vinicius Oike</dc:creator>
-  <link>https:://www.restateinsight.com/posts/general-posts/2022-08-sazonalidade/index.html</link>
-  <description><![CDATA[ 
-
-
-
-
-<div class="cell" data-layout-align="center">
-<div class="sourceCode cell-code" id="cb1" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">#&gt; IPI - Construção Civil (sem ajuste sazonal)</span></span>
-<span id="cb1-2">ipicc <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> rbcb<span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">::</span><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">get_series</span>(<span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">21868</span>)</span>
-<span id="cb1-3"><span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">#&gt; Consumo mensal de energia elétrica - Residencial</span></span>
-<span id="cb1-4">df_energia <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> rbcb<span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">::</span><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">get_series</span>(<span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1403</span>)</span>
-<span id="cb1-5"><span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">#&gt; Car accidents in São Paulo</span></span>
-<span id="cb1-6">accidents <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">read_csv</span>(<span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"..."</span>)</span>
-<span id="cb1-7"><span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">#&gt; Demanda mensal por gasolina</span></span>
-<span id="cb1-8">gasolina <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">read_csv</span>(<span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"..."</span>)</span>
-<span id="cb1-9"><span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">#&gt; Demanda mensal EMTU</span></span>
-<span id="cb1-10">emtu <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">read_csv</span>(<span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"..."</span>)</span></code></pre></div>
-</div>
-<section id="sazonalidade" class="level1">
-<h1>Sazonalidade</h1>
-<section id="sazonalidade-clássica" class="level2">
-<h2 class="anchored" data-anchor-id="sazonalidade-clássica">Sazonalidade Clássica</h2>
-<p>A forma “clássica” de se modelar sazonalidade numa série é decompondo ela em três componentes: tendência, sazonalidade, e ruído. Didaticamente, temos:</p>
-<p><img src="https://latex.codecogs.com/png.latex?%0Ay_%7Bt%7D%20=%20T_%7Bt%7D%20+%20S_%7Bt%7D%20+%20u_%7Bt%7D%0A"></p>
-<p>Em geral, a tendência <img src="https://latex.codecogs.com/png.latex?T_%7Bt%7D"> é um polinômio, de primeiro ou segundo grau<sup>1</sup>, que depende do tempo ou uma média móvel simples. Já a sazonalidade, <img src="https://latex.codecogs.com/png.latex?S_%7Bt%7D"> entra linearmente no modelo: coloca-se uma variável binária (<em>dummy</em>) para cada período sazonal. No caso de uma série com sazonalidade mensal, isto significa incluir onze variáveris binárias<sup>2</sup>. O caso de uma tendência linear com sazonalidade “determinística”<sup>3</sup> é expresso na equação abaixo.</p>
-<p><img src="https://latex.codecogs.com/png.latex?%0Ay_%7Bt%7D%20=%20%5Calpha_%7B0%7D%20+%20%5Calpha_%7B1%7Dt%20+%20%5Csum_%7Bi%20=%201%7D%5E%7B11%7D%5Cbeta_%7Bi%7D%5Cdelta_%7Bi%7D%20+%20u_%7Bt%7D%0A"></p>
-<p>Neste tipo de regressão o “período-base” fica incorporado no termo de constante. Isto é, imaginando que temos uma série mensal e que janeiro seja o mês-base, o efeito de janeiro ficaria estimado junto com _{0} e os demais</p>
-<div class="cell" data-layout-align="center">
-<div class="sourceCode cell-code" id="cb2" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1">df_to_ts <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="cf" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">function</span>(df, <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">date_col =</span> <span class="cn" style="color: #8f5902;
-background-color: null;
-font-style: inherit;">NULL</span>, <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">value_col =</span> <span class="cn" style="color: #8f5902;
-background-color: null;
-font-style: inherit;">NULL</span>, <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">freq =</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"M"</span>) {</span>
-<span id="cb2-2">  </span>
-<span id="cb2-3">  <span class="cf" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">if</span> (<span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">is.null</span>(date_col)) {date_col <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">=</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">colnames</span>(df)[<span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1</span>]}</span>
-<span id="cb2-4">  <span class="cf" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">if</span> (<span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">is.null</span>(value_col)) {value_col <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">=</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">colnames</span>(df)[<span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">2</span>]}</span>
-<span id="cb2-5">  </span>
-<span id="cb2-6">  <span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">#&gt; Select columns and remove missing values</span></span>
-<span id="cb2-7">  df <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">=</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">na.omit</span>(dplyr<span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">::</span><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">select</span>(df, <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">c</span>(date_col, value_col)))</span>
-<span id="cb2-8">  <span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">#&gt; Get dates and check class</span></span>
-<span id="cb2-9">  dates <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">=</span> df[[date_col]]</span>
-<span id="cb2-10">  </span>
-<span id="cb2-11">  <span class="cf" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">if</span> (<span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">!</span><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">inherits</span>(dates, <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"Date"</span>)) {</span>
-<span id="cb2-12">    <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">stop</span>(<span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"Invalid date column selected."</span>)</span>
-<span id="cb2-13">  }</span>
-<span id="cb2-14">  </span>
-<span id="cb2-15">  <span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">#&gt; Check frequency argument</span></span>
-<span id="cb2-16">  <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">stopifnot</span>(<span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">any</span>(freq <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">%in%</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">c</span>(<span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"M"</span>, <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"T"</span>, <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"Q"</span>)))</span>
-<span id="cb2-17">  frequency <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">=</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">ifelse</span>(freq <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">==</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"M"</span>, <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">12</span>, <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">4</span>)</span>
-<span id="cb2-18">  </span>
-<span id="cb2-19">  <span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">#&gt; Get the starting date</span></span>
-<span id="cb2-20">  date_min <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">=</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">min</span>(dates)</span>
-<span id="cb2-21">  <span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">#&gt; Convert into a numeric vector</span></span>
-<span id="cb2-22">  mes <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">=</span> lubridate<span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">::</span><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">month</span>(date_min)</span>
-<span id="cb2-23">  ano <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">=</span> lubridate<span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">::</span><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">year</span>(date_min)</span>
-<span id="cb2-24">  start <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">=</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">c</span>(ano, mes)</span>
-<span id="cb2-25">  </span>
-<span id="cb2-26">  <span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">#&gt; Get the values of the series</span></span>
-<span id="cb2-27">  values <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">=</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">as.numeric</span>(df[[value_col]])</span>
-<span id="cb2-28">  </span>
-<span id="cb2-29">  <span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">#&gt; Convert to ts</span></span>
-<span id="cb2-30">  y <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">=</span> stats<span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">::</span><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">ts</span>(values, <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">start =</span> start, <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">frequency =</span> frequency)</span>
-<span id="cb2-31">  </span>
-<span id="cb2-32">  <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">return</span>(y)</span>
-<span id="cb2-33">  </span>
-<span id="cb2-34">}</span></code></pre></div>
-</div>
-<div class="cell" data-layout-align="center">
-<div class="sourceCode cell-code" id="cb3" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb3-1">ipi <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">df_to_ts</span>(ipicc)</span>
-<span id="cb3-2"></span>
-<span id="cb3-3"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">autoplot</span>(ipi)</span></code></pre></div>
-<div class="cell-output-display">
-<div class="quarto-figure quarto-figure-center">
-<figure class="figure">
-<p><img src="https:://www.restateinsight.com/posts/general-posts/2022-08-sazonalidade/index_files/figure-html/unnamed-chunk-4-1.png" class="img-fluid figure-img" style="width:90.0%"></p>
-</figure>
-</div>
-</div>
-</div>
-<div class="cell" data-layout-align="center">
-<div class="sourceCode cell-code" id="cb4" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb4-1">model_lm <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">tslm</span>(ipi <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">~</span> trend <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">+</span> season)</span>
-<span id="cb4-2"></span>
-<span id="cb4-3"></span>
-<span id="cb4-4">broom<span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">::</span><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">tidy</span>(<span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">summary</span>(model_lm))</span></code></pre></div>
-<div class="cell-output cell-output-stdout">
-<pre><code># A tibble: 13 × 5
-   term        estimate std.error statistic  p.value
-   &lt;chr&gt;          &lt;dbl&gt;     &lt;dbl&gt;     &lt;dbl&gt;    &lt;dbl&gt;
- 1 (Intercept)  124.       3.61     34.2    2.53e-65
- 2 trend         -0.298    0.0240  -12.4    1.27e-23
- 3 season2       -0.210    4.58     -0.0459 9.63e- 1
- 4 season3        9.52     4.58      2.08   3.96e- 2
- 5 season4        2.40     4.58      0.525  6.01e- 1
- 6 season5        8.10     4.58      1.77   7.92e- 2
- 7 season6        6.16     4.58      1.34   1.81e- 1
- 8 season7       12.3      4.68      2.63   9.70e- 3
- 9 season8       16.7      4.68      3.56   5.20e- 4
-10 season9       11.8      4.68      2.52   1.31e- 2
-11 season10      16.7      4.68      3.56   5.19e- 4
-12 season11       9.81     4.68      2.09   3.82e- 2
-13 season12      -5.64     4.68     -1.20   2.31e- 1</code></pre>
-</div>
-</div>
-<div class="cell" data-layout-align="center">
-<div class="sourceCode cell-code" id="cb6" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb6-1"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">autoplot</span>(ipi) <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">+</span></span>
-<span id="cb6-2">  <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">autolayer</span>(<span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">fitted</span>(model_lm))</span></code></pre></div>
-<div class="cell-output-display">
-<div class="quarto-figure quarto-figure-center">
-<figure class="figure">
-<p><img src="https:://www.restateinsight.com/posts/general-posts/2022-08-sazonalidade/index_files/figure-html/unnamed-chunk-6-1.png" class="img-fluid figure-img" style="width:90.0%"></p>
-</figure>
-</div>
-</div>
-</div>
-<div class="cell" data-layout-align="center">
-<div class="sourceCode cell-code" id="cb7" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb7-1"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">ggseasonplot</span>(ipi)</span></code></pre></div>
-<div class="cell-output-display">
-<div class="quarto-figure quarto-figure-center">
-<figure class="figure">
-<p><img src="https:://www.restateinsight.com/posts/general-posts/2022-08-sazonalidade/index_files/figure-html/unnamed-chunk-7-1.png" class="img-fluid figure-img" style="width:90.0%"></p>
-</figure>
-</div>
-</div>
-</div>
-<div class="cell" data-layout-align="center">
-<div class="sourceCode cell-code" id="cb8" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb8-1">ma_trend <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> stats<span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">::</span><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">filter</span>(ipi, <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">filter =</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">rep</span>(<span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1</span><span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">/</span><span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">5</span>, <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">5</span>), <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">method =</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"convolution"</span>)</span>
-<span id="cb8-2"></span>
-<span id="cb8-3"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">autoplot</span>(ipi) <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">+</span></span>
-<span id="cb8-4">  <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">autolayer</span>(ma_trend)</span></code></pre></div>
-<div class="cell-output-display">
-<div class="quarto-figure quarto-figure-center">
-<figure class="figure">
-<p><img src="https:://www.restateinsight.com/posts/general-posts/2022-08-sazonalidade/index_files/figure-html/unnamed-chunk-8-1.png" class="img-fluid figure-img" style="width:90.0%"></p>
-</figure>
-</div>
-</div>
-</div>
-<div class="cell" data-layout-align="center">
-<div class="sourceCode cell-code" id="cb9" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb9-1">ipi_detrend <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> ipi <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">-</span> ma_trend</span>
-<span id="cb9-2"></span>
-<span id="cb9-3"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">autoplot</span>(ipi_detrend)</span></code></pre></div>
-<div class="cell-output-display">
-<div class="quarto-figure quarto-figure-center">
-<figure class="figure">
-<p><img src="https:://www.restateinsight.com/posts/general-posts/2022-08-sazonalidade/index_files/figure-html/unnamed-chunk-9-1.png" class="img-fluid figure-img" style="width:90.0%"></p>
-</figure>
-</div>
-</div>
-</div>
-<div class="cell" data-layout-align="center">
-<div class="sourceCode cell-code" id="cb10" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb10-1">model_lm <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">tslm</span>(ipi_detrend <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">~</span> season)</span>
-<span id="cb10-2"></span>
-<span id="cb10-3"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">autoplot</span>(ipi_detrend) <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">+</span></span>
-<span id="cb10-4">  <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">autolayer</span>(<span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">fitted</span>(model_lm))</span></code></pre></div>
-<div class="cell-output-display">
-<div class="quarto-figure quarto-figure-center">
-<figure class="figure">
-<p><img src="https:://www.restateinsight.com/posts/general-posts/2022-08-sazonalidade/index_files/figure-html/unnamed-chunk-10-1.png" class="img-fluid figure-img" style="width:90.0%"></p>
-</figure>
-</div>
-</div>
-</div>
-<div class="cell" data-layout-align="center">
-<div class="sourceCode cell-code" id="cb11" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb11-1">model_lm <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">tslm</span>(ipi <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">~</span> season)</span>
-<span id="cb11-2"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">anova</span>(model_lm)</span></code></pre></div>
-<div class="cell-output cell-output-stdout">
-<pre><code>Analysis of Variance Table
-
-Response: ipi
-           Df Sum Sq Mean Sq F value  Pr(&gt;F)  
-season     11   6233  566.66  2.0295 0.03067 *
-Residuals 126  35180  279.21                  
----
-Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1</code></pre>
-</div>
-<div class="sourceCode cell-code" id="cb13" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb13-1">forecast<span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">::</span><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">ggtsdisplay</span>(<span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">resid</span>(model_lm))</span></code></pre></div>
-<div class="cell-output-display">
-<div class="quarto-figure quarto-figure-center">
-<figure class="figure">
-<p><img src="https:://www.restateinsight.com/posts/general-posts/2022-08-sazonalidade/index_files/figure-html/unnamed-chunk-11-1.png" class="img-fluid figure-img" style="width:90.0%"></p>
-</figure>
-</div>
-</div>
-</div>
-</section>
-</section>
-<section id="x13-arima" class="level1">
-<h1>X13-ARIMA</h1>
-<div class="cell" data-layout-align="center">
-<div class="sourceCode cell-code" id="cb14" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb14-1"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">library</span>(seasonal)</span></code></pre></div>
-</div>
-<div class="cell" data-layout-align="center">
-<div class="sourceCode cell-code" id="cb15" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb15-1">sipi <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">=</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">seas</span>(ipi)</span>
-<span id="cb15-2"></span>
-<span id="cb15-3"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">summary</span>(sipi)</span></code></pre></div>
-<div class="cell-output cell-output-stdout">
-<pre><code>
-Call:
-seas(x = ipi)
-
-Coefficients:
-                   Estimate Std. Error z value Pr(&gt;|z|)    
-Leap Year           0.70176    1.40841   0.498   0.6183    
-Weekday             0.39172    0.05366   7.300 2.87e-13 ***
-Easter[1]          -3.07685    0.78925  -3.898 9.68e-05 ***
-AO2013.Feb         -9.32322    2.14649  -4.343 1.40e-05 ***
-AO2014.Jun         -7.96583    2.03547  -3.914 9.10e-05 ***
-AO2018.May        -12.45936    2.03317  -6.128 8.90e-10 ***
-LS2020.Mar        -10.81237    2.75090  -3.930 8.48e-05 ***
-AO2020.Apr        -23.63610    2.24940 -10.508  &lt; 2e-16 ***
-AO2020.May        -10.79168    2.25698  -4.781 1.74e-06 ***
-LS2020.Jul         12.60947    2.58399   4.880 1.06e-06 ***
-MA-Nonseasonal-01   0.21318    0.08445   2.524   0.0116 *  
-MA-Seasonal-12      0.73913    0.06387  11.573  &lt; 2e-16 ***
----
-Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
-
-SEATS adj.  ARIMA: (0 1 1)(0 1 1)  Obs.: 138  Transform: none
-AICc: 645.6, BIC: 679.1  QS (no seasonality in final):    0  
-Box-Ljung (no autocorr.):  29.7   Shapiro (normality): 0.9821 .</code></pre>
-</div>
-</div>
-
-
-</section>
-
-
-<div id="quarto-appendix" class="default"><section id="footnotes" class="footnotes footnotes-end-of-document"><h2 class="anchored quarto-appendix-heading">Footnotes</h2>
-
-<ol>
-<li id="fn1"><p>Pode-se usar um polinômio de qualquer grau, mas polinômios de ordens muito elevadas costumam se ajustar “perfeitamente” aos dados e vão absorver toda a sazonalidade da série.↩︎</p></li>
-<li id="fn2"><p>Sempre coloca-se uma variável binária a menos do que períodos sazonais pela questão do posto da matriz de regressores. Na prática, se houvesse uma dummy para cada período sazonal a matriz de regressão seria uma matriz identidade.↩︎</p></li>
-<li id="fn3"><p>É comum ver esta expressão nos textos de séries de tempo; em geral o termo é utilizado em contraste com modelos SARIMA onde a sazonalidade é estocástica, mas o termo “determinístico” não tem implicação causal. Na prática, quer dizer que a sazonalidade não varia no tempo e é sempre a mesma o que pode gerar previsões ruins a depender do caso.↩︎</p></li>
-</ol>
-</section></div> ]]></description>
-  <category>data-science</category>
-  <category>economia</category>
-  <category>tutorial-R</category>
-  <category>econometria</category>
-  <guid>https:://www.restateinsight.com/posts/general-posts/2022-08-sazonalidade/index.html</guid>
-  <pubDate>Thu, 10 Aug 2023 03:00:00 GMT</pubDate>
-</item>
-<item>
   <title>Importando dados do SIDRA</title>
   <dc:creator>Vinicius Oike</dc:creator>
   <link>https:://www.restateinsight.com/posts/general-posts/2023-08-importando-dados-sidra/index.html</link>
@@ -29394,6 +28873,841 @@ font-style: inherit;">theme_light</span>()</span></code></pre></div>
   <guid>https:://www.restateinsight.com/posts/general-posts/repost-ols-timeseries/index.html</guid>
   <pubDate>Tue, 01 Jan 2019 02:00:00 GMT</pubDate>
   <media:content url="https:://www.restateinsight.com/static/ols-time-series.svg" medium="image" type="image/svg+xml"/>
+</item>
+<item>
+  <title>SARIMA no R</title>
+  <dc:creator>Vinicius Oike</dc:creator>
+  <link>https:://www.restateinsight.com/posts/general-posts/repost-sarima-no-r/index.html</link>
+  <description><![CDATA[ 
+
+
+
+
+<section id="introdução" class="level1">
+<h1>Introdução</h1>
+<p>Neste post apresento como estimar um modelo SARIMA simples no R usando os pacotes <code>astsa</code> e <code>forecast</code>. O pacote <code>astsa</code> foi elaborado pelos autores do livro <a href="https://www.stat.pitt.edu/stoffer/tsa4/">Time Series Analysis</a>. Já o <code>forecast</code> foi desenvolvido por Rob. Hyndman, autor do livro <a href="https://otexts.com/fpp2/">Forecasting: Principles and Practice</a>.</p>
+</section>
+<section id="o-modelo" class="level1">
+<h1>O modelo</h1>
+<p>O SARIMA adiciona sazonalidade estocástica multiplicativa ao modelo ARIMA. Lembre-se que o modelo ARMA(p,q) geral é da forma: <img src="https://latex.codecogs.com/png.latex?%5Cbegin%7Bequation%7D%0A%20%20y_%7Bt%7D%20=%20%5Cmu%20+%20%5Cphi_%7B1%7Dy_%7Bt-1%7D%20+%20%5Cphi_%7B2%7Dy_%7Bt-2%7D%20+%20%5Cdots%20+%20%5Cphi_%7Bp%7Dy_%7Bt-p%7D%20+%20%5Cepsilon_%7Bt%7D%20+%20%5Ctheta_%7B1%7D%5Cepsilon_%7Bt-1%7D%20+%20%5Ctheta_%7B2%7D%5Cepsilon_%7Bt-2%7D%20+%20%5Cdots%20+%20%5Ctheta_%7Bq%7D%5Cepsilon_%7Bt-q%7D%0A%5Cend%7Bequation%7D"> Podemos reescrever a expressão acima usando o operador defasagem e os polinômios <img src="https://latex.codecogs.com/png.latex?%5Cbegin%7Balign%7D%0A%5Cphi(L)%20&amp;%20=%201-%5Cphi_%7B1%7DL%20-%20%5Cphi_%7B2%7DL%5E%7B2%7D%20-%20%5Cdots%20-%20%5Cphi_%7Bp%7DL%5E%7Bp%7D%20%5C%5C%0A%5Ctheta(L)%20&amp;%20=%201+%5Ctheta_%7B1%7DL%20+%20%5Ctheta_%7B2%7DL%5E%7B2%7D%20+%20%5Cdots%20+%20%5Ctheta_%7Bq%7DL%5E%7Bq%7D%0A%5Cend%7Balign%7D"> Assim a expressão pode ser resumida como <img src="https://latex.codecogs.com/png.latex?%5Cbegin%7Bequation%7D%0A%20%20%5Cphi(L)y_%7Bt%7D%20=%20%5Cmu%20+%20%5Ctheta(L)%5Cepsilon_%7Bt%7D%0A%5Cend%7Bequation%7D"> O modelo ARIMA tira diferenças <img src="https://latex.codecogs.com/png.latex?d"> de <img src="https://latex.codecogs.com/png.latex?y_%7Bt%7D">: <img src="https://latex.codecogs.com/png.latex?%5Cbegin%7Bequation%7D%0A%20%20%5Cphi(L)(1-L)%5E%7Bd%7Dy_%7Bt%7D%20=%20%5Ctheta(L)%5Cepsilon_%7Bt%7D%0A%5Cend%7Bequation%7D"> A princípio não há restrição sobre o valor de <img src="https://latex.codecogs.com/png.latex?d"> mas na prática sabemos que <img src="https://latex.codecogs.com/png.latex?d%20=%201"> ou <img src="https://latex.codecogs.com/png.latex?d%20=%202">. Agora vamos definir os polinômios sazonais: <img src="https://latex.codecogs.com/png.latex?%5CPhi(L%5E%7Bs%7D)%20=%201-%5CPhi_%7B1%7DL%5E%7Bs%7D%20-%20%5CPhi_%7B2%7DL%5E%7B2s%7D%20-%20%5Cdots%20-%20%5CPhi_%7Bp%7DL%5E%7BPs%7D"> e <img src="https://latex.codecogs.com/png.latex?%5CTheta(L%5E%7Bs%7D)%20=%201+%5CTheta_%7B1%7DL%5E%7Bs%7D%20+%20%5CTheta_%7B2%7DL%5E%7B2s%7D%20+%20%5Cdots%20+%20%5CTheta_%7Bq%7DL%5E%7BQs%7D">. Ou seja, digamos que a série <img src="https://latex.codecogs.com/png.latex?y_%7Bt%7D"> seja mensurada mensalmente e apresente alguma sazonalidade anual. <img src="https://latex.codecogs.com/png.latex?y_%7Bt%7D"> pode ser, por exemplo, a receita de vendas de uma empresa de varejo. É provável que a receita no mês de dezembro seja mais alta que a média do ano. Como isto se repete todo ano vamos encontrar um padrão anual nos dados que deve ser modelado. Neste exemplo, como <img src="https://latex.codecogs.com/png.latex?y_%7Bt%7D"> é mensal temos que <img src="https://latex.codecogs.com/png.latex?s%20=%2012"> nos polinômios sazonais. Logo teremos que: <img src="https://latex.codecogs.com/png.latex?%5Cbegin%7Balign%7D%0A%20%20%5CPhi(L)y_%7Bt%7D%20&amp;%20=%201%20+%20%5CPhi_%7B1%7Dy_%7Bt-12%7D%20+%20%5CPhi_%7B2%7Dy_%7Bt-24%7D%20+%20%5Cdots%20+%20%5CPhi_%7Bp%7Dy_%7Bt-Ps%7D%5C%5C%0A%20%20%5CTheta(L)%5Cepsilon_%7Bt%7D%20&amp;%20=%201+%5CTheta_%7B1%7D%5Cepsilon_%7Bt-12%7D%20+%20%5CTheta_%7B2%7D%5Cepsilon_%7Bt-24%7D%20+%20%5Cdots%20+%20%5CTheta_%7Bq%7D%5Cepsilon_%7Bt-Qs%7D%0A%5Cend%7Balign%7D"> Podemos então montar modelos SARMA(p,q)(P,Q)[s]. Para tornar a notação mais clara vamos escrever o caso em que <img src="https://latex.codecogs.com/png.latex?y_%7Bt%7D%20%5Csim%20%5Ctext%7BSARMA%7D(2,1)(1,3)%5B12%5D"> <img src="https://latex.codecogs.com/png.latex?%5Cbegin%7Bequation%7D%0A%20%20y_%7Bt%7D%20=%20%5Cphi_%7B1%7Dy_%7Bt-1%7D%20+%20%5Cphi_%7B2%7Dy_%7Bt-2%7D%20+%20%5CPhi_%7B1%7Dy_%7Bt-12%7D%20+%20%5Cepsilon_%7Bt%7D%20+%20%5Ctheta_%7B1%7D%5Cepsilon_%7Bt-1%7D%20+%20%5CTheta_%7B1%7D%5Cepsilon_%7Bt-12%7D%20+%20%5CTheta_%7B2%7D%5Cepsilon_%7Bt-24%7D%20+%20%5CTheta_%7B3%7D%5Cepsilon_%7Bt-36%7D%0A%5Cend%7Bequation%7D"> De forma geral, temos que: <img src="https://latex.codecogs.com/png.latex?%5Cbegin%7Bequation%7D%0A%20%20%5CPhi(L%5E%7Bs%7D)%5Cphi(L)y_%7Bt%7D%20=%20%5Cmu%20+%20%5Ctheta(L%5E%7Bs%7D)%5Ctheta(L)%5Cepsilon_%7Bt%7D%0A%5Cend%7Bequation%7D"> Finalmente, de forma análoga ao ARIMA, tiramos diferenças sazonais <img src="https://latex.codecogs.com/png.latex?D"> para chegar em: <img src="https://latex.codecogs.com/png.latex?%5Cbegin%7Bequation%7D%0A%20%20%5CPhi(L%5E%7Bs%7D)%5Cphi(L)(1-L)%5E%7Bd%7D(1-L%5E%7Bs%7D)%5E%7BD%7Dy_%7Bt%7D%20=%20%5Cmu%20+%20%5Ctheta(L%5E%7Bs%7D)%5Ctheta(L)%5Cepsilon_%7Bt%7D%0A%5Cend%7Bequation%7D"> Assim, como na análise do ARIMA o procedimento para identificação parte da comparação entre o correlograma empírico com as correlações teóricas do processo SARMA(p,q)(P,Q)[s]. Digamos, por exemplo, que a série de interesse <img src="https://latex.codecogs.com/png.latex?y_%7Bt%7D"> siga um SARIMA(p,0,q)(P,1,Q). Então, temos que</p>
+<p><img src="https://latex.codecogs.com/png.latex?%0Ax_%7Bt%7D%20=%20(1-L%5E%7B12%7D)y_%7Bt%7D%0A"></p>
+<p>a série diferenciada sazonalmente, segue um SARMA(p,q)(P,Q). A partir das funções de autocorrelação e autocorrelação parcial de <img src="https://latex.codecogs.com/png.latex?x_%7Bt%7D"> podemos tentar recuperar o verdadeiro valor de <img src="https://latex.codecogs.com/png.latex?p">, <img src="https://latex.codecogs.com/png.latex?q">, <img src="https://latex.codecogs.com/png.latex?P"> e <img src="https://latex.codecogs.com/png.latex?Q">.</p>
+</section>
+<section id="exemplo-passagens-aéreas" class="level1">
+<h1>Exemplo: passagens aéreas</h1>
+<p>Primeiro vamos carregar os pacotes.</p>
+<div class="cell" data-layout-align="center">
+<div class="sourceCode cell-code" id="cb1" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">library</span>(astsa)    <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># acf2() e sarima()</span></span>
+<span id="cb1-2"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">library</span>(forecast) <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># forecast() e autoplot()</span></span>
+<span id="cb1-3"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">library</span>(ggplot2)  <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># carregar temas para a função autoplot()</span></span></code></pre></div>
+</div>
+<p>Vamos analisar o comportamento da demanda por passagens aéreas internacionais. Este é um exemplo clássico estudado em Box &amp; Jenkins (1976). Esta séria apresenta tanto uma tendência de crescimento como uma clara sazonalidade.</p>
+<div class="cell" data-layout-align="center">
+<div class="sourceCode cell-code" id="cb2" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">autoplot</span>(AirPassengers) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb2-2">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">geom_point</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">shape =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">21</span>) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb2-3">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">labs</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">x =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">""</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">y =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Passagens aéreas (milhares)"</span>, </span>
+<span id="cb2-4">       <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">title =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Demanda mensal de passagens aéreas internacionais"</span>, </span>
+<span id="cb2-5">       <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">caption =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Fonte: Box &amp; Jenkins (1976)"</span>) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb2-6">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">theme_bw</span>()</span></code></pre></div>
+<div class="cell-output-display">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="https:://www.restateinsight.com/posts/general-posts/repost-sarima-no-r/index_files/figure-html/unnamed-chunk-3-1.svg" class="img-fluid figure-img" style="width:100.0%"></p>
+</figure>
+</div>
+</div>
+</div>
+<p>Uma maneira interessante de visualizar a sazonalidade da série é “empilhando” os ciclos. No caso, parece haver uma sazonalidade que se repete a cada ano. A função <code>ggseasonplot</code> do pacote <code>forecast</code> facilita esta visualização. Os meses de junho, julho e agosto parecem sempre ter valores mais elevados. De fato, estes são os meses do verão no hemisfério norte e da alta estação do turismo.</p>
+<div class="cell" data-layout-align="center">
+<div class="sourceCode cell-code" id="cb3" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb3-1"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># Gráfico mensal</span></span>
+<span id="cb3-2"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">ggseasonplot</span>(AirPassengers) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb3-3">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">ggtitle</span>(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Sazonalidade"</span>) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb3-4">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">labs</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">x =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">""</span>) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb3-5">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">scale_colour_discrete</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">name =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Ano"</span>) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb3-6">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">theme_bw</span>()</span></code></pre></div>
+<div class="cell-output-display">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="https:://www.restateinsight.com/posts/general-posts/repost-sarima-no-r/index_files/figure-html/unnamed-chunk-4-1.svg" class="img-fluid figure-img" style="width:100.0%"></p>
+</figure>
+</div>
+</div>
+</div>
+<section id="identificação-e-tranformações" class="level2">
+<h2 class="anchored" data-anchor-id="identificação-e-tranformações">Identificação e tranformações</h2>
+<p>Como a variância da série cresce ao longo do tempo aplico uma transformação log nos valores da série. Seja <img src="https://latex.codecogs.com/png.latex?y_%7Bt%7D"> nossa série. Então fazemos <img src="https://latex.codecogs.com/png.latex?ly_%7Bt%7D%20%5Cequiv%20%5Ctext%7Blog%7D(y_%7Bt%7D)."></p>
+<div class="cell" data-layout-align="center">
+<div class="sourceCode cell-code" id="cb4" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb4-1"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># Aplica transformação log (logaritmo natural)</span></span>
+<span id="cb4-2">ly <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">log</span>(AirPassengers)</span>
+<span id="cb4-3"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># Gráfico</span></span>
+<span id="cb4-4"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">autoplot</span>(ly) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb4-5">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">geom_point</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">shape =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">21</span>) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb4-6">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">labs</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">x =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">""</span>,</span>
+<span id="cb4-7">       <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">y =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Passagens aéreas (log)"</span>,</span>
+<span id="cb4-8">       <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">title =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Demanda mensal de passagens aéreas internacionais"</span>) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb4-9">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">theme_bw</span>()</span></code></pre></div>
+<div class="cell-output-display">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="https:://www.restateinsight.com/posts/general-posts/repost-sarima-no-r/index_files/figure-html/unnamed-chunk-5-1.svg" class="img-fluid figure-img" style="width:100.0%"></p>
+</figure>
+</div>
+</div>
+</div>
+<p>Para testar a acurácia do modelo vamos remover algumas das últimas observações. Estas serão testadas contra as previsões do modelo. Aqui sigo a nomenclatura de <em>train</em> (treino) e <em>test</em> (teste). O gráfico abaixo permite visualizar esta divisão, onde os valores em vermelho foram excluídos da nossa amostra.</p>
+<div class="cell" data-layout-align="center">
+<div class="sourceCode cell-code" id="cb5" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb5-1">train <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">window</span>(ly, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">end =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">c</span>(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1957</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">12</span>))</span>
+<span id="cb5-2">test <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">window</span>(ly, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">start =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">c</span>(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1958</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>))</span>
+<span id="cb5-3"></span>
+<span id="cb5-4"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">autoplot</span>(train) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb5-5">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">autolayer</span>(test) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb5-6">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">theme_bw</span>() <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb5-7">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">theme</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">legend.position =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"bottom"</span>)</span></code></pre></div>
+<div class="cell-output-display">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="https:://www.restateinsight.com/posts/general-posts/repost-sarima-no-r/index_files/figure-html/unnamed-chunk-6-1.svg" class="img-fluid figure-img" style="width:100.0%"></p>
+</figure>
+</div>
+</div>
+</div>
+<p>Tirando a primeira diferença da série removemos a sua tendência de crescimento. Fazemos <img src="https://latex.codecogs.com/png.latex?dly_%7Bt%7D%20%5Cequiv%20(1-L)ly_%7Bt%7D%20=%20ly_%7Bt%7D%20-%20ly_%7Bt-1%7D"> usando a função <code>diff()</code>. Note pelo gráfico que ainda parece haver forte sazonalidade na série.</p>
+<div class="cell" data-layout-align="center">
+<div class="sourceCode cell-code" id="cb6" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb6-1"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># Tira a primeira diferença da série</span></span>
+<span id="cb6-2">dly <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">diff</span>(train)</span>
+<span id="cb6-3"></span>
+<span id="cb6-4"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">autoplot</span>(dly) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb6-5">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">ggtitle</span>(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Primeira diferença do log da série"</span>) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb6-6">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">theme_bw</span>()</span></code></pre></div>
+<div class="cell-output-display">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="https:://www.restateinsight.com/posts/general-posts/repost-sarima-no-r/index_files/figure-html/unnamed-chunk-7-1.svg" class="img-fluid figure-img" style="width:100.0%"></p>
+</figure>
+</div>
+</div>
+</div>
+<p>Podemos ver isto mais claramente na análise do correlograma da série diferenciada. No gráfico abaixo, os “lags” seguem a periodicidade da série, isto é, cada “lag” representa o equivalente a 12 meses. Parece haver uma forte correlação entre <img src="https://latex.codecogs.com/png.latex?dly_%7Bt%7D"> com <img src="https://latex.codecogs.com/png.latex?dly_%7Bt-12%7D,%20dly_%7Bt-24%7D,%20%5Cdots,%20dly_%7Bt-12k%7D"> com <img src="https://latex.codecogs.com/png.latex?k%20=%201,%202,%20%5Cdots">.</p>
+<div class="cell" data-layout-align="center">
+<div class="sourceCode cell-code" id="cb7" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb7-1"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># Gráfico da FAC e FACP</span></span>
+<span id="cb7-2"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">acf2</span>(dly)</span></code></pre></div>
+<div class="cell-output-display">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="https:://www.restateinsight.com/posts/general-posts/repost-sarima-no-r/index_files/figure-html/unnamed-chunk-8-1.svg" class="img-fluid figure-img" style="width:100.0%"></p>
+</figure>
+</div>
+</div>
+</div>
+<p>Agora tiramos uma diferença sazonal de 12 meses. A série resultante, <img src="https://latex.codecogs.com/png.latex?sdly_%7Bt%7D"> fica: <img src="https://latex.codecogs.com/png.latex?%5Cbegin%7Balign%7D%0A%20%20sdly_%7Bt%7D%20%5Cequiv%20(1-L%5E%7B12%7D)dly_%7Bt%7D%20&amp;%20=%20(1-L%5E%7B12%7D)(1-L)ly_%7Bt%7D%20%5C%5C%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20&amp;%20=%20(1%20-%20L%5E%7B12%7D%20-%20L%20+%20L%5E%7B13%7D)ly_%7Bt%7D%20%5C%5C%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20&amp;%20=%20ly_%7Bt%7D%20-%20ly_%7Bt-1%7D%20-%20ly_%7Bt-12%7D%20+%20ly_%7Bt-13%7D%0A%5Cend%7Balign%7D"></p>
+<p>Abaixo temos o correlograma de <img src="https://latex.codecogs.com/png.latex?sdly_%7Bt%7D">. A primeira defasagem é significativa tanto no ACF como no PACF. Além disso a 12ª defasagem também é significativa em ambos. Assim, vamos primeiro tentar um modelo de “ordem máxima” SARIMA<img src="https://latex.codecogs.com/png.latex?(1,1,1)(1,1,1)%5B12%5D">. A partir deste modelo, vamos tentar estimar outros de ordens mais baixas para evitar o problema de sobreparametrização.</p>
+<div class="cell" data-layout-align="center">
+<div class="sourceCode cell-code" id="cb8" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb8-1"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># Tira a primeira diferença sazonal da série</span></span>
+<span id="cb8-2">sdly <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">diff</span>(dly, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">12</span>)</span>
+<span id="cb8-3"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># Gráfico da FAC e FACP</span></span>
+<span id="cb8-4"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">acf2</span>(sdly)</span></code></pre></div>
+<div class="cell-output-display">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="https:://www.restateinsight.com/posts/general-posts/repost-sarima-no-r/index_files/figure-html/unnamed-chunk-9-1.svg" class="img-fluid figure-img" style="width:100.0%"></p>
+</figure>
+</div>
+</div>
+</div>
+</section>
+<section id="estimação" class="level2">
+<h2 class="anchored" data-anchor-id="estimação">Estimação</h2>
+<p>A equação do modelo que estamos estimando é: <img src="https://latex.codecogs.com/png.latex?%0A%20%20(1%20-%20%5Cphi%20L)(1%20-%20%5CPhi%20L%5E%7B12%7D)(1%20-%20L)(1%20-%20L%5E%7B12%7D)ly_%7Bt%7D%20=%20(1%20+%20%5Ctheta%20L)(1%20+%20%5CTheta%20L%5E%7B12%7D)%5Cepsilon_%7Bt%7D%0A"> Vamos o usar o comando <code>sarima</code> do pacote <code>astsa</code>. Note que os resíduos do modelo parecem se comportar como ruído branco, indicando que nosso modelo está bem ajustado.</p>
+<div class="cell" data-layout-align="center">
+<div class="sourceCode cell-code" id="cb9" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb9-1">(m1 <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">sarima</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">p =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">d =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">q =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">P =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">D =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">Q =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">S =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">12</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">xdata =</span> train))</span></code></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>initial  value -3.031632 
+iter   2 value -3.170590
+iter   3 value -3.246467
+iter   4 value -3.246688
+iter   5 value -3.247295
+iter   6 value -3.247539
+iter   7 value -3.247841
+iter   8 value -3.248283
+iter   9 value -3.248794
+iter  10 value -3.249345
+iter  11 value -3.249360
+iter  12 value -3.249378
+iter  13 value -3.249379
+iter  14 value -3.249380
+iter  15 value -3.249381
+iter  16 value -3.249381
+iter  17 value -3.249381
+iter  17 value -3.249381
+iter  17 value -3.249381
+final  value -3.249381 
+converged
+initial  value -3.248923 
+iter   2 value -3.252561
+iter   3 value -3.258267
+iter   4 value -3.265627
+iter   5 value -3.267071
+iter   6 value -3.267585
+iter   7 value -3.267745
+iter   8 value -3.268029
+iter   9 value -3.268401
+iter  10 value -3.268494
+iter  11 value -3.268499
+iter  12 value -3.268506
+iter  13 value -3.268511
+iter  14 value -3.268511
+iter  15 value -3.268511
+iter  15 value -3.268511
+iter  15 value -3.268511
+final  value -3.268511 
+converged</code></pre>
+</div>
+<div class="cell-output-display">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="https:://www.restateinsight.com/posts/general-posts/repost-sarima-no-r/index_files/figure-html/unnamed-chunk-10-1.svg" class="img-fluid figure-img" style="width:100.0%"></p>
+</figure>
+</div>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>$fit
+
+Call:
+arima(x = xdata, order = c(p, d, q), seasonal = list(order = c(P, D, Q), period = S), 
+    include.mean = !no.constant, transform.pars = trans, fixed = fixed, optim.control = list(trace = trc, 
+        REPORT = 1, reltol = tol))
+
+Coefficients:
+         ar1      ma1     sar1     sma1
+      0.2565  -0.6243  -0.0599  -0.5574
+s.e.  0.2759   0.2289   0.1765   0.1670
+
+sigma^2 estimated as 0.001367:  log likelihood = 175.71,  aic = -341.42
+
+$degrees_of_freedom
+[1] 91
+
+$ttable
+     Estimate     SE t.value p.value
+ar1    0.2565 0.2759  0.9299  0.3549
+ma1   -0.6243 0.2289 -2.7271  0.0077
+sar1  -0.0599 0.1765 -0.3392  0.7353
+sma1  -0.5574 0.1670 -3.3380  0.0012
+
+$AIC
+[1] -3.593882
+
+$AICc
+[1] -3.589203
+
+$BIC
+[1] -3.459467</code></pre>
+</div>
+</div>
+<p>Para evitar o problema de sobreparametrização (<em>overfitting</em>) temos que tentar ajustar modelos de ordens similares, porém mais baixas. Este processo costuma ser iterativo, isto é, na base da tentativa e erro seguindo algum critério de informação (i.e.: AIC, AICc, BIC, etc.). Depois de tentar vários modelos diferentes chegamos, por exemplo, no SARIMA<img src="https://latex.codecogs.com/png.latex?(0,1,1)(0,1,1)%5B12%5D">. A equação do modelo pode ser expressa como: <img src="https://latex.codecogs.com/png.latex?%0A%20%20(1%20-%20L)(1%20-%20L%5E%7B12%7D)ly_%7Bt%7D%20=%20(1%20+%20%5Ctheta%20L)(1%20+%20%5CTheta%20L%5E%7B12%7D)%5Cepsilon_%7Bt%7D%0A"></p>
+<p>Novamente, os resíduos do modelo indicam que ele está bem ajustado aos dados.</p>
+<div class="cell" data-layout-align="center">
+<div class="sourceCode cell-code" id="cb12" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb12-1">m2 <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">sarima</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">p =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">d =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">q =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">P =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">D =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">Q =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">S =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">12</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">xdata =</span> train)</span></code></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>initial  value -3.047456 
+iter   2 value -3.251231
+iter   3 value -3.251514
+iter   4 value -3.268396
+iter   5 value -3.270049
+iter   6 value -3.270196
+iter   7 value -3.270197
+iter   8 value -3.270198
+iter   8 value -3.270198
+iter   8 value -3.270198
+final  value -3.270198 
+converged
+initial  value -3.263453 
+iter   2 value -3.264133
+iter   3 value -3.264159
+iter   4 value -3.264160
+iter   4 value -3.264160
+iter   4 value -3.264160
+final  value -3.264160 
+converged</code></pre>
+</div>
+<div class="cell-output-display">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="https:://www.restateinsight.com/posts/general-posts/repost-sarima-no-r/index_files/figure-html/unnamed-chunk-11-1.svg" class="img-fluid figure-img" style="width:100.0%"></p>
+</figure>
+</div>
+</div>
+</div>
+<div class="cell" data-layout-align="center">
+<div class="sourceCode cell-code" id="cb14" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb14-1">m2<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">$</span>fit</span></code></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>
+Call:
+arima(x = xdata, order = c(p, d, q), seasonal = list(order = c(P, D, Q), period = S), 
+    include.mean = !no.constant, transform.pars = trans, fixed = fixed, optim.control = list(trace = trc, 
+        REPORT = 1, reltol = tol))
+
+Coefficients:
+          ma1     sma1
+      -0.3864  -0.5885
+s.e.   0.1097   0.0927
+
+sigma^2 estimated as 0.001383:  log likelihood = 175.3,  aic = -344.59</code></pre>
+</div>
+</div>
+<p>A estimativa tem a forma:</p>
+<p><img src="https://latex.codecogs.com/png.latex?%0A%20%20(1%20-%20L)(1%20-%20L%5E%7B12%7D)ly_%7Bt%7D%20=%20(1%20-%200.3864%20L)(1%20-%200.5885%20L%5E%7B12%7D)%5Cepsilon_%7Bt%7D%0A"></p>
+</section>
+<section id="previsão" class="level2">
+<h2 class="anchored" data-anchor-id="previsão">Previsão</h2>
+<p>Para computar as previsões do modelo usamos a função <code>sarima.for</code>. Aqui podemos comparar as previsões do modelo (construindo usando apenas as observações dentro de <em>train</em>) com as observações. Esta função automaticametne retorna um gráfico com as previsões fora da amostra.</p>
+<div class="cell" data-layout-align="center">
+<div class="sourceCode cell-code" id="cb16" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb16-1">pred <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">sarima.for</span>(train, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">n.ahead =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">length</span>(test),</span>
+<span id="cb16-2">                   <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">p =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">d =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">q =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">P =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">D =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">Q =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">S =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">12</span>)</span></code></pre></div>
+<div class="cell-output-display">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="https:://www.restateinsight.com/posts/general-posts/repost-sarima-no-r/index_files/figure-html/unnamed-chunk-13-1.svg" class="img-fluid figure-img" style="width:100.0%"></p>
+</figure>
+</div>
+</div>
+</div>
+<p>Podemos construir um gráfico que inclui as observações reservadas no <em>test</em> usando as seguintes funções base do R.</p>
+<div class="cell" data-layout-align="center">
+<div class="sourceCode cell-code" id="cb17" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb17-1"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">plot.ts</span>(pred<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">$</span>pred, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">col =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"red"</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">ylim =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">c</span>(<span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">5.7</span>, <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">6.5</span>),</span>
+<span id="cb17-2">        <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">ylab =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">""</span>,</span>
+<span id="cb17-3">        <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">main =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Previsão do modelo SARIMA(0, 1, 1)(0, 1, 1)[12]"</span>)</span>
+<span id="cb17-4"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">lines</span>(test, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">type =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"o"</span>)</span>
+<span id="cb17-5"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">legend</span>(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"topleft"</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">legend =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">c</span>(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Previsto"</span>, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Observado"</span>), <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">lty =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>,</span>
+<span id="cb17-6">       <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">pch =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">c</span>(<span class="cn" style="color: #8f5902;
+background-color: null;
+font-style: inherit;">NA</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>), <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">col =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">c</span>(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"red"</span>, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"black"</span>))</span></code></pre></div>
+<div class="cell-output-display">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="https:://www.restateinsight.com/posts/general-posts/repost-sarima-no-r/index_files/figure-html/unnamed-chunk-14-1.svg" class="img-fluid figure-img" style="width:100.0%"></p>
+</figure>
+</div>
+</div>
+</div>
+<p>Como comentado em outro post, pode-se produzir visualizações mais elegantes usando o <code>ggplot2</code>, mas o pacote não “conversa” bem com os objetos típicos de séries de tempo. Um jeito de contornar isto é usando a função <code>autoplot()</code> do pacote <code>forecast</code>. Abaixo, reestimo o modelo usando a função <code>arima</code>. Este passo é necessário para usar a função <code>autoplot()</code>.</p>
+<div class="cell" data-layout-align="center">
+<div class="sourceCode cell-code" id="cb18" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb18-1">m <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">arima</span>(train, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">order =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">c</span>(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>), <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">seasonal =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">list</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">order =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">c</span>(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>), <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">period =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">12</span>))</span></code></pre></div>
+</div>
+<p>Agora podemos verificar a qualidade das nossas previsões. O gráfico abaixo foi construído funções base do R. A linha azul representa as previsões do modelo SARIMA especificado acima, enquanto que a linha vermelha representa as observações. As áreas sombreadas são intervalos de confiança: o mais escuro é de 80% e o mais claro de 95%.</p>
+<div class="cell" data-layout-align="center">
+<div class="sourceCode cell-code" id="cb19" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb19-1"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">plot</span>(<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">forecast</span>(m, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">h =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">length</span>(test)))</span>
+<span id="cb19-2"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">lines</span>(test, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">col =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"black"</span>)</span>
+<span id="cb19-3"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">legend</span>(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"topleft"</span>,</span>
+<span id="cb19-4">       <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">legend =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">c</span>(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Previsto"</span>, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Observado"</span>),</span>
+<span id="cb19-5">       <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">lty =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">col =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">c</span>(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"red"</span>, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"black"</span>))</span></code></pre></div>
+<div class="cell-output-display">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="https:://www.restateinsight.com/posts/general-posts/repost-sarima-no-r/index_files/figure-html/unnamed-chunk-16-1.svg" class="img-fluid figure-img" style="width:100.0%"></p>
+</figure>
+</div>
+</div>
+</div>
+<p>Usando o autoplot temos o seguinte resultado:</p>
+<div class="cell" data-layout-align="center">
+<div class="sourceCode cell-code" id="cb20" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb20-1"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">autoplot</span>(<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">forecast</span>(m, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">h =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">length</span>(test)), <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">include =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">50</span>) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb20-2">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">autolayer</span>(test) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb20-3">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">labs</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">x =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">""</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">y =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">""</span>) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span> </span>
+<span id="cb20-4">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">theme_bw</span>() <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb20-5">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">theme</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">legend.position =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"none"</span>)</span></code></pre></div>
+<div class="cell-output-display">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="https:://www.restateinsight.com/posts/general-posts/repost-sarima-no-r/index_files/figure-html/unnamed-chunk-17-1.svg" class="img-fluid figure-img" style="width:100.0%"></p>
+</figure>
+</div>
+</div>
+</div>
+</section>
+</section>
+<section id="conclusão" class="level1">
+<h1>Conclusão</h1>
+<p>Os modelos SARIMA são uma extensão aos modelos ARIMA que acrescentam um componente sazonal nos dados. O exemplo acima mostrou uma série com frequência mensal, mas a mesma lógica se aplica a séries com sazonalidade semestral, trimestral, etc.</p>
+<p>Estes modelos geram boas previsões e são fáceis de estimar o que explica a sua popularidade.</p>
+
+
+</section>
+
+ ]]></description>
+  <category>econometria</category>
+  <category>time-series</category>
+  <category>repost</category>
+  <category>tutorial-R</category>
+  <guid>https:://www.restateinsight.com/posts/general-posts/repost-sarima-no-r/index.html</guid>
+  <pubDate>Tue, 01 Jan 2019 02:00:00 GMT</pubDate>
+  <media:content url="https:://www.restateinsight.com/static/sarima_tutorial_r.svg" medium="image" type="image/svg+xml"/>
 </item>
 </channel>
 </rss>
