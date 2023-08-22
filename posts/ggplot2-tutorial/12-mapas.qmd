@@ -13,9 +13,9 @@ knitr::opts_chunk$set(
   message = FALSE,
   fig.align = "center",
   fig.showtext = TRUE,
-  fig.width = 10,
+  fig.width = 9,
   fig.asp = 0.618,
-  out.width = "100%",
+  out.width = "80%",
   fig.retina = 2,
   dpi = 72
   )
@@ -44,15 +44,16 @@ sf::sf_use_s2(FALSE)
 
 rent <- readr::read_csv(here::here("posts/ggplot2-tutorial/rents_liberdade.csv"))
 cem <- readr::read_csv(here::here("static/data/cem_imoveis.zip"))
+pod <- readr::read_csv(here::here("posts/ggplot2-tutorial/table_pod.csv"))
 ```
 
 # Mapas
 
 Eu começo este post com uma confissão: eu sofri muito até conseguir fazer mapas minimamente apresentáveis com o R. Há duas dificuldades bem sérias: primeiro, objetos geométricos são uma classe de objetos bastante complexa; segundo, há inúmeras convenções na elaboração de mapas que escapam completamente aos objetivos do economista.
 
-No primeiro caso, o desafio é conseguir aprender o minimamente necessário para lidar com objetos espaciais. Neste sentido, não vou fingir que entendo o que significa CRS, EPSG, GDAL, etc. Apenas saiba que a Terra, infelizmente, não é plana, então é preciso sempre escolher algum tipo de projeção que mapeie nosso planeta tri-dimensional num plano bi-dimensional. Na prática, lembre-se dos números 4326, 4674 e 32722.
+No primeiro caso, o desafio é conseguir aprender o mínimo necessário para lidar com objetos espaciais. Neste sentido, não vou fingir que entendo o que significa CRS, EPSG, GDAL, etc. Apenas saiba que a Terra, infelizmente, não é plana, então é preciso sempre escolher algum tipo de projeção que mapeie nosso planeta tri-dimensional num plano bi-dimensional. Na prática, lembre-se dos números 4326, 4674 e 32722.
 
-Felizmente, existe o pacote {sf} que funciona como um `data.frame` com uma coluna especial chamada `geometry`. É possível ignorar a existência desta coluna e trabalhar normalmente com seus dados, usando todo o seu conhecimento acumulado previamente com dados tabulares convencionais.
+Felizmente, existe o pacote {sf} que funciona como um `data.frame` com uma coluna especial chamada `geometry`. É possível ignorar a existência desta coluna e trabalhar normalmente com seus dados, usando todo o seu conhecimento acumulado previamente com dados tabulares convencionais. Eventualmente, será necessário juntar um shapefile com uma base de dados e até com outro shapefile; o {sf} também facilita isto bastante.
 
 No segundo caso, das convenções, novamente, não vou fingir que eu entendo algo sobre cartografia, que me interesse fazer mapas com uma escala, com uma seta indicando o norte, com linhas paralelas indicando meridianos, etc. Saiba que tudo isto é muito possível de ser feito dentro do R e que eu não faço isso.
 
@@ -76,16 +77,29 @@ leaflet() %>%
 
 A abordagem mais simples para tratar dados espaciais é simplesmente tratá-los como dados tabulados quaisquer. Isto funciona perfeitamente bem para objetos geométricos na forma de pontos e linhas, mas torna-se impraticável no caso de polígonos.
 
-No plano cartesiano, longitude e latitude são literalmente coordenadas; pode-se mapear estas coordenadas como pontos num gráfico de dispersão. No gráfico abaixo cada ponto é um imóvel, anunciado para aluguel. Você talvez possa argumentar que o gráfico abaixo não é um mapa, mas
+No plano cartesiano, longitude e latitude são literalmente coordenadas; pode-se mapear estas coordenadas como pontos num gráfico de dispersão. No gráfico abaixo cada ponto é um imóvel, anunciado para aluguel.
 
 ```{r}
 ggplot(rent, aes(x = house_lng, y = house_lat)) +
   geom_point()
 ```
 
-A principal vantagem desta abordagem é que podemos aplicar todo o nosso conhecimento acumulado até agora.
+```{r}
+cem <- cem |> 
+  mutate(code_muni = as.numeric(substr(ap2010, 1, 7))) |> 
+  filter(code_muni == 3550308)
+
+ggplot(cem, aes(x = lon, y = lat)) +
+  geom_point(size = 0.1) +
+  coord_sf()
+```
+
+A principal vantagem desta abordagem é que podemos aplicar todo o nosso conhecimento acumulado até agora. Podemos mapear 
 
 ```{r}
+#| fig-show: hold
+#| out-width: "100%"
+#| layout-ncol: 2
 ggplot(rent, aes(x = house_lng, y = house_lat)) +
   geom_point(aes(color = log(rent))) +
   scale_color_viridis_c()
@@ -127,6 +141,203 @@ ggplot(rent, aes(x = house_lng, y = house_lat)) +
   geom_density_2d() +
   theme(legend.position = "none")
 ```
+
+```{r}
+ggplot(rent, aes(x = house_lng, y = house_lat)) +
+  geom_bin2d()
+
+ggplot(rent, aes(x = house_lng, y = house_lat)) +
+  geom_hex()
+```
+
+```{r}
+cem2010 <- filter(cem, ano_lanc == 2010)
+
+ggplot(cem2010, aes(x = lon, y = lat)) +
+  geom_point(aes(size = emp_unid, color = pc_m2_au), alpha = 0.5) +
+  scale_color_viridis_c()
+```
+
+```{r}
+ggplot(rent, aes(x = house_lng, y = house_lat)) +
+  geom_point() +
+  geom_density_2d_filled(contour_var = "count") +
+  facet_wrap(vars(room))
+```
+
+## Objetos espaciais
+
+Após um longo e raivoso interlúdio chegamos, finalmente, aos mapas estáticos que utilizam, de fato, objetos espaciais. Vou discutir apenas objetos espaciais no formato de vetores (*vector shape file*) já que eles são mais prevalentes nas ciências socias em geral.
+
+Há três peças fundamentais que vamos ver: pontos, linhas e polígonos. Nos três casos, usa-se a mesma função `geom_sf()` para montar a visualização. Os elementos estéticos seguem a mesma lógica das funções `geom_point()`, `geom_line()` e `geom_rect()`, respectivamente. Assim, para tornar um objeto espacial, em formato de linha, mais grosso, usa-se `linewidth = 2`, por exemplo.
+
+Vamos começar importando um shapefile dos estados do Brasil, usando o excelente {geobr}. A estrutura de objetos espaciais é um `sf`/`data.frame` ou um "spatial data frame". Este objeto é essencialmente igual a um `data.frame` convencional, mas ele possui uma coluna especial chamada `geom` ou `geometry`. Esta coluna não pode ser dropada pelas maneiras usuais.
+
+A esta altura do campeonato, você já deve ter se deparado com alguma situação em que uma função teve um efeito "destrutivo" no objeto que você estava mexendo. Funções devem ter resultados previsíveis
+
+```{r}
+sapply(mtcars, mean)
+
+lapply(mtcars, mean)
+
+purrr::map(mtcars, mean)
+```
+
+
+As funções do `dplyr`
+
+```{r}
+ufs <- geobr::read_state(showProgress = FALSE)
+
+ufs
+```
+
+```{r}
+ggplot(ufs) +
+  geom_sf()
+```
+
+```{r}
+ggplot(ufs) +
+  geom_sf(color = "#000000", aes(fill = name_region)) +
+  scale_fill_brewer(name = "", type = "qual") +
+  theme(legend.position = "top")
+```
+
+```{r}
+ggplot(ufs) +
+  geom_sf(color = "#000000", aes(fill = name_region)) +
+  scale_fill_brewer(name = "", type = "qual") +
+  theme(legend.position = "top") +
+  coord_sf(xlim = c(-60, -48), ylim = c(-35, -20))
+```
+
+## Mapas cloropléticos
+
+### Juntando shapes e dados
+
+```{r}
+rented <- tibble::tribble(
+  ~abbrev_state, ~share_apto, ~share_rented, ~name_region, 
+  #------------#------------#--------------#------------#      
+           "RO",           8,          11.1, "Norte", 
+           "AC",        7.47,          6.93, "Norte",
+           "AM",        15.8,          7.26, "Norte",
+           "RR",        14.3,          11.7, "Norte", 
+           "PA",        4.53,          6.39, "Norte",
+           "AP",        10.7,          6.34, "Norte",
+           "TO",        3.17,          11.7, "Norte", 
+           "MA",        4.06,          5.74, "Nordeste",
+           "PI",        4.08,          5.15, "Nordeste",
+           "CE",        9.85,          9.68, "Nordeste",
+           "RN",        9.27,          10.8, "Nordeste", 
+           "PB",        11.9,          9.18, "Nordeste",
+           "PE",        10.4,          9.98, "Nordeste",
+           "AL",        6.32,          10.0, "Nordeste", 
+           "SE",        12.0,            11, "Nordeste",   
+           "BA",        12.0,          7.61, "Nordeste",
+           "MG",        14.0,          10.5, "Sudeste", 
+           "ES",        21.7,          10.7, "Sudeste", 
+           "RJ",        26.8,          10.7, "Sudeste", 
+           "SP",        19.4,          12.7, "Sudeste", 
+           "PR",        11.9,          11.7, "Sul", 
+           "SC",          17,          11.8, "Sul", 
+           "RS",        16.5,          8.46, "Sul",
+           "MS",        3.67,          11.9, "Centro Oeste", 
+           "MT",        3.29,          12.7, "Centro Oeste", 
+           "GO",        9.88,          13.6, "Centro Oeste", 
+           "DF",        35.4,          17.8, "Centro Oeste"
+)
+```
+
+```{r}
+ufs_rent <- left_join(ufs, rented, by = "abbrev_state")
+
+ggplot(ufs_rent) + 
+  geom_sf(aes(fill = share_rented)) +
+  scale_fill_distiller(direction = 1)
+```
+
+```{r}
+zones <- st_read(here::here("static/data/districts.gpkg"))
+```
+
+### Encontrando os pontos dentro dos polígonos
+
+```{r}
+area_ponderacao <- geobr::read_weighting_area(3550308, showProgress = FALSE)
+
+cem2010 <- st_as_sf(cem2010, coords = c("lon", "lat"), crs = 4674)
+
+joined <- cem2010 |> 
+  st_join(area_ponderacao) |> 
+  filter(!is.na(code_weighting))
+```
+
+```{r}
+ggplot() +
+  geom_sf(data = area_ponderacao) + 
+  geom_sf(data = cem2010, size = 0.1)
+
+ggplot() +
+  geom_sf(data = area_ponderacao) + 
+  geom_sf(data = joined, size = 0.1)
+```
+
+```{r}
+tab_price_m2 <- joined |> 
+  st_drop_geometry() |> 
+  summarise(
+    avg_m2 = weighted.mean(pc_m2_au, emp_unid),
+    .by = "code_weighting"
+    )
+
+price_areas <- left_join(area_ponderacao, tab_price_m2, by = 'code_weighting')
+```
+
+```{r}
+ggplot(price_areas) + 
+  geom_sf(aes(fill = avg_m2)) +
+  scale_fill_viridis_c(option = "inferno")
+```
+
+```{r}
+bbox <- st_bbox(
+  c(ymin = -23.612637, ymax = -23.520459, xmin = -46.714894, xmax = -46.525062)
+  )
+
+bbox <- st_as_sfc(bbox)
+bbox <- st_as_sf(bbox, crs = 4674)
+```
+
+```{r}
+grid <- bbox |> 
+  st_transform(crs = 32722) |> 
+  st_make_grid(cellsize = 500) |> 
+  st_as_sf()
+
+ggplot(grid) + geom_sf()
+```
+
+```{r}
+grid$gid <- 1:nrow(grid)
+grid <- st_transform(grid, crs = 4674)
+
+points_grid <- cem2010 |> 
+  st_join(grid) |> 
+  filter(!is.na(gid))
+
+tab_count = points_grid |> 
+  st_drop_geometry() |> 
+  summarise(count = sum(emp_unid), .by = "gid")
+
+grid_count = left_join(grid, tab_count, by = "gid")
+
+ggplot(grid_count) + 
+  geom_sf(aes(fill = count)) +
+  coord_sf()
+```
+
 
 ## Mapas com elementos de mapas
 
@@ -192,12 +403,14 @@ ggplot() +
   geom_sf(
     data = s2,
     key_glyph = draw_key_rect,
-    size = 0.6
+    size = 0.6,
+    color = "gray40"
   ) +
   geom_sf(
     data = s3,
     key_glyph = draw_key_rect,
-    size = 0.45
+    size = 0.45,
+    color = "gray50"
   )
 ```
 
@@ -223,45 +436,58 @@ ggplot() +
 
 ```
 
-```{r}
-border <- geobr::read_municipality(3550308)
-altitude <- elevatr::get_elev_raster(border, z = 7, clip = "bbox")
-spo_alti <- raster::rasterToPolygons(altitude)
-spo_alti <- sf::st_as_sf(spo_alti)
-names(spo_alti)[1] <- "elevation"
+### Elevação em São Paulo
 
-spo_alti <- spo_alti %>%
+```{r}
+#> Importa o shape file do limite do município de São Paulo
+border <- geobr::read_municipality(3550308, showProgress = FALSE)
+
+#> Importa dados com a elevação da cidade
+elevation <- elevatr::get_elev_raster(border, z = 7)
+#> Transforma os dados em polígonos e converte para sf
+elevation <- raster::rasterToPolygons(elevation)
+elevation <- st_as_sf(elevation)
+names(elevation)[1] <- "elevation"
+
+#> Converte CRS e junta o shape de altitude com o shape da cidade
+spo_alti <- elevation %>%
   st_transform(crs = 4674) %>%
   st_intersection(border) %>%
-  filter(st_is_valid(.)) 
-
-jbreaks <- BAMMtools::getJenksBreaks(spo_alti$elevation, k = 7)
-
-breaks <- c(100, 500, 750, 800, 850, 950, 1200)
-
-spo_alti <- spo_alti %>%
-  mutate(
-    jenks_group = cut(elevation, breaks)
-  )
+  filter(st_is_valid(.))
 ```
 
 ```{r}
-cores <- c(
-  "#ffd902", "#FFAB28", "#FF751B", "#FF3E0D", "#cc0600", "#a20d46", "#5f0078"
-  )
+ggplot() +
+  geom_sf(data = spo_alti, aes(color = elevation, fill = elevation)) +
+  scale_color_viridis_c(name = "", option = "inferno", direction = -1) +
+  scale_fill_viridis_c(name = "", option = "inferno", direction = -1) +
+  coord_sf() +
+  theme(legend.position = "top")
+```
+
+
+```{r}
+jbreaks <- BAMMtools::getJenksBreaks(spo_alti$elevation, k = 8)
+jbreaks <- round(jbreaks, -1)
+jlabels <- paste(jbreaks, jbreaks[-1], sep = "--")
+jlabels[length(jlabels)] <- paste0(max(jbreaks), "+")
+
+spo_alti <- mutate(spo_alti, jenks_group = factor(findInterval(elevation, jbreaks)))
 
 ggplot() +
   geom_sf(data = spo_alti, aes(color = jenks_group, fill = jenks_group)) +
-  scale_color_manual(values = cores) +
-  scale_fill_manual(values = cores)
+  scale_color_viridis_d(name = "", labels = jlabels, option = "inferno") +
+  scale_fill_viridis_d(name = "", labels = jlabels, option = "inferno") +
+  coord_sf() +
+  theme(legend.position = "top")
 ```
 
+### Elevação das ruas
+
 ```{r}
-# Roads and Borders
+border = geobr::read_municipality(3548807, showProgress = FALSE)
 
-border <- geobr::read_municipality(3550308)
-
-bbox <- opq(bbox = "São Paulo Brazil")
+bbox <- opq(bbox = "São Caetano do Sul, São Paulo, Brazil")
 
 roads <- add_osm_feature(
   bbox,
@@ -274,64 +500,71 @@ roads_sf <- roads_sf$osm_lines
 roads_sf <- st_transform(roads_sf, crs = 4674)
 roads_border <- st_intersection(roads_sf, border)
 
-altitude <- elevatr::get_elev_raster(border, z = 7, clip = "bbox")
-poly_alti <- raster::rasterToPolygons(altitude)
-poly_alti <- sf::st_as_sf(poly_alti)
-names(poly_alti)[1] <- "elevation"
+altitude <- elevatr::get_elev_raster(border, z = 9, clip = "bbox")
+spo_alti <- raster::rasterToPolygons(altitude)
+spo_alti <- sf::st_as_sf(spo_alti)
+names(spo_alti)[1] <- "elevation"
 
-spo_alti <- poly_alti %>%
+spo_alti <- spo_alti %>%
   st_transform(crs = 4674) %>%
-  st_intersection(roads_border) %>%
-  filter(st_is_valid(.)) 
+  st_intersection(border) %>%
+  filter(st_is_valid(.))
 
-jbreaks <- BAMMtools::getJenksBreaks(spo_alti$elevation, k = 7)
-
-breaks <- c(100, 500, 750, 800, 850, 950, 1200)
+jbreaks <- BAMMtools::getJenksBreaks(spo_alti$elevation, k = 5)
 
 spo_alti <- spo_alti %>%
   mutate(
-    jenks_group = cut(elevation, breaks)
+    jenks_group = factor(findInterval(elevation, jbreaks))
   )
 ```
 
 ```{r}
-cores <- c(
-  "#ffd902", "#FFAB28", "#FF751B", "#FF3E0D", "#cc0600", "#a20d46",
-  "#5f0078"
-)
+get_streets_altitude <- function(altitude, streets) {
+  
+  stopifnot(any(colnames(altitude) %in% "jenks_group"))
+  
+  #> Get all groups
+  groups = levels(altitude$jenks_group)
+  
+  #> For each group get the full polygon and join with streets
+  join_streets = function(group) {
+    
+    poly = altitude %>%
+      filter(jenks_group == group) %>%
+      st_union(.) %>%
+      st_as_sf()
+    
+    joined = suppressWarnings(st_intersection(streets, poly))
+    
+    return(joined)
+    
+  }
+  #> Apply the function to all groups
+  street_levels = parallel::mclapply(groups, join_streets)
+  #> Bind all results together
+  names(street_levels) = groups
+  out = bind_rows(street_levels, .id = "level")
+  
+  return(out)
+  
+}
+
+streets_alti <- get_streets_altitude(spo_alti, roads_border)
+```
+
+
+```{r}
 ggplot() +
-  geom_sf(data = spo_alti, aes(color = jenks_group, fill = jenks_group)) +
-  scale_fill_manual(values = cores) +
-  scale_color_manual(values = cores)
+  geom_sf(data = streets_alti, aes(color = level, fill = level)) +
+  scale_fill_viridis_d(option = "inferno") +
+  scale_color_viridis_d(option = "inferno") +
+  coord_sf() +
+  cowplot::theme_nothing() +
+  theme(
+    legend.position = "right"
+  )
 ```
 
-```{r}
-ggplot(rent, aes(x = house_lng, y = house_lat)) +
-  geom_bin2d()
 
-ggplot(rent, aes(x = house_lng, y = house_lat)) +
-  geom_hex()
-```
 
-```{r}
-cem2010 <- filter(cem, ano_lanc == 2010)
 
-ggplot(cem2010, aes(x = lon, y = lat)) +
-  geom_point(aes(size = emp_unid, color = pc_m2_au), alpha = 0.5) +
-  scale_color_viridis_c()
-```
-
-```{r}
-ggplot(rent, aes(x = house_lng, y = house_lat)) +
-  geom_point() +
-  geom_density_2d_filled(contour_var = "count") +
-  facet_wrap(vars(room))
-```
-
-## Objetos espaciais
-
-Após um longo e raivoso interlúdio chegamos, finalmente, aos mapas estáticos que utilizam, de fato, objetos espaciais.
-
-### Unindo dados e shapes
-
-### Encontrando os pontos dentro dos polígonos
