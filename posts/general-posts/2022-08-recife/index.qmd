@@ -1,0 +1,373 @@
+---
+title: "Weekly Viz: Recife em mapas"
+date: "2023-08-23"
+execute: 
+  warning: false
+  message: false
+  eval: false
+  echo: false
+---
+
+```{r}
+library(osmdata)
+library(ggplot2)
+library(dplyr)
+library(sf)
+library(patchwork)
+
+get_jenks_breaks <- function(x, k = 8) {
+  
+  breaks <- BAMMtools::getJenksBreaks(x, k = k)
+  findInterval(x, breaks)
+  
+}
+
+sysfonts::font_add_google("Roboto Condensed", "Roboto Condensed")
+showtext::showtext_auto()
+```
+
+```{r}
+# Import data -------------------------------------------------------------
+
+## osmdata -----------------------------------------------------------------
+
+bbox <- getbb("Recife, Pernambuco, Brazil")
+border <- geobr::read_municipality(2611606, showProgress = FALSE)
+
+qr <- osmdata::opq(bbox)
+
+roads <- osmdata::add_osm_feature(
+  qr,
+  key = "highway",
+  value = c("motorway", "trunk", "primary", "secondary")
+  )
+
+agua <- osmdata::add_osm_feature(
+  qr,
+  key = "natural",
+  value = c("bay", "beach", "coastline", "water", "spring", "wetland", "reef", "strait", "shoal")
+)
+
+rec_roads <- osmdata_sf(roads)
+rec_roads <- rec_roads$osm_lines
+
+rec_agua <- osmdata_sf(agua)
+rec_agua <- rec_agua$osm_lines
+
+rec_agua <- rec_agua %>%
+  st_transform(crs = 4674) %>%
+  st_join(border) %>%
+  filter(!is.na(code_muni))
+
+rec_roads <- rec_roads %>%
+  st_transform(crs = 4674) %>%
+  st_join(border) %>%
+  filter(!is.na(code_muni))
+
+## aopdata -----------------------------------------------------------------
+
+aop_grid <- aopdata::read_grid("rec", showProgress = FALSE)
+landuse <- aopdata::read_landuse(city = "rec", showProgress = FALSE)
+access <- aopdata::read_access("rec", mode = "car", peak = TRUE, showProgress = FALSE)
+
+landuse <- landuse %>%
+  filter(P001 > 10, R001 > 0) %>%
+  mutate(
+    pop_density = get_jenks_breaks(log(P001)),
+    pop_density = ifelse(pop_density == 8, 7, pop_density),
+    pop_density = factor(pop_density),
+    ROO1 = ifelse(is.na(R001) | R001 == 0, 1, R001),
+    income = get_jenks_breaks(log(R001)),
+    income = ifelse(is.na(income), 1, income),
+    income = ifelse(income == 8, 7, income),
+    income = factor(income)
+  ) %>%
+  select(id_hex, pop_density, income)
+
+landuse <- left_join(aop_grid, landuse)
+
+access <- access %>%
+  mutate(
+    jobs = get_jenks_breaks(CMATT15),
+    jobs = ifelse(jobs == 8 , 7, jobs),
+    jobs = factor(jobs)
+  ) %>%
+  select(id_hex, jobs)
+
+access <- left_join(aop_grid, access)
+
+## censo e ciclovias -------------------------------------------------------
+
+ciclovia <- st_read(here::here("static/data/recife_ciclomapa.geojson"), quiet = TRUE)
+
+rec_ciclo <- ciclovia %>%
+  filter(type %in% c("Ciclovia", "Ciclofaixa", "Ciclorrota"))
+
+ct <- geobr::read_census_tract(2611606, simplified = FALSE, showProgress = FALSE)
+
+domi <- vroom::vroom("/Volumes/T7 Touch/CENSO/dados/2010/out/domicilio_01.csv")
+
+subdomi <- domi %>%
+  select(
+    code_tract = cod_setor,
+    total = v002,
+    casa = v003,
+    casa_condo = v004,
+    apto = v005
+    ) %>%
+  mutate(
+    code_tract = as.character(code_tract),
+    code_muni = as.numeric(substr(code_tract, 1, 7))
+    ) %>%
+  filter(code_muni == 2611606) %>%
+  select(-code_muni)
+
+ct <- left_join(ct, subdomi, by = "code_tract")
+
+h3index <- h3::polyfill(border, res = 9)
+grid <- h3::h3_to_geo_boundary_sf(h3index)
+grid$id_hex <- h3index
+
+grid_plan <- st_transform(grid, crs = 32724)
+ct_plan <- st_transform(ct, crs = 32724)
+
+interp <- areal::aw_interpolate(
+  grid_plan,
+  tid = "id_hex",
+  source = ct_plan,
+  sid = "code_tract",
+  extensive = c("total", "casa", "apto")
+  )
+
+census_house <- st_transform(interp, crs = 4674)
+census_house <- st_make_valid(census_house)
+
+census_house <- census_house %>%
+  mutate(
+    share_apto = apto / total * 100,
+    share_apto = ifelse(is.na(share_apto), 0, share_apto),
+    share_apto = get_jenks_breaks(share_apto),
+    share_apto = ifelse(share_apto == 8 , 7, share_apto),
+    share_apto = factor(share_apto)
+    )
+
+## imoveis -------------------------------------------------------
+
+imoveis <- vroom::vroom(here::here("static/data/imoveis_recife.csv"))
+
+tab_price_grid <- imoveis %>%
+  st_as_sf(coords = c("lon", "lat"), crs = 4326) %>%
+  st_join(grid) %>%
+  filter(!is.na(id_hex))  %>%
+  st_drop_geometry() %>%
+  summarise(
+    price = mean(pc_m2, na.rm = TRUE),
+    count = n(),
+    .by = "id_hex"
+  ) %>%
+  filter(count > 10)
+
+price_grid <- left_join(grid, tab_price_grid, by = "id_hex")
+
+price_grid <- price_grid %>%
+  mutate(
+    price_group = get_jenks_breaks(log(price)),
+    price_group = ifelse(price_group == 8 , 7, price_group),
+    price_group = factor(price_group),
+    listing_group = get_jenks_breaks(log(count)),
+    listing_group = ifelse(listing_group == 8, 7, listing_group),
+    listing_group = factor(listing_group)
+  )
+```
+
+```{r maps}
+# Mapas -------------------------------------------------------------------
+theme_map <- theme_void() +
+  theme(
+    legend.position = "none",
+    plot.background = element_rect(color = NA, fill = "#f3eee3"),
+    plot.caption = element_text(family = "Roboto Condensed", size = 6, hjust = 0.3),
+    panel.background = element_rect(color = NA, fill = "#f3eee3"),
+    plot.title = element_text(family = "Roboto Condensed", size = 14, hjust = 0.5)
+  )
+
+theme_patchwork <- theme_void() +
+  theme(
+    legend.position = "bottom",
+    plot.background = element_rect(color = NA, fill = "#f3eee3"),
+    plot.caption = element_text(family = "Roboto Condensed", size = 6, hjust = 0.3),
+    panel.background = element_rect(color = NA, fill = "#f3eee3"),
+    plot.title = element_text(family = "Roboto Condensed", size = 22, hjust = 0.5)
+  )
+
+## ruas, agua e ciclo ------------------------------------------------------
+
+m11 <- ggplot(rec_roads) +
+  geom_sf(data = border, fill = NA, linewidth = 0.2) +
+  geom_sf(linewidth = 0.2, color = "#0d0887") +
+  ggtitle("Vias Principais") +
+  coord_sf(xlim = c(-35.01, -34.868), ylim = c(-8.155, -7.93)) +
+  theme_map
+
+m12 <- ggplot(rec_agua) +
+  geom_sf(data = border, fill = NA, linewidth = 0.2) +
+  geom_sf(linewidth = 0.5, color = "#0d0887") +
+  ggtitle("Corpos d'água") +
+  coord_sf(xlim = c(-35.01, -34.868), ylim = c(-8.155, -7.93)) +
+  theme_map
+
+m13 <- ggplot(rec_ciclo) +
+  geom_sf(data = border, fill = NA, linewidth = 0.2) +
+  geom_sf(linewidth = 0.25, color = "#0d0887") +
+  ggtitle("Ciclovias") +
+  coord_sf(xlim = c(-35.01, -34.868), ylim = c(-8.155, -7.93)) +
+  theme_map
+
+r1 <- m11 + m12 + m13
+
+m21 <- ggplot(landuse) +
+  geom_sf(aes(fill = pop_density, color = pop_density)) +
+  scale_fill_viridis_d(option = "plasma", na.value = "gray30") +
+  scale_color_viridis_d(option = "plasma", na.value = "gray30") +
+  ggtitle("Dens. Pop") +
+  coord_sf(xlim = c(-35.01, -34.87), ylim = c(-8.155, -7.93)) +
+  theme_map
+
+m22 <- ggplot(landuse) +
+  geom_sf(aes(fill = income, color = income)) +
+  ggtitle("Renda Média") +
+  scale_fill_viridis_d(option = "plasma", na.value = "gray30") +
+  scale_color_viridis_d(option = "plasma", na.value = "gray30") +
+  coord_sf(xlim = c(-35.01, -34.87), ylim = c(-8.155, -7.93)) +
+  theme_map
+
+m23 <- ggplot(access) +
+  geom_sf(aes(fill = jobs, color = jobs)) +
+  ggtitle("Acesso Empregos") +
+  scale_fill_viridis_d(option = "plasma", na.value = "gray30") +
+  scale_color_viridis_d(option = "plasma", na.value = "gray30") +
+  coord_sf(xlim = c(-35.01, -34.87), ylim = c(-8.155, -7.93)) +
+  theme_map
+
+r2 <- m21 + m22 + m23
+
+m31 <- ggplot(census_house) +
+  geom_sf(aes(fill = share_apto, color = share_apto)) +
+  ggtitle("Verticalização") +
+  scale_fill_viridis_d(option = "plasma") +
+  scale_color_viridis_d(option = "plasma") +
+  coord_sf(xlim = c(-35.01, -34.87), ylim = c(-8.155, -7.93)) +
+  theme_map
+
+m32 <- ggplot(price_grid) +
+  geom_sf(aes(fill = price_group, color = price_group), size = 0.01) +
+  scale_fill_viridis_d(option = "plasma", na.value = "gray30") +
+  scale_color_viridis_d(option = "plasma", na.value = "gray30") +
+  ggtitle("Preço (Venda)") +
+  theme_map
+
+m33 <- ggplot(price_grid) +
+  geom_sf(aes(fill = listing_group, color = listing_group), size = 0.01) +
+  scale_fill_viridis_d(option = "plasma", na.value = "gray30") +
+  scale_color_viridis_d(option = "plasma", na.value = "gray30") +
+  ggtitle("Oferta (anúncios)") +
+  theme_map
+
+m31 <- ggplot(census_house) +
+  geom_sf(aes(fill = share_apto, color = share_apto)) +
+  ggtitle("Verticalização") +
+  scale_fill_viridis_d(
+    name = "",
+    option = "plasma",
+    na.value = "gray30",
+    labels = c("", "Baixo", "", "", "Alto", "")) +
+  scale_color_viridis_d(
+    name = "",
+    option = "plasma",
+    na.value = "gray30",
+    labels = c("", "Baixo", "", "", "Alto", "")) +
+  coord_sf(xlim = c(-35.01, -34.87), ylim = c(-8.155, -7.93)) +
+  guides(color = guide_colorsteps(), fill = guide_colorsteps()) +
+  theme_map +
+  theme(
+    text = element_text(family = "Roboto Condensed"),
+    legend.text = element_text(family = "Roboto Condensed"),
+    legend.position = "bottom",
+    legend.direction = "horizontal",
+    legend.key.size = unit(1, "cm"),
+    legend.title = element_text(),
+    plot.background = element_rect(color = NA, fill = "#f3eee3"),
+    legend.background = element_rect(color = NA, fill = "#f3eee3")
+  )
+
+p <- (m11 + m12 + m13) / (m21 + m22 + m23) / (m31 + m32 + m33) + 
+  patchwork::plot_annotation(
+    title = "Recife",
+    caption = "Fonte: OpenStreetMap (vias, corpos d'água, ciclovias), Aopdata (densidade populacional, renda média e acesso a empregos), CENSO, anúncios online.",
+    theme = theme_patchwork) +
+  patchwork::plot_layout(guides = "collect")
+```
+
+```{r}
+ggsave(here::here("static/maps/summary_recife.svg"),
+       p,
+       width = 13,
+       height = 16)
+
+maps <- ls(pattern = "^m[0-9][0-9]")
+
+for (i in seq_along(maps)) {
+  
+  name_plot <- glue::glue("summary_rec_{i}.svg")
+  
+  ggsave(
+    here::here("static/maps", name_plot),
+    get(maps[[i]]),
+    width = 8,
+    height = 8
+  )
+}
+
+```
+
+# Recife
+
+Semana que vem vou estar no Recife a trabalho e para conhecer um pouco da cidade resolvi tirar um tempo para fazer alguns mapas da cidade.
+
+![](/static/maps/summary_recife.svg){fig-align="center"}
+
+## Detalhes do mapa
+
+Os dados dos dois primeiros mapas, das principais vias e dos corpos d'água, são do [OpenStreetMap](OpenStreetMap  OpenStreetMap https://www.openstreetmap.org). Pode-se ver, por exemplo, a Rodovia Mario Covas, que corta a cidade de norte a sul e o famoso Rio Capibaribe que atravessa a cidade.
+
+Para o terceiro mapa puxei os dados do [Ciclomapa](https://ciclomapa.org.br/?lat=-8.0584930&lng=-34.8848190&z=12.00). Apesar do título, eu incluí tanto ciclovias, ciclofaixas e ciclorrotas.
+
+Os mapas da segunda linha foram todos feitos com dados do projeto de [Acesso a Oportunidades](https://github.com/ipeaGIT/aopdata) do IPEA. Os dados de população e renda são do Censo de 2010 e espacialmente interpolados com os hexágonos H3, da Uber. Para facilitar a visualização usei o algoritmo de Jenks para agrupar os dados em 7 grupos. Além disso, usei uma transformação log tanto na renda como na população para reduzir um pouco da variância nos dados.
+
+A renda da cidade é visivelmente concentrada na região sul-sudeste, próxima do litoral e na região centro-leste, no que me parece ser a região dos bairros Madalena e Boa Vista. Já a densidade populacional não segue um padrão simples; a população está espalhada por toda a cidade.
+
+Como medida de acesso a empregos usei o percentual de oportunidades de emprego acessíveis a 15 minutos de carro em horário de pico. Segundo os dados do Censo, a maior parte dos deslocamentos casa-trabalho na RM de Recife são de menos de uma hora (83,4%). Assim, 15 minutos de carro (em horário de pico) me parece ser um "luxo" que as pessoas estão dispostas a pagar e que deve se refletir, em algum nível, no preço dos imóveis.
+
+O mapa sugere que Recife é uma cidade monocêntrica, com a maior parte dos empregos concentrada na região central. Interessante notar que, apesar da distância geográfica, a região sul, de Boa Viagem, Pina, etc. continua com indicadores de acessibilidade relativamente altos.
+
+Para tentar mensurar a verticalização calculei a proporção de apartamentos em relação ao total de domicílios em cada região. Novamente os dados vem do Censo e são agrupados a nível de setor censitário. Eu faço uma interpolação espacial simples com os hexágonos H3, na mesma resolução 9 do projeto do IPEA, para manter o padrão. Grosso modo, parece que as regiões de rendas mais altas coincidem com as regiões mais verticalizadas.
+
+Por fim, os dados de anúncios e preço provém de anúncios online de venda de imóveis ativos entre janeiro e junho de 2023. Por simplicidade, eu escolhi trabalhar apenas com anúncios de apartamentos e removi algumas observações discrepantes para conseguir um valor médio mais razoável. O preço médio observado na cidade neste período foi de R\$7.900, com a maior parte das observações caindo dentro do intervalo R\$3.800-R\$12.700.
+
+## Mapas
+
+![](/static/maps/summary_rec_1.svg){fig-align="center"}
+
+![](/static/maps/summary_rec_2.svg){fig-align="center"}
+
+![](/static/maps/summary_rec_3.svg){fig-align="center"}
+
+![](/static/maps/summary_rec_4.svg){fig-align="center"}
+
+![](/static/maps/summary_rec_5.svg){fig-align="center"}
+
+![](/static/maps/summary_rec_6.svg){fig-align="center"}
+
+![](/static/maps/summary_rec_7.svg){fig-align="center"}
+
+![](/static/maps/summary_rec_8.svg){fig-align="center"}
