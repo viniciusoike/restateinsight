@@ -47,9 +47,9 @@ print_table <- function(x) {
 
 Um gráfico deve ser o mais autosuficiente possível; a imagem deve explicar-se por si mesma. Existem algumas ferramentas adicionais que pode-se usar para atingir este objetivo. Neste post vou discutir três estratégias simples para destacar uma informação no gráfico.
 
-Neste post vou discutir algumas estratégicas de como utilizar elementos estéticos para destacar informação no gráfico. Especificamente, vamos ver como:
+Especificamente, vamos ver como:
 
--   Usando linhas para destacar os eixos ou informações numéricas com `geom_vline()`, `geom_hline()` e `geom_abline()`
+-   Usar linhas para destacar os eixos ou informações numéricas com `geom_vline()`, `geom_hline()` e `geom_abline()`
 -   Destacar partes do gráfico com `geom_rect()`
 -   Destacar informações numéricas e texto usando `geom_text()` e `annotate()`
 
@@ -70,13 +70,13 @@ library(dplyr)
 library(GetBCBData)
 ```
 
-# Desenhando linhas
+# 1. Desenhando linhas
 
 ## Básico
 
 Já sabemos como desenhar linhas usando tanto o `geom_line()` como o `geom_path()`. Estas funções exigem dois a três arguemntos que especficam as coordenadas da linha e de que forma a linha deve unir estas coordenadas.
 
-Por exemplo, suponha que se queira desenhar uma linha reta no eixo-x. Para isto precisamos especificar
+Suponha, por exemplo, que se queira desenhar uma linha reta no eixo-x. Para isto precisamos estruturar um `data.frame` e informar as coordenadas. Note como no exemplo abaixo, não preciso repetir o valor `y = 0` já que o `tibble` "recicla" este número para que ele tenha o mesmo comprimento (`length)` que o vetor `x`.
 
 ```{r}
 df <- tibble(
@@ -127,7 +127,7 @@ Também pode-se usar linhas para destacar algum tipo de informação no gráfico
 
 ### Média e mediana num gráfico
 
-No gráfico abaixo, mostro a distribuição mensal de listings de imóveis (anúncios de imóveis) em Houston, TX. No código eu uso `geom_hline()` para exibir uma linha reta no eixo-x e `geom_vline()` para destacar os valores médio e mediano.
+No gráfico abaixo, mostro a distribuição mensal de listings de imóveis (anúncios de imóveis) em Houston, TX. No código eu uso `geom_hline()` para exibir uma linha reta no eixo-x e `geom_vline()` para destacar os valores médio e mediano. A linha tracejada em vermelho indica o valor médio, enquanto a linha tracejada em amarelo indica o valor mediano.
 
 ```{r}
 subhousing <- filter(txhousing, city == "Houston")
@@ -164,6 +164,7 @@ Por fim, pode-se também passar as linhas como um argumento estético em `color`
 
 ```{r}
 listing <- subhousing %>%
+  filter(year < 2015) %>%
   summarise(total_listing = sum(listings, na.rm = TRUE), .by = "year")
 
 ggplot(listing) +
@@ -171,9 +172,9 @@ ggplot(listing) +
   scale_color_viridis_c()
 ```
 
-# Desenhando retângulos
+# 2. Desenhando retângulos
 
-Agora vamos aprender a desenhar retângulos usando a função `geom_rect()`. Esta função exige quatro argumento que servem para desenhar um retângulo no plano cartesiano. O código abaixo apresenta um exemplo simples.
+Agora vamos aprender a desenhar retângulos usando a função `geom_rect()`. Esta função exige quatro argumentos que servem para desenhar um retângulo no plano cartesiano. O código abaixo apresenta um exemplo simples.
 
 ```{r}
 ggplot() +
@@ -190,7 +191,9 @@ A função `geom_rect()` aceita argumentos estéticos similares ao `geom_column(
 
 ## PIB e ciclos de recessão
 
-Vamos aplicar esta função num exemplo mais interessante. Primeiro vamos baixar a série do PIB brasileiro do site do Banco Central do Brasil usando a função `gbcbd_get_series()`. O código abaixo, além de baixar a série, também faz um gráfico de linha simples.
+Vamos aplicar esta função num exemplo mais interessante. Primeiro vamos baixar a série do PIB brasileiro[^1] do site do Banco Central do Brasil usando a função `gbcbd_get_series()`. O código abaixo, além de baixar a série, também faz um gráfico de linha simples.
+
+[^1]: Mais especificamente, a série trimestral do PIB dessazonalizado a preços de mercado com valores encadeados com base no primeiro trimestre de 1995.
 
 ```{r}
 # Importa a série do PIB
@@ -200,9 +203,11 @@ ggplot(pib, aes(ref.date, value)) +
   geom_line()
 ```
 
-Para mapearmos os ciclos de recessão uso as definições da [CODACE](https://portalibre.fgv.br/codace)[^1]. A tabela indica o início e o final de cada recessão, junto com uma sigla que identifica cada recessão. Eu crio esta tabela usando a função `tribble()`. Esta função é, essencialmente, equivalente a um `data.frame()` convencional, mas permite colocar os dados num formato que fica mais imediatamente legível.
+Para mapearmos os ciclos de recessão uso as definições da [CODACE](https://portalibre.fgv.br/codace)[^2]. A tabela indica o início e o final de cada recessão, junto com uma sigla que identifica cada recessão. Eu crio esta tabela usando a função `tribble()`. Esta função é, essencialmente, equivalente a um `data.frame()` convencional, mas permite colocar os dados num formato que fica mais legível[^3].
 
-[^1]: O Comitê de Datação de Ciclos Econômicos (CODACE) organizado pela Fundação Getúlio Vargas (FGV) se reúne periodicamente para datar os ciclos econômicos brasileiros.
+[^2]: O Comitê de Datação de Ciclos Econômicos (CODACE) organizado pela Fundação Getúlio Vargas (FGV) se reúne periodicamente para datar os ciclos econômicos brasileiros.
+
+[^3]: Este esforço adicional é feito por motivos didáticos. Na prática não é necessário usar a função `tribble`.
 
 ```{r}
 codace <- tribble(
@@ -222,7 +227,7 @@ O código abaixo gera o mesmo gráfico do PIB, mas agora temos retângulos sombr
 
 Como estou mapeando dados de dois objetos distintos, eu coloco o argumento `data` dentro da respectiva função `geom()`. Isto não é obrigatório, mas acredito que o código fica melhor estruturado desta maneira.
 
-Note o uso do `Inf` para garantir que o retângulo se estenda verticalmente no gráfico. Além disso, uso o argumento `alpha` para deixar a região mais transparente.
+Note o uso do `Inf` para garantir que o retângulo se estenda verticalmente no gráfico de maneira indefinida. Além disso, uso o argumento `alpha` para deixar a região mais transparente.
 
 ```{r}
 ggplot() +
@@ -237,11 +242,15 @@ ggplot() +
   )
 ```
 
-# Usando texto
+# 3. Usando texto
 
 Pode-se inserir texto diretamente num gráfico gerado pelo `ggplot` usando a função `annotate`. Esta função posiciona um texto numa posição específica do gráfico.
 
-O exemplo abaixo aproveita uma base de dados bastante popular do `R` chamada `mtcars`. Esta tabela traz algumas informações sobre carros. Para mais informações sobre esta base consulte `help("mtcars")`.
+O exemplo abaixo aproveita uma base de dados bastante popular do `R` chamada `mtcars`. Esta tabela traz algumas informações sobre carros[^4].
+
+[^4]: Para mais informações sobre esta base consulte `help("mtcars")`.
+
+A função `annotate` é bastante simples: os argumentos `x` e `y` especificam a posição do texto e o argumento `label` é o texto propriamente dito. Note que é possível adicionar quebras de linha usando `\n`.
 
 ```{r}
 ggplot(mtcars, aes(x = wt, y = mpg)) +
@@ -295,11 +304,11 @@ ggplot(mtcars, aes(x = wt, y = mpg)) +
   geom_text(aes(label = rownames(mtcars)), size = 3)
 ```
 
-No gráfico acima, o eixo-y (`mpg`) é "milhas por galão", isto é, quantas milhas o carro consegue percorrer por galão de combustível enquanto o eixo-x (`wt`) é o peso do veículo em toneladas. Assim, o Toyota Corolla é um carro leve e eficiente, enquanto o Chrysler Imperial é um carro pesado e ineficiente.
+No gráfico acima, o eixo-y (`mpg`) é "milhas por galão", isto é, quantas milhas o carro consegue percorrer por galão de combustível enquanto o eixo-x (`wt`) é o peso do veículo em milhares de libras. Assim, o Toyota Corolla é um carro leve e eficiente, enquanto o Chrysler Imperial é um carro pesado e ineficiente.
 
-Um problema frequente deste tipo de gráfico é a sobreposição dos nomes. De fato, vale a pena considerar encurtar os nomes ou usar abreviações para atenuar este tipo de problema. Outra opção é usar a extensão `ggrepel`[^2].
+Um problema frequente deste tipo de gráfico é a sobreposição dos nomes. De fato, vale a pena considerar encurtar os nomes ou usar abreviações para atenuar este tipo de problema. Outra opção é usar a extensão `ggrepel`[^5].
 
-[^2]: O pacote {ggrepel} cria pequenos deslocamentos na posição do texto e setas para melhor dispor os dados. Para mais informações veja [o site](https://ggrepel.slowkow.com).
+[^5]: O pacote {ggrepel} cria pequenos deslocamentos na posição do texto e setas para melhor dispor os dados. Para mais informações veja [o site](https://ggrepel.slowkow.com).
 
 ### Exemplo: Estados e Aluguel
 
@@ -489,6 +498,24 @@ ggplot(ipca, aes(x = ano, y = ipca)) +
   scale_x_continuous(breaks = 2013:2022)
 ```
 
+```{r}
+ipca <- ipca %>%
+  mutate(
+    # Arredonda até a primeira casa decimal
+    ipca_label = round(ipca, 1),
+    # Usa vírgula como separador de decimal
+    ipca_label = format(ipca_label, decimal.mark = ","),
+    # Coloca '%' no final do string
+    ipca_label = paste0(ipca_label, "%")
+  )
+
+ggplot(ipca, aes(x = ano, y = ipca)) +
+  geom_col() + 
+  geom_hline(yintercept = 0) +
+  geom_text(aes(y = ipca + 0.5, label = ipca_label)) +
+  scale_x_continuous(breaks = 2013:2022)
+```
+
 ### Exemplo: Demografia
 
 A tabela abaixo mostra a representatividade de cada grande grupo demográfico na população brasileira aos longo dos anos. Aqui, usam-se as seguintes definições: população jovem (14 anos ou menos); população adulta (de 15 a 64 anos); população idosa (65 anos ou mais). Os valores estão em percentuais.
@@ -510,7 +537,9 @@ tbl_demographics <- tribble(
 
 Antes de visualizar os dados é preciso converter esta tabela para um formato longitudinal, onde cada linha representa um ano-grupo, isto é, cada linha indica o share da população de determinado grupo da população num determinado ano. Para isto uso a função `pivot_longer()`. Além disso eu transformo a coluna `age_group` num factor ordenado para melhorar a visualização.
 
-Por fim, eu ajusto o dado da coluna `share`: eu multiplico o valor por 100, arredondo até a primeira casa decimal e coloco um sinal de "%" após o número
+As funções `round`, `paste`, `paste0` e `format` podem ser muito úteis para melhor apresentar resultados numéricos[^6]. No exemplo abaixo eu ajusto o dado da coluna `share`: eu multiplico o valor por 100, arredondo até a primeira casa decimal, uso a vírgula como separador de decimal e coloco um sinal de "%" após o número.
+
+[^6]: Outra opção interessante é função `glue::glue()`.
 
 ```{r}
 demo <- tbl_demographics %>%
@@ -521,7 +550,12 @@ demo <- tbl_demographics %>%
   ) %>%
   mutate(
     age_group = factor(age_group, levels = c("young", "adult", "elder")),
-    share_label = paste0(round(share * 100, 1), "%")
+    # Arredonda na primeira casa decimal
+    share_label = round(share * 100, 1),
+    # Usa vírgula como separador de decimal
+    share_label = format(share_label, decimal.mark = ","),
+    # Coloca '%' no final do string
+    share_label = paste0(share_label, "%")
     )
 ```
 
@@ -539,11 +573,7 @@ ggplot(demo, aes(x = year, y = share, fill = age_group)) +
 
 ### Exemplo: carros (de novo...)
 
-Por fim, monto mais um exemplo de como combinar gráficos de coluna com texto. No gráfico abaixo eu mostro a eficiência (milhas por galão) de um subconjunto de carros (os que tem 4 cilindradas?).
-
-Usando o `geom_text()` eu consigo plotar o nome do modelo dentro da coluna assim como o respectivo valor de `mpg`. Note como uso `fontface = 'bold'` para deixar o valor numérico em negrito.
-
-Infelizmente, o gráfico acaba sobrecarregado com informação redundante, mas veremos como controlar os aspectos estéticos do gráfico em si (e.g. cor do fundo, texto nos eixos, etc.) num post futuro.
+Por fim, monto mais um exemplo de como combinar gráficos de coluna com texto. No gráfico abaixo eu mostro a eficiência (milhas por galão) de um subconjunto de carros (os que tem 4 cilindradas). Além disso, eu ordeno o nome dos carros pela variável `mpg` e depois inverto esta ordem; esta inversão é importante porque eu viro o gráfico de lado com a função `coord_flip`.
 
 ```{r}
 tbl_cars <- mtcars %>%
@@ -554,7 +584,13 @@ tbl_cars <- mtcars %>%
     name_car = forcats::fct_reorder(name_car, mpg)
     ) %>%
   select(name_car, mpg)
-  
+```
+
+Usando o `geom_text()` eu consigo plotar o nome do modelo dentro da coluna assim como o respectivo valor de `mpg`. Note como uso `fontface = 'bold'` para deixar o valor numérico em negrito.
+
+Infelizmente, o gráfico acaba sobrecarregado com informação redundante, mas veremos como controlar os aspectos estéticos do gráfico em si (e.g. cor do fundo, texto nos eixos, etc.) num post futuro.
+
+```{r}
 ggplot(tbl_cars, aes(x = name_car, y = mpg)) +
   geom_col(fill = "#186177") +
   geom_text(
@@ -577,28 +613,3 @@ Neste post, apresentei algumas estratégias para destacar informação visualmen
 -   Destacar informações numéricas e texto usando `geom_text()` e `annotate()`.
 
 É muito útil ter estas funções no seu ferramental, pois elas ajudam a criar visualizações diferenciadas e destacam informações importantes de maneira intuitiva. Em particular, eu uso estas funções frequentemente no meu dia a dia.
-
-```{r, include=FALSE, eval = FALSE}
-house_type <- tibble::tribble(
-  ~ano,   ~tipo_de_domicilio,  ~share,
-   #---#--------------------#--------#
-   2016,         "Casa",         86.2,
-   2016,  "Apartamento",         13.8,
-   2017,         "Casa",         86.8,
-   2017,  "Apartamento",         13.2,
-   2018,         "Casa",         86.1,
-   2018,  "Apartamento",         13.9,
-   2019,         "Casa",         85.7,
-   2019,  "Apartamento",         14.3,
-   2022,         "Casa",         85.1,
-   2022,  "Apartamento",         14.9
-)
-
-ggplot(house_type, aes(x = ano, y = share)) + 
-  geom_col(aes(fill = tipo_de_domicilio)) +
-  geom_text(
-    aes(label = share),
-    position = position_stack(0.5)
-    ) +
-  scale_x_continuous(breaks = c(2016:2019, 2022))
-```
