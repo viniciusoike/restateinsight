@@ -154,7 +154,8 @@ Para tornar mais evidente o que está acontecendo mostro primeiro o resultado ge
 
 ```{r}
 ggplot(streets) + 
-  geom_sf(linewidth = 0.2)
+  geom_sf(linewidth = 0.15) +
+  theme_void()
 ```
 
 E agora o resultado após a intersecção entre as vias e os limites do município.
@@ -162,7 +163,8 @@ E agora o resultado após a intersecção entre as vias e os limites do municíp
 ```{r}
 ggplot() +
   geom_sf(data = border, fill = NA) +
-  geom_sf(data = streets_border, linewidth = 0.2, color = "gray20")
+  geom_sf(data = streets_border, linewidth = 0.15, color = "gray20") +
+  theme_void()
 ```
 
 ## Altitude
@@ -175,7 +177,7 @@ O gráfico abaixo mostra o resultado final.
 
 ```{r}
 #> Importa os dados de altitude
-altitude <- elevatr::get_elev_raster(border, z = 7, clip = "bbox")
+altitude <- elevatr::get_elev_raster(border, z = 9, clip = "bbox")
 #> Converte para 'vector'
 rec_alti <- raster::rasterToPolygons(altitude)
 rec_alti <- sf::st_as_sf(rec_alti)
@@ -187,16 +189,28 @@ rec_alti <- rec_alti %>%
   st_intersection(border) %>%
   #> Remove geometrias inválidas
   filter(st_is_valid(.))
+```
 
+```{r}
 #> Mapa
 ggplot(rec_alti) +
   geom_sf(aes(fill = elevation)) +
-  scale_fill_viridis_c(option = "inferno")
+  scale_fill_viridis_c(name = "Altitude", option = "inferno") +
+  theme_void()
 ```
 
 ### Classificando a altitude
 
 Para facilitar a visualização dos dados, classifica-se eles em grupos. Eu uso o algoritmo de Jenks para classificar os dados de elevação em 7 grupos distintos. O algoritmo de Jenks, também conhecido como "quebras naturais", é bastante utilizado com dados espaciais.
+
+```{r}
+ggplot(rec_alti, aes(x = elevation)) +
+  geom_histogram(bins = 40, color = "white") +
+  geom_hline(yintercept = 0) +
+  scale_x_continuous(limits = c(-1, NA)) +
+  ggtitle("Distribuição da altitude em Recife") +
+  theme_light()
+```
 
 Como todo algoritmo de clustering, o algoritmo de Jenks busca minimizar a distância intraclasse enquanto tenta maximizar a distância entre as classes; isto é ele busca observações parecidas e juntas elas em um grupo e busca separar os grupos o máximo possível.
 
@@ -213,58 +227,105 @@ rec_alti <- rec_alti %>%
     jenks_group = cut(elevation, jbreaks)
   )
 
+ggplot(rec_alti, aes(x = elevation)) +
+  geom_histogram(bins = 40, color = "white") +
+  geom_hline(yintercept = 0) +
+  geom_vline(xintercept = jbreaks) +
+  scale_x_continuous(limits = c(-1, NA)) +
+  labs(
+    title = "Distribuição da altitude em Recife",
+    subtitle = "Linhas verticais mostram o agrupamento do algoritmo de Jenks"
+    ) +
+  theme_light()
+```
+
+```{r}
 #> Mapa
 ggplot(rec_alti) +
   geom_sf(aes(fill = jenks_group)) +
-  scale_fill_viridis_d(option = "inferno")
+  scale_fill_viridis_d(option = "inferno") +
+  theme_void()
 ```
 
 ## Juntando as partes
 
 ```{r, eval = FALSE}
-street_levels <- list()
+levels(rec_alti$jenks_group)
+#> [1] "(-40,20]" "(20,30]"  "(30,50]"  "(50,70]"  "(70,90]"  "(90,120]"
+
+jgroups = levels(rec_alti$jenks_group)
+```
+
+```{r}
+jgroups = levels(rec_alti$jenks_group)
 
 
+sub <- rec_alti %>%
+  filter(jenks_group == jgroups[6]) %>%
+  st_union(.) %>%
+  st_as_sf()
 
-for (i in seq_along(groups)) {
+ggplot(sub) + geom_sf()
+```
+
+```{r}
+substreet <- streets %>%
+  st_intersection(sub) %>%
+  filter(st_is_valid(.))
+
+ggplot() +
+  geom_sf(data = substreet, linewidth = 0.5) +
+  geom_sf(data = sub, fill = NA)
+```
+
+```{r}
+#> For each group get the full polygon and join with streets
+join_streets = function(group) {
+  
+  poly = rec_alti %>%
+    filter(jenks_group == group) %>%
+    st_union(.) %>%
+    st_as_sf()
+  
+  joined = streets %>%
+    st_intersection(poly) %>%
+    filter(st_is_valid(.))
+  
+  return(joined)
   
 }
 
+test = join_streets(group = jgroups[5])
+
+ggplot(test) + geom_sf()
 ```
 
 ```{r}
 get_streets_altitude <- function(shp) {
   
-  stopifnot(any(colnames(shp) %in% "jenks_group"))
-  
   #> Get all groups
   groups = levels(shp$jenks_group)
-  
-  #> For each group get the full polygon and join with streets
-  join_streets = function(group) {
-    
-    poly = rec_alti %>%
-      filter(jenks_group == group) %>%
-      st_union(.) %>%
-      st_as_sf()
-    
-    joined = st_intersection(streets, poly)
-    
-    return(joined)
-    
-  }
   #> Apply the function to all groups
   street_levels = purrr::map(groups, join_streets)
   #> Bind all results together
   out = bind_rows(street_levels, .id = "level")
-  
   return(out)
   
 }
 
 rec_streets_altitude = get_streets_altitude(rec_alti)
+```
 
-
+```{r}
+ggplot(rec_streets_altitude) +
+  geom_sf(aes(fill = level, color = level), linewidth = 0.2) +
+  scale_fill_viridis_d(name = "Altitude", option = "inferno") +
+  scale_color_viridis_d(name = "Altitude", option = "inferno") +
+  theme_void() +
+  theme(
+    legend.position = "none",
+    panel.background = element_rect(color = NA, fill = "gray75")
+  )
 ```
 
 ## Mapa final
@@ -274,8 +335,9 @@ cores <- c(
   "#ffd902", "#FFAB28", "#FF751B", "#FF3E0D", "#cc0600", "#a20d46", "#5f0078"
   )
 
-jlabels = paste(jbreaks, jbreaks[-1], sep = "-")
-jlabels[length(jlabels)] = paste0(max(jbreaks), "+")
+jlabels = paste(jbreaks, jbreaks[-1], sep = "–")
+jlabels[1] = paste("<", min(jbreaks))
+jlabels[length(jlabels)] = paste(">", max(jbreaks))
 
 ggplot(data = rec_streets_altitude) +
   geom_sf(aes(color = level, fill = level), linewidth = 0.2) +
@@ -289,7 +351,8 @@ ggplot(data = rec_streets_altitude) +
     plot.title = element_text(size = 16, hjust = 0.5),
     legend.position = "top",
     legend.direction = "horizontal",
-    legend.text = element_text(size = 10)
+    legend.text = element_text(size = 10),
+    panel.background = element_rect(color = NA, fill = "#f6eee3")
   )
 ```
 
@@ -297,9 +360,66 @@ ggplot(data = rec_streets_altitude) +
 
 A ideia geral da programação funcional é de transformar nosso código em funções.
 
-Funções compartimentalizam o seu ambiente de trabalho. O que acontece dentro da função, fica dentro da função (a não ser que
+Funções compartimentalizam o seu ambiente de trabalho. O que acontece dentro da função, fica dentro da função.
+
+```{r}
+dados <- data.frame(
+  x = c("A", "A", "A", "B", "C"),
+  y = c(1, 3, 7, 4, 1)
+)
+
+
+filtrar_linhas <- function(df, filter_val) {
+  
+  dplyr::filter(df, x == filter_val)
+  
+}
+
+filtrar_linhas(dados, "B")
+```
 
 ## Shape da cidade
+
+Por conveniência, eu repito abaixo o código que se usou para chegar no shape dos limites de Recife. Note o que acontece: (1) o primeiro passo filtra um `data.frame` para encontrar o código do IBGE do respectivo município; (2) usando o código, a função `geobr::read_municipality()` importa o shape.
+
+Há dois objetos importantes nesta função: a tabela que contém as informações de 'nome da cidade' e 'código do ibge'; e o string com o 'nome da cidade'.
+
+```{r}
+#| eval: false
+code_muni = top20 |> 
+  filter(name_muni == "Recife") |> 
+  pull(code_muni)
+
+border = geobr::read_municipality(code_muni)
+```
+
+Para transformar o código acima numa função, basta incluir estes objetos como argumentos.
+
+```{r}
+get_border = function(city) {
+  
+  code_muni = top20 |> 
+    dplyr::filter(name_muni == city) |> 
+    dplyr::pull(code_muni)
+  
+  border = geobr::read_municipality(code_muni, showProgress = FALSE)
+  
+  return(border)
+  
+}
+
+get_border_2 = function(city, dim_city) {
+  
+  code_muni = dim_city |> 
+    dplyr::filter(name_muni == city) |> 
+    dplyr::pull(code_muni)
+  
+  border = geobr::read_municipality(code_muni, showProgress = FALSE)
+  
+  return(border)
+  
+}
+```
 
 ```{r}
 cities_brasil = st_drop_geometry(geobr::read_municipality(showProgress = FALSE))
@@ -311,10 +431,17 @@ cities_brasil = inner_join(cities_brasil, states_brasil)
 ```{r}
 get_border = function(city) {
   
-  #> Encontra o código do município
-  code_muni = cities_brasil |> 
-    filter(name_muni == city) |> 
-    pull(code_muni)
+  if (is.numeric(city)) {
+    code_muni = city
+  } else if (is.character(city)){
+    #> Encontra o código do município
+    code_muni = cities_brasil |> 
+      filter(name_muni == city) |> 
+      pull(code_muni) |> 
+      unique()
+  }
+  
+  stopifnot(length(code_muni) == 1)
   
   #> Baixa o shapefile do município
   border = geobr::read_municipality(code_muni, showProgress = FALSE)
@@ -354,9 +481,9 @@ get_streets = function(city, border) {
   #> Enconrtra a intersecção entre as estradas e o limites do município
   streets_border = st_intersection(streets, border)
   
-  out = list(streets = streets, streets_border = streets_border)
+  # out = list(streets = streets, streets_border = streets_border)
   
-  return(out)
+  return(streets_border)
   
 }
 ```
@@ -364,9 +491,9 @@ get_streets = function(city, border) {
 ## Altitude
 
 ```{r}
-get_elevation <- function(border) {
+get_elevation <- function(border, z = 8) {
   
-  altitude <- elevatr::get_elev_raster(border, z = 7, clip = "bbox")
+  altitude <- elevatr::get_elev_raster(border, z = z, clip = "bbox")
   altitude <- raster::rasterToPolygons(altitude)
   altitude <- st_as_sf(altitude)
   names(altitude)[1] <- "elevation"
@@ -409,8 +536,9 @@ add_jenks_breaks = function(shp, k = 7, round = TRUE, r = 0) {
 }
 
 get_jenks_labels <- function(x) {
-  labels = paste(x, x[-1], sep = "-")
-  labels[length(labels)] = paste0(max(x), "+")
+  labels = paste(x, x[-1], sep = "–")
+  labels[1] = paste("<", x[2])
+  labels[length(labels)] = paste(">", max(x))
   return(labels)
 }
 ```
@@ -431,7 +559,8 @@ get_streets_altitude <- function(altitude, streets) {
     poly = altitude %>%
       filter(jenks_group == group) %>%
       st_union(.) %>%
-      st_as_sf()
+      st_as_sf() %>%
+      st_make_valid()
     
     joined = suppressWarnings(st_intersection(streets, poly))
     
@@ -454,44 +583,62 @@ get_streets_altitude <- function(altitude, streets) {
 map_plot = function(shp, labels, title, showtext = TRUE) {
   
   cores = c(
-  "#ffd902", "#FFAB28", "#FF751B", "#FF3E0D", "#cc0600", "#a20d46", "#5f0078"
-  )
+    "#ffd902", "#FFAB28", "#FF751B", "#FF3E0D", "#cc0600", "#a20d46",
+    "#5f0078", "#3f004f"
+    )
   
   font = ifelse(showtext == TRUE, "Roboto Condensed", "sans")
   
   plot =
     ggplot(data = shp) +
     geom_sf(aes(color = level, fill = level), linewidth = 0.2) +
-    scale_color_manual(name = "Altitude", values = cores, labels = labels) +
-    scale_fill_manual(name = "Altitude", values = cores, labels = labels) +
+    scale_color_manual(
+      name = "Altitude",
+      labels = labels,
+      values = cores) +
+    scale_fill_manual(
+      name = "Altitude",
+      labels = labels,
+      values = cores) +
     guides(fill = guide_legend(nrow = 1), color = guide_legend(nrow = 1)) +
     ggtitle(title) +
     ggthemes::theme_map() +
     coord_sf() +
     theme(
       plot.title = element_text(
-        size = 16,
+        size = 30,
         hjust = 0.5,
         family = font
         ),
+      legend.title = element_text(
+        size = 20,
+        family = font,
+        color = "gray10"
+      ),
       legend.text = element_text(
-        size = 10,
+        size = 14,
         family = font,
         color = "gray10"
         ),
       legend.position = "top",
-      legend.direction = "horizontal"
+      legend.direction = "horizontal",
+      plot.background = element_rect(color = NA, fill = "#f6eee3"),
+      panel.background = element_rect(color = NA, fill = "#f6eee3"),
+      legend.background = element_rect(color = NA, fill = "#f6eee3")
     )
   
   return(plot)
   
 }
+
+sysfonts::font_add_google("Roboto Condensed", "Roboto Condensed")
+showtext::showtext_auto()
 ```
 
 ## Uma função final
 
 ```{r}
-map_altitude <- function(city, full = FALSE) {
+map_altitude <- function(city, k = 6, z = 7) {
   
   #> Importa o shape do limite do município
   message("Importando os limites do município: ", city)
@@ -501,18 +648,13 @@ map_altitude <- function(city, full = FALSE) {
   city_street = get_streets(city, city_border)
   #> Importa a altitude da cidade
   message("Importando a altitude.")
-  city_elevation = suppressMessages(get_elevation(city_border))
+  city_elevation = suppressMessages(get_elevation(city_border, z = z))
   #> Classifica a altitude em grupos
   message("Classificando e juntando os shapefiles.")
-  jenks = add_jenks_breaks(city_elevation)
+  jenks = add_jenks_breaks(city_elevation, k = k)
   city_elevation = jenks[["shp"]]
   labels = jenks[["labels"]]
   #> Junta a altitude (agrupada) com as vias
-  if (full) {
-    city_street <- city_street$streets
-  } else {
-    city_street <- city_street$streets_border
-  }
   city_street_elevation = get_streets_altitude(city_elevation, city_street)
   
   #> Monta o mapa final
@@ -537,7 +679,16 @@ map_altitude <- function(city, full = FALSE) {
 Funciona!
 
 ```{r}
-map_altitude("Porto Alegre")$plot
+#| fig-width: 11
+#| fig-height: 13
+#| out-width: "100%"
+#| out-height: "100%"
+scs = map_altitude("São Caetano Do Sul", z = 10, k = 6)
+scs$plot
+```
+
+```{r}
+fortaleza = map_altitude("Fortaleza", k = 6, z = 4)
 ```
 
 ```{r}
@@ -545,25 +696,11 @@ map_altitude("Ouro Preto")$plot
 ```
 
 ```{r}
-#| eval: false
-#| echo: false
-export_citymap = function(city, w = 14, h = 16) {
-  
-  plot = map_altitude(city)$plot
-  
-  name_file = glue::glue(
-    "elevation_{janitor::make_clean_names(city)}.svg"
-    )
-  
-  ggsave(
-    here::here("static/maps/", name_file),
-    plot,
-    width = w,
-    height = h
-    )
-}
+map_altitude("Osasco", k = 8, z = 7)$plot
+```
 
-map(top20$name_muni, export_citymap)
+```{r}
+map_altitude("Belo Horizonte", k = 7, z = 7)$plot
 ```
 
 # Resultado final
@@ -572,200 +709,5 @@ map(top20$name_muni, export_citymap)
 #| code-fold: true
 #| eval: false
 
-library(dplyr)
-library(sf)
-library(ggplot2)
-library(osmdata)
-library(purrr)
 
-cities_brasil = st_drop_geometry(geobr::read_municipality(showProgress = FALSE))
-states_brasil = st_drop_geometry(geobr::read_state(showProgress = FALSE))
-cities_brasil = mutate(cities_brasil, code_state = as.numeric(code_state))
-cities_brasil = inner_join(cities_brasil, states_brasil)
-
-get_border = function(city) {
-  
-  #> Encontra o código do município
-  code_muni = cities_brasil |> 
-    filter(name_muni == city) |> 
-    pull(code_muni)
-  
-  #> Baixa o shapefile do município
-  border = geobr::read_municipality(code_muni, showProgress = FALSE)
-  
-  return(border)
-}
-
-get_streets = function(city, border) {
-  
-  #> Encontra o nome da Unidade Federativa
-  nome_uf = cities_brasil |> 
-    filter(name_muni == city) |> 
-    pull(name_state)
-  #> Monta o nome do local
-  name_place = stringr::str_glue("{city}, {nome_uf}, Brazil")
-  #> Monta a query
-  place = opq(bbox = getbb(name_place))
-  
-  #> Importa todas as principais vias da cidade
-  streets = add_osm_feature(
-    place,
-    key = "highway",
-    value = c("primary", "secondary", "tertiary", "residential")
-    )
-  
-  #> Converte o dado
-  streets = streets %>%
-    osmdata_sf() %>%
-    .$osm_lines %>%
-    select(osm_id, name) %>%
-    st_transform(crs = 4674)
-  
-  #> Enconrtra a intersecção entre as estradas e o limites do município
-  streets_border = st_intersection(streets, border)
-  
-  out = list(streets = streets, streets_border = streets_border)
-  
-  return(streets_border)
-  
-}
-
-get_elevation <- function(border) {
-  
-  altitude <- elevatr::get_elev_raster(border, z = 7, clip = "bbox")
-  altitude <- raster::rasterToPolygons(altitude)
-  altitude <- st_as_sf(altitude)
-  names(altitude)[1] <- "elevation"
-  
-  altitude = st_transform(altitude, crs = 4674)
-  altitude = suppressWarnings(st_intersection(altitude, border))
-  altitude = filter(altitude, st_is_valid(altitude))
-  
-  return(altitude)
-  
-}
-
-add_jenks_breaks = function(shp, k = 7, round = TRUE, r = -1) {
-  #> Classifica os dados de altitude em k grupos segundo o algo. de Jenks
-  jbreaks = BAMMtools::getJenksBreaks(shp$elevation, k = k)
-  #> Arredonda os números para chegar numa legenda menos quebrada
-  if (round) {
-    jbreaks = round(jbreaks, r)
-  }
-  #> Cria a coluna 'jenks_group' que classifica cada valor num grupo
-  shp = mutate(shp, jenks_group = cut(elevation, jbreaks))
-  
-  #> Verifica se todas as observações tem um grupo
-  check = any(is.na(shp$jenks_group))
-  if (check) {
-    warning("Some observations have failed to be grouped")
-  }
-  
-  #> Transforma os groups em legendas
-  labels = get_jenks_labels(jbreaks)
-  
-  #> Retorna o output numa lista
-  out = list(shp = shp, labels = labels)
-  return(out)
-  
-}
-
-get_jenks_labels <- function(x) {
-  labels = paste(x, x[-1], sep = "-")
-  labels[length(labels)] = paste0(max(x), "+")
-  return(labels)
-}
-
-get_streets_altitude <- function(altitude, streets) {
-  
-  stopifnot(any(colnames(altitude) %in% "jenks_group"))
-  
-  #> Get all groups
-  groups = levels(altitude$jenks_group)
-  
-  #> For each group get the full polygon and join with streets
-  join_streets = function(group) {
-    
-    poly = altitude %>%
-      filter(jenks_group == group) %>%
-      st_union(.) %>%
-      st_as_sf()
-    
-    joined = suppressWarnings(st_intersection(streets, poly))
-    
-    return(joined)
-    
-  }
-  #> Apply the function to all groups
-  street_levels = purrr::map(groups, join_streets)
-  #> Bind all results together
-  out = bind_rows(street_levels, .id = "level")
-  
-  return(out)
-  
-}
-
-map_plot = function(shp, labels, title, showtext = TRUE) {
-  
-  cores = c(
-  "#ffd902", "#FFAB28", "#FF751B", "#FF3E0D", "#cc0600", "#a20d46", "#5f0078"
-  )
-  
-  font = ifelse(showtext == TRUE, "Roboto Condensed", "sans")
-  
-  plot =
-    ggplot(data = shp) +
-    geom_sf(aes(color = level, fill = level), linewidth = 0.2) +
-    scale_color_manual(name = "Altitude", values = cores, labels = labels) +
-    scale_fill_manual(name = "Altitude", values = cores, labels = labels) +
-    guides(fill = guide_legend(nrow = 1), color = guide_legend(nrow = 1)) +
-    ggtitle(title) +
-    ggthemes::theme_map() +
-    coord_sf() +
-    theme(
-      plot.title = element_text(
-        size = 16,
-        hjust = 0.5,
-        family = font
-        ),
-      legend.text = element_text(
-        size = 10,
-        family = font,
-        color = "gray10"
-        ),
-      legend.position = "top",
-      legend.direction = "horizontal"
-    )
-  
-  return(plot)
-  
-}
-
-map_altitude <- function(city) {
-  
-  #> Importa o shape do limite do município
-  message("Importando os limites do município: ", city)
-  city_border = get_border(city)
-  #> Importa as principais vias da cidade e junta com o limite do muni
-  message("Importando as vias.")
-  city_street = get_streets(city, city_border)
-  #> Importa a altitude da cidade
-  message("Importando a altitude.")
-  city_elevation = suppressMessages(get_elevation(city_border))
-  #> Classifica a altitude em grupos
-  message("Classificando e juntando os shapefiles.")
-  jenks = add_jenks_breaks(city_elevation)
-  city_elevation = jenks[["shp"]]
-  labels = jenks[["labels"]]
-  #> Junta a altitude (agrupada) com as vias
-  city_street_elevation = get_streets_altitude(city_elevation, city_street)
-  
-  #> Monta o mapa final
-  message("Gerando o mapa final.")
-  plot = map_plot(city_street_elevation, labels = labels, title = city)
-  message("Feito.")
-  #> Retorna o output numa lista
-  return(list(shp = city_street_elevation, plot = plot))
-  
-}
 ```
