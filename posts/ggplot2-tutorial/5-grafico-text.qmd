@@ -1,8 +1,8 @@
 ---
 title: 'Estético: Destacando informação'
-date: '2023-08-03'
+date: '2023-09-01'
 categories: ['data-visualization', 'ggplot2', 'tutorial-R']
-description: "Gráficos de linha são frequentemente usados para representar séries de tempo, isto é, valores que mudam ao longo do tempo. Estes gráficos revelam a evolução de uma variável ao longo do tempo."
+description: "Um gráfico deve ser autoexplicativo. Neste post, discutiremos três estratégias simples para realçar informações em um gráfico: usar linhas com geom_vline(), geom_hline() e geom_abline() para destacar eixos ou informações numéricas; realçar seções do gráfico com geom_rect(); e destacar informações numéricas e texto usando geom_text() e annotate()."
 title-block-banner: true
 execute: 
   message: false
@@ -11,7 +11,6 @@ format:
   html:
     code-fold: false
     code-tools: true
-draft: true
 ---
 
 ```{r setup, include = FALSE}
@@ -75,7 +74,9 @@ library(GetBCBData)
 
 Já sabemos como desenhar linhas usando tanto o `geom_line()` como o `geom_path()`. Estas funções exigem dois a três arguemntos que especficam as coordenadas da linha e de que forma a linha deve unir estas coordenadas.
 
-Suponha, por exemplo, que se queira desenhar uma linha reta no eixo-x. Para isto precisamos estruturar um `data.frame` e informar as coordenadas. Note como no exemplo abaixo, não preciso repetir o valor `y = 0` já que o `tibble` "recicla" este número para que ele tenha o mesmo comprimento (`length)` que o vetor `x`.
+Suponha, por exemplo, que se queira desenhar uma linha reta no eixo-x. Para isto precisamos estruturar um `data.frame`, informar as coordenadas e então chamar `geom_line()`.
+
+Note como no código abaixo, não preciso repetir o valor `y = 0` já que o `tibble` "recicla" este número para que ele tenha o mesmo comprimento (`length)` que o vetor `x`.
 
 ```{r}
 df <- tibble(
@@ -87,7 +88,7 @@ ggplot(df, aes(x = x, y = y)) +
   geom_line()
 ```
 
-Para desenhar linhas retas arbitrárias com maior facilidade há três funções:
+O procedimento acima é nada prático, exige a criação de um `data.frame` apartado dos dados e as linhas ainda tem comprimento fixo. Para desenhar linhas retas arbitrárias com maior facilidade há três funções:
 
 -   `geom_vline` - Desenha linhas verticais
 -   `geom_hline` - Desenha linhas horizontais
@@ -149,7 +150,7 @@ ggplot(subhousing, aes(x = listings)) +
 
 ### Quintis ou grupos
 
-Para desenhar múltiplas linhas basta passar o argumento como um vetor. No caso abaixo eu calculo os quintis do taxa de poupança da base `economics` e sobreponho estas linhas ao histograma
+Para desenhar múltiplas linhas basta passar o argumento como um vetor. No caso abaixo eu calculo os quintis do taxa de poupança da base `economics` e sobreponho estas linhas ao histograma.
 
 ```{r}
 quintil <- quantile(economics$psavert, probs = c(0.2, 0.4, 0.6, 0.8))
@@ -387,15 +388,17 @@ Como citado acima, é possível modificar a fonte do texto usando o argumento `f
 
 ```{r, eval = FALSE}
 #> Instale o pacote sysfonts se necessário
-#> install.packages("sysfonts")
-#> library(sysfonts)
+install.packages("sysfonts")
+library(sysfonts)
 
 sysfonts::font_families()
 #> [1] "sans"  "serif" "mono"
 #> 
-# Get the available fonts using the system command
+
+#> Ou use a função system
 available_fonts <- system("fc-list : family", intern = TRUE)
 available_fonts <- available_fonts[order(available_fonts)]
+#> Mostra as primeiras dez fontes encontradas no sistema
 available_fonts[1:10]
 
 #>  [1] ".Al Bayan PUA"                                            
@@ -434,9 +437,13 @@ ggplot(rented, aes(x = share_apto, y = share_rented)) +
     )
 ```
 
-## Combinando texto com outros gráficos
+# Unindo todos os elementos
 
-Como de costume, um dos grandes diferenciais do `ggplot2` é a possibilidade de adicionar elementos aos gráficos sequencialmente. Podemos resgatar nosso exemplo do PIB com os ciclos de recessão.
+Como de costume, um dos grandes diferenciais do `ggplot2` é a possibilidade de adicionar elementos aos gráficos sequencialmente.
+
+## Exemplo: PIB e ciclos
+
+Podemos resgatar nosso exemplo do PIB com os ciclos de recessão.
 
 No código abaixo, uso um pouco de álgebra para plotar o texto no meio da região sombreada.
 
@@ -459,9 +466,9 @@ ggplot() +
   )
 ```
 
-### Exemplo: IPCA
+## Exemplo: IPCA
 
-Outra combinação popular é de texto com colunas. No gráfico abaixo mostro a variação anual do IPCA com o valor percentual indicado em cima de cada coluna. Note como a função `geom_text()` recebe `y + 0.5` como posição vertical.
+Podemos também mesclar um gráfico de colunas com texto. A tabela traz os valores do IPCA acumulados ano a ano desde 2013.
 
 ```{r}
 ipca <- tibble::tribble(
@@ -479,11 +486,17 @@ ipca <- tibble::tribble(
 )
 ```
 
+No gráfico abaixo mostro a variação anual do IPCA com o valor percentual indicado em cima de cada coluna. Note como a função `geom_text()` recebe `y + 0.5` como posição vertical.
+
 ```{r}
 ggplot(ipca, aes(x = ano, y = ipca)) +
+  #> Desenha a coluna com o valor do IPCA
   geom_col() + 
+  #> Linha horizontal no eixo-e
   geom_hline(yintercept = 0) +
+  #> Número em cima de cada coluna
   geom_text(aes(y = ipca + 0.5, label = ipca)) +
+  #> Força o eixo-x a imprimir todos os valores
   scale_x_continuous(breaks = 2013:2022)
 ```
 
@@ -493,9 +506,14 @@ Uma maneira alternativa de chegar no mesmo resultado é usando o argumento `nudg
 ggplot(ipca, aes(x = ano, y = ipca)) +
   geom_col() + 
   geom_hline(yintercept = 0) +
+  #> Usa nudge_y ao invés de ipca + 0.5
   geom_text(aes(y = ipca, label = ipca), nudge_y = 0.5) +
   scale_x_continuous(breaks = 2013:2022)
 ```
+
+As funções `round`, `paste`, `paste0` e `format` podem ser muito úteis para melhor apresentar resultados numéricos[^6]. Esta funções servem para arredondar números, concatenar strings e formatar números (usando ponto para separar milhar, vírgula para separar decimal, etc.). No código abaixo mostro um passo-a-passo de como usar estas funções para formatar o número em cima de cada coluna.
+
+[^6]: Outra opção interessante é função `glue::glue()`.
 
 ```{r}
 ipca <- ipca %>%
@@ -515,7 +533,7 @@ ggplot(ipca, aes(x = ano, y = ipca)) +
   scale_x_continuous(breaks = 2013:2022)
 ```
 
-### Exemplo: Demografia
+## Exemplo: Demografia
 
 A tabela abaixo mostra a representatividade de cada grande grupo demográfico na população brasileira aos longo dos anos. Aqui, usam-se as seguintes definições: população jovem (14 anos ou menos); população adulta (de 15 a 64 anos); população idosa (65 anos ou mais). Os valores estão em percentuais.
 
@@ -536,9 +554,7 @@ tbl_demographics <- tribble(
 
 Antes de visualizar os dados é preciso converter esta tabela para um formato longitudinal, onde cada linha representa um ano-grupo, isto é, cada linha indica o share da população de determinado grupo da população num determinado ano. Para isto uso a função `pivot_longer()`. Além disso eu transformo a coluna `age_group` num factor ordenado para melhorar a visualização.
 
-As funções `round`, `paste`, `paste0` e `format` podem ser muito úteis para melhor apresentar resultados numéricos[^6]. No exemplo abaixo eu ajusto o dado da coluna `share`: eu multiplico o valor por 100, arredondo até a primeira casa decimal, uso a vírgula como separador de decimal e coloco um sinal de "%" após o número.
-
-[^6]: Outra opção interessante é função `glue::glue()`.
+No exemplo abaixo eu também ajusto o dado da coluna `share`: eu multiplico o valor por 100, arredondo até a primeira casa decimal, uso a vírgula como separador de decimal e coloco um sinal de "%" após o número.
 
 ```{r}
 demo <- tbl_demographics %>%
@@ -548,7 +564,7 @@ demo <- tbl_demographics %>%
     values_to = "share"
   ) %>%
   mutate(
-    age_group = factor(age_group, levels = c("young", "adult", "elder")),
+    age_group = factor(age_group, levels = c("elder", "adult", "young")),
     # Arredonda na primeira casa decimal
     share_label = round(share * 100, 1),
     # Usa vírgula como separador de decimal
@@ -565,14 +581,15 @@ Outras opções seriam: `vjust = 0` para colocar o valor na base da coluna ou `v
 ```{r}
 ggplot(demo, aes(x = year, y = share, fill = age_group)) +
   geom_col(position = position_stack()) +
+  geom_hline(yintercept = 0) +
   geom_text(aes(label = share_label), position = position_stack(vjust = 0.5)) +
   scale_x_continuous(breaks = seq(1950, 2020, 10)) +
   theme(legend.position = "top")
 ```
 
-### Exemplo: carros (de novo...)
+## Exemplo: carros (de novo...)
 
-Por fim, monto mais um exemplo de como combinar gráficos de coluna com texto. No gráfico abaixo eu mostro a eficiência (milhas por galão) de um subconjunto de carros (os que tem 4 cilindradas). Além disso, eu ordeno o nome dos carros pela variável `mpg` e depois inverto esta ordem; esta inversão é importante porque eu viro o gráfico de lado com a função `coord_flip`.
+Por fim, monto mais um exemplo de como combinar gráficos de coluna com texto. No gráfico abaixo eu mostro a eficiência (milhas por galão) de um subconjunto de carros (os que tem 4 cilindradas). Além disso, eu ordeno o nome dos carros pela variável `mpg`.
 
 ```{r}
 tbl_cars <- mtcars %>%
@@ -587,11 +604,10 @@ tbl_cars <- mtcars %>%
 
 Usando o `geom_text()` eu consigo plotar o nome do modelo dentro da coluna assim como o respectivo valor de `mpg`. Note como uso `fontface = 'bold'` para deixar o valor numérico em negrito.
 
-Infelizmente, o gráfico acaba sobrecarregado com informação redundante, mas veremos como controlar os aspectos estéticos do gráfico em si (e.g. cor do fundo, texto nos eixos, etc.) num post futuro.
-
 ```{r}
 ggplot(tbl_cars, aes(x = name_car, y = mpg)) +
   geom_col(fill = "#186177") +
+  geom_hline(yintercept = 0) +
   geom_text(
     aes(y = 1, label = name_car),
     color = "#F9F7F3",
@@ -602,6 +618,8 @@ ggplot(tbl_cars, aes(x = name_car, y = mpg)) +
     fontface = "bold") +
   coord_flip()
 ```
+
+Infelizmente, o gráfico acaba sobrecarregado com informação redundante, mas veremos como controlar os aspectos estéticos do gráfico em si (e.g. cor do fundo, texto nos eixos, etc.) num post futuro.
 
 # Resumo
 
