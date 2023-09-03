@@ -1,0 +1,341 @@
+---
+title: "Mapa de altitude de ruas de Brasília"
+categories: ['data-visualization', 'mapas']
+date: "2023-09-03"
+---
+
+Inspirado num antigo post de [BlakeRMills](https://www.blakerobertmills.com/my-work/visualizations), criador do pacote [{MetBrewer}](https://github.com/BlakeRMills/MetBrewer), criei um mapa com a altitude das ruas em Brasília.
+
+Em breve farei um post com tutorial detalhado e também pretendo replicar este tipo de mapa para outras cidades interessantes. O código para replicar o gráfico está abaixo.
+
+```{r}
+#| eval: false
+#| code-fold: true
+library(dplyr)
+library(sf)
+library(ggplot2)
+library(osmdata)
+library(purrr)
+sf::sf_use_s2(FALSE)
+sysfonts::font_add_google("Roboto Condensed", "Roboto Condensed")
+showtext::showtext_auto()
+
+url = "https://pt.wikipedia.org/wiki/Lista_de_municípios_do_Brasil_por_população"
+
+tab = xml2::read_html(url) |> 
+  rvest::html_table() |> 
+  purrr::pluck(2)
+
+as_numeric_char = Vectorize(function(x) {
+  ls = stringr::str_extract_all(x, "[[:digit:]]")
+  y = paste(ls[[1]], collapse = "")
+  as.numeric(y)
+})
+
+clean_tab = tab |> 
+  janitor::clean_names() |> 
+  rename(
+    code_muni = codigo_ibge,
+    name_muni = municipio,
+    rank = posicao,
+    name_state = unidade_federativa,
+    pop = populacao
+  ) |> 
+  filter(name_muni != "Brasil") |> 
+  mutate(
+    code_muni = as.numeric(code_muni),
+    pop = as_numeric_char(pop),
+    rank = rank(-pop)
+  )
+
+top20 = slice_max(clean_tab, pop, n = 20)
+
+get_border = function(city) {
+  
+  #> Encontra o código do município
+  code_muni = top20 |> 
+    filter(name_muni == city) |> 
+    pull(code_muni) |> 
+    unique()
+  
+  stopifnot(length(code_muni) == 1)
+  
+  #> Baixa o shapefile do município
+  border = geobr::read_municipality(code_muni, showProgress = FALSE)
+  
+  return(border)
+}
+
+get_streets = function(city, border) {
+  
+  #> Encontra o nome da Unidade Federativa
+  nome_uf = top20 |> 
+    filter(name_muni == city) |> 
+    pull(name_state)
+  #> Monta o nome do local
+  name_place = stringr::str_glue("{city}, {nome_uf}, Brazil")
+  #> Monta a query
+  place = opq(bbox = getbb(name_place))
+  
+  #> Importa todas as principais vias da cidade
+  # streets = add_osm_feature(
+  #   place,
+  #   key = "highway",
+  #   value = c(
+  #     "motorway", "primary", "motorway_link", "primary_link",
+  #     "secondary", "tertiary", "secondary_link", "tertiary_link",
+  #     "residential"
+  #     )
+  # )
+  
+  streets = add_osm_feature(place, key = "highway")
+  
+  #> Converte o dado
+  streets = streets %>%
+    osmdata_sf() %>%
+    .$osm_lines %>%
+    select(osm_id, name) %>%
+    st_transform(crs = 4674)
+  
+  #> Enconrtra a intersecção entre as estradas e o limites do município
+  streets_border = st_intersection(streets, border)
+  
+  # out = list(streets = streets, streets_border = streets_border)
+  
+  return(streets_border)
+  
+}
+
+get_elevation = function(border, z = 8) {
+  
+  altitude = elevatr::get_elev_raster(border, z = z, clip = "bbox")
+  altitude = raster::rasterToPolygons(altitude)
+  altitude = st_as_sf(altitude)
+  names(altitude)[1] = "elevation"
+  
+  altitude = st_transform(altitude, crs = 4674)
+  altitude = suppressWarnings(st_intersection(altitude, border))
+  altitude = filter(altitude, st_is_valid(altitude))
+  
+  return(altitude)
+  
+}
+
+add_jenks_breaks = function(shp, k = 7, round = TRUE, r = 0) {
+  #> Classifica os dados de altitude em k grupos segundo o algo. de Jenks
+  jbreaks = BAMMtools::getJenksBreaks(shp$elevation, k = k)
+  #> Arredonda os números para chegar numa legenda menos quebrada
+  if (round) {
+    jbreaks = round(jbreaks, r)
+  }
+  #> Cria a coluna 'jenks_group' que classifica cada valor num grupo
+  shp = mutate(shp, jenks_group = cut(elevation, jbreaks))
+  
+  #> Verifica se todas as observações tem um grupo
+  check = any(is.na(shp$jenks_group))
+  if (check) {
+    warning("Some observations have failed to be grouped")
+  }
+  
+  #> Transforma os groups em legendas
+  labels = get_jenks_labels(jbreaks)
+  
+  #> Retorna o output numa lista
+  out = list(shp = shp, labels = labels)
+  return(out)
+  
+}
+
+get_jenks_labels = function(x) {
+  labels = paste(x, x[-1], sep = "–")
+  labels[1] = paste("<", x[2])
+  labels[length(labels)] = paste(">", max(x))
+  return(labels)
+}
+
+get_streets_altitude = function(altitude, streets) {
+  
+  stopifnot(any(colnames(altitude) %in% "jenks_group"))
+  
+  #> Get all groups
+  groups = levels(altitude$jenks_group)
+  
+  #> For each group get the full polygon and join with streets
+  join_streets = function(group) {
+    
+    poly = altitude %>%
+      filter(jenks_group == group) %>%
+      st_union(.) %>%
+      st_as_sf() %>%
+      st_make_valid()
+    
+    joined = suppressWarnings(st_intersection(streets, poly))
+    
+    return(joined)
+    
+  }
+  #> Apply the function to all groups
+  street_levels = purrr::map(groups, join_streets)
+  #> Bind all results together
+  out = bind_rows(street_levels, .id = "level")
+  
+  return(out)
+  
+}
+
+map_plot = function(shp, labels, title, showtext = TRUE) {
+  
+  colors = viridis::plasma(n = length(labels) + 1)
+  colors = colors[-length(colors)]
+  
+  font = ifelse(showtext == TRUE, "Roboto Condensed", "sans")
+  
+  plot =
+    ggplot(data = shp) +
+    geom_sf(aes(color = level, fill = level), linewidth = 0.2) +
+    scale_color_manual(
+      name = "Altitude",
+      labels = labels,
+      values = colors) +
+    scale_fill_manual(
+      name = "Altitude",
+      labels = labels,
+      values = colors) +
+    guides(fill = guide_legend(nrow = 1), color = guide_legend(nrow = 1)) +
+    ggtitle(title) +
+    ggthemes::theme_map() +
+    coord_sf() +
+    theme(
+      plot.title = element_text(
+        size = 30,
+        hjust = 0.5,
+        family = font
+      ),
+      legend.title = element_text(
+        size = 20,
+        family = font,
+        color = "gray10"
+      ),
+      legend.text = element_text(
+        size = 14,
+        family = font,
+        color = "gray10"
+      ),
+      legend.position = "top",
+      legend.direction = "horizontal",
+      plot.background = element_rect(color = NA, fill = "#f6eee3"),
+      panel.background = element_rect(color = NA, fill = "#f6eee3"),
+      legend.background = element_rect(color = NA, fill = "#f6eee3")
+    )
+  
+  return(plot)
+  
+}
+
+map_altitude = function(city, k, z) {
+  
+  #> Importa o shape do limite do município
+  message("Importando os limites do município: ", city)
+  city_border = get_border(city)
+  #> Importa as principais vias da cidade e junta com o limite do muni
+  message("Importando as vias.")
+  city_street = get_streets(city, city_border)
+  #> Importa a altitude da cidade
+  message("Importando a altitude.")
+  city_elevation = suppressMessages(get_elevation(city_border, z = z))
+  #> Classifica a altitude em grupos
+  message("Classificando e juntando os shapefiles.")
+  jenks = add_jenks_breaks(city_elevation, k = k)
+  city_elevation = jenks[["shp"]]
+  labels = jenks[["labels"]]
+  #> Junta a altitude (agrupada) com as vias
+  city_street_elevation = get_streets_altitude(city_elevation, city_street)
+  
+  #> Monta o mapa final
+  message("Gerando o mapa final.")
+  plot = map_plot(city_street_elevation, labels = labels, title = city)
+  message("Feito.")
+  #> Retorna o output numa lista
+  out = list(
+    shp = city_street_elevation,
+    streets = city_street,
+    elevation = city_elevation,
+    plot = plot
+  )
+  
+  return(out)
+  
+}
+
+export_citymap = function(city, w = 14, h = 16, ...) {
+  
+  plot = map_altitude(city, ...)$plot
+  
+  if (is.numeric(city)) {
+    name_city = cities_brasil |> 
+      filter(code_muni == city) |> 
+      pull(name_muni)
+  } else if (is.character(city)) {
+    name_city = city
+  }
+  
+  name_file = glue::glue(
+    "elevation_{janitor::make_clean_names(name_city)}.svg"
+  )
+  
+  ggsave(
+    here::here("graphics/altitude", name_file),
+    plot,
+    width = w,
+    height = h
+  )
+  
+  name_file = glue::glue(
+    "elevation_{janitor::make_clean_names(name_city)}.png"
+  )
+  
+  ggsave(
+    here::here("graphics/altitude", name_file),
+    plot,
+    width = w,
+    height = h
+  )
+}
+
+safe_export = purrr::safely(export_citymap)
+
+params = tribble(
+  ~city,       ~z, ~k,
+  #----------------#---#---#
+  "São Paulo",       8,  7,
+  "Rio de Janeiro",  9,  7,
+  "Brasília",        8,  7,
+  "Fortaleza",      11,  7,
+  "Salvador",       10,  7,
+  "Belo Horizonte", 10,  7,
+  "Manaus",          6,  7,
+  "Curitiba",       10,  7,
+  "Recife",         10,  7,
+  "Goiânia",         8,  7,
+  "Porto Alegre",    8,  7,
+  "Belém",           9,  7,
+  "Guarulhos",       9,  7,
+  "Campinas",        9,  7,
+  "São Luís",        9,  7,
+  "Maceió",         11,  8,
+  "Campo Grande",    7,  7,
+  "São Gonçalo",     8,  7,
+  "Teresina",        10,  7,
+  "João Pessoa",     9,  7,
+  "Joinville",       9,  7
+  )
+
+#> Exportar todas as cidades listadas acima
+#pmap(params, safe_export)
+#> Exportar uma cidade em particular
+#safe_export("Brasília", z = 8, k = 7)
+```
+
+
+
+![](images/elevation_brasilia.svg){fig-align="center"}
