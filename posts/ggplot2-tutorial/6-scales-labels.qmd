@@ -1,9 +1,8 @@
 ---
 title: 'Estético: Escalas e Cores'
-date: '2022-12-26'
+date: '2023-09-05'
 categories: ['data-visualization', 'ggplot2', 'tutorial-R']
-description: "Escalas, legendas e cores são elementos essenciais numa boa visualização. Este post apresenta a lógica das funções que controlam as escalas do gráfico e as suas cores com diversos exemplos. Também se apresenta a "
-title-block-banner: true
+description: "Escalas, legendas e cores são elementos essenciais numa boa visualização. Este post apresenta a lógica das funções que controlam as escalas do gráfico e as suas cores com diversos exemplos."
 execute: 
   message: false
   warning: false
@@ -11,8 +10,6 @@ format:
   html:
     code-fold: false
     code-tools: true
-draft: true
-freeze: true
 ---
 
 ```{r setup, include = FALSE}
@@ -93,7 +90,7 @@ O uso de escalas de cores e legendas está intimamente ligado ao tipo de variáv
 
 ## Tipos de variáveis
 
-O `ggplot`, grosso modo, divide as variáveis em contínuas e discretas. As variáveis contínuas, em geral, são numéricas e podem assumir qualquer valor; já as variáveis discretas costumam ser "categóricas" e são "contáveis". O preço de um imóvel, por exemplo, é uma variável contínua. Já uma variável que categoriza um imóvel entre "casa" e "apartamento" é uma variável discreta.
+O `ggplot`, grosso modo, divide as variáveis em **contínuas** e **discretas**. As variáveis contínuas, em geral, são numéricas e podem assumir qualquer valor; já as variáveis discretas costumam ser "categóricas" e são "contáveis". O preço de um imóvel, por exemplo, é uma variável contínua. Já uma variável que categoriza um imóvel entre "casa" e "apartamento" é uma variável discreta.
 
 Esta lógica é aplicada nas funções que controlam os eixos x e y de um gráfico.
 
@@ -672,26 +669,7 @@ ggplot(austin, aes(x = month, y = median)) +
 
 A mesma lógica apresentada acima se aplica a variáveis contínuas. Infelizmente, algumas das aplicações mais úteis de escalas de cores contínuas envolvem tipos de gráficos que ainda não vimos, como `geom_tile()` e `geom_sf()`.
 
-O exemplo abaixo mostra a relação entre renda e escolaridade, olhando especificamente para a taxa de indivíduos com ensino superior. A cor de cada ponto ilustra a densidade populacional de cada Zona em que os pontos mais escuros são as Zonas mais densas. Note o uso da função `scale_y_log10`.
-
-```{r}
-ggplot(pod, aes(x = prop_educ_superior, y = income_avg)) +
-  geom_point(aes(color = pop_density)) +
-  scale_y_log10() +
-  scale_color_distiller(palette = 3, direction = 1)
-```
-
-Novamente, os argumentos das funções `scale_*` são compartilhados. No exemplo abaixo, mostro como usar `breaks` dentro de `scale_color_distiller`.
-
-```{r}
-ggplot(pod, aes(x = prop_educ_superior, y = income_avg)) +
-  geom_point(aes(color = pop_density)) +
-  scale_y_log10() +
-  scale_color_distiller(
-    breaks = seq(50, 400, 50),
-    palette = 3,
-    direction = 1)
-```
+O exemplo abaixo mostra a relação entre renda e escolaridade, olhando especificamente para a taxa de indivíduos com ensino superior. Note o uso da função `scale_y_log10`.
 
 A função `scale_color_continuous` não é particularmente útil pois, ao contrário do caso discreto, em que podíamos escolher as cores manualmente usando a função `scale_color_discrete` ou `scale_color_manual`, não existe uma maneira de "escolher" as cores no caso contínuo.
 
@@ -715,7 +693,64 @@ ggplot(pod, aes(x = prop_educ_superior, y = income_avg)) +
   scale_color_gradient2(limits = c(-4, 4))
 ```
 
-A função `scale_*_binned` permite uma visualização um pouco mais simplificada ao agrupar os dados em grupos.
+Uma função muito útil para trabalhar este tipo de dado é a `scale_*_distiller()`, que cria gradientes de cores a partir das paletas de cores do ColorBrewer, que vimos anteriormente. A cor de cada ponto no gráfico abaixo ilustra a densidade populacional de cada Zona em que os pontos mais escuros são as Zonas mais densas.
+
+```{r}
+ggplot(pod, aes(x = prop_educ_superior, y = income_avg)) +
+  geom_point(aes(color = pop_density)) +
+  scale_y_log10() +
+  scale_color_distiller(palette = 3, direction = 1)
+```
+
+A principal vantagem de trabalhar com esta função é a facilidade em testar e gerar boas escalas de cores. Os exemplos abaixo mostram algumas das aplicações. Para conhecer mais vale consultar `?scale_color_distiller`.
+
+```{r}
+#| eval: false
+base_plot <- ggplot(pod, aes(x = prop_educ_superior, y = income_avg)) +
+  geom_point(aes(color = pop_density)) +
+  scale_y_log10() +
+  guides(color = "none")
+
+#> Seleciona uma paleta de cores usando número e tipo
+base_plot + scale_color_distiller(palette = 1, type = "sequential")
+#> Seleciona uma paleta de cores usando uma abreviação (BluesGreen)
+base_plot + scale_color_distiller(palette = "BuGn")
+#> Seleciona uma paleta de cores usando uma abreviação (YellowOrangeRed)
+base_plot + scale_color_distiller(palette = "YlOrRd")
+#> Seleciona uma paleta de cores e inverte a direção
+base_plot + scale_color_distiller(palette = 1, direction = 1)
+```
+
+```{r}
+#| echo: false
+base_plot <- ggplot(pod, aes(x = prop_educ_superior, y = income_avg)) +
+  geom_point(aes(color = pop_density)) +
+  scale_y_log10() +
+  guides(color = "none")
+
+p1 <- base_plot + scale_color_distiller(palette = 1)
+p2 <- base_plot + scale_color_distiller(palette = "BuGn")
+p3 <- base_plot + scale_color_distiller(palette = "YlOrRd")
+p4 <- base_plot + scale_color_distiller(palette = 1, direction = 1)
+
+(p1 + p2) / (p3 + p4)
+```
+
+Novamente, os argumentos das funções `scale_*` são compartilhados. No exemplo abaixo, mostro como usar `breaks` dentro de `scale_color_distiller`.
+
+```{r}
+ggplot(pod, aes(x = prop_educ_superior, y = income_avg)) +
+  geom_point(aes(color = pop_density)) +
+  scale_y_log10() +
+  scale_color_distiller(
+    name = "Dens. Pop",
+    breaks = seq(50, 400, 50),
+    palette = 3,
+    direction = 1
+    )
+```
+
+A função `scale_*_binned` permite uma visualização um pouco mais simplificada de dados contínuos ao agrupar eles em grupos. Esta função não permite customizar a escolha dos grupos, mas, em geral, ela funciona muito bem. Em casos mais complexos, vale mais a pena agrupar os dados antes de visualizá-los, e então tratá-los como dados discretos. Outra opção é usar uma função que permita maior controle como `scale_color_steps` ou `scale_color_gradient`.
 
 ```{r}
 ggplot(pod, aes(x = prop_educ_superior, y = income_avg)) +
@@ -724,7 +759,7 @@ ggplot(pod, aes(x = prop_educ_superior, y = income_avg)) +
   scale_color_binned(type = "viridis")
 ```
 
-É possível usar escalas customizadas, de outras funções, usando uma função anônima.
+A função `scale_color_binned` tem apenas duas opções de cores: `"gradient"` e `"viridis"`. Contudo, ela também aceita escalas customizadas de outras funções. No exemplo abaixo mostro como utilizar uma escala do `MetBrewer`.
 
 ```{r}
 ggplot(pod, aes(x = prop_educ_superior, y = income_avg)) +
