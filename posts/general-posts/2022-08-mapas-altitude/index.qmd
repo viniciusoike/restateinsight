@@ -56,7 +56,7 @@ library(janitor)
 
 # Recife
 
-Para ganhar intuição sobre o processo vamos montar um único caso. Escolho a cidade de Recife, pois, entre as capitais, ela não é tão grande.
+Para ganhar intuição sobre o processo vamos montar um único caso. Escolho a cidade de Recife, pois ela é uma cidade relativamente pequena em termos de área física.
 
 ## Baixando os dados
 
@@ -69,7 +69,7 @@ O objetivo é gerar o mapa de altitude das maiores cidades do Brasil. Ao invés 
 ```{r}
 url = "https://pt.wikipedia.org/wiki/Lista_de_municípios_do_Brasil_por_população"
 
-tab <- xml2::read_html(url) |> 
+tab = xml2::read_html(url) |> 
   rvest::html_table() |> 
   purrr::pluck(2)
 
@@ -80,13 +80,13 @@ Este dado está um pouco sujo então eu limpo a tabela para facilitar nosso trab
 
 ```{r}
 #| code-fold: true
-as_numeric_char <- Vectorize(function(x) {
-  ls <- stringr::str_extract_all(x, "[[:digit:]]")
-  y <- paste(ls[[1]], collapse = "")
+as_numeric_char = Vectorize(function(x) {
+  ls = stringr::str_extract_all(x, "[[:digit:]]")
+  y = paste(ls[[1]], collapse = "")
   as.numeric(y)
 })
 
-clean_tab <- tab |> 
+clean_tab = tab |> 
   janitor::clean_names() |> 
   rename(
     code_muni = codigo_ibge,
@@ -102,7 +102,7 @@ clean_tab <- tab |>
     rank = rank(-pop)
   )
 
-top20 <- slice_max(clean_tab, pop, n = 20)
+top20 = slice_max(clean_tab, pop, n = 20)
 ```
 
 ```{r}
@@ -177,14 +177,14 @@ O gráfico abaixo mostra o resultado final.
 
 ```{r}
 #> Importa os dados de altitude
-altitude <- elevatr::get_elev_raster(border, z = 9, clip = "bbox")
+altitude = elevatr::get_elev_raster(border, z = 9, clip = "bbox")
 #> Converte para 'vector'
-rec_alti <- raster::rasterToPolygons(altitude)
-rec_alti <- sf::st_as_sf(rec_alti)
-names(rec_alti)[1] <- "elevation"
+rec_alti = raster::rasterToPolygons(altitude)
+rec_alti = sf::st_as_sf(rec_alti)
+names(rec_alti)[1] = "elevation"
 
 #> Converte o CRS e intersecta com os limites do município
-rec_alti <- rec_alti %>%
+rec_alti = rec_alti %>%
   st_transform(crs = 4674) %>%
   st_intersection(border) %>%
   #> Remove geometrias inválidas
@@ -219,10 +219,10 @@ A medida de distância/dissemelhança que o algoritmo usa é a soma do quadrado 
 [^4]: Existem alguns métodos que ajudam a escolher um número "ótimo" de clusters, como o "elbow method" mas vale lembrar que clustering é muito mais arte do que ciência. Clustering envolve agrupar dados semelhantes em um número finito de grupos, mas há inúmeras maneiras de definir "semelhante"; além disso, o algoritmo de clustering sempre chega num agrupamento, qualquer que seja a escolha do número de grupos. Assim, é importante frisar que estes resultados são mais explortatórios, por assim dizer.
 
 ```{r}
-jbreaks <- BAMMtools::getJenksBreaks(rec_alti$elevation, k = 7)
-jbreaks <- round(jbreaks, -1)
+jbreaks = BAMMtools::getJenksBreaks(rec_alti$elevation, k = 7)
+jbreaks = round(jbreaks, -1)
 
-rec_alti <- rec_alti %>%
+rec_alti = rec_alti %>%
   mutate(
     jenks_group = cut(elevation, jbreaks)
   )
@@ -260,7 +260,7 @@ jgroups = levels(rec_alti$jenks_group)
 jgroups = levels(rec_alti$jenks_group)
 
 
-sub <- rec_alti %>%
+sub = rec_alti %>%
   filter(jenks_group == jgroups[6]) %>%
   st_union(.) %>%
   st_as_sf()
@@ -269,7 +269,7 @@ ggplot(sub) + geom_sf()
 ```
 
 ```{r}
-substreet <- streets %>%
+substreet = streets %>%
   st_intersection(sub) %>%
   filter(st_is_valid(.))
 
@@ -301,7 +301,7 @@ ggplot(test) + geom_sf()
 ```
 
 ```{r}
-get_streets_altitude <- function(shp) {
+get_streets_altitude = function(shp) {
   
   #> Get all groups
   groups = levels(shp$jenks_group)
@@ -331,7 +331,7 @@ ggplot(rec_streets_altitude) +
 ## Mapa final
 
 ```{r}
-cores <- c(
+cores = c(
   "#ffd902", "#FFAB28", "#FF751B", "#FF3E0D", "#cc0600", "#a20d46", "#5f0078"
   )
 
@@ -363,13 +363,13 @@ A ideia geral da programação funcional é de transformar nosso código em fun�
 Funções compartimentalizam o seu ambiente de trabalho. O que acontece dentro da função, fica dentro da função.
 
 ```{r}
-dados <- data.frame(
+dados = data.frame(
   x = c("A", "A", "A", "B", "C"),
   y = c(1, 3, 7, 4, 1)
 )
 
 
-filtrar_linhas <- function(df, filter_val) {
+filtrar_linhas = function(df, filter_val) {
   
   dplyr::filter(df, x == filter_val)
   
@@ -491,12 +491,12 @@ get_streets = function(city, border) {
 ## Altitude
 
 ```{r}
-get_elevation <- function(border, z = 8) {
+get_elevation = function(border, z = 8) {
   
-  altitude <- elevatr::get_elev_raster(border, z = z, clip = "bbox")
-  altitude <- raster::rasterToPolygons(altitude)
-  altitude <- st_as_sf(altitude)
-  names(altitude)[1] <- "elevation"
+  altitude = elevatr::get_elev_raster(border, z = z, clip = "bbox")
+  altitude = raster::rasterToPolygons(altitude)
+  altitude = st_as_sf(altitude)
+  names(altitude)[1] = "elevation"
   
   altitude = st_transform(altitude, crs = 4674)
   altitude = suppressWarnings(st_intersection(altitude, border))
@@ -535,7 +535,7 @@ add_jenks_breaks = function(shp, k = 7, round = TRUE, r = 0) {
   
 }
 
-get_jenks_labels <- function(x) {
+get_jenks_labels = function(x) {
   labels = paste(x, x[-1], sep = "–")
   labels[1] = paste("<", x[2])
   labels[length(labels)] = paste(">", max(x))
@@ -546,7 +546,7 @@ get_jenks_labels <- function(x) {
 ## Juntando as partes
 
 ```{r}
-get_streets_altitude <- function(altitude, streets) {
+get_streets_altitude = function(altitude, streets) {
   
   stopifnot(any(colnames(altitude) %in% "jenks_group"))
   
@@ -638,7 +638,7 @@ showtext::showtext_auto()
 ## Uma função final
 
 ```{r}
-map_altitude <- function(city, k = 6, z = 7) {
+map_altitude = function(city, k = 6, z = 7) {
   
   #> Importa o shape do limite do município
   message("Importando os limites do município: ", city)
@@ -662,7 +662,7 @@ map_altitude <- function(city, k = 6, z = 7) {
   plot = map_plot(city_street_elevation, labels = labels, title = city)
   message("Feito.")
   #> Retorna o output numa lista
-  out <- list(
+  out = list(
     shp = city_street_elevation,
     streets = city_street,
     elevation = city_elevation,

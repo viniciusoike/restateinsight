@@ -1,9 +1,7 @@
 ---
 title: "Apêndice: manipular para enxergar"
-date: '2023-01-04'
+date: '2023-08-04'
 categories: ['data-visualization', 'ggplot2', 'tutorial-R']
-title-block-banner: true
-page-layout: article
 execute: 
   message: false
   warning: false
@@ -46,13 +44,21 @@ print_table <- function(x) {
 }
 ```
 
-O primeiro passo para montar uma visualização é ter os dados no formato certo. Em geral, isto envolve três etapas: (1) importar os dados no `R`; (2) limpar os dados; e (3) transformar os dados no formato apropriado. Neste tutorial vamos focar sobretudo na última etapa.
+# Limpeza de dados
 
-Apesar de funcionar como um repositório de pacotes, o `R` já vem com diversas funções "de fábrica" que permitem a importação e manipulação de dados. Estas funções que já vem carregadas no `R` são chamadas de funções "base". Alguns pacotes foram criados para melhorar estas funções "base".
+O primeiro passo para montar uma visualização é ter os dados no formato certo. Em geral, isto envolve três etapas: (1) importar os dados no `R`; (2) limpar os dados; e (3) transformar os dados no formato apropriado. Neste tutorial vamos focar sobretudo nas últimas duas etapas.
 
-Vamos começar instalando o conjunto de pacotes `tidyverse`. Para instalar um pacote no `R` utilizamos a função `install.packages()`. Para carregar o pacote utilizamos a função `library()` com o nome do pacote.
+Dados tabulares são armazenados dentro de objetos chamados `data.frame`. Todo gráfico de `ggplot` começa com um (ou mais) `data.frame`. Apesar de ser possível montar gráficos a partir de vetores de dados dispersos, recomendo fortemente que sempre se utilize dados dentro de `data.frame.` Isto garante um código mais organizado e menos propenso a erros.
+
+Apesar de funcionar como um repositório de pacotes, o `R` já vem com diversas funções "de fábrica" que permitem a importação e manipulação de dados.
+
+Estas funções que já vem carregadas no `R` são chamadas de funções "base". Alguns pacotes foram criados para melhorar estas funções "base".
+
+Vamos começar instalando o conjunto de pacotes `tidyverse`.
 
 ### Você tem um momento para falar sobre o `tidyverse`?
+
+O `tidyverse` é um metapacote, ele instala vários pacotes simultaneamente quando instalado e carrega múltiplos pacotes quando chamado. Estes pacotes formam uma família de pacotes que são unidos por uma filosofia e um objetivos comuns: todos os pacotes têm como objetivo a limpeza de dados e, de maneira geral, seguem o princípio de "tidy" data.
 
 ```{r, eval = FALSE}
 # Instala o pacote tidyverse
@@ -63,16 +69,214 @@ library("tidyverse")
 
 Todos os pacotes e funções que vamos utilizar serão carregados nesta única linha de código.
 
-* `readr`/`vroom` - importação e exportação de dados.
-* `dplyr` - manipulação de dados.
-* `tidyr` - manipulação de dados.
-* `stringr` - manipulacao de strings (`character`)
-* `forcats` - manipulacao de `factors`
-* `lubridate` - manipulação de datas (`Date`)
+-   `readr` - importação e exportação de dados.
+-   `dplyr` - manipulação de dados.
+-   `tidyr` - manipulação de dados.
+-   `stringr` - manipulacao de strings (`character`)
+-   `forcats` - manipulacao de `factors`
+-   `lubridate` - manipulação de datas (`Date`)
 
-## Exemplos aplicados
+O `tidyverse` inclui ainda mais pacotes, como `rvest` para webscrapping, ou `dbplyr` que permite utilizar comandos do `dplyr` em databases.
 
-### dplyr
+Numa primeira leitura, esta seção pode ser pulada sem grandes prejuízos; contudo, ela pode ser interessante numa segunda leitura ou para leitores que já tem alguma familiaridade com `tidyverse`.
+
+A filosofia geral do `tidyverse` toma muito emprestado da gramática. As funções têm nomes de verbos que costumam ser intuitivos e são encadeados via "pipes" que funcionam como conectivos numa frase. Em tese, isto torna o código mais legível e até mais didático. A tarefa de renomear colunas, criar variáveis e calcular uma média nos grupos torna-se "linear" no mesmo sentido em que uma frase com sujeito-verbo-objeto é linear.
+
+No exemplo abaixo, a função `tapply` consegue o mesmo resultado que o código mais extenso feito com `dplyr`.
+
+```{r}
+#| eval: false
+tapply(mtcars$mpg, mtcars$cyl, mean)
+
+mtcars |> 
+  group_by(cyl) |> 
+  summarise(avg = mean(cyl))
+```
+
+Há um tempo atrás argumentava-se contra o uso de "pipes", pois estes dificultavam a tarefa de encontrar bugs no código. Um "pipe" tem o mesmo efeito "linearizante": ele decompõe uma função composta de maneira ordenada.
+
+```{r}
+#| eval: false
+model <- lm(log(AirPassengers) ~ time(AirPassengers))
+
+#> Função composta
+mean(exp(fitted(model)))
+#> Usando pipes
+model |> fitted() |> exp() |> mean()
+#> Usando objetos intermediários
+x1 <- fitted(model)
+x2 <- exp(x1)
+x3 <- mean(x2)
+```
+
+A notação de uma função composta não deve apresentar grandes desafios para alguém com background quantitativo. Ainda assim, me parece que os pipes tornam o código mais legível
+
+Neste sentido, argumentava-se que cada linha de código deveria
+
+O lado negativo é que para não-falantes de inglês muitas destas "vantagens gramaticais" são despercebidas; e o resultado é somente um código "verborrágico", cheio de funções.
+
+A escolha de transformar toda pequena tarefa rotineira numa função específica é bastante deliberada. Somando os dois principais pacotes, `dplyr` e `tidyr`, há 360 funções disponíveis.
+
+## Tabelas
+
+O objeto central da análise de dados é o `data.frame`. Um `data.frame` é uma tabela bidimensional que contém informações: em geral, cada coluna é uma variável diferente e cada linha é uma observação. Este objeto possui propriedades bastante simples:
+
+1.  **Comprimento fixo**. O número de linhas de um `data.frame` é fixo, assim todas as colunas têm o mesmo comprimento.
+2.  **Homogeneidade**. Cada coluna de um `data.frame` é homogênea, isto é, contém um dado de um único tipo. Assim, uma mesma coluna não pode misturar um string e uma Data.
+3.  **Nomes**. Cada coluna tem um nome (único e idiomático). Este nome é utilizado para fazer refrência a esta coluna.
+
+Estas três características garantem a funcionalidade e consistência de um `data.frame`. O comprimento fixo e a homogeneidade, em particular, tornam este tipo de objeto muito conveniente e previsível.
+
+### Construindo tabelas
+
+Para construir um `data.frame` basta chamar a função homônima e declarar as suas colunas seguindo as três propriedades acima. Nos exemplos abaixo, ao invés da função `data.frame` vou utilizar a função `tibble` que é, essencialmente, equivalente, mas que possui algumas pequenas vantagens. No restante do texto as palavras `tibble` e `data.frame` serão utilizadas
+
+No primeiro exemplo crio uma tabela com três linhas e duas colunas
+
+```{r}
+dados <- tibble(
+  cidade = c("Porto Alegre", "São Paulo", "Salvador"),
+  pop22 = c(1.332, 11.451, 2.418)
+)
+```
+
+Para visualizar o resultado basta chamar o objeto por nome ou usar a função `print`.
+
+```{r}
+dados
+```
+
+Pode-se também criar a tabela a partir de vetores/objetos previamente declarados.
+
+```{r}
+cidades <- c("Porto Alegre", "São Paulo", "Salvador")
+populacao <- c(1.332, 11.451, 2.418)
+
+dados <- tibble(
+  nome_cidade = cidades,
+  pop22 = populacao
+)
+```
+
+Quando alguma das colunas não tiver o mesmo comprimento das demais, o `R` vai tentar "reciclar" os valores desta coluna. Em geral, isto vai causar um erro, mas em alguns casos pode funcionar. No caso abaixo o valor `"Brasil"` (de comprimento unitário) é repetido três vezes para "caber" dentro da tabela.
+
+```{r}
+dados <- tibble(
+  cidade = c("Porto Alegre", "São Paulo", "Salvador"),
+  pop22 = c(1.332, 11.451, 2.418),
+  pais = "Brasil"
+)
+
+dados
+```
+
+### Propriedades de tabelas
+
+Toda coluna de um `data.frame` possuí nomes. Para acessar os nomes usa-se `names`.
+
+```{r}
+names(dados)
+#> [1] "cidade" "pop22"  "pais"
+```
+
+Os nomes das colunas sempre devem ser únicos. Mesmo no caso em que se tenta criar uma tabela com nomes idênticos, a função `data.frame` evita que isto acontece
+
+```{r}
+tab <- data.frame(
+  a = c(1, 2, 3),
+  a = c("a", "b", "c")
+)
+
+tab
+```
+
+A função `tibble` é um pouco mais exigente e retorna um erro neste caso
+
+```{r}
+#| error: true
+tab <- tibble(
+  a = c(1, 2, 3),
+  a = c("a", "b", "c")
+)
+```
+
+Para extrair uma coluna de um `data.frame` temos duas opções. A mais simples e direta é utilizar o operador `$` e chamar o nome da coluna como se fosse um objeto. A segunda opção é utilizar `[[` e chamar o nome da coluna como um string.
+
+```{r}
+#| eval: false
+#> Extraindo uma coluna 
+
+dados$cidade
+#> [1] "Porto Alegre" "São Paulo"    "Salvador"
+
+dados[["cidade"]]
+#> [1] "Porto Alegre" "São Paulo"    "Salvador"
+```
+
+### Importando tabelas
+
+Raramente vamos declarar todas as observações de uma tabela. Na prática, é muito mais comum importar uma tabela de alguma fonte externa como de uma planilha de Excel ou de um arquivo csv. Para cada tipo de arquivo existe uma função `read_*` diferente. Importar dados costuma ser uma tarefa frustrante por três motivos:
+
+1.  Há muitos arquivos para se importar.
+2.  É difícil fazer o `R` encontrar o arquivo.
+3.  Os arquivos têm problemas (valores corrompidos, linhas vazias, etc.)
+
+Os dois primeiros problemas são simples de se resolver. Pode-se importar múltiplos arquivos ao mesmo tempo usando um loop; importar todos os arquivos dentro de uma mesma pasta é trivial, desde que os arquivos sigam o mesmo padrão.
+
+Garantir que o `R` consiga encontrar os arquivos também é simples. Idealmente, todos os arquivos externos devem estar organizados dentro de uma pasta chamada `dados` ou `data` e deve-se chamar estes dados usando funções `read_*`. Uma boa prática é sempre usar "caminhos relativos" ao invés de caminhos absolutos.
+
+```{r}
+#| eval: false
+
+#> Ruim
+dat <- read_csv("/Users/viniciusoike/Documents/GitHub/projeto/data/income.csv")
+#> Bom 
+dat <- read_csv("data/income.csv")
+#> Ainda melhor
+dat <- read_csv(here::here("data/income.csv"))
+```
+
+O terceiro problema é muito mais complexo e vai exigir mais conhecimento e prática. Em geral, resolve-se a maior parte dos problemas usando algum dos argumentos dentro da função `read_*` como:
+
+-   `skip`: Pula as primeiras k linhas.
+
+-   `na`: Define quais valores devem ser interpretados como valores ausentes.
+
+-   `col_types`: Permite que se declare explicitamente qual o tipo de dado (numérico, data, texto) que está armazenado em cada coluna.
+
+-   `col_names` ou `name_repair`: O primeiro permite que se declare explicitamente o nome que cada coluna vai ter dentro do `R` enquanto o segundo permite que se use uma função que renomeia as colunas.
+
+-   `locale`: Permite selecionar diferentes tipos de padrão de local. Em geral, usa-se `locale = locale("pt_BR")`.
+
+-   range: Este argumento só vale no caso de planilhas de Excel e permite que se importe uma seleção específica da planilha (e.g. "D4:H115")
+
+```{r}
+#| eval: false
+
+#> Input de um csv sujo
+dados <-
+'Data; Valor (R$/m2)
+"01-maio-2020";22,3
+"01-junho-2020";21,5
+"06-julho-2021";X
+"07-novembro-2022";22'
+
+#> Lendo o arquivo
+df <- read_delim(
+  I(dados) ,
+  delim = ";",
+  #> Usa , como separador decimal; lê meses em português (e.g. maio, junho, etc.)
+  locale = locale(decimal_mark = ",", date_names = "pt", date_format = "%d-%B-%Y"),
+  #> Interpreta X como valores ausentes (NA)
+  na = "x",
+  #> Renomeia as colunas
+  name_repair = janitor::clean_names
+  )
+```
+
+# Manipulando dados
+
+## O Básico
 
 O pacote `dplyr` é uma das ferramentas mais populares e úteis para manipulação de dados no R. Ele fornece uma série de funções simples e poderosas para filtrar, agrupar, modificar e resumir dados. Neste tutorial, vamos explorar algumas dessas funções e ver como elas podem ser usadas para realizar tarefas comuns de manipulação de dados.
 
@@ -87,27 +291,112 @@ df <- tibble(
 
 Agora, vamos ver algumas das funções mais úteis do dplyr:
 
-* rename(): permite renomear colunas de um tibble
-* mutate(): permite criar novas colunas baseadas em outras colunas
-* filter(): permite selecionar apenas as linhas que atendem a determinadas condições
-* arrange(): permite ordenar os dados por uma ou mais colunas
-* group_by(): permite agrupar os dados por uma ou mais colunas
-* summarise(): permite resumir os dados de várias maneiras, como fazer médias, somas, etc.
+| Nome da Função | Tradução          | O que faz                                                        |
+|---------------|---------------|------------------------------------------|
+| `rename`       | Renomear          | Modifica o nome das colunas                                      |
+| `select`       | Selecionar        | Seleciona as colunas                                             |
+| `filter`       | Filtrar           | Filtra/seleciona as linhas segundo alguma condição               |
+| `arrange`      | Arranjar/ordenar  | Ordena as linhas (crescente/decrescente) segundo alguma variável |
+| `summarise`    | Sumarisar/resumir | Aplica alguma função sobre as linhas. Cria uma tabela "resumo".  |
+| `group by`     | Agrupar           | Agrupa as linhas segundo alguma variável                         |
+|                |                   |                                                                  |
+
+As funções `rename`, `mutate`, `select` e `filter` são utilizadas para preparar e limpar os dados, enquanto as funções group_by e summarise são utilizadas para transformar/resumir os dados.
+
+```{r}
+tbl |> 
+```
+
+```{r}
+#| eval: false
+tbl <- read_csv("...")
+```
+
+```{r}
+#| include: false
+tbl <- read_csv(here::here("static/data/cities_brazil.csv"))
+```
+
+```{r}
+#| echo: false
+DT::datatable(tbl)
+```
+
+### rename
+
+Para renomear as colunas de `data.frame` usa-se a função `rename` (renomear) com `rename(tbl, novo_nome = velho_nome)`.
+
+```{r}
+#> Renomear colunas
+tbl <- rename(tbl, codigo_municipio = code_muni, pop = population)
+```
+
+Também é possível renomear colunas com auxílio de um vetor ou lista e usando ou `all_of` (todos) ou `any_of` (algum/alguns). O exemplo abaixo mostra a lógica geral: temos um vetor que indica o novo nome e o antigo nome de cada coluna que se quer trocar. Caso se queira trocar exatamente todos os nomes indicados no vetor usa-se `all_of` (mais rigoroso), caso se queira trocar todos os nomes indicados no vetor, ignorando os casos que não batem com nomes de colunas existentes, usa-se `any_of`.
+
+```{r}
+new_names <- c(
+  "codigo_municipio" = "code_muni",
+  "pop" = "population",
+  "pop_rate" = "population_growth_rate"
+  )
+
+tbl_renamed <- rename(tbl, all_of(new_names))
+```
+
+No exemplo abaixo incluo uma "nova coluna" chamada `unit` que desejo renomear para `unidade`. Usando `any_of` o retorno é exatamente igual ao caso acima, pois a função ignora a coluna inexistente `unit`.
+
+```{r}
+new_names <- c(
+  "codigo_municipio" = "code_muni",
+  "pop" = "population",
+  "pop_rate" = "population_growth_rate",
+  "unidade" = "unit"
+)
+
+tbl_renamed <- rename(tbl, any_of(new_names))
+```
+
+Já a função `all_of` é mais rigorosa e retorna um erro indicando que a coluna `unit` não existe.
+
+```{r}
+#| error: true
+tbl_renamed <- rename(tbl, all_of(new_names))
+```
+
+O uso de um vetor externo para renomear colunas é conveniente não somente porque permite melhor organizar o código; na prática, este vetor externo funciona como um **dicionário de variáveis** que pode ser inclusive utilizado para tratar várias bases de dados ou mesmo em outros códigos. Além disso, tratar o nome das colunas como strings é útil pois nos permite transformar este dado mais facilmente. Isto ficará mais evidente quando se revisar as funções do pacote `stringr`.
+
+Por fim, pode-se aplicar uma função para renomear as colunas usando `rename_with`.
+
+```{r}
+tbl_renamed <- rename_with(tbl, toupper)
+names(tbl_renamed)
+```
+
+### select
+
+### mutate
+
+### arrange
+
+### summarise e group_by
+
+## Formato dos dados
+
+# Indo mais a fundo
+
+## Strings e texto
+
+## Números e Datas
+
+## Factors
 
 Agora que temos os dados em um tibble, podemos começar a limpar e transformar os dados. O primeiro passo é verificar se os dados estão no formato tidy. O formato tidy é um padrão para organizar os dados de maneira consistente e fácil de trabalhar. Ele consiste em três regras básicas:
 
-Cada coluna deve conter apenas um tipo de variável
-Cada linha deve conter uma única observação
-Cada tipo de observação deve ter sua própria tabela
-
+Cada coluna deve conter apenas um tipo de variável Cada linha deve conter uma única observação Cada tipo de observação deve ter sua própria tabela
 
 Ambas as funções são muito úteis para criar novas colunas baseadas em condições lógicas. No entanto, é importante lembrar que a linguagem lógica do R é um pouco diferente da linguagem lógica em outras linguagens de programação. Alguns dos operadores lógicos mais comuns são:
 
-|: operador "ou"
-&: operador "e"
-!: operador "não"
-==: operador de igualdade
-Por exemplo, para verificar se um número é maior que 5 e menor que 10, podemos usar a seguinte condição:
+\|: operador "ou" &: operador "e" !: operador "não" ==: operador de igualdade Por exemplo, para verificar se um número é maior que 5 e menor que 10, podemos usar a seguinte condição:
 
 Além dessas funções, o pacote dplyr também inclui uma série de funções de agregação, como mean(), sum(), median(), sd(), var(), etc. Essas funções são muito úteis quando usamos group_by() e summarise() para resumir os dados.
 
@@ -118,7 +407,6 @@ df <- tibble(
   value_2 = c(15, 25, 35)
 )
 ```
-
 
 ```{r}
 df
@@ -135,7 +423,3 @@ pivot_longer(data = df, cols = -id)
 ```{r}
 pivot_longer(data = df, cols = starts_with("value"))
 ```
-
-
-
-
