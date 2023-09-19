@@ -1,0 +1,1041 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.3.450">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+<meta name="author" content="Vinicius Oike">
+<meta name="dcterms.date" content="2023-09-20">
+<meta name="description" content="Toda análise de dados passa por tarefas de rotina: importar dados, trocar nomes de colunas, remover observações vazias, etc. Por que não facilitar a sua vida e tornar essas tarefas simples?">
+
+<title>Vinicius Oike - Importando arquivos, visualizando linhas</title>
+<style>
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+</style>
+
+
+<script src="../../../site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="../../../site_libs/quarto-nav/headroom.min.js"></script>
+<script src="../../../site_libs/clipboard/clipboard.min.js"></script>
+<script src="../../../site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="../../../site_libs/quarto-search/fuse.min.js"></script>
+<script src="../../../site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="../../../">
+<script src="../../../site_libs/quarto-html/quarto.js"></script>
+<script src="../../../site_libs/quarto-html/popper.min.js"></script>
+<script src="../../../site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="../../../site_libs/quarto-html/anchor.min.js"></script>
+<link href="../../../site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="../../../site_libs/quarto-html/quarto-syntax-highlighting.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="../../../site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="../../../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="../../../site_libs/bootstrap/bootstrap.min.css" rel="stylesheet" id="quarto-bootstrap" data-mode="light">
+<script id="quarto-search-options" type="application/json">{
+  "location": "navbar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "end",
+  "type": "overlay",
+  "limit": 20,
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit",
+    "search-label": "Search"
+  }
+}</script>
+<script async="" src="https://www.googletagmanager.com/gtag/js?id=G-EJF8PGT67H"></script>
+
+<script type="text/javascript">
+
+window.dataLayer = window.dataLayer || [];
+function gtag(){dataLayer.push(arguments);}
+gtag('js', new Date());
+gtag('config', 'G-EJF8PGT67H', { 'anonymize_ip': true});
+</script>
+
+
+<link rel="stylesheet" href="../../../styles.css">
+</head>
+
+<body class="nav-fixed">
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top">
+    <nav class="navbar navbar-expand-lg navbar-dark ">
+      <div class="navbar-container container-fluid">
+      <div class="navbar-brand-container">
+    <a class="navbar-brand" href="../../../index.html">
+    <span class="navbar-title">Vinicius Oike</span>
+    </a>
+  </div>
+            <div id="quarto-search" class="" title="Search"></div>
+          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" aria-expanded="false" aria-label="Toggle navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+  <span class="navbar-toggler-icon"></span>
+</button>
+          <div class="collapse navbar-collapse" id="navbarCollapse">
+            <ul class="navbar-nav navbar-nav-scroll ms-auto">
+  <li class="nav-item">
+    <a class="nav-link" href="../../../blog.html" rel="" target="">
+ <span class="menu-text">Blog</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../../../aboutme.html" rel="" target="">
+ <span class="menu-text">Sobre</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../../../my_apps.html" rel="" target="">
+ <span class="menu-text">Apps</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../../../press.html" rel="" target="">
+ <span class="menu-text">Imprensa</span></a>
+  </li>  
+  <li class="nav-item compact">
+    <a class="nav-link" href="https://github.com/viniciusoike" rel="" target=""><i class="bi bi-github" role="img">
+</i> 
+ <span class="menu-text"></span></a>
+  </li>  
+  <li class="nav-item compact">
+    <a class="nav-link" href="https://twitter.com/viniciusoike" rel="" target=""><i class="bi bi-twitter" role="img">
+</i> 
+ <span class="menu-text"></span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../../../archive.html" rel="" target="">
+ <span class="menu-text">Archive</span></a>
+  </li>  
+</ul>
+            <div class="quarto-navbar-tools">
+</div>
+          </div> <!-- /navcollapse -->
+      </div> <!-- /container-fluid -->
+    </nav>
+</header>
+<!-- content -->
+<header id="title-block-header" class="quarto-title-block default page-columns page-full">
+  <div class="quarto-title-banner page-columns page-full">
+    <div class="quarto-title column-body">
+      <h1 class="title">Importando arquivos, visualizando linhas</h1>
+                  <div>
+        <div class="description">
+          Toda análise de dados passa por tarefas de rotina: importar dados, trocar nomes de colunas, remover observações vazias, etc. Por que não facilitar a sua vida e tornar essas tarefas simples?
+        </div>
+      </div>
+                          <div class="quarto-categories">
+                <div class="quarto-category">tutorial-R</div>
+                <div class="quarto-category">data-science</div>
+              </div>
+                  </div>
+  </div>
+    
+  
+  <div class="quarto-title-meta">
+
+      <div>
+      <div class="quarto-title-meta-heading">Author</div>
+      <div class="quarto-title-meta-contents">
+               <p>Vinicius Oike </p>
+            </div>
+    </div>
+      
+      <div>
+      <div class="quarto-title-meta-heading">Published</div>
+      <div class="quarto-title-meta-contents">
+        <p class="date">September 20, 2023</p>
+      </div>
+    </div>
+    
+      
+    </div>
+    
+  
+  </header><div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article page-navbar">
+<!-- sidebar -->
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">On this page</h2>
+   
+  <ul>
+  <li><a href="#o-problema" id="toc-o-problema" class="nav-link active" data-scroll-target="#o-problema">O problema</a></li>
+  <li><a href="#a-solução-simples" id="toc-a-solução-simples" class="nav-link" data-scroll-target="#a-solução-simples">A solução simples</a></li>
+  <li><a href="#importando-arquivos" id="toc-importando-arquivos" class="nav-link" data-scroll-target="#importando-arquivos">Importando arquivos</a>
+  <ul class="collapse">
+  <li><a href="#a-solução-correta" id="toc-a-solução-correta" class="nav-link" data-scroll-target="#a-solução-correta">A solução correta</a>
+  <ul class="collapse">
+  <li><a href="#sobre-csvs" id="toc-sobre-csvs" class="nav-link" data-scroll-target="#sobre-csvs">Sobre csvs</a></li>
+  <li><a href="#mais-controle" id="toc-mais-controle" class="nav-link" data-scroll-target="#mais-controle">Mais controle</a></li>
+  </ul></li>
+  <li><a href="#importando-arquivos-o-atalho" id="toc-importando-arquivos-o-atalho" class="nav-link" data-scroll-target="#importando-arquivos-o-atalho">Importando arquivos: o atalho</a></li>
+  <li><a href="#escrevendo-paths-relativos-com-here" id="toc-escrevendo-paths-relativos-com-here" class="nav-link" data-scroll-target="#escrevendo-paths-relativos-com-here">Escrevendo paths relativos com here</a></li>
+  <li><a href="#importando-todos-os-arquivos-de-de-uma-pasta" id="toc-importando-todos-os-arquivos-de-de-uma-pasta" class="nav-link" data-scroll-target="#importando-todos-os-arquivos-de-de-uma-pasta">Importando todos os arquivos de de uma pasta</a></li>
+  </ul></li>
+  <li><a href="#corrigindo-nomes-de-variáveis" id="toc-corrigindo-nomes-de-variáveis" class="nav-link" data-scroll-target="#corrigindo-nomes-de-variáveis">Corrigindo nomes de variáveis</a></li>
+  <li><a href="#enxergando-os-dados" id="toc-enxergando-os-dados" class="nav-link" data-scroll-target="#enxergando-os-dados">Enxergando os dados</a>
+  <ul class="collapse">
+  <li><a href="#olhando-seus-dados-no-excel" id="toc-olhando-seus-dados-no-excel" class="nav-link" data-scroll-target="#olhando-seus-dados-no-excel">Olhando seus dados no Excel</a></li>
+  </ul></li>
+  <li><a href="#resumo" id="toc-resumo" class="nav-link" data-scroll-target="#resumo">Resumo</a></li>
+  </ul>
+</nav>
+    </div>
+<!-- main -->
+<main class="content quarto-banner-title-block" id="quarto-document-content">
+
+
+
+
+<section id="o-problema" class="level1">
+<h1>O problema</h1>
+<p>Uma das minhas maiores dificuldades quando comecei a mexer com <code>R</code> era conseguir importar a minha base de dados. Em geral, eu tinha um ou vários arquivos <code>.csv</code> ou planilhas <code>.xlsx</code> que precisavam ser importador para o <code>R</code>. Eu tinha três dificuldades</p>
+<ol type="1">
+<li>Saber qual a função que eu precisava usar.</li>
+<li>Escrever o caminho até o arquivo específico (qualquer errinho e já não funcionava!).</li>
+<li>Calibrar os argumentos na hora de importar.</li>
+</ol>
+<p>Depois de muito esforço eu conseguia importar os dados, mas logo surgia ourto problema: o nome das variáveis vinha num formato muito ruim para trabalhar. No <code>R</code>, idealmente as variáveis são todas:</p>
+<ol type="1">
+<li>Minúsculas</li>
+<li>Não tem acento nem caracteres especiais como <code>$</code>, <code>%</code>, etc.</li>
+<li>Não tem espaços</li>
+<li>Não começa com números</li>
+</ol>
+<p>Isso evita inúmeros problemas e facilita muito na hora de escrever o código.</p>
+<p>Por fim, eu tinha bastante dificuldade de “enxergar os dados” mesmo depois de ter importado eles. No caso de uma planilha de Excel eu poderia simplesmente abrir ela e explorar um pouco. Já se a base de dados fosse em formato <code>dta</code> ou <code>sav</code> isso já não era tão simples, pois eu não tinha Stata e nem SPSS no meu computador.</p>
+<p>Tudo isso me desanimava quando comecei a mexer com <code>R</code> e vejo que isso é um daqueles obstáculos idiotas que acabam segurando muita gente de fazer a transição para o <code>R</code>. É o tipo de problema (que parece) simples, mas que na verdade é difícil de resolver e que faz com que você se sinta burro e fique frustrado.</p>
+<p>Neste post vou te dar algumas dicas de como lidar com todos estes passos. É o post que eu gostaria de poder enviar para mim mesmo no passado.</p>
+</section>
+<section id="a-solução-simples" class="level1">
+<h1>A solução simples</h1>
+<p>O roteiro de como melhorar a sua vida no <code>R</code>:</p>
+<ol type="1">
+<li>Importar usando <code>rio::import()</code></li>
+<li>Escrever paths relativos usando <code>here::here()</code></li>
+<li>Corrigir os nomes das colunas usando <code>janitor::clean_names()</code></li>
+<li>Visualizar usando <code>View()</code>, <code>dplyr::glimpse()</code>, <code>skimr::skim()</code> ou <code>show_in_excel()</code> (ver abaixo)</li>
+<li>Exportar usando <code>rio::export()</code></li>
+</ol>
+<p>Agora, vamos aos detalhes.</p>
+</section>
+<section id="importando-arquivos" class="level1">
+<h1>Importando arquivos</h1>
+<p>Lembrando os problemas de importar arquivos:</p>
+<ol type="1">
+<li>Saber qual a função usar.</li>
+<li>Escrever o caminho até o arquivo específico (qualquer errinho e já dava erro!).</li>
+<li>Calibrar os argumentos na hora de importar.</li>
+<li>Às vezes é preciso importar vários arquivos de uma mesma pasta e juntá-los todos num único objeto.</li>
+</ol>
+<p>Este problema era tão chato de se resolver que eu acabava dependendo de uma facilidade do RStudio, que ajuda a importar uma base de dados, o botão Import Dataset. Eu fazia os comandos clicando e depois copiava o comando que aparecia no console no meu código.</p>
+<p>Isso não era uma solução prática e eu queria a solução “correta”: queria escrever o código certo para importar os dados.</p>
+<p>A solução para os problemas acima:</p>
+<ol type="1">
+<li>Aprender todas as funções para importar arquivos (leva tempo…)</li>
+<li>Escrever <em>paths</em> relativos e usar a tecla <code>tab</code> dentro do RStudio (funciona com autocomplete!)</li>
+<li>Aprender todas os argumentos das funções para importar arquivos (mais tempo ainda…).</li>
+<li>Ver abaixo</li>
+</ol>
+<p>Ainda que no longo prazo acho que seja importante saber todas as funções o propósito aqui é te ajudar um pouco então vamos com duas soluções.</p>
+<section id="a-solução-correta" class="level2">
+<h2 class="anchored" data-anchor-id="a-solução-correta">A solução correta</h2>
+<p>A tabela abaixo resume as principais funções que você provavelmente vai ter que usar.</p>
+<table class="table">
+<colgroup>
+<col style="width: 24%">
+<col style="width: 27%">
+<col style="width: 24%">
+<col style="width: 24%">
+</colgroup>
+<thead>
+<tr class="header">
+<th style="text-align: center;">Formato</th>
+<th style="text-align: center;">Extensao</th>
+<th style="text-align: center;">Importar</th>
+<th style="text-align: center;">Exportar</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: center;">Excel</td>
+<td style="text-align: center;"><code>xls</code>, <code>xlsx</code></td>
+<td style="text-align: center;"><code>readxl::read_excel()</code></td>
+<td style="text-align: center;"><code>xlsx::write.xlsx()</code></td>
+</tr>
+<tr class="even">
+<td style="text-align: center;">Separados</td>
+<td style="text-align: center;"><code>csv</code>, <code>tsv</code>, <code>psv</code>, <code>csvy</code></td>
+<td style="text-align: center;"><code>data.table::fread()</code></td>
+<td style="text-align: center;"><code>data.table::fwrite()</code></td>
+</tr>
+<tr class="odd">
+<td style="text-align: center;">Stata</td>
+<td style="text-align: center;"><code>dta</code></td>
+<td style="text-align: center;"><code>haven::read_dta()</code></td>
+<td style="text-align: center;"><code>haven::write_dta()</code></td>
+</tr>
+<tr class="even">
+<td style="text-align: center;">SPSS</td>
+<td style="text-align: center;"><code>sav</code></td>
+<td style="text-align: center;"><code>haven::read_sav()</code></td>
+<td style="text-align: center;"><code>haven::write_sav()</code></td>
+</tr>
+<tr class="odd">
+<td style="text-align: center;">Shapefiles</td>
+<td style="text-align: center;"><code>shp</code>, <code>geosjon</code>, <code>gpkg</code>, etc.</td>
+<td style="text-align: center;"><code>sf::st_read()</code></td>
+<td style="text-align: center;"><code>sf::st_write()</code></td>
+</tr>
+</tbody>
+</table>
+<p>OBS: Caso não esteja familiarizado com esta sintaxe, aqui <code>readxl</code> é o nome do pacote, <code>read_excel()</code> é a funcão e o <code>::</code> indica que eu quero a função <code>read_excel</code> do pacote <code>readxl</code>. Em geral, é comum omitir a parte do <code>nomepacote::</code> porque acaba sendo desnecessário (exceto no caso de conflitos de funções que têm o mesmo nome).</p>
+<section id="sobre-csvs" class="level3">
+<h3 class="anchored" data-anchor-id="sobre-csvs">Sobre csvs</h3>
+<p>Vale uma nota: existem várias alternativas para importar arquivos <code>csv</code>, várias alternativas mesmo. Eu recomendo evitar, na medida do possível as funções base e usar as funções equivalentes do <code>readr</code>. Então, por exemplo, ao invés de usar <code>read.csv</code> use <code>readr::read_csv</code>. Esta é uma boa decisão por dois motivos: (1) a função <code>read_csv</code> é considervalmente mais rápida e versátil; (2) os argumentos da funções <code>read_*</code> do pacote <code>readr</code> são todos padronizados e são muito similares aos argumentos do <code>read_excel</code> e das funções <code>read_*</code> do pacote <code>haven</code>.</p>
+<p>Na verdade, o combo <code>readr</code> + <code>readxl</code> + <code>haven</code> costuma ser ideal. Pois todas as funções são rápidas e compartilham uma estrutura muito similar.</p>
+<p>Mesmo assim, eu ainda recomendo muito o <code>data.table::fread()</code><a href="#fn1" class="footnote-ref" id="fnref1" role="doc-noteref"><sup>1</sup></a> na hora de importar qualquer arquivo “separado” (<code>csv</code>, <code>tsv</code>, <code>psv</code>, etc.)<a href="#fn2" class="footnote-ref" id="fnref2" role="doc-noteref"><sup>2</sup></a>. Esta função é extremamente rápida, aloca os dados na memória de maneira eficiente e simplesmente funciona. Mesmo sem nenhum argumento adicional ela é muito boa na hora de adivinhar o tipo de separador utilizado e e tipo de dado em cada coluna.</p>
+<p>Um problema bem chato é que arquivos <code>csv</code> de fontes brasileiras costumam ser separadas por <code>;</code> e usam a <code>,</code> como quebra de decimal, ao contrário dos <code>csv</code> de fontes dos EUA que usam a <code>,</code> como separador e <code>.</code> como quebra de decimal. E tem outros ainda que misturam vários outros tipos de separadores e como resultado existem mil funções <code>read_csv</code>, <code>read_csv2</code>, <code>read_delim</code>, etc. para lidar com isso.</p>
+<p>O mesmo vale na hora de exportar arquivos. Apesar de ter recomendado o <code>data.table::fwrite</code> na tabela acima, vale notar que funções como <code>readr::write_excel_csv2()</code> podem ser muito úteis caso seu objetivo seja exportar um csv que vai ser consumido por um usuário brasileiro numa planilha de Excel.</p>
+</section>
+<section id="mais-controle" class="level3">
+<h3 class="anchored" data-anchor-id="mais-controle">Mais controle</h3>
+<p>A prática faz a perfeição na hora de importar arquivos problemáticos. Como comentei acima, uma das vantagens de se ater ao combo <code>readr</code> + <code>readxl</code> + <code>haven</code> é que os argumentos adicionais destas funções seguem o mesmo padrão.</p>
+<ul>
+<li><p><code>skip = k</code>: Pula as primeiras k linhas.</p></li>
+<li><p><code>na</code>: Define quais valores devem ser interpretados como valores ausentes.</p></li>
+<li><p><code>col_types</code>: Permite que se declare explicitamente qual o tipo de dado (numérico, data, texto) que está armazenado em cada coluna.</p></li>
+<li><p><code>col_names</code> ou <code>name_repair</code>: O primeiro permite que se declare explicitamente o nome que cada coluna vai ter dentro do <code>R</code> enquanto o segundo permite que se use uma função que renomeia as colunas.</p></li>
+<li><p><code>locale</code>: Permite selecionar diferentes tipos de padrão de local. Em geral, usa-se <code>locale = locale("pt_BR")</code>.</p></li>
+<li><p>range: Este argumento só vale no caso de planilhas de Excel e permite que se importe uma seleção específica da planilha (e.g.&nbsp;“D4:H115”)</p></li>
+</ul>
+<p>O código abaixo mostra como importar um csv bastante sujo. Veremos detalhes sobre a função <code>janitor::clean_names</code> mais adiante.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb1"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Input de um csv sujo</span></span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>dados <span class="ot">&lt;-</span></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="st">'Data; Valor (R$/m2)</span></span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="st">"01-maio-2020";22,3</span></span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="st">"01-junho-2020";21,5</span></span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a><span class="st">"06-julho-2021";X</span></span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a><span class="st">"07-novembro-2022";22'</span></span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Lendo o arquivo</span></span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a>df <span class="ot">&lt;-</span> <span class="fu">read_delim</span>(</span>
+<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a>  <span class="co">#&gt; Substitua esta linha pelo 'path' até o csv</span></span>
+<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a>  <span class="fu">I</span>(dados),</span>
+<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a>  <span class="at">delim =</span> <span class="st">";"</span>,</span>
+<span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a>  <span class="co">#&gt; Usa , como separador decimal; lê meses em português (e.g. maio, junho, etc.)</span></span>
+<span id="cb1-15"><a href="#cb1-15" aria-hidden="true" tabindex="-1"></a>  <span class="at">locale =</span> <span class="fu">locale</span>(<span class="at">decimal_mark =</span> <span class="st">","</span>, <span class="at">date_names =</span> <span class="st">"pt"</span>, <span class="at">date_format =</span> <span class="st">"%d-%B-%Y"</span>),</span>
+<span id="cb1-16"><a href="#cb1-16" aria-hidden="true" tabindex="-1"></a>  <span class="co">#&gt; Interpreta X como valores ausentes (NA)</span></span>
+<span id="cb1-17"><a href="#cb1-17" aria-hidden="true" tabindex="-1"></a>  <span class="at">na =</span> <span class="st">"X"</span>,</span>
+<span id="cb1-18"><a href="#cb1-18" aria-hidden="true" tabindex="-1"></a>  <span class="co">#&gt; Renomeia as colunas</span></span>
+<span id="cb1-19"><a href="#cb1-19" aria-hidden="true" tabindex="-1"></a>  <span class="at">name_repair =</span> janitor<span class="sc">::</span>clean_names</span>
+<span id="cb1-20"><a href="#cb1-20" aria-hidden="true" tabindex="-1"></a>  )</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+</section>
+</section>
+<section id="importando-arquivos-o-atalho" class="level2">
+<h2 class="anchored" data-anchor-id="importando-arquivos-o-atalho">Importando arquivos: o atalho</h2>
+<p>Uma função muito prática que inicialmente contorna esses problemas é a <code>rio::import()</code>.</p>
+<p>A função <code>rio::import()</code> simplesmente importa seus dados e funciona com boa parte das extensões mais populares. Na prática, ela é uma função “facilitadora”. Por baixo dos panos, ela está chamando a função correta para o caso específico.</p>
+<p><a href="https://cran.r-project.org/web/packages/rio/vignettes/rio.html">Este site</a> mostra exatamente qual função de qual pacote ele utiliza para importar os dados. A lista é bem completa e inclui bases do Minitab, Matlab, EViews, etc. Spoiler: <code>data.table::fread()</code> é utilizada para importar arquivos <code>csv</code>, <code>psv</code> e <code>tsv</code>.</p>
+<p>O par da função <code>rio::import</code> é a <code>rio::export</code> e serve justamente para exportar bases de dados do <code>R</code> para o formato desejado.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb2"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>data <span class="ot">&lt;-</span> rio<span class="sc">::</span><span class="fu">import</span>(<span class="st">"data/meus_dados.dta"</span>)</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>rio<span class="sc">::</span><span class="fu">export</span>(mtcars, <span class="st">"data/mtcars.csv"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>O único problema desta função é quando seus arquivos não estão num formato muito bacana. Ainda assim, é possível fornecer argumentos adicionais à função <code>import</code> e consultar qual função está sendo usada consultando a documentação <code>help(import)</code>.</p>
+</section>
+<section id="escrevendo-paths-relativos-com-here" class="level2">
+<h2 class="anchored" data-anchor-id="escrevendo-paths-relativos-com-here">Escrevendo paths relativos com here</h2>
+<p>Um problema bem sério que eu enfrentava nos meus códigos era escrever o path até os arquivos externos. Primeiro, eu achava muito trabalhoso escrever ele inteiro. Depois, quando eu mandava meu código para outra pessoa, ou quando eu mesmo ia executar o meu código em outro computador, nada funcionava!</p>
+<p>O primeiro passo para lidar com isso é trabalhar com projetos do RStudio. O melhor workflow é sempre começar seu trabalho num projeto novo e deixar todos os arquivos necessários neste mesmo diretório. Isso facilita na hora de escrever paths relativos.</p>
+<p>Paths relativos, ao contrário de paths absolutos, começam no seu diretório da seguinte forma: <code>"data/subpasta/meus_dados.xlsx"</code>.</p>
+<p>É bem diferente de um path absoluto: <code>/Users/nome_do_usuario/Documentos/meus_projetos/Projeto 1/data/subpasta/meus_dados.xlsx</code>.</p>
+<p>Usar paths absolutos no seu código é garantir que a única pessoa que conseguirá reproduzir ele com sucesso será você, e unicamente no computador em que você escreveu ele (isso se você não formatar ele!).</p>
+<p>Aqui entra o pacote <code>here</code>, um pacotinho muito simples, centrado em uma única função homônima.</p>
+<p>A função <code>here</code> funciona de duas maneiras bastante simples</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb3"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(here)</span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(haven)</span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>meus_dados <span class="ot">&lt;-</span> <span class="fu">read_dta</span>(<span class="fu">here</span>(<span class="st">"data/subpasta/minha_base.dta"</span>))</span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a>meus_dados <span class="ot">&lt;-</span> <span class="fu">read_dta</span>(<span class="fu">here</span>(<span class="st">"data"</span>, <span class="st">"subpasta"</span>, <span class="st">"minha_base.dta"</span>))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>A segunda forma de sintaxe é muito útil na hora de criar paths. Isto será muito conveniente depois, quando formos importar vários arquivos de uma mesma pasta.</p>
+<p>A seguinte ilustração que serve de capa do projeto do <code>here</code> resume muito bem a sua utilidade.</p>
+<div class="cell">
+<div class="cell-output-display">
+<p><img src="../../../static/images/here.png" class="img-fluid" width="1386"></p>
+</div>
+</div>
+<p>Existe um mal hábito dissemeniado de incluir uma linha com <code>setwd("insira_seu_diretorio")</code> no início de todo código. Eu garanto que todo tipo de problema imaginável e inimaginável acontece com pessoas que fazem isso.</p>
+<p>O <code>here</code> simplesmente funciona e funciona com tudo. Ele é especialmente útil na hora de escrever scripts em RMarkdown e Quarto. O pacote <code>here</code> é talvez o único que esteja presente em todos os meus projetos e em todos os meus códigos.</p>
+<p>Outra dica boa para manter seus projetos organizados é de evitar colocar espaços ou caracteres especiais no nome das suas pastas. Em geral, o <code>R</code> consegue lidar bem com isso, mas volta e meia este mau hábito pode gerar problemas inesperados.</p>
+</section>
+<section id="importando-todos-os-arquivos-de-de-uma-pasta" class="level2">
+<h2 class="anchored" data-anchor-id="importando-todos-os-arquivos-de-de-uma-pasta">Importando todos os arquivos de de uma pasta</h2>
+<p>Este é um problema bastante recorrente e que é fácil de resolver usando <code>here</code> e funções base.</p>
+<p>Imagine que você tem vários arquivos <code>.csv</code> numa pasta e os arquivos estão na seguinte estrutura: <code>Dados/inflacao/2012/</code> e aí cada <code>csv</code> individual é um arquivo mensal (com nomes potencialmente fora de padrão) com os dados de inflação mensal por produto. Algo como <code>2012_jan.csv</code>, <code>2012fevereiro.csv</code>, etc.</p>
+<p>A estrutura do código para importar tudo isso no <code>R</code> é bastante simples.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb4"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(here)</span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a><span class="co"># Define o diretório</span></span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>dir <span class="ot">&lt;-</span> <span class="fu">here</span>(<span class="st">"Dados/inflacao/2012"</span>)</span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Encontra o nome de todos os arquivos com extensão csv nesta pasta</span></span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a>filenames <span class="ot">&lt;-</span> <span class="fu">list.files</span>(dir, <span class="at">pattern =</span> <span class="st">"</span><span class="sc">\\</span><span class="st">.csv$"</span>)</span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a><span class="co"># Define o path até cada um dos arquivos</span></span>
+<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a>pathfiles <span class="ot">&lt;-</span> <span class="fu">here</span>(dir, filenames)</span>
+<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a><span class="co"># Importa todos os csv usando fread</span></span>
+<span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a>data <span class="ot">&lt;-</span> <span class="fu">lapply</span>(pathfiles, data.table<span class="sc">::</span>fread)</span>
+<span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-11"><a href="#cb4-11" aria-hidden="true" tabindex="-1"></a><span class="co"># Opcionalmente, empilha todos os resultados e cria uma coluna que identifica</span></span>
+<span id="cb4-12"><a href="#cb4-12" aria-hidden="true" tabindex="-1"></a><span class="co"># de qual o arquivo a observação pertence</span></span>
+<span id="cb4-13"><a href="#cb4-13" aria-hidden="true" tabindex="-1"></a><span class="fu">names</span>(data) <span class="ot">&lt;-</span> <span class="fu">basename</span>(pathfiles)</span>
+<span id="cb4-14"><a href="#cb4-14" aria-hidden="true" tabindex="-1"></a>empilhado <span class="ot">&lt;-</span> data.table<span class="sc">::</span><span class="fu">rbindlist</span>(data, <span class="at">idcol =</span> <span class="st">"nome_arquivo"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>Uma maneira ainda mais sucinta de escrever o código seria omitindo os objetos intermediários e simplesmente empilhando o resultado final.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb5"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Define o path até cada um dos arquivos</span></span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>pathfiles <span class="ot">&lt;-</span> <span class="fu">list.files</span>(</span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">here</span>(<span class="st">"Dados/inflacao/2012"</span>),</span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">pattern =</span> <span class="st">"</span><span class="sc">\\</span><span class="st">.csv$"</span>,</span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">full.names =</span> <span class="cn">TRUE</span></span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a><span class="co"># Importa todos os csv usando fread</span></span>
+<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a>files <span class="ot">&lt;-</span> <span class="fu">lapply</span>(pathfiles, data.table<span class="sc">::</span>fread)</span>
+<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a><span class="co"># Empilha todos os resultados</span></span>
+<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a>dat <span class="ot">&lt;-</span> data.table<span class="sc">::</span><span class="fu">rbindlist</span>(files)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+</section>
+</section>
+<section id="corrigindo-nomes-de-variáveis" class="level1">
+<h1>Corrigindo nomes de variáveis</h1>
+<p>O nome das colunas da nossa base de dados é muito importante, pois no <code>R</code> acabamos usando elas com muita frequência. Tanto para quem usa <code>data.table</code> como para os adeptos do <code>tidyverse</code>, o nome das colunas, na prática, acaba sendo usando como um objeto dentro das funções, então é importante que esse nome seja fácil de digitar.</p>
+<p>Lembrando que, idealmente, os nomes das colunas e também dos objetos que criamos devem ser:</p>
+<ol type="1">
+<li>Minúsculos</li>
+<li>Sem acento e nem caracteres especiais como <code>$</code>, <code>%</code>, etc.</li>
+<li>Sem espaços</li>
+<li>Sem números no começo</li>
+</ol>
+<p>Outro ponto, um pouco óbvio, é que há nomes que devemos evitar na hora de nomear nossas colunas como: <code>FALSE</code>, <code>if</code>, <code>TRUE</code>, <code>for</code>, <code>Inf</code>, etc.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb6"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Bons nomes</span></span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>nm <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="st">"inflacao"</span>, <span class="st">"pib"</span>, <span class="st">"cambio"</span>)</span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>nm <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="st">"inflacao_percentual"</span>, <span class="st">"pib_reais_correntes"</span>, <span class="st">"cambio_mensal"</span>)</span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a><span class="co"># Nomes ruins</span></span>
+<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a>nmRuIm <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="st">"Inflação (%)"</span>, <span class="st">"Produto Interno Bruto (R$)"</span>, <span class="st">"Câmbio (Mensal)"</span>)</span>
+<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a>nmRuIm <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="st">"INFLAÇÃO"</span>, <span class="st">"PIB"</span>, <span class="st">"CÂMBIO (MÊS)"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>A função <code>janitor::clean_names()</code> segue, essencialmente, esses princípios e pode ser aplicada diretamente num <code>data.frame</code>. O resultado é uma base com nomes “limpos”. Considere o exemplo abaixo de um arquivo csv com nomes muito ruins.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb7"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>csv <span class="ot">&lt;-</span> <span class="st">"</span></span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a><span class="st">AnoMesDia;Inflação (%);Produto Interno Bruto;DESEMPREGO</span></span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a><span class="st">2023-01-01;0.055;0.75;0.1132</span></span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a><span class="st">2023-04-01;0.045;0.50;0.1051</span></span>
+<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a><span class="st">2023-07-01;0.065;0.68;0.1000</span></span>
+<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a><span class="st">2023-10-01;0.050;1.12;0.9512</span></span>
+<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a><span class="st">"</span></span>
+<span id="cb7-8"><a href="#cb7-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-9"><a href="#cb7-9" aria-hidden="true" tabindex="-1"></a>data <span class="ot">&lt;-</span> data.table<span class="sc">::</span><span class="fu">fread</span>(<span class="fu">I</span>(csv))</span>
+<span id="cb7-10"><a href="#cb7-10" aria-hidden="true" tabindex="-1"></a><span class="fu">head</span>(data)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>    AnoMesDia Inflação (%) Produto Interno Bruto DESEMPREGO
+1: 2023-01-01        0.055                  0.75     0.1132
+2: 2023-04-01        0.045                  0.50     0.1051
+3: 2023-07-01        0.065                  0.68     0.1000
+4: 2023-10-01        0.050                  1.12     0.9512</code></pre>
+</div>
+</div>
+<p>Note que selecionar uma coluna se torna bem inconveniente e somos forçados a cercar o nome com esse <em>apostrophe</em>.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb9"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>data<span class="sc">$</span><span class="st">`</span><span class="at">Inflação (%)</span><span class="st">`</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>[1] 0.055 0.045 0.065 0.050</code></pre>
+</div>
+</div>
+<p>Normalmente, seria necessário usar uma série de funções para, primeiro remover os acentos, depois tirar os parêntesis, depois converter os caracteres para minúsculos e aí substituir os espaços por subscrito.</p>
+<p>A função <code>janitor::clean_names</code> faz tudo isso numa única linha de código. Além disso, como o argumento da função é um <code>data.frame</code>, ela pode ser usada diretamente no início do seu pipe</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb11"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a>clean_data <span class="ot">&lt;-</span> janitor<span class="sc">::</span><span class="fu">clean_names</span>(data)</span>
+<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a><span class="fu">head</span>(clean_data)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>   ano_mes_dia inflacao_percent produto_interno_bruto desemprego
+1:  2023-01-01            0.055                  0.75     0.1132
+2:  2023-04-01            0.045                  0.50     0.1051
+3:  2023-07-01            0.065                  0.68     0.1000
+4:  2023-10-01            0.050                  1.12     0.9512</code></pre>
+</div>
+</div>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb13"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(dplyr)</span>
+<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a>data <span class="sc">|&gt;</span> </span>
+<span id="cb13-4"><a href="#cb13-4" aria-hidden="true" tabindex="-1"></a>  janitor<span class="sc">::</span><span class="fu">clean_names</span>() <span class="sc">|&gt;</span> </span>
+<span id="cb13-5"><a href="#cb13-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(inflacao_percent <span class="sc">&lt;</span> <span class="fl">0.06</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>   ano_mes_dia inflacao_percent produto_interno_bruto desemprego
+1:  2023-01-01            0.055                  0.75     0.1132
+2:  2023-04-01            0.045                  0.50     0.1051
+3:  2023-10-01            0.050                  1.12     0.9512</code></pre>
+</div>
+</div>
+</section>
+<section id="enxergando-os-dados" class="level1">
+<h1>Enxergando os dados</h1>
+<p>Por fim, vamos discutir rapidamente algumas formas de rapidamente olhar seus dados. Aqui, temos várias opções. A maneira mais simples seria usar a função <code>head()</code> que mostra as primeiras dez linhas da base de dados. Se a base não for muito grande, podemos usar a função <code>View()</code>. Quando usada dentro do RStudio funciona quase como um Excel, permite enxergar todas as linhas, ordenar por colunas, etc.</p>
+<p>Há pacotes que oferecem soluções simples para enxergar rapidamente uma base de dados. Da mais simples para a mais complexa, temos: <code>dplyr::glimpse()</code>, <code>summarytools::descr()</code> e <code>skmir::skim()</code></p>
+<p>Abaixo mostro a saída dessas três funções na base de dados <code>iris</code>. A primeira saída é bastante simples, mostra a dimensão da base (número de linhas e colunas), o nome e o tipo das colunas, e as primeiras linhas de cada coluna.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb15"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a>dplyr<span class="sc">::</span><span class="fu">glimpse</span>(iris)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Rows: 150
+Columns: 5
+$ Sepal.Length &lt;dbl&gt; 5.1, 4.9, 4.7, 4.6, 5.0, 5.4, 4.6, 5.0, 4.4, 4.9, 5.4, 4.…
+$ Sepal.Width  &lt;dbl&gt; 3.5, 3.0, 3.2, 3.1, 3.6, 3.9, 3.4, 3.4, 2.9, 3.1, 3.7, 3.…
+$ Petal.Length &lt;dbl&gt; 1.4, 1.4, 1.3, 1.5, 1.4, 1.7, 1.4, 1.5, 1.4, 1.5, 1.5, 1.…
+$ Petal.Width  &lt;dbl&gt; 0.2, 0.2, 0.2, 0.2, 0.2, 0.4, 0.3, 0.2, 0.2, 0.1, 0.2, 0.…
+$ Species      &lt;fct&gt; setosa, setosa, setosa, setosa, setosa, setosa, setosa, s…</code></pre>
+</div>
+</div>
+<p>A função <code>summarytools::descr</code> traz várias estatísticas descritivas (ignorando colunas não-numéricas). Cada um destes valores traz bastante informação, mas sua interpretação depende também de conhecimento técnico. Essencialmente, a saída traz algumas medidas de “tendência central” (média, mediana), dispersão (desvio padrão, MAD, IQR), assimetria e curtose. As últimas duas linhas também informam sobre a presença de observações ausentes.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb17"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a>summarytools<span class="sc">::</span><span class="fu">descr</span>(iris)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stderr">
+<pre><code>Non-numerical variable(s) ignored: Species</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Descriptive Statistics  
+iris  
+N: 150  
+
+                    Petal.Length   Petal.Width   Sepal.Length   Sepal.Width
+----------------- -------------- ------------- -------------- -------------
+             Mean           3.76          1.20           5.84          3.06
+          Std.Dev           1.77          0.76           0.83          0.44
+              Min           1.00          0.10           4.30          2.00
+               Q1           1.60          0.30           5.10          2.80
+           Median           4.35          1.30           5.80          3.00
+               Q3           5.10          1.80           6.40          3.30
+              Max           6.90          2.50           7.90          4.40
+              MAD           1.85          1.04           1.04          0.44
+              IQR           3.50          1.50           1.30          0.50
+               CV           0.47          0.64           0.14          0.14
+         Skewness          -0.27         -0.10           0.31          0.31
+      SE.Skewness           0.20          0.20           0.20          0.20
+         Kurtosis          -1.42         -1.36          -0.61          0.14
+          N.Valid         150.00        150.00         150.00        150.00
+        Pct.Valid         100.00        100.00         100.00        100.00</code></pre>
+</div>
+</div>
+<p>Por fim, a saída da função <code>skimr::skim</code> é a mais completa e inclui até mini gráficos de histogramas das variáveis numéricas. Vale notar que, diferentemente da <code>descr</code> acima, esta função traz informações também sobre as colunas não numéricas</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb20"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a>skimr<span class="sc">::</span><span class="fu">skim</span>(iris)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output-display">
+<table class="table table-sm table-striped small">
+<caption>Data summary</caption>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">Name</td>
+<td style="text-align: left;">iris</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Number of rows</td>
+<td style="text-align: left;">150</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Number of columns</td>
+<td style="text-align: left;">5</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">_______________________</td>
+<td style="text-align: left;"></td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Column type frequency:</td>
+<td style="text-align: left;"></td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">factor</td>
+<td style="text-align: left;">1</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">numeric</td>
+<td style="text-align: left;">4</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">________________________</td>
+<td style="text-align: left;"></td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Group variables</td>
+<td style="text-align: left;">None</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Variable type: factor</strong></p>
+<table class="table table-sm table-striped small">
+<colgroup>
+<col style="width: 17%">
+<col style="width: 12%">
+<col style="width: 17%">
+<col style="width: 9%">
+<col style="width: 11%">
+<col style="width: 32%">
+</colgroup>
+<thead>
+<tr class="header">
+<th style="text-align: left;">skim_variable</th>
+<th style="text-align: right;">n_missing</th>
+<th style="text-align: right;">complete_rate</th>
+<th style="text-align: left;">ordered</th>
+<th style="text-align: right;">n_unique</th>
+<th style="text-align: left;">top_counts</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">Species</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: left;">FALSE</td>
+<td style="text-align: right;">3</td>
+<td style="text-align: left;">set: 50, ver: 50, vir: 50</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Variable type: numeric</strong></p>
+<table class="table table-sm table-striped small">
+<colgroup>
+<col style="width: 18%">
+<col style="width: 13%">
+<col style="width: 18%">
+<col style="width: 6%">
+<col style="width: 6%">
+<col style="width: 5%">
+<col style="width: 5%">
+<col style="width: 6%">
+<col style="width: 5%">
+<col style="width: 6%">
+<col style="width: 7%">
+</colgroup>
+<thead>
+<tr class="header">
+<th style="text-align: left;">skim_variable</th>
+<th style="text-align: right;">n_missing</th>
+<th style="text-align: right;">complete_rate</th>
+<th style="text-align: right;">mean</th>
+<th style="text-align: right;">sd</th>
+<th style="text-align: right;">p0</th>
+<th style="text-align: right;">p25</th>
+<th style="text-align: right;">p50</th>
+<th style="text-align: right;">p75</th>
+<th style="text-align: right;">p100</th>
+<th style="text-align: left;">hist</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">Sepal.Length</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">5.84</td>
+<td style="text-align: right;">0.83</td>
+<td style="text-align: right;">4.3</td>
+<td style="text-align: right;">5.1</td>
+<td style="text-align: right;">5.80</td>
+<td style="text-align: right;">6.4</td>
+<td style="text-align: right;">7.9</td>
+<td style="text-align: left;">▆▇▇▅▂</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Sepal.Width</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">3.06</td>
+<td style="text-align: right;">0.44</td>
+<td style="text-align: right;">2.0</td>
+<td style="text-align: right;">2.8</td>
+<td style="text-align: right;">3.00</td>
+<td style="text-align: right;">3.3</td>
+<td style="text-align: right;">4.4</td>
+<td style="text-align: left;">▁▆▇▂▁</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Petal.Length</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">3.76</td>
+<td style="text-align: right;">1.77</td>
+<td style="text-align: right;">1.0</td>
+<td style="text-align: right;">1.6</td>
+<td style="text-align: right;">4.35</td>
+<td style="text-align: right;">5.1</td>
+<td style="text-align: right;">6.9</td>
+<td style="text-align: left;">▇▁▆▇▂</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Petal.Width</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">1.20</td>
+<td style="text-align: right;">0.76</td>
+<td style="text-align: right;">0.1</td>
+<td style="text-align: right;">0.3</td>
+<td style="text-align: right;">1.30</td>
+<td style="text-align: right;">1.8</td>
+<td style="text-align: right;">2.5</td>
+<td style="text-align: left;">▇▁▇▅▃</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<section id="olhando-seus-dados-no-excel" class="level2">
+<h2 class="anchored" data-anchor-id="olhando-seus-dados-no-excel">Olhando seus dados no Excel</h2>
+<p>Por fim, vou colocar uma função customizada bem divertida, que permite você rapidamente dar uma espiada nos seus dados no bom e velho excel. A função abaixo cria um arquivo temporário a partir da sua base de dados no <code>R</code> e abre isso no Excel.</p>
+<p>Evidentemente, é preciso ter o Excel instalado para que o código funcione.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb21"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb21-1"><a href="#cb21-1" aria-hidden="true" tabindex="-1"></a>show_in_excel <span class="ot">&lt;-</span> <span class="cf">function</span>(.data) {</span>
+<span id="cb21-2"><a href="#cb21-2" aria-hidden="true" tabindex="-1"></a>  <span class="cf">if</span> (<span class="fu">interactive</span>()) {</span>
+<span id="cb21-3"><a href="#cb21-3" aria-hidden="true" tabindex="-1"></a>    tmp <span class="ot">&lt;-</span> <span class="fu">paste0</span>(<span class="fu">tempfile</span>(), <span class="st">".xlsx"</span>)</span>
+<span id="cb21-4"><a href="#cb21-4" aria-hidden="true" tabindex="-1"></a>    writexl<span class="sc">::</span><span class="fu">write_xlsx</span>(.data, tmp)</span>
+<span id="cb21-5"><a href="#cb21-5" aria-hidden="true" tabindex="-1"></a>    <span class="fu">browseURL</span>(tmp)</span>
+<span id="cb21-6"><a href="#cb21-6" aria-hidden="true" tabindex="-1"></a>  }</span>
+<span id="cb21-7"><a href="#cb21-7" aria-hidden="true" tabindex="-1"></a>  .data</span>
+<span id="cb21-8"><a href="#cb21-8" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb21-9"><a href="#cb21-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb21-10"><a href="#cb21-10" aria-hidden="true" tabindex="-1"></a><span class="fu">show_in_excel</span>(mtcars)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>A figura abaixo mostra o resultado do código</p>
+<div class="cell" data-layout-align="center">
+<div class="cell-output-display">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="../../../static/images/excel.png" class="img-fluid figure-img" width="402"></p>
+</figure>
+</div>
+</div>
+</div>
+<p>Novamente, como a função aceita um <code>data.frame</code> como argumento é bem fácil de colocá-la no final de um pipe. Esta função é bastante útil quando você precisa rapidamente compartilhar algum resultado ou tabela com alguém.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb22"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb22-1"><a href="#cb22-1" aria-hidden="true" tabindex="-1"></a>mtcars <span class="sc">|&gt;</span> </span>
+<span id="cb22-2"><a href="#cb22-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(cyl <span class="sc">&gt;</span> <span class="dv">2</span>) <span class="sc">|&gt;</span> </span>
+<span id="cb22-3"><a href="#cb22-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">group_by</span>(cyl) <span class="sc">|&gt;</span> </span>
+<span id="cb22-4"><a href="#cb22-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">summarise</span>(<span class="at">peso_medio =</span> <span class="fu">mean</span>(wt)) <span class="sc">|&gt;</span> </span>
+<span id="cb22-5"><a href="#cb22-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">show_in_excel</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+</section>
+</section>
+<section id="resumo" class="level1">
+<h1>Resumo</h1>
+<p>Concluindo, toda boa análise de dados passa por tarefas de rotina: importar dados, trocar nomes de colunas, remover observações vazias, etc. Por que não facilitar a sua vida e tornar essas tarefas simples?</p>
+<p>Pessoalmente, quase todo código que escrevo utiliza <code>here</code> e <code>janitor::clean_names()</code>. Depois de muito sofirmento, aprendi quase todas as funções de importar e exportar, e só depois disso descobri o <code>rio::import</code> que teria me poupado muito estresse. Como comentei acima o <code>rio::import</code> é um atalho simples, no longo prazo vale a pena aprender com calma todas as funções <code>read_*</code>.</p>
+<p>Uso com frequência o <code>View()</code> no final de um pipe para checar se as coisas estão indo da maneira esperada. E também comecei a criar o hábito de começar a minha exploração de dados com o <code>skim()</code>.</p>
+<p>No fim, este post mostra como organizar seus arquivos, como importar seus dados e como “dar uma checada” para ver se está tudo certo: nomes e tipos de colunas; e também como fazer ajustes rápidos nos dados.</p>
+
+
+</section>
+
+
+<div id="quarto-appendix" class="default"><section id="footnotes" class="footnotes footnotes-end-of-document" role="doc-endnotes"><h2 class="anchored quarto-appendix-heading">Footnotes</h2>
+
+<ol>
+<li id="fn1"><p>Disclaimer importante: depois de revisar este texto eu já não recomendo tão fortemente o <code>data.table::fread</code> por um movito bobo e simples. Atualmente, o <code>data.table</code> tem uma classe própria para datas chamada <code>IDate</code>. Esta classe é útil se você pretende fazer todas as suas análises usando as funções do <code>data.table</code> como <code>shift</code>, <code>hour</code>, etc. Contudo, se você pretende usar outros pacotes comuns de séries de tempo será necessário converter para <code>Date</code> todas as vezes. Além disso, como eu já estou bastante habituado a usar o pacote <code>lubridate</code> para manipular datas, não vejo muita vantagem em utilizar as funções do <code>data.table</code>.<a href="#fnref1" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+<li id="fn2"><p>Outra alternativa é utilizar a função <code>vroom::vroom</code>, que compartilha de argumentos similares das funções do pacote <code>readr</code>, mas que oferece maior velocidade de importação/exportação.<a href="#fnref2" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+</ol>
+</section></div></main> <!-- /main -->
+<script id="quarto-html-after-body" type="application/javascript">
+window.document.addEventListener("DOMContentLoaded", function (event) {
+  const toggleBodyColorMode = (bsSheetEl) => {
+    const mode = bsSheetEl.getAttribute("data-mode");
+    const bodyEl = window.document.querySelector("body");
+    if (mode === "dark") {
+      bodyEl.classList.add("quarto-dark");
+      bodyEl.classList.remove("quarto-light");
+    } else {
+      bodyEl.classList.add("quarto-light");
+      bodyEl.classList.remove("quarto-dark");
+    }
+  }
+  const toggleBodyColorPrimary = () => {
+    const bsSheetEl = window.document.querySelector("link#quarto-bootstrap");
+    if (bsSheetEl) {
+      toggleBodyColorMode(bsSheetEl);
+    }
+  }
+  toggleBodyColorPrimary();  
+  const icon = "";
+  const anchorJS = new window.AnchorJS();
+  anchorJS.options = {
+    placement: 'right',
+    icon: icon
+  };
+  anchorJS.add('.anchored');
+  const isCodeAnnotation = (el) => {
+    for (const clz of el.classList) {
+      if (clz.startsWith('code-annotation-')) {                     
+        return true;
+      }
+    }
+    return false;
+  }
+  const clipboard = new window.ClipboardJS('.code-copy-button', {
+    text: function(trigger) {
+      const codeEl = trigger.previousElementSibling.cloneNode(true);
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+  });
+  clipboard.on('success', function(e) {
+    // button target
+    const button = e.trigger;
+    // don't keep focus
+    button.blur();
+    // flash "checked"
+    button.classList.add('code-copy-button-checked');
+    var currentTitle = button.getAttribute("title");
+    button.setAttribute("title", "Copied!");
+    let tooltip;
+    if (window.bootstrap) {
+      button.setAttribute("data-bs-toggle", "tooltip");
+      button.setAttribute("data-bs-placement", "left");
+      button.setAttribute("data-bs-title", "Copied!");
+      tooltip = new bootstrap.Tooltip(button, 
+        { trigger: "manual", 
+          customClass: "code-copy-button-tooltip",
+          offset: [0, -8]});
+      tooltip.show();    
+    }
+    setTimeout(function() {
+      if (tooltip) {
+        tooltip.hide();
+        button.removeAttribute("data-bs-title");
+        button.removeAttribute("data-bs-toggle");
+        button.removeAttribute("data-bs-placement");
+      }
+      button.setAttribute("title", currentTitle);
+      button.classList.remove('code-copy-button-checked');
+    }, 1000);
+    // clear code selection
+    e.clearSelection();
+  });
+  function tippyHover(el, contentFn) {
+    const config = {
+      allowHTML: true,
+      content: contentFn,
+      maxWidth: 500,
+      delay: 100,
+      arrow: false,
+      appendTo: function(el) {
+          return el.parentElement;
+      },
+      interactive: true,
+      interactiveBorder: 10,
+      theme: 'quarto',
+      placement: 'bottom-start'
+    };
+    window.tippy(el, config); 
+  }
+  const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+  for (var i=0; i<noterefs.length; i++) {
+    const ref = noterefs[i];
+    tippyHover(ref, function() {
+      // use id or data attribute instead here
+      let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+      try { href = new URL(href).hash; } catch {}
+      const id = href.replace(/^#\/?/, "");
+      const note = window.document.getElementById(id);
+      return note.innerHTML;
+    });
+  }
+      let selectedAnnoteEl;
+      const selectorForAnnotation = ( cell, annotation) => {
+        let cellAttr = 'data-code-cell="' + cell + '"';
+        let lineAttr = 'data-code-annotation="' +  annotation + '"';
+        const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+        return selector;
+      }
+      const selectCodeLines = (annoteEl) => {
+        const doc = window.document;
+        const targetCell = annoteEl.getAttribute("data-target-cell");
+        const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+        const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+        const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+        const lineIds = lines.map((line) => {
+          return targetCell + "-" + line;
+        })
+        let top = null;
+        let height = null;
+        let parent = null;
+        if (lineIds.length > 0) {
+            //compute the position of the single el (top and bottom and make a div)
+            const el = window.document.getElementById(lineIds[0]);
+            top = el.offsetTop;
+            height = el.offsetHeight;
+            parent = el.parentElement.parentElement;
+          if (lineIds.length > 1) {
+            const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+            const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+            height = bottom - top;
+          }
+          if (top !== null && height !== null && parent !== null) {
+            // cook up a div (if necessary) and position it 
+            let div = window.document.getElementById("code-annotation-line-highlight");
+            if (div === null) {
+              div = window.document.createElement("div");
+              div.setAttribute("id", "code-annotation-line-highlight");
+              div.style.position = 'absolute';
+              parent.appendChild(div);
+            }
+            div.style.top = top - 2 + "px";
+            div.style.height = height + 4 + "px";
+            let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+            if (gutterDiv === null) {
+              gutterDiv = window.document.createElement("div");
+              gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+              gutterDiv.style.position = 'absolute';
+              const codeCell = window.document.getElementById(targetCell);
+              const gutter = codeCell.querySelector('.code-annotation-gutter');
+              gutter.appendChild(gutterDiv);
+            }
+            gutterDiv.style.top = top - 2 + "px";
+            gutterDiv.style.height = height + 4 + "px";
+          }
+          selectedAnnoteEl = annoteEl;
+        }
+      };
+      const unselectCodeLines = () => {
+        const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+        elementsIds.forEach((elId) => {
+          const div = window.document.getElementById(elId);
+          if (div) {
+            div.remove();
+          }
+        });
+        selectedAnnoteEl = undefined;
+      };
+      // Attach click handler to the DT
+      const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+      for (const annoteDlNode of annoteDls) {
+        annoteDlNode.addEventListener('click', (event) => {
+          const clickedEl = event.target;
+          if (clickedEl !== selectedAnnoteEl) {
+            unselectCodeLines();
+            const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+            if (activeEl) {
+              activeEl.classList.remove('code-annotation-active');
+            }
+            selectCodeLines(clickedEl);
+            clickedEl.classList.add('code-annotation-active');
+          } else {
+            // Unselect the line
+            unselectCodeLines();
+            clickedEl.classList.remove('code-annotation-active');
+          }
+        });
+      }
+  const findCites = (el) => {
+    const parentEl = el.parentElement;
+    if (parentEl) {
+      const cites = parentEl.dataset.cites;
+      if (cites) {
+        return {
+          el,
+          cites: cites.split(' ')
+        };
+      } else {
+        return findCites(el.parentElement)
+      }
+    } else {
+      return undefined;
+    }
+  };
+  var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+  for (var i=0; i<bibliorefs.length; i++) {
+    const ref = bibliorefs[i];
+    const citeInfo = findCites(ref);
+    if (citeInfo) {
+      tippyHover(citeInfo.el, function() {
+        var popup = window.document.createElement('div');
+        citeInfo.cites.forEach(function(cite) {
+          var citeDiv = window.document.createElement('div');
+          citeDiv.classList.add('hanging-indent');
+          citeDiv.classList.add('csl-entry');
+          var biblioDiv = window.document.getElementById('ref-' + cite);
+          if (biblioDiv) {
+            citeDiv.innerHTML = biblioDiv.innerHTML;
+          }
+          popup.appendChild(citeDiv);
+        });
+        return popup.innerHTML;
+      });
+    }
+  }
+});
+</script>
+<script src="https://giscus.app/client.js" data-repo="viniciusoike/restateinsight" data-repo-id="R_kgDOJ9Lnfw" data-category="General" data-category-id="" data-mapping="title" data-reactions-enabled="1" data-emit-metadata="0" data-input-position="top" data-theme="light" data-lang="en" crossorigin="anonymous" async="">
+</script>
+</div> <!-- /content -->
+
+
+
+</body></html>
