@@ -1,0 +1,200 @@
+---
+title: Satisfação com a vida e felicidade
+date: '2023-09-22'
+categories: ['data-visualization']
+description: ''
+draft: true
+---
+
+
+
+```{r, message = FALSE, echo = FALSE}
+library(extrafont)
+library(ggplot2)
+library(ggthemes)
+library(tidyverse)
+library(ggrepel)
+library(readxl)
+library(rvest)
+library(kableExtra)
+```
+
+```{r, echo = FALSE, eval = FALSE}
+# This function converts factors to numeric, this specific form is suggested by R FAQ
+as.numeric.factor <- function(f) {as.numeric(levels(f))[as.integer(f)]}
+setwd("C:/Users/Vinicius/Google Drive (viniciusoike@usp.br)/R/blog/tp/content/post")
+hpi <- read.csv("dados/satisfacao_vida/happy_planet_index.csv",
+	            sep=";",
+                dec = ",")
+hdi <- read.csv("dados/satisfacao_vida/human_development_index.csv", skip = 1)
+### HPI
+
+# Troca o nome das variáveis
+names(hpi) <- c("rank", "country", "region", "lifeexp", "well",
+                "happy_years", "footprint", "ineq_out", "ineq_ajust_lifeexp",
+                "ineq_ajust_well", "hpi", "gdppc", "pop", "gini")
+levels(hpi$country)[132] <- "USA"
+
+### IDH
+# Tira a primeira coluna IDH
+hdi <- select(hdi, -`HDI.Rank..2017.`)
+
+# Dados IDH longitudinais
+hdi_long <- hdi %>%
+  gather(ano, hdi, -Country)
+
+hdi_long$ano <- as.numeric(gsub(pattern = "X",
+	                            replacement = "",
+	                            x = hdi_long$ano))
+# Dados de 2017 ordenados (IDH)
+hdi2017 <- hdi %>%
+  rename(country = Country) %>%
+  select(country, X2017) %>%
+  arrange(desc(X2017))
+
+#### Want to change some variables to numeric but keep others like 'region' as factor
+# Tira o sinal de cifrão e alguns pontos e vírgulas
+hpi$gdppc <- gsub(x = hpi$gdppc, pattern = "\\$", replacement = "")
+hpi$gdppc <- as.numeric(gsub(x = hpi$gdppc, pattern = "\\.", replacement = ""))
+hpi$gini <- as.numeric(gsub(x = hpi$gini, pattern = "\\,", replacement = "\\."))
+# Alguns NAs aparecem no lugar de valores ausentes
+
+### Dados do HPR são tirados diretamente da Wikipedia
+url <- "https://en.wikipedia.org/wiki/World_Happiness_Report#2018_report"
+wiki <- read_html(url)
+tabelas <- html_table(wiki, fill = TRUE)
+whr <- tabelas[[5]]
+str(whr)
+names(whr) <- tolower(names(whr))
+names(whr)[2] <- "country"
+#####################################
+# Para os gráficos de bolha
+highlight <- 
+  c("Liberia", "Brazil", "Niger", "Burundi", "Guinea", "Togo","Ethiopia",
+    "Aimbabwe", "Mali", "Uganda", "Rwanda", "Afghanistan", "Tanzania",
+    "Lesotho", "Senegal", "Kenya", "Bangladesh", "Zambia", "Sudan", "Ghana",
+    "Kyrgyzstan", "Congo", "Angola", "India", "Nigeria", "Paksitan",
+    "Nicaragua", "Uzbekistan", "Bolivia", "Phillipines", "Paraguay", "Ukraine",
+    "Egypt", "Namibia", "Guatemala", "Brazil", "Mexico", "Colombia",
+    "Suriname", "Peru", "Serbia", "Iran", "Bulgaria", "Botswana", "Chile",
+    "Russia", "Belarus", "Turkey", "Croatia", "Portugal", "Greece", "Israel",
+    "France", "Japan", "Cyprus", "Germany", "USA", "United Kingdom",
+    "Saudi Arabia", "Hong Kong", "Singapore", "Qatar", "China")
+hpi <- hpi %>%
+  mutate(selecao = ifelse(levels(country) %in% highlight,
+                          levels(country),
+                          ""))
+```
+
+```{r, echo = FALSE, eval = FALSE}
+# Compatibilizar as tabelas
+
+## monte de erros
+hdi2017$country <- as.character(hdi2017$country)
+# remove espaço à esquerda
+hdi2017$country <- gsub("^[ \t]+", "", hdi2017$country)
+# remove todos os acentos
+hdi2017$country <- iconv(hdi2017$country, to = "ASCII//TRANSLIT")
+# converte de factor para character
+hpi$country <- as.character(hpi$country)
+
+erros <- anti_join(hpi, hdi2017)[, 2]
+
+erros <- anti_join(whr, hpi)[, 2]
+compt <- inner_join(hpi, hdi2017, by = "country")
+compt <- inner_join(compt, whr, by = "country")
+
+compt20 <- compt %>%
+  select(country, hpi, X2017, score) %>%
+  arrange(desc(hpi)) %>%
+  arrange(desc(X2017)) %>%
+  arrange(desc(score)) %>%
+  arrange(desc(hpi)) %>%
+  head(20)
+
+compt_rank <- compt %>%
+  select(country, hpi, X2017, `overall rank`) %>%
+  mutate(rank_hpi = dense_rank(desc(hpi))) %>%
+  mutate(rank_hdi = dense_rank(desc(X2017))) %>%
+  rename(rank_whr = `overall rank`)
+
+compt_rank %>%
+  select(country, rank_hpi, rank_hdi, rank_whr) %>%
+  kable(align = "c") %>%
+  kable_styling(bootstrap_options = c("hover", "bordered"))
+```
+
+```{r, echo = FALSE, eval = FALSE}
+theme_vini <-
+  theme(
+    line = element_line(colour = "black", size = .5),
+    rect = element_rect(fill = "#F0F0F0", size = .5),
+    
+    legend.position = "bottom",
+    legend.direction = "horizontal",
+    legend.box.background = element_rect(fill = NULL, colour = NA),
+    
+    panel.grid.major = element_line(colour = "#D2D2D2"),
+    panel.grid.minor = element_blank(),
+
+    text = element_text(family = "Century"),
+    plot.title = element_text(size = 16),
+    axis.title = element_text(size = 12)
+  )
+
+nomes_eixos <-
+  list(fonte_hpi = "Fonte: Happy Planet Index (2017)",
+       fonte_whr = "Fonte: World Happiness Report (2016)",
+       lpib = "Log PIB per capita ($PPP 2010)",
+       well = "Bem-estar subjetivo médio (10 = melhor)",
+       ineq_well = "Bem estar ajustado pela desigualdade (10 = melhor)",
+       foot = "Pegada ecológica",
+       pib = "PIB per capita ($PPP 2010)"
+       )
+
+```
+
+```{r, echo = FALSE, eval = FALSE}
+ggplot(hpi, aes(log(gdppc), well)) +
+  geom_point(aes(size = pop, colour = region)) +
+  geom_text_repel(aes(label = selecao), force = 3) +
+  scale_color_gdocs(name = "") +
+  scale_size_continuous(range = c(0, 20)) +
+  labs(title = "GDP per capita x Happiness Index (2017)",
+       subtitle = "Average well-being is an arithmetic mean of selected responses from the World Gallup World Poll. GDP information is taken from World Bank.",
+       x = nomes_eixos$lpib,
+       y = nomes_eixos$well,
+       caption = nomes_eixos$fonte_hpi) +
+  guides(size = FALSE) +
+  theme_vini
+```
+
+```{r, echo = FALSE, eval = FALSE}
+ggplot(hpi, aes(log(gdppc), ineq_ajust_well)) +
+  geom_point(aes(size = pop, colour = region)) +
+  geom_text_repel(aes(label = selecao), force = 3) +
+  scale_color_gdocs(name = "") +
+  scale_size_continuous(range = c(0, 20)) +
+  labs(title = "GDP per capita x Inequality Adjusted Happiness Index (2012)",
+       subtitle = "Average wellbeing is an arithmetic mean of selected responses from the World Gallup World Poll. GDP information is taken from World Bank.",
+       x = nomes_eixos$lpib,
+       y = nomes_eixos$ineq_well,
+       caption = nomes_eixos$fonte_hpi) +
+  guides(size = FALSE) +
+  theme_vini
+```
+
+```{r, echo = FALSE, eval = FALSE}
+ggplot(data = hpi, aes(x = log(gdppc), y = hpi)) +
+  geom_point(aes(size = pop, colour = region)) +
+  geom_text_repel(aes(label = selecao), force = 3) +
+  scale_color_gdocs(name = "") +
+  scale_size_continuous(range = c(0, 20)) +
+  labs(title = "GDP per capita x 'Happy Planet Index' (2012)",
+       subtitle = "Average wellbeing is an arithmetic mean of selected responses from the World Gallup World Poll. GDP information is taken from World Bank.",
+       x = nomes_eixos$lpib,
+       y = nomes_eixos$hpi,
+       caption = nomes_eixos$fonte_hpi) +
+  guides(size = FALSE) +
+  theme_vini
+```
