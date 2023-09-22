@@ -1,12 +1,11 @@
 ---
 title: 'Indo Além: Lollipops'
-date: '2023-08-24'
+date: '2023-09-26'
 categories: ['data-visualization', 'ggplot2', 'tutorial-R']
 description: "Post intermediário que ensina a fazer gráficos de lollipop no R usando o pacote ggplot2."
 title-block-banner: true
 image: "/static/ggplot2_lollipop.png"
 image-alt: "/static/ggplot2_lollipop.png"
-page-layout: article
 execute: 
   message: false
   warning: false
@@ -15,7 +14,6 @@ format:
     code-fold: false
     code-tools: true
 freeze: true
-draft: true
 ---
 
 ```{r setup, include = FALSE}
@@ -50,15 +48,20 @@ print_table <- function(x) {
 
 # Lollipop charts
 
-Os gráficos de lollipop (*pirulito*) consistem de barras horizontais (colunas) com círculos no topo, que representam os valores das observações. Visualmente, elas lembram pirulitos. Eles são utilizados tanto para substituir gráficos de coluna convencionais, como para destacar e comparar valores entre diferentes categorias ou momentos no tempo.
+Os gráficos de lollipop (*pirulito*) consistem de barras (colunas) com círculos no topo, que representam os valores das observações. Visualmente, elas lembram pirulitos. Eles são utilizados tanto para substituir gráficos de coluna convencionais, como para destacar e comparar valores entre diferentes categorias ou momentos no tempo.
 
-```{r, echo = FALSE, out.width="100%", fig.width=9, fig.height=10}
+```{r}
+#| echo: false
+#| out-width: 100%
+#| fig-width: 11
+#| fig-height: 10.5
+#| fig-caption: "Exemplo de lollipop charts"
 panel
 ```
 
 # R
 
-Antes de inicar é preciso carregar alguns pacotes. Para carregar os pacotes necessários para acompanhar o post execute o código abaixo.
+Antes de inicar é preciso carregar alguns pacotes. O código abaixo lista os pacotes necessários para acompanhar este post
 
 ```{r, eval = FALSE}
 # Instala os pacotes (se necessário)
@@ -72,7 +75,7 @@ library("forcats")
 library("gapminder")
 ```
 
-Este é o primeiro post da parte intermediária da série de *Fundamentos de ggplot2*. Para uma introdução aos gráficos de coluna veja o [post introdutório](). Além disso, alguma manipulação de dados será necessária para remodelar os dados. Não é necessário ter conhecimento sobre estas funções adicionais, mas caso queira aprender mais sobre manipulação/limpeza de dados veja o post [Manipular para enxergar: o básico da limpeza de dados]().
+Este é o primeiro post da parte intermediária da série de *Fundamentos de ggplot2*. Para uma introdução aos gráficos de coluna veja o [post introdutório](https://restateinsight.com/posts/ggplot2-tutorial/0-introduction). Além disso, alguma manipulação de dados será necessária para remodelar os dados. Não é necessário ter conhecimento sobre estas funções adicionais, mas caso queira aprender mais sobre manipulação/limpeza de dados veja o post [Manipular para enxergar]().
 
 ## Exemplo
 
@@ -93,7 +96,7 @@ A função `factor` no código acima indica que a variável `categoria` deve ser
 print_table(dados)
 ```
 
-Para montar um lollipop vamos combinar dois *geoms*: o `geom_segment` com o `geom_point`. A função `geom_segment()` desenha segmentos de linha e exige quatro argumentos: `x`, `xend`, `y` e `yend`, que especificam onde a linha começa e onde ela termina. Já a função `geom_point()` exige apenas os argumentos `x` e `y` que especificam a posição dos pontos.
+Não existe uma função `geom_lollipop`. Para montar um lollipop vamos combinar dois *geoms*: o `geom_segment` com o `geom_point`. A função `geom_segment()` desenha segmentos de linha e exige quatro argumentos: `x`, `xend`, `y` e `yend`, que especificam onde a linha começa e onde ela termina. Já a função `geom_point()` exige apenas os argumentos `x` e `y` que especificam a posição dos pontos.
 
 O código abaixo cria um gráfico de lollipop com a base de dados criada anteriormente.
 
@@ -161,7 +164,7 @@ p1 + p2
 
 De fato, o gráfico de lollipop pode ser utilizado para mostrar valores, mas uma das suas principais vantanges está em *poder comparar valores entre grupos*. No nosso caso, temos os valores das vendas de 2020 e 2021 de cinco grupos distinos (A, B, C, D, e E). Podemos montar um gráfico que enfatiza a evolução das vendas em cada um dos grupos.
 
-O código abaixo exemplifica como pode-se fazer um gráfico de lollipop simples deste tipo. Agora fica evidente, por exemplo, que as vendas aumentaram em todos os grupos entre 2020 e 2021. Além disso, o grupo B teve o maior crescimento no volume das vendas.
+Pode-se adaptar o gráfico para ressaltar a diferença nas vendas entre os anos. Agora fica evidente, por exemplo, que as vendas aumentaram em todos os grupos entre 2020 e 2021. Além disso, o grupo B teve o maior crescimento no volume das vendas.
 
 ```{r}
 ggplot(data = dados, aes(x = categoria)) +
@@ -199,9 +202,9 @@ ggplot(data = dados, aes(x = categoria)) +
 
 Depois, vamos ajustar o eixo-y, usando `scale_y_continuous()`, para iniciar no zero modificando o argumento `limits`. Este argumento aceita dois valores: o primeiro valor define o limite inferior e o segundo valor define o limite superior. Para deixar qualquer um dos limites "livre" basta defini-lo como `NA`. Assim `limits = c(0, NA)` força o eixo a começar no zero e deixa o limite superior "livre" (i.e. definido automaticamente).
 
-Já o argumento `breaks` define quais os números que devem ser destacados no texto do eixo. Definimos este valor usando `breaks = seq(0, 50, 10)` que cria uma sequência de 0 a 50, de 10 em 10. Para mais informações consulte `?seq`.
+Já o argumento `breaks` define quais os números que devem ser destacados no texto do eixo. Definimos este valor usando `breaks = seq(0, 50, 10)` que cria uma sequência de 0 a 50, de 10 em 10.
 
-O eixo-y foi automaticamente nomeado como "vendas_2020" o que pode causar certa confusão. Além disso o título do eixo-x, "categoria" é um pouco redundante. Modificamos estes nomes utilizando a função `labs()`. Definimos `y = "Vendas (volume)"` e `x = NULL` para omitir o título no eixo-x.
+O eixo-y foi automaticamente nomeado como "vendas_2020" o que pode causar certa confusão. Além disso o título do eixo-x, "categoria" é um pouco redundante. Modificamos estes nomes utilizando a função `labs()`. Definimos `y = "Vendas (unidades)"` e `x = NULL` para omitir o título no eixo-x.
 
 ```{r}
 ggplot(data = dados, aes(x = categoria)) +
@@ -219,12 +222,12 @@ ggplot(data = dados, aes(x = categoria)) +
   # Altera nome/título dos eixos
   labs(
     x = NULL,
-    y = "Vendas (volume)")
+    y = "Vendas (unidades)")
 ```
 
 ### Virar o gráfico e alterar a cor do fundo
 
-Por fim, vamos virar o gráfico de lado usando a função `coord_flip()` e, em seguida, definir um tema simples com fundo branco usando `theme_white()`. Para mais opções de temas consulte, por exemplo, o pacote `ggthemes`.
+Por fim, vamos virar o gráfico de lado usando a função `coord_flip()` e, em seguida, definir um tema simples com fundo branco usando `theme_white()`. Para mais opções de temas consulte, por exemplo, o pacote `ggthemes` ou veja o [post da série](https://restateinsight.com/posts/ggplot2-tutorial/7-themes-fonts).
 
 O código abaixo reúne todas estas melhorias.
 
@@ -248,7 +251,7 @@ ggplot(data = dados, aes(x = categoria)) +
   # Altera nome/título dos eixos
   labs(
     x = NULL,
-    y = "Vendas (volume)") +
+    y = "Vendas (unidades)") +
   # Inverte o gráfico (vira ele de lado)
   coord_flip() +
   # Tema minimalista com fundo branco
@@ -262,6 +265,7 @@ Gerar esta legenda não é tão simples e exigiria, provavelmente, dois `tibble`
 Note que agora a chamada inicial do `ggplot` está vazia e especificamos o argumento `data` dentro de cada função `geom_*`. O controle da legenda de cores é feito pela função `scale_color_manual()`.
 
 ```{r}
+#| code-fold: true
 # Converte a base para o formato longitudinal
 tbl_pontos <- tidyr::pivot_longer(dados, vendas_2020:vendas_2021)
 
@@ -293,7 +297,7 @@ ggplot() +
   # Altera nome/título dos eixos
   labs(
     x = NULL,
-    y = "Vendas (volume)") +
+    y = "Vendas (unidades)") +
   # Inverte o gráfico (vira ele de lado)
   coord_flip() +
   # Tema minimalista com fundo branco
@@ -306,7 +310,9 @@ ggplot() +
 
 ## Formato dos dados
 
-Há uma maneira de contornar a necessidade de ter duas bases de dados distintas (uma em formato *wide* e outra em formato *long*), substituindo a função `geom_segment()` pela função `geom_line()`. A função `geom_line()` é tipicamente utilizada para desenhar gráficos de séries de tempo, mas também pode ser utilizada para desenhar simples linhas retas.
+Há uma maneira de contornar a necessidade de ter duas bases de dados distintas (uma em formato *wide* e outra em formato *long*), substituindo a função `geom_segment()` pela função `geom_line()`[^1]. A função `geom_line()` é tipicamente utilizada para desenhar gráficos de séries de tempo, mas também pode ser utilizada para desenhar simples linhas retas.
+
+[^1]: Evidentemente, as funções `geom_path` e `geom_step` também funcionariam no lugar de `geom_line`.
 
 O código abaixo exemplifica como isto pode ser feito. Note o uso do argumento `group = categoria` dentro da função `geom_line()`.
 
@@ -319,7 +325,7 @@ ggplot(tbl_pontos, aes(x = categoria, y = value)) +
   coord_flip()
 ```
 
-## Invertendo a ordem dos elementos
+## Alterando a ordem dos elementos
 
 Por fim, um último ponto importante é a ordem da variável categórica. No primeiro gráfico que fizemos a variável categórica foi exposta da esquerda para a direita, como seria mais natural para leitores ocidentais. Contudo, quando usamos a função `coord_flip()` para virar o gráfico, a variável categórica agora vai de baixo para cima o que acaba sendo confuso.
 
@@ -379,6 +385,24 @@ ggplot(
   coord_flip()
 ```
 
+Pode-se também fazer a ordem dos elementos categóricos seguir a variável numérica que se quer representar. Neste caso, usa-se a função `forcats::fct_reorder`.
+
+```{r}
+dados <- mutate(
+  dados,
+  categoria = forcats::fct_reorder(categoria, vendas_2020)
+  )
+
+# Agora a variável categórica está ordenada segundo vendas_2020
+ggplot(
+  data = dados,
+  aes(x = categoria, xend = categoria, y = vendas_2020, yend = 0)
+  ) +
+  geom_segment() +
+  geom_point(size = 3) +
+  coord_flip()
+```
+
 # Expectativa de vida
 
 Agora vamos fazer um exemplo aplicado usando dados da base `gapminder`. A [Gapminder](https://www.gapminder.org) é uma fundação de pesquisa independente que compila dados sobre importantes fatos globais. Caso não tenha carregado ainda, use o código abaixo para carregar o pacote necessário.
@@ -393,6 +417,8 @@ gapminder
 ```{r, echo = FALSE}
 print_table(head(gapminder))
 ```
+
+## Expectativa de vida nas Américas
 
 Vamos montar um gráfico de lollipop que mostra a evolução da expectativa de vida nos países americanos no maior horizonte de tempo possível. Primeiro, temos de preparar os dados para nossa visualização.
 
@@ -426,7 +452,12 @@ americas_wide <- tidyr::pivot_wider(
 
 O código completo para o gráfico segue abaixo.
 
-```{r, fig.width=8, fig.height=9}
+```{r}
+#| out-width: 100%
+#| out-height: 550px
+#| fig-width: 8.125
+#| fig-height: 10
+#| code-fold: true
 ggplot() +
   geom_segment(
     data = americas_wide,
@@ -445,12 +476,328 @@ ggplot() +
     y = "Expectativa de vida (Anos)") +
   coord_flip() +
   theme_light() +
-  theme(legend.position = "top")
+  theme(
+    legend.position = "top",
+    panel.grid.minor = element_blank()
+    )
+```
+
+## Expectativa de vida em relação à média
+
+Pode-se também montar um gráfico que compara a expectativa de vida nos países em relação à média mundial. O código abaixo pega as observações do ano mais recente e calcula o desvio em relação à média de cada país. Para tornar a visualização mais limpa, seleciona-se um subconjunto de 20 países
+
+```{r}
+gap07 <- gapminder |> 
+  filter(year == max(year)) |> 
+  mutate(
+    diff = lifeExp - mean(lifeExp),
+    country = fct_reorder(country, diff)
+    )
+
+country_sel <- c(
+  "Swaziland", "Rwanda", "Botswana", "Kenya", "Haiti",
+  "India", "Brazil", "Turkey", "Mexico", "United States",
+  "Austria", "France", "Japan", "Taiwan", "Argentina",
+  "Sri Lanka", "Egypt", "Iraq", "Nigeria", "Afghanistan"
+  )
+
+sub07 <- filter(gap07, country %in% country_sel)
+```
+
+No gráfico abaixo, além de incluir uma linha vertical para sinalizar a média mundial com `geom_hline`, também coloco uma pequena nota de texto para destacar que a expectativa de vida média mundial era de 67 anos[^2].
+
+[^2]: Para mais sobre como usar `geom_text` e outras maneiras de usar elementos textuais no gráfico consulte [Estético: Destancado informação](https://restateinsight.com/posts/ggplot2-tutorial/5-grafico-text).
+
+```{r}
+#| out-width: 100%
+#| code-fold: true
+dftext <- tibble(
+  x = "Kenya",
+  y = 8,
+  label = "67 anos de vida\né expectativa de\nvida média do mundo."
+  )
+
+ggplot(data = sub07) +
+  geom_segment(
+    aes(x = country, xend = country, y = diff, yend = 0),
+    color = "gray30"
+  ) +
+  geom_point(
+    aes(x = country, y = diff, color = continent),
+    size = 3
+  ) +
+  geom_hline(yintercept = 0) +
+  geom_text(
+    data = dftext,
+    aes(x = x, y = y, label = label),
+    size = 3
+  ) +
+  scale_y_continuous(limits = c(-28, 28)) +
+  scale_color_manual(
+    name = "Continente",
+    values = c("#7F3B08", "#A50026", "#984ea3", "#4daf4a")
+    ) +
+  labs(
+    title = "Expectativa de Vida",
+    subtitle = "Expectativa de vida em 2007 nos países selecionados em relação à média mundial.",
+    caption = "Fonte: Gapminder.",
+    x = NULL,
+    y = "Expectativa de vida (Dif. em rel. a média)") +
+  coord_flip() +
+  theme_light() +
+  theme(
+    legend.position = "top",
+    panel.grid.minor = element_blank(),
+    panel.grid.major.y = element_blank()
+    )
+
+```
+
+## Expectativa de vida por continente
+
+Por fim, podemos montar um lollipop similar a um gráfico de colunas. Para torná-lo mais interessante, vamos fazer um lollipop, onde o valor numérico é plotado no meio círculo.
+
+O código abaixo calcula a média ponderada da expectativa de vida por continente. Além disso, ordena-se o nome dos continentes e cria-se uma variável chamada `label`, que arredonda o resultado do cálculo. Este valor será plotado no meio do círculo.
+
+```{r}
+tab_continent <- gap07 |> 
+  group_by(continent) |> 
+  summarise(avg = weighted.mean(lifeExp, pop)) |> 
+  mutate(
+    continent = fct_reorder(continent, avg),
+    label = format(round(avg, 1), decimal.mark = ",")
+    )
+```
+
+O gráfico combina `geom_point`, `geom_segment` e `geom_text`.
+
+```{r}
+ggplot(tab_continent, aes(x = continent, y = avg, color = continent)) +
+  geom_point(size = 15) +
+  geom_segment(aes(xend = continent, yend = 0), linewidth = 2) +
+  geom_text(aes(label = label), color = "white", fontface = "bold") +
+  guides(color = "none")
+```
+
+A versão finalizada do gráfico remove elementos temáticos desnecessários para deixar o gráfico mais minimalista. Além disso, uso o `coord_flip` não apenas para virar o gráfico, mas também para dar um "zoom-in". Note que o gráfico claramente não começa no zero, o que ajuda a enfatizar a diferença entre os grupos. Apesar de ser um conselho comum que se deve sempre iniciar o eixo-y no zero, há casos em que isto não faz muito sentido.
+
+```{r}
+#| code-fold: true
+ggplot(tab_continent, aes(x = continent, y = avg, color = continent)) +
+  geom_point(size = 15) +
+  geom_segment(aes(xend = continent, yend = 0), linewidth = 2) +
+  geom_text(aes(label = label), color = "white", fontface = "bold") +
+  coord_flip(ylim = c(50, NA), expand = TRUE) +
+  scale_color_brewer(type = "qual", palette = 2) +
+  guides(color = "none") +
+  labs(
+    x = NULL,
+    y = NULL,
+    title = "Expectativa de vida média por continente",
+    subtitle = "Média ponderada da expectativa de vida por continente (2007).",
+    caption = "Fonte: Gapminder"
+    ) +
+  theme_minimal() +
+  theme(
+    panel.grid = element_blank(),
+    axis.text.x = element_blank(),
+    axis.text.y = element_text(
+      color = "#000000",
+      size = 12,
+      hjust = 0.5,
+      vjust = 0.5
+      )
+  )
+```
+
+# Imóveis
+
+Para os próximos exemplos vamos voltar novamente à base `txhousing` para visualizar a queda na venda de imóveis após a grande crise imobiliária no mercado dos EUA. 
+
+## Antes e depois da Crise
+
+Para esta visualização, primeiro, vamos selecionar um subconjunto de cidades a ser comparadas em 2006 e 2010. O código abaixo agrega as vendas mensais, ano a ano, em oito cidades do Texas em 2006 e 2010.
+
+```{r}
+sel_cities <- c(
+  "Houston", "Dallas", "Denton County", "Austin","San Antonio",
+  "Collin County", "Fort Worth", "Fort Bend"
+  )
+
+#> Seleciona um subconjunto de cidades e soma as vendas a cada ano
+sub <- txhousing |>
+  filter(city %in% sel_cities, year %in% c(2006, 2010)) |> 
+  group_by(city, year) |> 
+  summarise(year_sales = sum(sales))
+```
+
+Para definir a ordem das cidades no gráfico ordeno as cidades por número de vendas, em 2006, em ordem ascendente (da menor para a maior).
+
+```{r}
+# Pega o nome das cidades ordenadas por vendas em 2006
+lvls <- sub |> 
+  filter(year == 2006) |> 
+  arrange(year_sales) |> 
+  pull(city)
+
+sub <- mutate(sub, city = factor(city, levels = lvls))
+```
+
+O gráfico abaixo mostra a queda na venda de imóveis nestas cidades entre os anos de 2006 a 2010. No caso de Houston, a queda foi de mais de 20 mil unidades. Note que a diferença no porte das cidades acaba dificultando a comparação da queda nas vendas nas regiões menores como Fort Bend e Denton County.
+
+```{r}
+#| code-fold: true
+#| out-width: 100%
+#| fig-width: 9
+ggplot(sub, aes(x = city, y = year_sales)) +
+  geom_line(aes(group = city), color = "gray30") +
+  geom_point(aes(color = as.factor(year)), size = 3) +
+  scale_x_discrete(labels = function(x) stringr::str_wrap(x, width = 8)) +
+  scale_y_continuous(
+    breaks = seq(0, 80000, 10000),
+    labels = scales::label_number(big.mark = "."),
+    limits = c(0, NA)
+    ) +
+  scale_color_manual(
+    name = "Ano",
+    values = c("#2A9D8F", "#E9C46A"),
+    labels = c("2006", "2010")
+  ) +
+  coord_flip() +
+  labs(
+    title = "Queda na venda de imóveis nos principais mercados", 
+    x = NULL,
+    y = "Vendas") +
+  theme_light() +
+  theme(
+    legend.position = "bottom",
+    axis.text.y = element_text(hjust = 0.5),
+    panel.grid.major.y = element_blank(),
+    panel.grid.minor = element_blank()
+    )
+```
+
+## Histórico de vendas nas cidades pequenas
+
+Gráficos de lollipop também podem ser utilizados para mostrar a variância num conjunto de dados entre diferentes grupos. Podemos, por exemplo, mostrar o número mínimo, máximo e médio de vendas nas cidades ao longo do período da amostra (2000 a 2015).
+
+O código abaixo encontra os valores de venda máximo, mínimo e médio em cada uma das cidades. Além disso, também encontro em qual ano que os valores máximo e mínimo ocorreram. Note que se exclui o ano de 2015, pois as observações neste ano não estão completas.
+
+```{r}
+tab_summary_sales <- txhousing |> 
+  #> Remove 2015
+  filter(year < 2015) |> 
+  #> Total de vendas anuais por cidade
+  group_by(city, year) |> 
+  summarise(total = sum(sales)) |> 
+  #> Máximos, mínimos e média por cidade
+  group_by(city) |> 
+  summarise(
+    sales_max = max(total),
+    sales_min = min(total),
+    sales_avg = mean(total),
+    year_max = year[which.max(total)],
+    year_min = year[which.min(total)]
+    )
+```
+
+Para melhorar a visualização, escolho somente as cidades pequenas, que registraram número médio de vendas entre 1000 e 5000 unidades.
+
+```{r}
+#> Converte os dados para long e remove valores ausentes
+tab_sales <- tab_summary_sales |> 
+  pivot_longer(-city, names_to = "stat") |> 
+  filter(!is.na(value))
+
+#> Pega o nome das cidades com número médio de vendas entre 1000 e 5000
+#> ordenadas pelo número de vendas
+small_cities <- tab_sales |> 
+  filter(stat == "sales_avg", value > 1000, value < 5000) |> 
+  arrange(value) |> 
+  pull(city) |> 
+  unique()
+
+#> Filtra a tabela para conter apenas cidades pequenas
+tab_small_sales <- tab_sales |> 
+  filter(city %in% small_cities) |> 
+  mutate(city = factor(city, levels = small_cities))
+```
+
+Separo os valores com os números de vendas num `tibble` e os valores com os anos num outro `tibble`. O primeiro conjunto de dados será utilizado para plotar os pontos e a linha (o lollipop), enquanto o segundo será utilizado para plotar os labels de texto (com os números).
+
+```{r}
+#> Número de vendas (pontos e linha)
+sub_sales <- tab_small_sales |> 
+  filter(stringr::str_detect(stat, "sales")) |> 
+  mutate(stat = factor(stat, levels = c("sales_min", "sales_avg", "sales_max")))
+
+#> Anos recordes (texto)
+sub_years <- tab_small_sales |> 
+  filter(stringr::str_detect(stat, "max|min")) |> 
+  pivot_wider(
+    id_cols = "city",
+    names_from = "stat",
+    names_sep = "_",
+    values_from = "value"
+  )
+```
+
+O resultado final é bastante interessante. Em muitas cidades, o menor valor de vendas foi registrado em 2000 e o maior, em 2013 ou 2014. Nestes casos, como em Irving e San Angelo, parece que houve uma tendência geral de crescimento nas vendas.
+
+Já em Amarillo e Killeen-Fort Hood o pico de vendas ocorreu antes da Crise em 2005/2006, indicando que estas regiões não voltaram a registrar vendas no mesmo patamar ao pré-crise. No caso da segunda região, o número médio histórico de vendas está bem abaixo do pico, cerca de 50%.
+
+Wichita Falls e Corpus Christi também apresentam pico em 2006, mas seus piores anos foram em 2011, sugerindo que o período pós-crise foi particularmente severo nestas regiões.
+
+```{r}
+#| code-fold: true
+#| out-width: 100%
+#| fig-width: 9
+
+ggplot(sub_sales, aes(x = city, y = value)) +
+  geom_line(aes(group = city)) +
+  geom_point(aes(color = stat), size = 3) +
+  geom_text(
+    data = sub_years,
+    aes(x = city, y = sales_min - 200, label = year_min),
+    size = 3
+  ) +
+  geom_text(
+    data = sub_years,
+    aes(x = city, y = sales_max + 200, label = year_max),
+    size = 3
+  ) +
+  scale_x_discrete(labels = function(x) stringr::str_wrap(x, width = 8)) +
+  scale_y_continuous(
+    breaks = seq(0, 5500, 500),
+    labels = scales::label_number(big.mark = "."),
+    limits = c(0, NA)
+    ) +
+  scale_color_manual(
+    name = "",
+    values = c("#e9c46a", "#f4a261", "#e76f51"),
+    labels = c("Mínimo", "Média", "Máximo")
+  ) +
+  labs(
+    x = NULL,
+    y = "Vendas",
+    title = "Variação de vendas (2000-2014)",
+    subtitle = "Número mínimo, máximo e médio de vendas anuais. Números indicam quais foram os anos de recordes."
+  ) +
+  coord_flip() +
+  theme_light() +
+  theme(
+    legend.position = "bottom",
+    axis.text.y = element_text(hjust = 0.5),
+    panel.grid.major.y = element_blank(),
+    panel.grid.minor = element_blank()
+    )
 ```
 
 # Resumindo
 
-Os gráficos de lollipop são uma forma atraente de comparar valores ou proporções entre diferentes categorias. Eles consistem em um gráfico de barras horizontais com pontos representando os valores plotados no topo, que lembram pirulitos. Há várias maneiras de montar estes gráficos usando `ggplot2` mas a mais completa é combinando o `geom_segment` com o `geom_point`. Abaixo resumimos alguns dos pontos positivos destes gráficos.
+Os gráficos de lollipop são uma forma atraente de comparar valores ou proporções entre diferentes categorias. Eles consistem em um gráfico de barras horizontais com pontos representando os valores plotados no topo, que lembram pirulitos. Há várias maneiras de montar estes gráficos usando `ggplot2` mas a mais completa é combinando o `geom_segment` com o `geom_point`.
+
+Abaixo resumimos alguns dos pontos positivos destes gráficos.
 
 Pontos positivos:
 
@@ -459,3 +806,11 @@ Pontos positivos:
 -   *Ocupam pouco espaço*: são visualmente compactos e transmitem um grande quantidade de informação.
 
 Em resumo, os gráficos de lollipop são uma opção atraente e eficiente para comparar valores ou proporções entre categorias, mas podem não ser a melhor opção para comparar dados categóricos ou com muitas categorias.
+
+## Outros posts citados
+
+* [Fundamentos: gráfico de coluna](https://restateinsight.com/posts/ggplot2-tutorial/2-grafico-coluna)
+* [Fundamentos: gráfico de linha](https://restateinsight.com/posts/ggplot2-tutorial/4-grafico-de-linha)
+* [Fundamentos: gráfico de dispersão](https://restateinsight.com/posts/ggplot2-tutorial/1-grafico-dispersao)
+* [Estético: Destacando informação](https://restateinsight.com/posts/ggplot2-tutorial/5-grafico-text)
+* [Estético: Tipografia e temas](https://restateinsight.com/posts/ggplot2-tutorial/7-themes-fonts)
