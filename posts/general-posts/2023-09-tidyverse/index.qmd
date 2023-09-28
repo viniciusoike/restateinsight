@@ -1,0 +1,447 @@
+---
+title: "A filosofia do Tidyverse"
+date: '2023-09-26'
+categories: ['tidyverse', 'data-science', 'R']
+execute: 
+  eval: false
+  message: false
+  warning: false
+---
+
+```{r}
+#| eval: true
+#| echo: false
+
+knitr::opts_chunk$set(
+  fig.align = "center",
+  fig.asp = 0.618,
+  fig.width = 9,
+  out.width = "80%",
+  fig.dev = "svg"
+  )
+
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+library(stringr)
+library(patchwork)
+sysfonts::font_add("Helvetica", "Helvetica.ttc")
+sysfonts::font_add_google("Fira Sans", "Fira Sans")
+showtext::showtext_auto()
+
+cran_20230905 <- readr::read_csv(
+  'https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2023/2023-09-19/cran_20230905.csv',
+  show_col_types = FALSE
+  )
+
+tidy_packs <- c(
+  "dplyr", "tidyr", "readr", "purrr", "lubridate", "ggplot2", "forcats",
+  "stringr", "tibble"
+  )
+
+tab_tidypacks <- cran_20230905 |> 
+  janitor::clean_names() |> 
+  filter(package %in% tidy_packs) |> 
+  select(package, starts_with("reverse")) |> 
+  mutate(across(starts_with("reverse"), ~str_count(.x, ",")))
+
+tab_tidypacks <- tab_tidypacks |> 
+  pivot_longer(-package, names_sep = "_", names_to = c("drop", "type"))
+
+tab_tidy_total <- tab_tidypacks |> 
+  summarise(total = sum(value, na.rm = TRUE), .by = "package") |> 
+  arrange(desc(total))
+
+lvls <- tab_tidy_total$package
+
+tab_tidypacks <- tab_tidypacks |> 
+  mutate(
+    package = factor(package, levels = lvls),
+    type = factor(type, levels = c("depends", "imports", "suggests", "enhances"))
+    )
+
+p1 <- ggplot() +
+  geom_col(
+    data = tab_tidypacks,
+    aes(x = package, y = value, fill = type)
+  ) +
+  geom_hline(yintercept = 0) +
+  geom_text(
+    data = tab_tidy_total,
+    aes(x = package, y = total + 200, label = format(total, big.mark = ".")),
+    family = "Helvetica",
+    color = "gray20"
+  ) +
+  labs(
+    title = "O R é tidy",
+    subtitle = "Número de pacotes que depende (de alguma forma) de pacotes core do tidyvese.",
+    x = NULL, 
+    y = "Número de pacotes",
+    caption = "Fonte: CRAN (2023/09/05)."
+  ) +
+  scale_fill_manual(
+    name = "",
+    values = c("#023047", "#126782", "#219ebc", "#8ecae6"),
+    labels = c("Depends", "Imports", "Suggests", "Enhances")
+    ) +
+  theme_minimal(base_size = 10, base_family = "Helvetica") +
+  theme(
+    legend.position = "top",
+    plot.background = element_rect(fill = "#f8f8f8", color = NA),
+    panel.background = element_rect(fill = "#f8f8f8", color = NA),
+    panel.grid.major.x = element_blank(),
+    panel.grid.major.y = element_line(linetype = 2),
+    panel.grid.minor = element_blank(),
+    plot.caption = element_text(hjust = 0, size = 8),
+    plot.margin = margin(rep(15, 4)),
+    plot.title = element_text(size = 18),
+    axis.text.x = element_text(color = "gray10", size = 12, family = "Fira Sans"),
+    axis.text.y = element_text(color = "gray20", size = 12)
+  )
+
+tab <- cran_20230905 |> 
+  janitor::clean_names() |> 
+  mutate(
+    is_tidy_imp = str_detect(imports, paste(tidy_packs, collapse = "|")),
+    is_tidy_dep = str_detect(depends, paste(tidy_packs, collapse = "|")),
+    year = lubridate::year(date_publication)
+    ) |> 
+  group_by(year) |> 
+  summarise(
+    total = n(),
+    depends = sum(is_tidy_dep, na.rm = TRUE),
+    imports = sum(is_tidy_imp, na.rm = TRUE)
+  )
+
+tab_packs <- tab |> 
+  mutate(non_tidy = total - (depends + imports)) |> 
+  select(-total) |> 
+  pivot_longer(-year, names_to = "package_type", values_to = "count") |> 
+  mutate(
+    package_type = factor(package_type, levels = c("non_tidy", "depends", "imports"))
+  )
+
+p2 <- ggplot(tab_packs, aes(x = year, y = count, fill = package_type)) +
+  geom_area() +
+  geom_hline(yintercept = 0) +
+  scale_x_continuous(breaks = 2008:2023) +
+  scale_y_continuous(labels = scales::label_number(big.mark = ".")) +
+  scale_fill_manual(
+    name = "",
+    values = c("#ffb703", "#023047", "#126782"),
+    labels = c("Não utiliza", "Depende", "Importa")) +
+  labs(
+    title = "Crescimento dos pacotes que usam tidyverse",
+    x = NULL,
+    y = "Pacotes Publicados",
+    subtitle = "Total de pacotes publicados no CRAN que dependem ou importam algum pacote (core) do tidyverse por ano de publicação.",
+    caption = "Fonte: CRAN (2023/09/05). Pacotes core: dplyr, forcats, ggplot2, lubridate, purrr, readr, stringr, tibble, tidyr."
+  ) +
+  theme_minimal(base_size = 10, base_family = "Helvetica") +
+  theme(
+    legend.position = "top",
+    plot.background = element_rect(fill = "#f8f8f8", color = NA),
+    panel.background = element_rect(fill = "#f8f8f8", color = NA),
+    panel.grid.major.x = element_blank(),
+    panel.grid.major.y = element_line(linetype = 2),
+    panel.grid.minor = element_blank(),
+    plot.caption = element_text(hjust = 0, size = 8),
+    plot.margin = margin(rep(15, 4)),
+    plot.title = element_text(size = 18),
+    axis.text = element_text(size = 10),
+    axis.text.x = element_text(angle = 90)
+  )
+
+tab_share <- tab_packs |> 
+  mutate(is_tidy = if_else(package_type != "non_tidy", 1L, 0L)) |> 
+  summarise(total = sum(count), .by = c("year", "is_tidy")) |> 
+  mutate(share = total / sum(total) * 100, .by = "year") |> 
+  filter(year >= 2016, is_tidy == 1L) 
+
+p3 <- ggplot(tab_share, aes(x = year, y = share)) +
+  geom_col(fill = "#219ebc") +
+  geom_text(aes(y = share + 5, label = paste0(round(share, 1), "%"))) +
+  scale_x_continuous(breaks = 2016:2023) +
+  scale_y_continuous(expand = c(0, 0), limits = c(NA, 50)) +
+  coord_flip() +
+  labs(
+    title = "Crescimento dos pacotes que usam tidyverse",
+    x = "Ano de publicação",
+    y = "Share de pacotes publicados no CRAN",
+    subtitle = "Share de pacotes publicados no CRAN que dependem ou importam algum pacote (core) do tidyverse por ano de publicação.",
+    ) +
+  theme_minimal(base_size = 10, base_family = "Helvetica") +
+  theme(
+    plot.background = element_rect(fill = "#f8f8f8", color = NA),
+    panel.background = element_rect(fill = "#f8f8f8", color = NA),
+    panel.grid.major.y = element_blank(),
+    panel.grid.major.x = element_line(linetype = 2),
+    panel.grid.minor = element_blank(),
+    plot.caption = element_text(hjust = 0, size = 8),
+    plot.margin = margin(rep(10, 4)),
+    plot.title = element_text(size = 18),
+    axis.text = element_text(size = 12)
+  )
+
+
+p11 <- p2 + labs(title = NULL, subtitle = NULL)
+p12 <- p3 + labs(title = NULL, subtitle = NULL)
+
+theme_vini <- theme_minimal(base_size = 12, base_family = "Helvetica") +
+  theme(
+    plot.background = element_rect(fill = "#f8f8f8", color = NA),
+    panel.background = element_rect(fill = "#f8f8f8", color = NA),
+    plot.title = element_text(size = 18),
+    plot.subtitle = element_text(size = 10)
+  )
+
+panel <- p11 + p12 +
+  plot_layout(widths = c(1.75, 1)) +
+  plot_annotation(
+    title = "Crescimento dos pacotes que usam tidyverse",
+    subtitle = "Share de pacotes publicados no CRAN que dependem ou importam algum pacote (core) do tidyverse por ano de publicação.",
+    theme = theme_vini
+  )
+
+```
+
+# Tidyverse
+
+O [tidyverse](https://tidyverse.tidyverse.org) é um metapacote, ou conjunto de pacotes. Pode-se pensar no tidyverse como uma família de pacotes, unidos por uma filosofia comum; grosso modo, os pacotes que compõem o tidyverse tem o mesmo objetivo: facilitar a manipulação de dados. Estes pacotes criaram uma nova forma de se escrever código, que substitui boa parte ou mesmo todas as funções base do R. Atualmente, o tidyverse parece estar se consolidando como a variante dominante do R. De fato, a maior parte dos pacotes do tidyverse consta na lista dos mais baixados no [repositório CRAN](#0).
+
+O tidyverse é intimamente ligado com o estatístico [Hadley Wickham](https://hadley.nz), criador ou co-criador da maioria dos seus pacotes, e autor do [influente artigo](https://vita.had.co.nz/papers/tidy-data.pdf) em que ele define o que é "tidy" data. Ele também é autor de diversos livros didáticos como [R for Data Science](https://r4ds.hadley.nz) e [ggplot2: Elegant graphics for Data Analysis](https://ggplot2-book.org), que ajudaram a popularizar o tidyverse.
+
+Wickham também tem posição de liderança dentro da Posit (antigamente conhecida como RStudio), que mantém o GUI mais popular de R e que patrocina inúmeras [atividades vinculadas com o aprendizado de R](https://posit.co/resources/), que costumam enfatizar os pacotes do tidyverse. De fato, tornou-se lugar comum começar a se ensinar R pelo tidyverse como se vê pela prevalência de cursos no [Coursera](https://www.coursera.org/specializations/tidyverse-data-science-r) ou [Datacamp](https://www.datacamp.com/courses/introduction-to-the-tidyverse).
+
+Quando se olha para a curta história do tidyverse é difícil explicar o porquê do seu enorme sucesso, mas é fato que este conjunto de pacotes se tornou um dialeto dominante dentro da comunidade do R. As funções do tidyverse tem algumas vantagens importantes sobre o base-R.
+
+### Consistência e qualidade
+
+As funções do tidyverse possuem uma característica ausente na maior parte das funções base do R: consistência. Um exemplo imediato é o pacote `stringr`, que serve para manipulação de strings. Todas as funções deste pacote começam com prefixo `str_*` e seus argumentos seguem a mesma lógica: `string` e `pattern` como em `str_detect(string, pattern)`[^1]. Além disso, as funções são mais otimizadas em relação às funções base do R.
+
+[^1]: As funções `gsub`, `grep` e `grepl`, por exemplo seguem o padrão `pattern`, `string`. Já a função `strsub` usa o padrão `string`, `pattern`. Para mais diferenças entre as funções base para manipulação de texto e o `stringr` [consulte este material](https://stringr.tidyverse.org/articles/from-base.html).
+
+O `purrr` faz algo similar, ao simplificar a família de funções `apply` em diversas funções `map_*`. O ganho mais relevante, neste caso, é que as funções `map_*` garantem um output consistente, em termos da classe do objeto que é retornado como resultado da função.
+
+Em termos de eficiência, o tidyverse costuma ganhar das funções equivalentes em base-R. O `dplyr`/`tidyr`, de maneira geral, garante manipulações de dados muito mais velozes[^2], assim como o `readr` importa dados mais rapidamente[^3]. As funções `map` também tem paralelos simples na família `future_` do pacote `furrr`, que permite usar processamento paralelo no R.
+
+[^2]: Existem diversos benchmarks que atestam os ganhos do `dplyr` em relação ao base-R. Veja, por exemplo, este [comparativo](https://www.r-bloggers.com/2022/10/efficiency-comparison-of-dplyr-and-tidyr-functions-vs-base-r/). Apesar disto, o `dplyr` é menos eficiente que seu concorrente `data.table`. Existem algumas alternativas como [dtplyr](https://dtplyr.tidyverse.org) e, mais recentemente, [tidytable](https://markfairbanks.github.io/tidytable/), que fornecem a velocidade do data.table com a sintaxe do `dplyr`.
+
+[^3]: Similarmente ao `dplyr`, o `readr` também perde para seu concorrente `data.table::fread`. Contudo, o pacote `vroom` oferece uma alternativa mais veloz ao `readr` dentro do universo tidyverse.
+
+### Material de apoio
+
+Há muito material de apoio para tidyverse: livros, materiais didáticos, posts em blogs, respostas em fóruns, etc. Como citado acima, o próprio Posit produz inúmeros materiais didáticos e livros que ajudam a aprender e a ensinar tidyverse.
+
+Na medida em que o tidyverse consolida-se como o dialeto dominante isto tende a se tornar um ciclo virtuoso. O R é uma linguagem é bastante versátil, que reúne pesquisadores de campos distintos. Recentemente, parece haver uma convergência para o tidyverse. O campo de séries de tempo, por exemplo, agora tem o `tidyquant`, `fable` e `modeltime` que utilizam os princípios do `tidyverse`. Com o tempo, deve-se observar movimentos similares de outros campos.
+
+### Tudo em um
+
+O tidyverse oferece funções que se aplicam a cada uma das etapas de uma análise de dados. Neste sentido, ele vai de ponta-a-ponta, cobrindo importação, limpeza, modelagem e visualização de dados. A natureza autocontida do tidyverse é bastante atraente pois oferece um caminho seguro para novatos no R, especialmente para quem tem interesse em ciência de dados.
+
+### Escalabilidade
+
+O conhecimento no R muitas vezes é bastante horizontal. Cada pacote novo traz funções diferentes, que funcionam de novas maneiras e este conhecimento adquirido nem sempre se traduz para outras tarefas. Já sintaxe do `dplyr` é bastante geral, pode ser utilizada em vários contextos. O `dbplyr`, por exemplo, é um backend para databases (como BigQuery, PostgreSQL, etc.) que usa a sintaxe do `dplyr` como frontend. O mesmo acontece com `dtplyr`/`tidytable` que permite usar a sintaxe do `dplyr` junto com a eficiência do `data.table`. Até para dados complexos já existe o pacote `srvyr` que usa o `survey` como backend.
+
+### Facilidade de uso
+
+Este último ponto é bastante mais contencioso. Eu acredito que o `tidyverse` é mais fácil do que base-R. Eu tenho um conhecimento razoável de base-R e avançado tanto de `tidyverse` como de `data.table`. Na minha opinião, a lógica do tidyverse de usar o nome das colunas de um `data.frame` como objetos é muito poderosa e intuitiva. Não só torna o código mais legível como também evita uma sintaxe carregada com operadores estranhos como `$`. A integração com pipes também simplifica muito o workflow da análise de dados. Por fim, fazer funções com tidyverse também é muito fácil.
+
+# Explorando o tidyverse
+
+O "núcleo duro", por assim dizer, do tidyverse é composto por 8 pacotes:
+
+-   `dplyr`
+
+-   `tidyr`
+
+-   `tibble`
+
+-   `readr`
+
+-   `stringr`
+
+-   `lubridate`
+
+-   `forcats`
+
+-   `purrr`
+
+-   `ggplot2`
+
+Pessoalmente, gosto muito de todos estes pacotes, a ponto de ter listado todos no meu post de [pacotes essenciais de R](https://restateinsight.com/posts/general-posts/pacotes-essenciais-r/). Cada um destes pacotes resolve algum problema central na análise de dados. O pacote `readr` importa os dados; o `tibble` é a plataforma que contém os dados; `dplyr` e `tidyr` limpam os dados; e, finalmente, `ggplot2` visualiza os dados. Os pacotes `lubridate`, `forcats` e `stringr` lidam com as três classes importantes de dados: datas, factors e texto. Por fim, o pacote `purrr` amarra todo este ecossistema de pacotes numa abordagem de programação funcional que é elegante e eficiente.
+
+Além dos pacotes core, o tidyverse traz junto consigo outros pacotes importantes como `rvest`/`xml2`/`httr`, para webscrapping, `jsonlite`/`readxl`/`haven`/`feather`, para importação de outros tipos de arquivos de dados e `modelr`/`broom` para modelagem de dados e apresentação de resultados.
+
+## O tidyverse em números
+
+Olhando para as estatísticas do CRAN, vê-se que os pacotes do tidyverse são muito relevantes dentro do ecossistema. Os dados compilados abaixo mostram o retrato dos pacotes do CRAN em 05 de setembro de 2023, quando havia cerca de 19.800 pacotes ativos.
+
+Atualmente, cerca de um terço dos pacotes no CRAN dependem de algum dos pacotes core do tidyverse. O crescimento desta razão tem sido crescente: de todos os pacotes ativos em 2023, 40% dependem diretamente do tidyverse. Note que no gráfico abaixo, o ano de publicação reflete o ano da versão mais recente de cada pacote. Assim, pacotes ativos cuja última atualização foi anterior a 2016 dificilmente vão possuir alguma dependência com os pacotes do tidyverse já que a maioria deles não existia nesta época.
+
+```{r}
+#| eval: true
+#| echo: false
+panel
+```
+
+Olhando os dados por pacote vê-se que o ggplot2 e dplyr são os mais populares.
+
+```{r}
+#| eval: true
+#| echo: false
+p1
+```
+
+## A filosofia do `tidyverse`
+
+A filosofia geral do `tidyverse` toma muito emprestado da gramática. As funções têm nomes de verbos que costumam ser intuitivos e são encadeados via "pipes"[^4] que funcionam como conectivos numa frase. Em tese, isto torna o código mais legível e até mais didático. A tarefa de renomear colunas, criar variáveis e calcular uma média nos grupos torna-se "linear" no mesmo sentido em que uma frase com sujeito-verbo-objeto é linear.
+
+[^4]: Para saber mais sobre pipes e a diferença entre o novo pipe nativo `|>` e o pipe `|>` do `magrittr` veja meu post sobre o assunto.
+
+### Pipes
+
+O pipe, essencialmente, carrega o resultado de uma função adiante numa cadeia de comandos: `objeto |> função1 |> função2 |> função3`. Isto tem duas vantagens: primeiro, evita que você use funções compostas que são lidas "de dentro para fora" como `exp(mean(log(x)))`; e, segundo, dispensa a criação de objetos intermediários "inúteis" que estão ali somente para segurar um valor que não vai ser utilizado mais adiante.
+
+```{r}
+#| eval: false
+model <- lm(log(AirPassengers) ~ time(AirPassengers))
+
+#> Função composta
+mean(exp(fitted(model)))
+#> Usando pipes
+model |> fitted() |> exp() |> mean()
+#> Usando objetos intermediários
+x1 <- fitted(model)
+x2 <- exp(x1)
+x3 <- mean(x2)
+```
+
+Num contexto de manipulação de dados pode-se ter algo como o código abaixo.
+
+```{r}
+#| eval: false
+tab_vendas_cidade <- dados |> 
+  #> Renomeia colunas
+  rename(date = data, city = cidade, variable = vendas, value = valor) |> 
+  #> Transforma colunas
+  mutate(
+    value = value / 1000,
+    date = readr::parse_date(date, format = "%Y-%b%-d", locale = readr::locale("pt")),
+    year = lubridate::year(date)
+    ) |> 
+  #> Agrupa pela coluna year e calcula algumas estatísticas
+  group_by(year) |> 
+  summarise(
+    total = sum(value),
+    count = n()
+  )
+```
+
+Em base-R o mesmo código ficaria algo como o descrito abaixo.
+
+```{r}
+names(dados) <- c("date", "city", "variable", "value")
+
+dados$value <- dados$value / 1000
+dados$date <- readr::parse_date(
+  dados$date, format = "%Y-%b%-d", locale = readr::locale("pt")
+  )
+dados$year <- lubridate::year(dados$date)
+
+tab_vendas_cidade <- tapply(
+  dados$value,
+  dados$city,
+  \(x) {data.frame(total = sum(x), count = length(x))}
+  )
+```
+
+Há um tempo atrás argumentava-se contra o uso de "pipes", pois estes dificultavam a tarefa de encontrar bugs no código. Isto continua sendo parcialmente verdade, mas as funções do `tidyvserse` atualmente têm mensagens de erro bastante ricas e permitem encontrar a fonte do erro com relativa facilidade. Ainda assim, não se recomenda encadear funções em excesso, i.e., pipes com 10 funções ou mais[^5].
+
+[^5]: Para mais sobre pipes consulte o [meu post sobre o assunto](https://restateinsight.com/posts/general-posts/2023-09-pipes-in-r/).
+
+### Funções
+
+Outra filosofia do `tidyverse` é de que tarefas rotineiras devem ser transformadas em funções específicas. Neste sentido, os pacotes `dplyr`, `tidyr` e afins são recheados de funções, às vezes com nomes muito semelhantes e com usos redundantes. As funções `starts_with` e `ends_with`, por exemplo, são casos específicos da função `matches`. Há funções que permitem até duas formas de grafia como `summarise` e `summarize`. Outras como `slice_min` e `slice_max` são convenientes mas são literalmente: `arrange + slice`.
+
+Somando somente os dois principais pacotes, `dplyr` e `tidyr`, há 360 funções disponíveis. Contraste isto com o `data.table` que permite fazer 95% das transformações de dados somente com `dt[i, j, by = c(), .SDcols = cols]`.
+
+Mesmo as funções base do `R` costumam ser mais sucintas do que códigos em `tidyverse`. No exemplo abaixo, a função `tapply` consegue o mesmo resultado que o código mais extenso feito com `dplyr`.
+
+```{r}
+#| eval: false
+tapply(mtcars$mpg, mtcars$cyl, mean)
+
+mtcars |> 
+  group_by(cyl) |> 
+  summarise(avg = mean(cyl))
+```
+
+As vantagens do `tidyverse` se tornam mais evidentes com o tempo. De fato, o pacote permite abstrações muito poderosas, e eventualmente, pode-se fazer um código centenas de vezes mais sucinto combinando as suas funções. Em outros casos, as funções do tidyverse são simplesmente muito convenientes.
+
+Tome a `starts_with`, por exemplo, que seleciona as colunas que começam de uma certa forma. Suponha uma tabela simples em que há múltiplas colunas cujos nomes começam com a letra "x". O código em tidyverse é muito mais limpo que o código em base-R.
+
+```{r}
+df <- df |> 
+  select(date, starts_with("x"))
+
+df <- df[, c("date", names(df)[grep("^x", names(df))])]
+df <- df[, c("date", names(df)[stringr::str_detect(names(df), "^x")])]
+```
+
+O exemplo abaixo é inspirado [neste post](https://www.r-bloggers.com/2023/03/unlocking-the-power-of-purrr-how-to-create-multiple-lags-like-a-pro-in-r/), que mostra como calcular lags de uma série de tempo que esteja em um `data.frame`. Calcular defasagens de uma série de tempo é uma tarefa um pouco árdua quando se usa somente funções base. O código abaixo mostra não somente a elegância do tidyverse mas também a facilidade em se criar funções a partir do tidyverse.
+
+```{r}
+calculate_lags <- function(df, var, lags) {
+  
+ map_lag <- lags |> map(~partial(lag, n = .x))
+ out <- df |>
+   mutate(
+     across(.cols = {{var}},
+            .fns = map_lag,
+            .names = "{.col}_lag{lags}")
+     )
+ 
+ return(out)
+}
+
+df <- data.frame(
+  date = time(AirPassengers),
+  value = as.numeric(AirPassengers)
+)
+
+df |> calculate_lags(value, 1:3) |> head()
+#       date value value_lag1 value_lag2 value_lag3
+# 1 1949.000   112         NA         NA         NA
+# 2 1949.083   118        112         NA         NA
+# 3 1949.167   132        118        112         NA
+# 4 1949.250   129        132        118        112
+# 5 1949.333   121        129        132        118
+# 6 1949.417   135        121        129        132
+```
+
+### Desvantagens
+
+O lado negativo da abordagem "gramatical" é que para não-falantes de inglês muitas destas vantagens são despercebidas[^6] e o resultado é somente um código "verborrágico", cheio de funções.
+
+[^6]: No fundo, isto é ainda mais um incentivo para aprender inglês.
+
+Atualmente, parece haver um consenso crescente de que a melhor forma de começar a aprender R é começando pelo `tidyverse`; esta visão não é livre de críticos como de [Norm Matloff, professor de estatística da UC Davis](https://matloff.wordpress.com/2022/04/02/greatly-revised-edition-of-tidyverse-skeptic/). Essencialmente, Matloff considera que o `tidyverse` é muito complexo para iniciantes: há muitas funções para se aprender e o incentivo à programação funcional torna o código muito abstrato. O tidyverse também esconde o uso do base-R e não ensina operadores básicos como `[[` e `$`. Matloff também considera que "pipes" prejudicam o aprendizado pois dificultam a tarefa de encontrar a fonte dos erros no código.
+
+Um fato particularmente irritante do `tidyverse` é a frequência com que os pacotes mudam. Na maior parte das vezes, as mudanças são positivas, mas isto faz com que o código escrito em `tidyverse` não seja sustentável ao longo do tempo.
+
+Eu demorei um bom tempo para entender as funções `tidyr::gather` e `tidyr::spread` e, atualmente, ambas foram descontinuadas e substituídas pelas funções `pivot_longer` e `pivot_wider`. As funções `mutate_if`, `mutate_at` e similares do `dplyr` foram todas suprimidas pela sinataxe mais geral do `across`. A função `tidyr::separate` agora está sendo substituída por `separate_wider_position` e `separate_wider_delim`.
+
+Mesmo um código bem escrito há poucos anos atrás tem grandes chances de não funcionar mais porque as funções foram alteradas ou descontinuadas. Em 2021, Wickham discutiu este problema abertamente [numa palestra](https://posit.co/resources/videos/maintaining-the-house-the-tidyverse-built/). Desde então, o tidyverse tem melhorado a sua política de [manutenção de funções](https://lifecycle.r-lib.org/articles/stages.html).
+
+A velocidade e eficiência das funções do tidyverse pode ser um problema, mas atualmente existem diversas boas soluções como o já citado `tidytable`. Particularmente, são raras as situações em que a velocidade do tidyverse me incomoda.
+
+# À força de uma conclusão
+
+O `tidyverse` é um conjunto de pacotes muito úteis que atualmente dominam o ecossistema do R. Pessoalmente, acredito que a melhor forma de aprender R é começando pelo `tidyverse`. As suas vantagens mais do que compensam as suas falhas. Além disso, o fato dele ser o dialeto dominante de R é, por si só, um bom motivo para aprendê-lo.
+
+A crítica de Matloff é válida em um ponto importante: em grande parte, o tidyverse substitui o base-R e dispensa o seu aprendizado. Isto cria uma lacuna importante que eventualmente vai causar prejuízos. Neste sentido, recomendo dois livros para aprender base-R e os princípios mais gerais da linguagem:
+
+-   [Grolemund, G. Hands-on programming with R](https://rstudio-education.github.io/hopr/)
+
+-   [Wickham, H. Advanced R. 1a ed.](http://adv-r.had.co.nz) - É importante notar a edição. A edição mais recente deste livro omite bastante do base-R.
