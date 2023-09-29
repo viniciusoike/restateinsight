@@ -1,6 +1,6 @@
 ---
 title: 'Indo além: facets'
-date: '2023-08-31'
+date: '2023-10-03'
 categories: ['data-visualization', 'ggplot2', 'tutorial-R']
 description: "Facets são pequenos gráficos que, lado a lado, ajudam a comparar várias informações ao mesmo tempo. Este post intermediário ensina a fazer gráficos de facets no R usando o ggplot2."
 image: "/static/ggplot2_facet.png"
@@ -182,6 +182,7 @@ gap07 <- subset(gapminder, year == 2007)
 A tabela de dados contém informações de vários países. A coluna `continent` indica a qual continente o país pertence, a coluna `gdpPercap` é o PIB per capita do país, em dólares constantes, a coluna `lifeExp` é a expectativa de vida ao nascer do país em anos.
 
 ```{r}
+#| echo: false
 print_table(head(gap07))
 ```
 
@@ -198,7 +199,7 @@ ggplot(data = gapminder, aes(x = log(gdpPercap), y = lifeExp)) +
   facet_wrap(vars(continent))
 ```
 
-Note que como o `facet_wrap()` gera pequenos títulos para cada gráfico, podemos dispensar a legenda usando `guides(color = "none")`.
+Note que pode-se dispensar da legenda, já que `facet_wrap()` gera pequenos títulos para cada gráfico individual.
 
 ```{r}
 ggplot(data = gapminder, aes(x = log(gdpPercap), y = lifeExp)) +
@@ -209,7 +210,7 @@ ggplot(data = gapminder, aes(x = log(gdpPercap), y = lifeExp)) +
   guides(color = "none")
 ```
 
-Há diferenças grandes na amplitude do PIB per capita entre os continentes. Podemos usar `scales = "free_x"` para dar um zoom em cada um deles.
+Há diferenças grandes na amplitude do PIB per capita entre os continentes. Podemos usar `scales = "free_x"` para dar um "zoom" em cada um deles.
 
 ```{r}
 ggplot(data = gapminder, aes(x = log(gdpPercap), y = lifeExp)) +
@@ -221,7 +222,7 @@ ggplot(data = gapminder, aes(x = log(gdpPercap), y = lifeExp)) +
 
 ### Facets com duas variáveis
 
-A função `facet_wrap()` permite também criar pequenos gráficos em dois grupos distintos. No exemplo abaixo, vamos comparar a evolução destas variáveis nos páises asiáticos e nos países americanos, nos anos de 1952, 1972 e 1992.
+A função `facet_wrap()` permite também criar pequenos gráficos em dois grupos distintos. No exemplo abaixo, vamos comparar a evolução do PIB per capita e da expectativa de vida nos páises asiáticos e nos países americanos, nos anos de 1952, 1972 e 1992.
 
 Note que basta incluir a variável adicional dentro de `vars()`.
 
@@ -257,6 +258,7 @@ ggplot(data = gap07, aes(x = log(gdpPercap), y = lifeExp)) +
   geom_point(data = pontos_fundo, color = "gray50", alpha = 0.5) +
   geom_point(aes(color = continent), alpha = 0.8) +
   facet_wrap(vars(continent)) +
+  scale_color_brewer(type = "qual", palette = 2) +
   guides(color = "none")
 ```
 
@@ -274,7 +276,7 @@ ggplot(gapminder, aes(x = lifeExp)) +
 
 Vemos no gráfico que, de maneira geral, os países convergiram para a direita da distribuição. Isto indica não apenas que houve um aumento da expectativa de vida, mas também que boa parte dos países hoje tem expectativa de vida na casa de 70-80 anos.
 
-O código abaixo faz o mesmo tipo de gráfico para a distribuição do PIB per capita entre os países. Novamente usamos a transformação log. Vemos que houve uma transição para a direita da distribuição (mais países de renda-alta), mas ainda com bastante variância. Em alguns momentos, a distribuição parece quase seguir uma distruição uniforme com outliers - tanto acima como abaixo.
+O código abaixo faz o mesmo tipo de gráfico para a distribuição do PIB per capita entre os países. Novamente usamos a transformação log. Vemos que houve uma transição para a direita da distribuição (mais países de renda-alta), mas ainda há bastante variância. Em alguns momentos, a distribuição parece quase seguir uma distruição uniforme com outliers - tanto acima como abaixo.
 
 ```{r}
 ggplot(gapminder, aes(x = log(gdpPercap))) +
@@ -321,7 +323,7 @@ Sabemos que um bom histograma depende do número correto de colunas/intervalos. 
 
 Para variar o número de intervalos, alteramos o número de `bins` ou definimos o tamanho de cada um dos intervalos via `binwidth`. Como temos múltiplos histogramas podemos inserir um vetor de números como argumento, como `bins = c(12, 30, 25, 17)`, por exemplo. O mesmo vale para o argumento `bindwidth`.
 
-Outra opção é usar uma função customizada como no exemplo abaixo. Neste código usamos regra de "Freedman--Diaconis" para selecionar o tamanho ótimo dos intervalos em cada um dos histogramas usando as funções base `ceiling()`, `IQR()` e `length()`. Note que também seria possível utilizar a função `nclass.FD()`.
+Outra opção é usar uma função customizada como no exemplo abaixo. Neste código usamos regra de [Freedman--Diaconis](https://en.wikipedia.org/wiki/Freedman–Diaconis_rule#:~:text=For%20a%20set%20of%20empirical,of%20the%20theoretical%20probability%20distribution.) para selecionar o tamanho ótimo dos intervalos em cada um dos histogramas usando as funções base `ceiling()`, `IQR()` e `length()`. Note que também seria possível utilizar a função `nclass.FD()`.
 
 ```{r}
 ggplot(data = subtxhousing, aes(x = median)) +
@@ -379,7 +381,7 @@ ggplot(data = data, aes(x = as.factor(bdrms), y = avg)) +
   coord_flip()
 ```
 
-Fica imediatamente óbvio que não houve vendas de imóveis de 1 e 2 dormitórios no estilo "colonial", sugerindo que este estilo é mais presente entre imóveis maiores. No mesmo sentido, não há vendas de imóveis de 6 e 7 dormitórios que não sejam construídos no estilo colonial.
+Fica imediatamente óbvio que não houve vendas de imóveis de 1 e 2 dormitórios no estilo colonial/rústico, sugerindo que este estilo é mais presente entre imóveis maiores. No mesmo sentido, não há vendas de imóveis de 6 e 7 dormitórios que não sejam construídos no estilo colonial.
 
 ## Wraps ou Grids
 
@@ -398,7 +400,7 @@ facet_wrap(facet = vars(x, y))
 facet_grid(rows = vars(x), cols = vars(y))
 ```
 
-O código abaixo refaz o exemplo comparativo. Note que há poucas diferenças entre os gráficos, mas que o resultado do `facet_grid()` é um pouco mais otimizado.
+O código abaixo faz um exemplo comparativo. Note que há poucas diferenças entre os gráficos, mas que o resultado do `facet_grid()` é um pouco mais otimizado.
 
 ```{r, eval = FALSE}
 ggplot(data = gap_compare, aes(x = log(gdpPercap), y = lifeExp)) +
@@ -428,7 +430,7 @@ p2 <- p +
 p1 | p2
 ```
 
-Uma vantagem importante da função `facet_grid()` é a de poder plotar a distribuição conjunta dos dados via o argumento `margins = TRUE`.
+Uma importante vantagem da função `facet_grid()` é a de poder plotar a distribuição conjunta dos dados via o argumento `margins = TRUE`. O gráfico agora contém uma terceira coluna que mostra o gráfico de dispersão com todos os dados da amostra.
 
 ```{r}
 ggplot(data = gap_compare, aes(x = log(gdpPercap), y = lifeExp)) +
@@ -438,9 +440,9 @@ ggplot(data = gap_compare, aes(x = log(gdpPercap), y = lifeExp)) +
 
 ### Vendas de imóveis
 
-Para melhor ilustrar algumas das capacidades da `facet_grid()` vamos importar uma versão aumentada da base `txhousing` do pacote `ggplot2`. O código abaixo importa uma versão desta base acrescida de colunas que identificam a quais condados (counties) cada cidade pertence, além de informações de população e crescimento populacional.
+Para melhor ilustrar algumas das capacidades da `facet_grid()` vamos importar uma versão aumentada da base `txhousing` do pacote `ggplot2`. O código abaixo importa uma versão desta base acrescida de colunas que identificam a quais condados (counties) cada cidade pertence, além de informações de população e crescimento populacional[^1].
 
-O código utilizado para gerar esta base [está disponível no link]().
+[^1]: O código utilizado para gerar esta base [está disponível no link]().
 
 ```{r, eval = FALSE}
 txhousing_counties <- read_csv("...")
@@ -495,7 +497,9 @@ price_sales <- txhousing_counties |>
   filter(check == 7)
 ```
 
-O código abaixo pode parecer muito extenso e confuso à primeira vista, mas lembre-se de focar em cada elemento individualmente. Como o `ggplot` funciona somando elementos basta focar em cada elo da cadeia individualmente.
+O código abaixo pode parecer muito extenso e confuso à primeira vista, mas lembre-se de focar em cada elemento individualmente. Como o `ggplot` funciona somando elementos basta focar em cada elo da cadeia individualmente. Por fim, vale notar que o elemento temático que controla o título de cada "facet" é o `strip.text`[^2].
+
+[^2]: Outros elementos temáticos deste título, como a cor do fundo ou a sua posição são controlados via outros elementos `strip_*`. Para mais detalhes consulte `help("theme")`. Veja também o post [Estético: tipografias e temas](https://restateinsight.com/posts/ggplot2-tutorial/7-themes-fonts).
 
 ```{r, out.width="100%", fig.width=8.7, fig.height=8.7}
 ggplot(data = price_sales, aes(x = city, y = price)) +
@@ -558,3 +562,11 @@ O uso de gráficos com "facets" permite comparar facilmente diferentes subconjun
 Há alguns fatores a se considerar: (1) se houver muitos grupos, cada "facet" pode acabar pequena demais, dificultando a compreensão dos dados; (2) para garantir a comparação entre os grupos é importante manter os eixos fixos; (3) se a intenção for somente observar cada série individualmente, lado a lado, pode-se "liberar" os eixos.
 
 A preparação dos dados é bastante importante na hora de montar um gráfico de facets. A variável que separa os gráficos também é utilizada como título de cada "facet" e também para ordená-los. Assim é importante pensar qual a ordem mais adequada e definir títulos que sejam de fácil interpretação.
+
+## Outros posts citados
+
+-   [Fundamentos: gráfico de coluna](https://restateinsight.com/posts/ggplot2-tutorial/2-grafico-coluna)
+-   [Fundamentos: gráfico de linha](https://restateinsight.com/posts/ggplot2-tutorial/4-grafico-de-linha)
+-   [Fundamentos: gráfico de dispersão](https://restateinsight.com/posts/ggplot2-tutorial/1-grafico-dispersao)
+-   [Fundamentos: histograma](https://restateinsight.com/posts/ggplot2-tutorial/3-grafico-histograma)
+-   [Estético: Tipografia e temas](https://restateinsight.com/posts/ggplot2-tutorial/7-themes-fonts)
