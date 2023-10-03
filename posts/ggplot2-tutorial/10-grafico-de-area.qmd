@@ -6,7 +6,6 @@ description: "Post intermediário que ensina a fazer gráficos de área no R usa
 title-block-banner: true
 image: "/static/ggplot2_area.png"
 image-alt: "/static/ggplot2_area.png"
-page-layout: article
 execute: 
   message: false
   warning: false
@@ -24,6 +23,7 @@ library(dplyr)
 library(RcppRoll)
 library(ggplot2)
 library(GetBCBData)
+library(patchwork)
 
 knitr::opts_chunk$set(
   fig.align = "center",
@@ -49,7 +49,7 @@ print_table <- function(x) {
 
 # Gráfico de Área
 
-Gráficos de área ajudam a visualizar a dinâmica de um conjunto de valores ao longo do tempo. Essencialmente, um gráfico de área é criado empilhando pequenos gráficos de linha uns sobre os outros e preenchendo a área dentre as linhas com cores. Isto permite que se veja a tendência geral dos dados, assim como a contribuição de cada grupo para o resultado total.
+Gráficos de área ajudam a visualizar a dinâmica de um conjunto de valores ao longo do tempo. Um gráfico de área é, essencialmente, um gráfico de linha, que passa por cima de uma região sombreada. Pode-se empilhar pequenos gráficos de linha uns sobre os outros de tal maneira que a área entre as linhas fica preenchida com cores. Isto permite que se veja a tendência geral dos dados, assim como a contribuição de cada grupo para o resultado total.
 
 ```{r, echo = FALSE}
 x <- c("Houston", "Dallas", "Austin", "San Antonio")
@@ -63,7 +63,8 @@ tbl_area <- txhousing |>
   group_by(city) |> 
   mutate(
     trend = RcppRoll::roll_mean(total, n = 12, fill = NA),
-    trend = RcppRoll::roll_mean(trend, n = 2, fill = NA))
+    trend = RcppRoll::roll_mean(trend, n = 2, fill = NA)
+    )
 
 ggplot(tbl_area, aes(x = date, y = trend)) +
   geom_area(aes(fill = city)) +
@@ -77,26 +78,30 @@ ggplot(tbl_area, aes(x = date, y = trend)) +
     values = c("#264653", "#2a9d8f", "#e9c46a", "#f4a261", "gray75")) +
   labs(x = NULL, y = "Vendas (tendência)") +
   theme_minimal() +
-  theme(legend.position = "top")
+  theme(legend.position = "top", panel.grid.minor = element_blank())
 ```
 
-Neste post, vamos discutir como montar um gráfico de área usando o pacote `ggplot2` no R. Primeiro, vamos entender os elementos básicos deste tipo de gráfico usando um exemplo com dados simulados. Depois, vamos explorar um caso aplicado, analisando as concessões de crédito imobiliário no Brasil.
+Este post ensina como fazer gráficos de área usando o `ggplot2` no `R`. Primeiro, vamos ganhar intuição construindo um gráfico simples a partir de dados simluados. Depois, vamos revisar os principais elementos estéticos de um gráfico de área.
+
+Visto o básico, partiremos para um caso aplicado, analisando as concessões de crédito direcionadas no Brasil. Neste exemplo, vamos usar o conhecimento de escalas e temas para aprimorar o gráfico de área.
+
+Por fim, vamos explorar uma base de projeções demográficas do Brasil usando gráficos de área.
 
 ## ggplot2
 
 Antes de mais nada, precisamos instalar e carregar alguns pacotes. Assim como em posts anteriores, além do pacote `ggplot2` vamos utilizar alguns pacotes auxiliares para facilitar a manipulação dos dados.
 
 ```{r, eval = FALSE}
-# Instala o pacote ggplot2 (se necessário)
+#> Instala o pacote ggplot2 (se necessário)
 install.packages(c("dplyr", "tidyr", "ggplot2", "RcppRoll", "GetBCBData"))
 
-# Carrega os pacotes
+#> Carrega os pacotes
 library("ggplot2")
-# Manipulação de dados
+#> Manipulação de dados
 library("dplyr")
 library("tidyr")
 library("RcppRoll")
-# Importar dados da API do Banco Central do Brasil
+#> Importar dados da API do Banco Central do Brasil
 library("GetBCBData")
 ```
 
@@ -190,36 +195,163 @@ Os principais elementos estéticos da função `geom_area()` são
 
 Os elementos estéticos podem receber dois tipos de valores: constantes ou variáveis. Uma constante é simplesmente um valor (número, texto, etc.) enquanto uma variável é o nome de alguma coluna da base de dados.
 
-No exemplo abaixo o elemento `alpha`, que controla o nível de transparência é constante `alpha = 0.5` e é aplicado de forma uniforme sobre todo o gráfico. Já o elemento `fill` é variável e definido como `fill = grupo` dentro da função `aes()`. Quando mapeamos uma coluna/variável para um elemento estético sempre usamos a função `aes()` da mesma maneira como fazemos para mapear as variáveis `x` e `y`.
+No exemplo abaixo o elemento `fill` é variável e definido como `fill = grupo` dentro da função `aes()`. Quando mapeamos uma coluna/variável para um elemento estético sempre usamos a função `aes()` da mesma maneira como fazemos para mapear as variáveis `x` e `y`.
 
-Como a variável `grupo` é mapeada usamos uma função especial `scale_fill_manual()` para definir as suas cores e para controlar a legenda.
+Como a variável `grupo` é mapeada usamos `scale_fill_manual()` para definir as suas cores e para controlar a legenda.
 
 ```{r}
-ggplot(data = long) +
-  geom_area(aes(x = ano, y = total, fill = grupo), alpha = 0.5) +
-  # Define as cores e controla a legenda
+sub <- txhousing |> 
+  filter(
+    city %in% c("Austin", "Houston", "Dallas"),
+    year >= 2010
+    )
+
+ggplot(data = sub) +
+  geom_area(aes(x = date, y = inventory, fill = city)) +
+  #> Define as cores e controla a legenda
   scale_fill_manual(
-    # Título da legenda
-    name = "Lojas",
-    # Texto da legenda
-    labels = c("Loja 1", "Loja 2", "Loja 3"),
-    # Cores
+    #> Título da legenda
+    name = "Cidades",
+    #> Cores
     values = c("#0a9396", "#ee9b00", "#ae2012"))
 ```
 
-# Exemplo: Crédito Direcionado
+Para seguir os exemplos abaixo será útil definir o gráfico acima como um template padrão. Vamos chamá-lo de `base_plot`.
+
+```{r}
+base_plot <- ggplot(sub, aes(x = date, y = inventory, fill = city)) +
+  #> Define as cores e controla a legenda
+  scale_fill_manual(
+    #> Título da legenda
+    name = "Cidades",
+    #> Cores
+    values = c("#0a9396", "#ee9b00", "#ae2012")
+    ) +
+  guides(fill = "none")
+```
+
+### alpha
+
+O argumento `alpha`, igualmente como em casos anteriores, controla o nível de transparência da imagem. O valor escolhido deve variar entre 0 e 1, onde 0 indica transparência máxima. Também é possível mapear uma coluna usando `alpha`, de maneira que cada grupo será representado por um nível de transparência distinto, mas há pouca utilidade prática nisto. O painel de gráficos abaixo mostra alguns valores de `alpha`.
+
+```{r}
+#| eval: false
+base_plot + geom_area(alpha = 0.2)
+base_plot + geom_area(alpha = 0.4)
+base_plot + geom_area(alpha = 0.6)
+base_plot + geom_area(alpha = 0.8)
+```
+
+```{r}
+#| echo: false
+#| out-width: 100%
+p1 <- base_plot + geom_area(alpha = 0.2) + ggtitle("alpha = 0.2")
+p2 <- base_plot + geom_area(alpha = 0.4) + ggtitle("alpha = 0.4")
+p3 <- base_plot + geom_area(alpha = 0.6) + ggtitle("alpha = 0.6")
+p4 <- base_plot + geom_area(alpha = 0.8) + ggtitle("alpha = 0.8")
+
+(p1 + p2) / (p3 + p4)
+```
+
+### fill e color
+
+O padrão da função `geom_area` é de sempre manter os argumentos `fill` e `color` iguais. Isto garante uma visualização simples e fluída. Contudo, é possível definir especificamente uma cor para cade elemento. O argumento `color` define a cor da linha no topo da área, enquanto `fill` define a cor que preenche a área. Os exemplos abaixo devem deixar nítida esta diferença.
+
+Note que para tornar a cor da linha mais aparente uso `linewidth = 3`. Isto torna a linha mais espessa.
+
+```{r}
+#| eval: false
+ggplot(tbl, aes(x = ano, y = venda_1)) +
+  geom_area(fill = "#0a9396")
+
+ggplot(tbl, aes(x = ano, y = venda_1)) +
+  geom_area(fill = "#0a9396", color = "#ee9b00", linewidth = 3)
+
+ggplot(long, aes(x = ano, y = total, fill = grupo)) +
+  geom_area()
+
+ggplot(long, aes(x = ano, y = total, fill = grupo)) +
+  geom_area(color = "#ee9b00", linewidth = 3)
+```
+
+```{r}
+#| echo: false
+#| out-width: 100%
+
+p1 <- ggplot(tbl, aes(x = ano, y = venda_1)) +
+  geom_area(fill = "#0a9396")
+
+p2 <- ggplot(tbl, aes(x = ano, y = venda_1)) +
+  geom_area(fill = "#0a9396", color = "#ee9b00", linewidth = 3)
+
+p3 <- ggplot(long, aes(x = ano, y = total, fill = grupo)) +
+  geom_area()
+
+p4 <- ggplot(long, aes(x = ano, y = total, fill = grupo)) +
+  geom_area(color = "#ee9b00", linewidth = 3)
+
+(p1 + p2) / (p3 + p4)
+```
+
+### linetype e linewidth
+
+Estes argumentos se comportam da mesma maneira como no caso de gráficos de linha, com a função `geom_line`. O argumento `linetype` controla o tipo da linha (e.g. sólida, tracejada, etc.) enquanto `linewidth` controla a espessura da linha. Note que os argumento serão aplicados apenas se houver uma diferença entre `color` e `fill`.
+
+O exemplo abaixo mostra como mudar o tipo da linha que fica sobre a área colorida. Para ver os demais tipos de linha consulte o [post inicial sobre gráficos de linha](https://restateinsight.com/posts/ggplot2-tutorial/4-grafico-de-linha#opções-estéticas).
+
+```{r}
+#| eval: false
+base_plot + geom_area(linetype = 5) 
+base_plot + geom_area(color = "white", linetype = 1)
+base_plot + geom_area(color = "white", linetype = 5)
+base_plot + geom_area(color = "white", linetype = 6)
+```
+
+```{r}
+#| echo: false
+#| out-width: 100$
+p1 <- base_plot + geom_area(linetype = 5)
+p2 <- base_plot + geom_area(color = "white", linetype = 1) + ggtitle("linetype = 1")
+p3 <- base_plot + geom_area(color = "white", linetype = 5) + ggtitle("linetype = 5")
+p4 <- base_plot + geom_area(color = "white", linetype = 6) + ggtitle("linetype = 6")
+
+(p1 + p2) / (p3 + p4)
+```
+
+O painel de gráficos abaixo mostra como variar a espessura da linha. Novamente, este argumento será aplicado apenas se o argumento `color` for diferente do argumento `fill`.
+
+```{r}
+#| eval: false
+base_plot + geom_area(color = "white", linewidth = 0.5) 
+base_plot + geom_area(color = "white", linewidth = 1) 
+base_plot + geom_area(color = "white", linewidth = 2) 
+base_plot + geom_area(color = "white", linewidth = 5) 
+```
+
+```{r}
+#| echo: false
+#| out-width: 100%
+p1 <- base_plot + geom_area(color = "white", linewidth = 0.5) + ggtitle("linewidth = 0.5")
+p2 <- base_plot + geom_area(color = "white", linewidth = 1) + ggtitle("linewidth = 1")
+p3 <- base_plot + geom_area(color = "white", linewidth = 2) + ggtitle("linewidth = 2")
+p4 <- base_plot + geom_area(color = "white", linewidth = 5) + ggtitle("linewidth = 5")
+
+(p1 + p2) / (p3 + p4)
+```
+
+# Crédito Direcionado
 
 Agora vamos seguir para um exemplo aplicado. Vamos explorar o volume de crédito direcionado para pessoas físicas no Brasil. Para importar os dados vamos usar o pacote `GetBCBData` que interage com a API do Banco Central do Brasil e que traz os dados já no formato "long" dentro do `R`.
 
-O código abaixo importa as séries de tempo e identifica elas. A manipulação de dados é feita usando funções do pacote `dplyr`. Neste momento, não é necessário entender a fundo a manipulação dos dados.
+O código abaixo importa as séries de tempo e identifica elas. A manipulação de dados é feita usando funções do pacote `dplyr`.
 
 ```{r}
-# Códigos numéricos das séries de crédito direcionado para Pessoas Físicas
+#> Códigos numéricos das séries de crédito direcionado para Pessoas Físicas
 codigos <- c(20701, 20704, 20708, 20712, 20713)
-# Importa as séries a partir de 01/mar/2011
+#> Importa as séries a partir de 01/mar/2011
 series <- gbcbd_get_series(codigos, first.date = as.Date("01-03-2011"))
 
-# Cria uma coluna chamada linha_credito indicando qual a linha de crédito
+#> Cria uma coluna chamada linha_credito indicando qual a linha de crédito
 series <- series |> 
   dplyr::mutate(
     linha_credito = dplyr::case_when(
@@ -235,7 +367,7 @@ series <- series |>
 Vamos montar um gráfico simples que mostra a composição e evolução do crédito direcionado.
 
 ```{r}
-# Plota o gráfico
+#> Plota o gráfico
 ggplot(data = series) +
   geom_area(aes(x = ref.date, y = value, fill = linha_credito))
 ```
@@ -265,7 +397,7 @@ A escolha automática de cores do `ggplot` raramente é satisfatória. Podemos e
 ```{r}
 ggplot(data = series) +
   geom_area(aes(x = ref.date, y = value, fill = linha_credito)) +
-  # Define a cor dos grupos e adiciona um título na legenda
+  #> Define a cor dos grupos e adiciona um título na legenda
   scale_fill_manual(
     name = "Linha de Crédito",
     values = c("#005f73", "#94d2bd", "#ee9b00", "#bb3e03", "#9b2226")
@@ -277,7 +409,7 @@ Uma solução mais prática é utilizar uma paleta pré-definida de cores. A fun
 ```{r}
 ggplot(data = series) +
   geom_area(aes(x = ref.date, y = value, fill = linha_credito)) +
-  # Define a cor dos grupos e adiciona um título na legenda
+  #> Define a cor dos grupos e adiciona um título na legenda
   scale_fill_brewer(
     name = "Linha de Crédito",
     type = "qual",
@@ -285,52 +417,75 @@ ggplot(data = series) +
     )
 ```
 
-### Ajustando eixos e legendas
+### Ajustando eixos
 
-Para ajustar os eixos utilizamos as funções `scale_`. No código abaixo a função `scale_y_continuous()` altera o eixo-y de três formas: primeiro, o argumento `breaks` define os números que devem ser destacados no eixo; segundo, o argumento `labels` modifica a aparência destes números no gráfico; por fim, `limits` estabelece os limites inferior e superior do eixo-y.
-
-A função `scales::label_number(big.mark = ".")` pode parecer um pouco confusa, mas ela simplesmente informa que o sinal de ponto "." deve ser utilizado como separador de milhar. Assim `10000` é convertido para `10.000`. Na prática ela faz o mesmo que a função base `format()`.
-
-Por fim, colocamos a legenda na parte superior do gráfico usando a função `theme()`.
+Para ajustar os eixos utilizamos as funções `scale_`. Primeiro, vamos ajustar o eixo-x usando `scale_x_date`. Nesta função, `date_breaks` indica a frequências das quebras e `date_labels` indica o formato da data a ser impresso no eixo. No caso abaixo temos quebras anuais onde apenas o número (extenso) do ano é plotado.
 
 ```{r}
 ggplot(data = series) +
   geom_area(aes(x = ref.date, y = value, fill = linha_credito)) +
   scale_fill_brewer(name = "Linha de Crédito", type = "qual", palette = 6) +
-  # Modifica o comportamento do eixo-y
+  scale_x_date(date_breaks = "1 year", date_labels = "%Y")
+```
+
+Note que há duas pequenas áreas entre o gráfico e os limites do painel. Pode-se suprimir esta área usando `expand = c(0, 0)` dentro da função `scale_`.
+
+```{r}
+ggplot(data = series) +
+  geom_area(aes(x = ref.date, y = value, fill = linha_credito)) +
+  scale_fill_brewer(name = "Linha de Crédito", type = "qual", palette = 6) +
+  scale_x_date(date_breaks = "1 year", date_labels = "%Y", expand = c(0, 0))
+```
+
+No código abaixo a função `scale_y_continuous()` altera o eixo-y de três formas: primeiro, o argumento `breaks` define os números que devem ser destacados no eixo; segundo, o argumento `labels` modifica a aparência destes números no gráfico; por fim, `limits` estabelece os limites inferior e superior do eixo-y.
+
+A função `scales::label_number(big.mark = ".")` pode parecer um pouco confusa, mas ela simplesmente informa que o sinal de ponto "." deve ser utilizado como separador de milhar. Assim `10000` é convertido para `10.000`[^1].
+
+[^1]: Na prática ela faz o mesmo que a função base \`format()\`.
+
+```{r}
+ggplot(data = series) +
+  geom_area(aes(x = ref.date, y = value, fill = linha_credito)) +
+  scale_fill_brewer(name = "Linha de Crédito", type = "qual", palette = 6) +
+  scale_x_date(date_breaks = "1 year", date_labels = "%Y", expand = c(0, 0)) +
+  #> Modifica o comportamento do eixo-y
   scale_y_continuous(
     breaks = seq(0, 60000, 10000),
     labels = scales::label_number(big.mark = "."),
     limits = c(0, 60000)
-    ) +
-  # Coloca a legenda na parte superior do gráfico.
-  theme(legend.position = "top")
- 
+    )
 ```
 
-### Adicionando títulos e um tema
+### Títulos e elementos temáticos
 
-Para adicionar títulos o modificar o nome de cada eixo utilizamos a função `labs()` como no código abaixo. Para este gráfico escolhemos um tema neutro com fundo branco `theme_minimal()`.
+Para adicionar títulos o modificar o nome de cada eixo utilizamos a função `labs()`f. Para este gráfico escolhemos um tema neutro com fundo branco `theme_minimal()`. Além disso, adiciono alguns argumentos na função theme para customizar o gráfico. Para mais detalhes consulte [o post sobre elementos temáticos](https://restateinsight.com/posts/ggplot2-tutorial/7-themes-fonts).
 
 ```{r}
 ggplot(data = series) +
   geom_area(aes(x = ref.date, y = value, fill = linha_credito)) +
+  geom_hline(yintercept = 0) +
   scale_fill_brewer(name = "Linha de Crédito", type = "qual", palette = 6) +
+  scale_x_date(date_breaks = "1 year", date_labels = "%Y", expand = c(0, 0)) +
   scale_y_continuous(
     breaks = seq(0, 60000, 10000),
     labels = scales::label_number(big.mark = "."),
     limits = c(0, 60000)) +
-  # Define o título e o nome dos eixos
+  #> Define o título e o nome dos eixos
    labs(
     title = "Evolução das concessões de crédito direcionadas",
     caption = "Fonte: Banco Central do Brasil.",
-    # Omite o nome do eixo-x
+    #> Omite o nome do eixo-x
     x = NULL,
     y = "Milhões (R$)"
     ) +
-  # Insere um tema minimalista com fundo branco
-  theme_minimal() +
-  theme(legend.position = "top")
+  #> Insere um tema minimalista com fundo branco
+  theme_minimal(base_family = "Helvetica") +
+  theme(
+    legend.position = "top",
+    axis.text.x = element_text(angle = 90),
+    panel.grid.minor = element_blank(),
+    panel.grid.major.x = element_blank()
+    )
 
 ```
 
@@ -340,9 +495,7 @@ Por fim, pode-se suavizar a série para reduzir o impacto da sazonalidade na vis
 
 Há muitas maneiras de se fazer isto. Pode-se, por exemplo, dessazonalizar os dados usando X-13 ARIMA; pode-se extrair a tendência das séries utilizando algum filtro linear como de médias móveis, Holt-Winters, filtro HP, etc.
 
-Uma escolha bastante simples é simplesmente somar as últimas doze observações e criar uma janela móvel. Assim temos as concessões acumuladas nos últimos doze meses.
-
-Para calcular esta soma utilizamos a função `RcppRoll::roll_sumr()`. Como a magnitude dos valores aumenta, dividimos o valor final por mil (agora os valores estão em bilhões de reais).
+Uma alternativa bastante simples é somar as últimas doze observações e criar uma janela móvel. Assim temos as concessões acumuladas nos últimos doze meses. Para calcular esta soma utilizamos a função `RcppRoll::roll_sumr()`. Como a magnitude dos valores aumenta, dividimos o valor final por mil (agora os valores estão em bilhões de reais).
 
 ```{r}
 series <- series |> 
@@ -359,6 +512,7 @@ ggplot(data = series) +
     palette = 6) +
   labs(
     title = "Evolução das concessões de crédito direcionadas",
+    subtitle = "Concessões de crédito mensais (soma dos últimos 12 meses).",
     caption = "Fonte: Banco Central do Brasil.",
     x = NULL,
     y = "R$ (bilhões)") +
@@ -368,18 +522,20 @@ ggplot(data = series) +
   )
 ```
 
-# Exemplo: Demografia
+# Demografia
 
-Vamos explorar algumas tendências demográficas do Brasil. Os dados são do projeto de projeções populacionais da ONU (*World Population Prospects*) e estão disponíves em formato `csv` e `xlsx` no [site](https://population.un.org/wpp/Download/Standard/MostUsed/).
+Vamos explorar algumas tendências demográficas do Brasil. Os dados são do projeto de projeções populacionais da ONU (*World Population Prospects*) e estão disponíves em formato `csv` e `xlsx` no [site](https://population.un.org/wpp/Download/Standard/MostUsed/). Esta base de dados inclui tanto valores passados como projeções futuras para a população mundial.
 
-A base que vamos usar foca somente em dados do Brasil e do mundo. A tabela contém as estimativas passadas e projeções futuras da população em grupos de cinco anos (0-4, 5-9, 10-14, ..., 100+).
+A tabela que vamos usar contém as estimativas passadas e projeções futuras da população em grupos de cinco anos (0-4, 5-9, 10-14, ..., 100+) por sexo. Para ler os dados usamos a função `read_csv()`. Vamos considerar somente a janela entre 2000 e 2050 e a variável `pop_total` que estimativa da população total num determinado ano. Para facilitar a leitura, os dados são agregados em grupos maiores: crianças (0-14), adolescentes (15-24), adultos (25-64) e idosos (65+).
 
-Para ler os dados usamos a função `read_csv()`. Note que esta função está importando os dados diretamente da internet.
+O código abaixo faz a manipulação de dados necessária para montar os gráficos[^2].
+
+[^2]: Para uma revisão sobre manipulação de dados consulte o [post da série sobre o asssunto](https://restateinsight.com/posts/ggplot2-tutorial/apendix-manipular-enxergar#manipulando-dados).
 
 ```{r, include = FALSE}
 wpp <- readr::read_csv(here::here("posts/ggplot2-tutorial/wpp_brazil.csv"))
 
-# Seleciona apenas dados sobre o Brasil entre os anos de 2000 e 2050.
+#> Seleciona apenas dados sobre o Brasil entre os anos de 2000 e 2050.
 brazil <- wpp |> 
   filter(
     location == "Brazil",
@@ -387,22 +543,27 @@ brazil <- wpp |>
     year <= 2050
   )
 
-# Soma o total da população a cada ano
+#> Soma o total da população a cada ano
 pop <- brazil |> 
   group_by(year) |> 
-  summarise(population = sum(pop_total))
+  summarise(population = sum(pop_total)) |> 
+  ungroup()
 
-# Soma o total da população por grupos de idade a cada ano
+#> Soma o total da população por grupos de idade a cada ano
 pop_group <- brazil |> 
   group_by(year, age_group) |> 
-  summarise(population = sum(pop_total))
+  summarise(population = sum(pop_total)) |> 
+  ungroup()
+
+#> Seleciona somente o grupo de adultos
+pop_adult <- filter(brazil, age_group == "25-64")
 ```
 
 ```{r, eval = FALSE}
-# Importa a base de dados
+#> Importa a base de dados
 wpp <- read_csv("data/...")
 
-# Seleciona apenas dados sobre o Brasil entre os anos de 2000 e 2050.
+#> Seleciona apenas dados sobre o Brasil entre os anos de 2000 e 2050.
 brazil <- wpp |> 
   dplyr::filter(
     location == "Brazil",
@@ -410,18 +571,35 @@ brazil <- wpp |>
     year <= 2050
   )
 
-# Soma o total da população a cada ano
+#> Soma o total da população a cada ano
 pop <- brazil |> 
   dplyr::group_by(year) |> 
-  dplyr::summarise(population = sum(pop_total))
+  dplyr::summarise(population = sum(pop_total)) |> 
+  dplyr::ungroup()
 
-# Soma o total da população por grupos de idade a cada ano
+#> Soma o total da população por grupos de idade a cada ano
 pop_group <- brazil |> 
   dplyr::group_by(year, age_group) |> 
-  dplyr::summarise(population = sum(pop_total))
+  dplyr::summarise(population = sum(pop_total)) |> 
+  dplyr::ungroup()
+
+#> Seleciona somente o grupo de adultos
+pop_adult <- dplyr::filter(brazil, age_group == "25-64")
 ```
 
-A tabela `pop` apresenta a população total projetada para cada ano e tem o formato abaixo.
+Além disso, vamos definir um tema padrão para nossos gráficos.
+
+```{r}
+#> Define um tema padrão
+theme_area <- theme_minimal(base_family = "Helvetica") +
+  theme(
+    legend.position = "top",
+    panel.grid.minor = element_blank(),
+    panel.grid.major.x = element_blank()
+    )
+```
+
+A tabela `pop` apresenta a população total projetada para cada ano e tem o formato abaixo. Os dados de população estão em milhares.
 
 ```{r, eval = FALSE}
 head(pop)
@@ -439,23 +617,27 @@ O código abaixo gera uma espécie de gráfico de linha, com pontos, com uma reg
 col = "#2a9d8f"
 
 ggplot(data = pop, aes(x = year, y = population)) +
-  geom_area(alpha = 0.5, fill = col, color = col) +
-  # Linha horizontal no 0
+  geom_area(alpha = 0.5, fill = col) +
+  #> Linha horizontal no 0
   geom_hline(yintercept = 0) +
-  # Pontos para destacar as observações
-  geom_point(color = col)
+  #> Pontos para destacar as observações
+  geom_point(color = col) +
+  theme_area
 ```
 
-Podemos combinar o gráfico acima com a função `facet_wrap()` para montar quatro gráficos, mostrando a evolução da população dentro de cada um dos grupos.
+Podemos combinar o gráfico acima com a função `facet_wrap()` para montar quatro gráficos, mostrando a evolução da população dentro de cada um dos grupos[^3].
+
+[^3]: Para mais detalhes sobre a função `facet_wrap` consulte o post da série sobre o assunto.
 
 O grupo de crianças (0 a 14 anos) cai, enquanto o grupo de idosos (65+) aumenta expressivamente. O grupo de adultos (25-64) aumenta até atingir um máximo ao redor de 2040 e depois passa a cair suavemente. Por fim, o grupo de adolescentes/jovens (15-24) cai suavamente.
 
 ```{r}
 ggplot(data = pop_group, aes(x = year, y = population)) +
-  geom_area(alpha = 0.5, fill = col, color = col) +
+  geom_area(alpha = 0.5, fill = col) +
   geom_hline(yintercept = 0) +
   geom_point(color = col) +
-  facet_wrap(~age_group)
+  facet_wrap(vars(age_group)) +
+  theme_area
 ```
 
 Assim como nos exemplos anteriores, podemos também empilhar os grupos e ter uma noção da representatividade de cada um deles no total da população.
@@ -463,8 +645,51 @@ Assim como nos exemplos anteriores, podemos também empilhar os grupos e ter uma
 ```{r}
 ggplot(data = pop_group) +
   geom_area(aes(x = year, y = population, fill = age_group)) +
-  scale_fill_brewer(type = "qual", palette = 6) +
-  theme(legend.position = "top")
+  geom_hline(yintercept = 0) +
+  scale_fill_brewer(name = "", type = "qual", palette = 6) +
+  theme_area
+```
+
+Pode-se acrescentar elementos textuais no gráfico acima[^4]. Similarmente como se faz com gráficos de coluna, basta usar `position_stack(vjust = 0.5)` dentro de `geom_text` ou `geom_label`. Para evitar que os valores de todos os anos sejam plotados, crio uma variável auxiliar, `label`, que contém valores ausentes exceto em 2000 e em 2050. Além disso, para melhorar a visualização, faço um pequeno deslocamento na variável `year` para desclocar a posição horizontal do label[^5].
+
+[^4]: Para mais detalhes sobre como destacar informação com texto consulte o [post da série sobre o assunto](https://restateinsight.com/posts/ggplot2-tutorial/5-grafico-text#usando-texto).
+
+[^5]: Vale notar que o mesmo ajuste poderia ter sido realizado com `nudge_x` dentro de `geom_label`.
+
+```{r}
+pop_group <- pop_group |> 
+  mutate(
+    label = ifelse(!year %in% c(2000, 2050), NA, round(population / 1000, 1)),
+    x_pos = case_when(
+      year == 2000 ~ year + 2,
+      year == 2050 ~ year - 2,
+      TRUE ~ NA
+      )
+    )
+
+ggplot(pop_group, aes(year, population, fill = age_group, group = age_group)) +
+  geom_area() +
+  geom_hline(yintercept = 0) +
+  #> Acrescenta os valores textuais no gráfico
+  geom_label(
+    aes(x = x_pos, y = population, label = label),
+    #> Define a cor do fundo do 'label'
+    fill = "white",
+    #> Alinhamento vertical
+    position = position_stack(vjust = 0.5)
+    ) +
+  scale_fill_brewer(name = "", type = "qual", palette = 6) +
+  theme_area
+```
+
+Gráficos de área não costumam funcionar bem quando há muito grupos, sobretudo quando há pouca variação entre os grupos. O exemplo abaixo mostra a dinâmica da população adulta, em grupos de idade de cinco anos. Com o olhar atento, pode-se perceber que os grupos acima de 50 anos (50-54, 55-59 e 60-64) crescem em número absoluto e ganham participação. Ainda assim, é difícil distinguir diferenças entre os demais grupos.
+
+```{r}
+ggplot(pop_adult, aes(x = year, y = pop_total / 1000, fill = age_subgroup)) +
+  geom_area(color = "gray80", linewidth = 0.5) +
+  scale_fill_viridis_d(name = "") +
+  geom_hline(yintercept = 0) +
+  theme_area
 ```
 
 # Resumindo
@@ -475,6 +700,16 @@ Neste post vimos a importância de usar dados em formato "long" e de reordenar a
 
 Abaixo seguem algumas recomendações finais na hora de fazer gráficos de área.
 
-1.  Não utilize um gráfico de área para representar mais do 5 ou 6 grupos.
+1.  Não utilize um gráfico de área para representar mais do que 5 ou 6 grupos.
 2.  Escolha manualmente a ordem dos grupos para facilitar a visualização do gráfico.
 3.  Coloque a legenda de cores acima ou abaixo do gráfico para poupar espaço.
+4.  Use texto para destacar informações importantes.
+5.  Para facilitar a visualização, considere suavizar a série. Lembre-se de indicar que houve uma transformação nos dados.
+
+## Outros posts citados
+
+-   [Fundamentos: gráfico de coluna](https://restateinsight.com/posts/ggplot2-tutorial/2-grafico-coluna)
+-   [Fundamentos: gráfico de linha](https://restateinsight.com/posts/ggplot2-tutorial/4-grafico-de-linha)
+-   [Estético: Destacando informação](https://restateinsight.com/posts/ggplot2-tutorial/5-grafico-text)
+-   [Estético: Escalas e cores](https://restateinsight.com/posts/ggplot2-tutorial/6-scales-labels)
+-   [Estético: Tipografia e temas](https://restateinsight.com/posts/ggplot2-tutorial/7-themes-fonts)
