@@ -1,0 +1,348 @@
+---
+title: "Crescimento do Brasil em contexto"
+draft: true
+---
+
+```{r, include=FALSE}
+knitr::opts_chunk$set(
+  echo = FALSE,
+  message = FALSE,
+  warning = FALSE,
+  fig.align = "center",
+  dev = "svg",
+  fig.retina = 2
+)
+```
+
+# Introdução
+
+Falar de crescimento econômico não é nada fácil.
+
+As pessoas mantêm uma visão estática sobre o grupos dos páises "ricos" e dos países "pobres", a despeito das enormes mudanças de renda que observamos nos últimos 40-60 anos. As pessoas tendem a acreditar que países centrais como Reino Unido, França, Estados Unidos e Alemanha continuam sendo os mais ricos[^1], abrindo algumas raras exceções, por exemplo, para os países produtores de petróleo do Oriente Médio, que tem valores inflacionados de PIB per capita.
+
+[^1]: Talvez até a forma como estuda-se história e geografia no colégio reforce este tipo de visão.
+
+Que as pessoas são ignorantes sobre o mundo não é novidade. O historiador [Hans Rolsing criou sua carreira](https://www.gapminder.org/videos/how-not-to-be-ignorant-about-the-world/) mostrando o quão pouco as pessoas sabem sobre o mundo. Ainda assim não custa notar:
+
+-   Taiwan e Coreia do Sul já ultrapassaram Japão, França e Reino Unido. A Cingapura ultrapassou o PIB per capita dos EUA já na metade dos anos 2000.
+
+-   Estônia já é mais rica do que Grécia, Portugal e Rússia. Letônia, que no começo dos anos 90 tinha PIB per capita de \~US\$2500, atualmente está próxima de \~US\$30.000, ultrapassando Grécia, Chile e Turquia.
+
+-   Apesar de aparentemente estar num estado perpétuo de crise econômica, a Argentina continua tendo um dos maiores PIB per capita da América do Sul e continua (bastante) à frente do Brasil.
+
+-   China e Índia continuam com PIB per capita similar ao de países latinoamericanos e estão (por enquanto) atrás do Brasil e do México.
+
+# Dados
+
+Um jeito simples de conseguir dados sobre crescimento econômico é via o pacote {pwt10}. Este pacote contém a tabela mais atualizada da [Penn World Table](https://www.rug.nl/ggdc/productivity/pwt/?lang=en), uma base de dados, que harmoniza uma série de variáveis macroeconômicas em mais de 170 países.
+
+Para facilitar a vida, recomendo muito o pacote {countrycode}, que descobri recentemente. O pacote permite que você traduza o nome de países e troque entre códigos (iso2c, iso3c) e nomes completos.
+
+```{r}
+library(ggplot2)
+library(dplyr)
+library(pwt10)
+library(countrycode)
+
+pwt <- tidyr::as_tibble(pwt10.0)
+```
+
+O Banco Mundial agrupa os países em 4 faixas de renda: países de renda baixa, renda média-baixa, renda média-alta e renda alta[^2]. As linhas divisórias que separam cada um dos grupos variam de ano a ano, mas grosso modo, o valor do PIB per capita que separa um país de renda média-baixa para um país de renda média-alta é em torno de US\$4000.
+
+[^2]: Tradução literal de: low-income, lower-middle income, upper-middle income e upper income. Para mais informações consulte [WB](https://www.worldbank.org/en/country/mic/overview#:~:text=The%20world%27s%20Middle%20Income%20Countries,%244%2C046%20and%20%2412%2C535%20(2021).)
+
+Neste post quero ver como é a trajetória de crescimento dos países logo após este ponto: como que crescem os países recém inclusos ao time de renda média-alta.
+
+```{r}
+pwt <- pwt %>%
+  mutate(
+    continent = countrycode(isocode, origin = "iso3c", destination = "continent"),
+    nome_pais = countryname(country, destination = "cldr.short.pt"),
+    pibpc = rgdpo / pop,
+    lpibpc = log(pibpc),
+    investment = csh_x + csh_i + csh_m
+    )
+
+```
+
+Para encontrar o ano no qual cada país superou a marca dos US\$4000 eu calculo a distância absoluta entre o PIBpc de cada ano e este valor. Como o crescimento de um país pode oscilar, é possível que algum país ultrapasse esta marca, entre em recessão e depois ultrapasse esta marca novamente.
+
+No código abaixo eu encontro os cinco "momentos" em que o PIBpc esteve o mais próximo de US\$4000 e seleciono o que aconteceu o mais no passado possível.
+
+```{r}
+year_middle_income <- pwt %>%
+  group_by(isocode) %>%
+  mutate(dist = abs(4000 - pibpc)) %>%
+  slice_min(dist, n = 5) %>%
+  slice_min(year) %>% 
+  ungroup() %>%
+  select(isocode, base_year = year)
+```
+
+Em qual ano cada país da América Latina ultrapassou a marca dos US\$4000? Entre os países que já não estavam acima desta marca, os primeiros a chegar lá foram Chile e Nicarágua, em 1951.
+
+Como a base do PWT começa em 1950, muitos dos países desenvolvidos já tinham um PIB per capita acima de US\$4000 nesta época.
+
+```{r}
+year_middle_income %>%
+  mutate(
+    pais = countrycode(isocode, origin = "iso3c", destination = "country.name"),
+    pais = countryname(pais, destination = "cldr.short.pt"),
+    cont = countrycode(isocode, origin = "iso3c", destination = "continent")) %>%
+  filter(cont == "Americas", base_year > 1950) %>%
+  arrange(base_year) %>%
+  print(n = 20) |> 
+  DT::datatable()
+```
+
+Você deve ter reparado que há vários países com nomes curiosos na lista acima: a maioria destes países são ilhas da América Central e eu não estou muito interessado nelas. Assim eu removo todos os países com 1 milhão de habitantes ou menos e também removo alguns
+
+```{r}
+year_middle_income <- pwt %>%
+  filter(pop > 1, !isocode %in% c("HTI", "TTO", "VEN")) %>%
+  group_by(isocode) %>%
+  mutate(dist = abs(4000 - pibpc)) %>%
+  slice_min(dist, n = 5) %>%
+  slice_min(year) %>%
+  ungroup() %>%
+  select(isocode, base_year = year)
+
+latam_middle_income <- year_middle_income %>%
+  mutate(
+    pais = countrycode(isocode, origin = "iso3c", destination = "country.name"),
+    pais = countryname(pais, destination = "cldr.short.pt"),
+    cont = countrycode(isocode, origin = "iso3c", destination = "continent")) %>%
+  filter(cont == "Americas", base_year > 1950) %>%
+  arrange(base_year)
+
+tab_middle_latam <- pwt %>%
+  inner_join(latam_middle_income, by = "isocode") %>%
+  mutate(period = year - base_year)
+```
+
+Antes de qualquer coisa, vale a pena verificar se a variável `base_year`, de fato, está identificando o ano em que o país ultrapassou a marca dos US\$4000. Pelo gráfico abaixo, parece que está tudo certo. Note que aquele pequeno ajuste no código citado acima fez diferença no caso do Peru, cujo PIB per capita fica oscilando em torno de US\$4000 durante os anos 1980 e 1990.
+
+```{r}
+ggplot(tab_middle_latam, aes(x = year, y = lpibpc)) + 
+  geom_line(linewidth = 1, color = "#003049") +
+  geom_hline(yintercept = log(4000)) +
+  geom_vline(aes(xintercept = base_year), linetype = 2) +
+  facet_wrap(vars(pais)) + 
+  theme_minimal()
+```
+
+E então como que foi o padrão de crescimento? Pelo gráfico abaixo parece inicialmente, que a maior parte dos países seguiu um padrão de crescimento semelhante. Há algumas exceções como a Argentina que tem um crescimento forte a partir do ano 20 (xxxx)
+
+Bolívia e El Salvador são os dois países que entraram apenas recentemente no clube da renda média-alta; coincidentemente, ambos os países estão tendo uma trajetória melhor do que os demais países tiveram no passado.
+
+```{r}
+ggplot(filter(tab_middle_latam, period >= 0, period <= 35),
+       aes(x = period, y = lpibpc)) +
+  geom_line(aes(color = isocode)) +
+  scale_color_viridis_d(name = "") +
+  guides(color = guide_legend(nrow = 2)) +
+  theme_minimal() +
+  theme(
+    legend.position = "top"
+  )
+```
+
+```{r}
+#> Drops El Salvador and Bolivia
+full_countries <- tab_middle_latam %>%
+  filter(period >= 0, period <= 35) %>%
+  count(isocode) %>%
+  filter(n == 36) %>%
+  pull(isocode)
+
+tab_compare <- tab_middle_latam %>%
+  select(isocode, pais, period, year, pibpc, lpibpc) %>%
+  filter(
+    isocode %in% full_countries,
+    period >= 0,
+    period <= 35
+  )
+
+ggplot(tab_compare, aes(x = period, y = lpibpc)) +
+  geom_line(aes(color = isocode)) +
+  scale_color_viridis_d(name = "") +
+  guides(color = guide_legend(nrow = 2)) +
+  theme_minimal() +
+  theme(
+    legend.position = "top"
+  )
+```
+
+```{r}
+avg_latam <- tab_compare %>%
+  summarise(avg = mean(lpibpc), .by = "period") %>%
+  mutate(isocode = "WWW", pais = "Média", period = 0:35) %>%
+  rename(lpibpc = avg)
+
+tab_compare <- tab_compare %>%
+  bind_rows(avg_latam) %>%
+  mutate(
+    highlight = factor(
+      case_when(
+        isocode == "WWW" ~ 1L,
+        isocode == "BRA" ~ 2L,
+        TRUE ~ 0L)
+      )
+    )
+
+name_countries <- unique(tab_compare$pais)
+name_countries <- name_countries[-grep("Média", name_countries)]
+name_countries <- name_countries[order(name_countries)]
+p_legend <- stringr::str_glue(
+  "Fonte: PWT 10.0. Países incluídos na amostra: {paste(name_countries, collapse = ', ')}."
+)
+
+ggplot() +
+  geom_line(
+    data = filter(tab_compare, highlight == 0L),
+    aes(x = period, y = lpibpc, group = isocode),
+    color = "gray70",
+    alpha = 0.5
+  ) +
+  geom_line(
+    data = filter(tab_compare, highlight != 0L),
+    aes(x = period, y = lpibpc, color = highlight),
+    linewidth = 1
+  ) +
+  scale_color_manual(
+    name = "",
+    values = c("#f4a261", "#2a9d8f"),
+    labels = c("Média LATAM", "Brasil")
+  ) +
+  labs(
+    x = "Período normalizado",
+    y = "PIBpc (US$ 2017, log)",
+    subtitle = "Trajetória de crescimento do PIB per capita de países selecionados da América Latina",
+    caption = stringr::str_wrap(p_legend, width = 100)
+  ) +
+  theme_minimal() +
+  theme(
+    legend.position = "top",
+    plot.subtitle = element_text(size = 8),
+    plot.caption = element_text(hjust = 0)
+  )
+```
+
+```{r}
+
+middle_income <- year_middle_income %>%
+  mutate(
+    pais = countrycode(isocode, origin = "iso3c", destination = "country.name"),
+    pais = countryname(pais, destination = "cldr.short.pt"),
+    cont = countrycode(isocode, origin = "iso3c", destination = "continent")) %>%
+  filter(base_year > 1950) %>%
+  arrange(base_year)
+
+tab_compare <- function(countries) {
+  
+  year_middle_income <- pwt %>%
+    filter(pop > 1) %>%
+    group_by(isocode) %>%
+    mutate(dist = abs(4000 - pibpc)) %>%
+    slice_min(dist, n = 5) %>%
+    slice_min(year) %>%
+    ungroup() %>%
+    select(isocode, base_year = year)
+  
+  middle_income <- pwt %>%
+    inner_join(latam_middle_income, by = "isocode") %>%
+    mutate(period = year - base_year)
+  
+    tab_compare <- middle_income %>%
+      select(isocode, pais, period, year, pibpc, lpibpc) %>%
+      filter(
+        isocode %in% c("BRA", countries),
+        period >= 0,
+        period <= 35
+        )
+  
+}
+
+get_caption <- function(countries) {
+  
+  name_countries <- countrycode(
+    countries,
+    origin = "iso3c",
+    destination = "country.name"
+    )
+  
+  name_countries <- countryname(name_countries, destination = "cldr.short.pt")
+  name_countries <- name_countries[order(name_countries)]
+  
+  p_legend <- stringr::str_glue(
+    "Fonte: PWT 10.0. Países incluídos na amostra: {paste(name_countries, collapse = ', ')}."
+    )
+  
+}
+
+
+plot_compare <- function(df, countries) {
+  
+  avg_latam <- tab_compare %>%
+    summarise(avg = mean(lpibpc), .by = "period") %>%
+    mutate(isocode = "WWW", pais = "Média", period = 0:35) %>%
+    rename(lpibpc = avg)
+  
+  tab_compare <- tab_compare %>%
+    bind_rows(avg_latam) %>%
+    mutate(
+      highlight = factor(
+        case_when(
+          isocode == "WWW" ~ 1L,
+          isocode == "BRA" ~ 2L,
+          TRUE ~ 0L)
+        )
+      )
+  
+  p_legend <- get_caption(countries)
+  
+  plot <- 
+    ggplot() +
+    geom_line(
+      data = filter(tab_compare, highlight == 0L),
+      aes(x = period, y = lpibpc, group = isocode),
+      color = "gray70",
+      alpha = 0.5
+    ) +
+    geom_line(
+      data = filter(tab_compare, highlight != 0L),
+      aes(x = period, y = lpibpc, color = highlight),
+      linewidth = 1
+    ) +
+    scale_color_manual(
+      name = "",
+      values = c("#f4a261", "#2a9d8f"),
+      labels = c("Média LATAM", "Brasil")
+    ) +
+    labs(
+      x = "Período normalizado",
+      y = "PIBpc (US$ 2017, log)",
+      subtitle = "Trajetória de crescimento do PIB per capita de países selecionados da   América Latina",
+      caption = stringr::str_wrap(p_legend, width = 100)
+    ) +
+    theme_minimal() +
+    theme(
+      legend.position = "top",
+      plot.subtitle = element_text(size = 8),
+      plot.caption = element_text(hjust = 0),
+      panel.grid.minor = element_blank()
+    )
+  
+  return(plot)
+  
+}
+```
+
+```{r}
+asian_tigers <- c(
+  "JPN", "KOR", "TWN", "VNM", "MYS", "IDN", "HKG", "SGP", "CHN"
+)
+
+# ggplot(tab_compare, aes(x = period, y = lpibpc, color = pais)) +
+#   geom_line()
+```

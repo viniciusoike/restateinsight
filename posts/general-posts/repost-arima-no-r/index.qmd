@@ -1,0 +1,295 @@
+---
+title: "Séries de Tempo no R"
+date: '2023-06-01'
+categories: ['time-series', 'tutorial-R', 'econometria']
+description: "Neste post faço um panorama geral de como estimar um modelo SARIMA no R usando majoritariamente funções base. O R vem equipado com diversas funções úteis e poderosas para lidar com séries de tempo."
+image: "/static/series-tempo-r.svg"
+image-alt: "/static/series-tempo-r.svg"
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  warning = FALSE,
+  message = FALSE,
+  fig.asp = 0.618,
+  out.width = "100%",
+  fig.dpi = 72,
+  fig.retina = 2,
+  dev = "svg",
+  fig.align = "center"
+  )
+```
+
+# Séries de tempo no R
+
+Neste post vou explorar um pouco das funções base do R para montar um modelo SARIMA. O `R` vem "pré-equipado" com um robusto conjunto de funções para lidar com séries de tempo. Inclusive, como se verá, existe uma class específica de objeto para trabalhar com séries de tempo.
+
+# Os dados
+
+Como exemplo, vamos usar a série `AirPassengers`, uma série bastante famosa usada no livro *Time Series Analysis* de Box & Jenkins (1976). A série apresenta o volume mensal de passagens aéreas internacionais (em milhares) no período 1949-1960.
+
+```{r}
+plot(AirPassengers, col = "#023047", lwd = 2)
+grid()
+```
+
+Uma maneira comum de avaliar a performance preditiva de modelo é usando uma divisão train/test. Essencialmente, removemos uma parte das observações da nossa amostra para que possamos testar a taxa de acerto das previsões do nosso modelo.
+
+Como estamos no contexto de séries de tempo, é natural remover um percetual das observações finais da série. No caso, uso a função `window` para remover os últimos dois anos da amostra.
+
+```{r}
+y <- log(AirPassengers)
+
+train <- window(y, end = c(1958, 12))
+test  <- window(y, start = c(1959, 1))
+```
+
+```{r, echo = FALSE}
+plot(train, xlim = c(1949, 1961), ylim = c(4.6, 6.5),
+     col = "#023047", lwd = 2,
+     xlab = "", ylab = "Thousand of Passengers",
+     main = "Monthly AirPassengers")
+lines(test, col = "#8ecae6", lwd = 2, lty = 2)
+grid()
+legend("topleft",
+       legend = c("Train", "Test"),
+       col = c("#023047", "#8ecae6"),
+       lty = 1:2)
+```
+
+A rigor, seria mais correto experimentar com várias janelas diferentes e talvez fosse interessante também remover um percentual maior de observações. Até onde sei, não é tão fácil implementar esse tipo de *cross-validation* apenas usando funções base do R, mas um maneira de fazer isso está exposta no livro [Forecasting: Principles and Practice](https://otexts.com/fpp3/tscv.html).
+
+## Modelagem SARIMA
+
+Aqui a ideia é experimentar com alguns modelos simples. Em especial, o modelo que Box & Jenkins sugerem para a série é de um SARIMA (0, 1, 1)(0, 1, 1)\[12\] da forma
+
+$$
+(1 - \Delta)(1 - \Delta^{12})y_{t} = \varepsilon_{t} + \theta_{1}\varepsilon_{t_1} + \Theta_{1}\varepsilon_{t-12}
+$$
+
+A metodologia correta para a análise seria primeiro fazer testes de raiz unitária para avaliar a estacionaridade da série. Mas só de olhar para as funções de autocorrelação e autocorrelação parcial, fica claro que há algum componente sazonal e que a série não é estacionária.
+
+```{r, echo = FALSE, fig.width=9}
+par(mfrow = c(2, 1))
+acf(train, lag.max = 48)
+pacf(train, lag.max = 48)
+```
+
+### Teste de raiz unitária
+
+Apenas a título de exemplo, faço um teste Dickey-Fuller (ADF), bastante geral, com constante e tendência temporal linear. Para uma boa revisão metodológica de como aplicar testes de raiz unitária, em partiular o teste ADF, consulte o capítulo de séries não-estacionárias do livro [Applied Econometric Time Series do Enders](https://www.wiley.com/en-br/Applied+Econometric+Time+Series,+4th+Edition-p-9781118808566)
+
+Aqui, a escolha ótima do lag é feita usando o critério BIC (também conhecido como Critério de Schwarz). Não existe uma função que aplica o teste ADF no pacote base o `R`. A implementação é feita na função `ur.df` do pacote `urca`.
+
+A estatísitica de teste mais relevante é a `tau3` e vê-se, surpreendentemente, que se rejeita a hipótese nula de raiz unitária. As estatísticas `phi2` e `phi3` são testes-F da significânica conjunta dos termos de constante e de tendência temporal. As estatísticas de teste são convencionais e seguem a notação do livro do Enders citado acima e também do clássico livro do [Hamilton](http://www.ru.ac.bd/stat/wp-content/uploads/sites/25/2019/03/504_02_Hamilton_Time-Series-Analysis.pdf).
+
+```{r}
+library(urca)
+adf_test <- ur.df(y, type = "trend", selectlags = "BIC", lags = 13)
+summary(adf_test)
+```
+
+Pela análise do correlograma do resíduo da regressão, fica claro que ainda há autocorrelação. Novamente, o mais correto seria aplicar o teste Ljung-Box sobre os resíduos para verificar a presença de autocorrelação conjunta nas primeiras *k* defasagens, mas este não é o foco deste post. Esta pequena digressão exemplifica como a aplicação destes testes em séries de tempo pode não ser tão direto/simples.
+
+```{r, echo = FALSE, fig.width=9}
+par(mfrow = c(2, 1))
+acf(adf_test@res, lag.max = 48)
+pacf(adf_test@res, lag.max = 48)
+```
+
+Os gráficos abaixo mostram o correlograma da série após tirarmos a primeira diferença e a primeira diferença sazonal. A partir da análise destes correlogramas poderíamos inferir algumas especificações alternativas para modelos SARIMA e aí, poderíamos escolher o melhor modelo usando algum critério de informação.
+
+A metodologia Box & Jenkins de análise de séries de tempo tem, certamente, um pouco de *arte* e *feeling*. Não é tão imediato entender como devemos proceder e, na prática, faz sentido experimentar com vários modelos alternativos de ordem baixa como SARIMA(1, 1, 1)(0, 1, 1), SARIMA(2, 1, 0)(0, 1, 1), etc.
+
+```{r, echo = FALSE, fig.width=9}
+dy <- diff(train)
+sdy <- diff(dy, 12)
+
+par(mfrow = c(2, 1))
+acf(sdy, lag.max = 48)
+pacf(sdy, lag.max = 48)
+```
+
+### Os modelos
+
+Para não perder muito tempo experimentando com vários modelos vou me ater a três modelos diferentes. Uma função bastante útil é a `auto.arima` do pacote `forecast` que faz a seleção automática do melhor modelo da classe SARIMA/ARIMA/ARMA.
+
+Eu sei que o Schumway/Stoffer, autores do ótimo [Time Series Analysis and Its Applications](https://github.com/nickpoison/tsa4), tem um [post crítico ao uso](https://www.stat.pitt.edu/stoffer/tsa4/Rissues.htm) do `auto.arima`. Ainda assim, acho que a função tem seu mérito e costuma ser um bom ponto de partida para a sua análise. Quando temos poucas séries de tempo para analisar, podemos nos dar ao luxo de fazer a modelagem manualmente, mas quando há centenas de séries, é muito conveniente poder contar com o `auto.arima`.
+
+Como o `auto.arima` escolhe o mesmo modelo do Box & Jenkins eu experimento com uma especificação diferente. Novamente, a título de exemplo eu comparo ambos os modelos SARIMA com uma regressão linear simples que considera uma tendência temporal linear e uma série de dummies sazonais. O modelo é algo da forma
+
+$$
+y_{t} = \alpha_{0} + \alpha_{1}t + \sum_{i = 1}^{11}\beta_{i}s_{i} + \varepsilon_{t}
+$$
+
+Onde $s_{i}$ é uma variável indicadora igual a 1 se $t$ corresponder ao mês $i$ e igual a 0 caso contrário. Vale notar que não podemos ter uma dummy para todos os meses se não teríamos uma matriz de regressores com colinearidade perfeita!
+
+Aqui vou contradizer um pouco o espírito do post novamente para usar o `forecast`. O ganho de conveniência vem na hora de fazer as previsões. Ainda assim, indico como estimar os mesmos modelos usando apenas funções base do `R`.
+
+```{r}
+# Usando o forecast
+library(forecast)
+model1 <- auto.arima(train)
+model2 <- Arima(train, order = c(1, 1, 1), seasonal = c(1, 1, 0))
+model3 <- tslm(train ~ trend + season)
+```
+
+```{r, eval = FALSE}
+# Usando apenas funções base
+model2 <- arima(
+  trains,
+  order = c(1, 1, 1),
+  seasonal = list(order = c(1, 1, 1), period = 12)
+)
+
+# Extrai uma tendência temporal linear 
+trend <- time(train)
+# Cria variáveis dummies mensais
+season <- cycle(train)
+model3 <- lm(train ~ trend + season)
+```
+
+A saída dos modelos segue abaixo. As saídas dos modelos SARIMA não são muito interessantes. Em geral, não é muito comum avaliar nem a significância e nem o sinal dos coeficientes, já que eles não têm muito valor interpretativo. Uma coisa que fica evidente dos dois modelos abaixo é que o primeiro parece melhor ajustado aos dados pois tem valores menores em todos os critérios de informação considerados.
+
+```{r}
+model1
+```
+
+```{r}
+model2
+```
+
+Já o modelo de regressão linear tem uma saída mais interessante. Note que, por padrão, o primeiro mês foi omitido e seu efeito aparece no termo constante. Na tabela abaixo, vemos que há um efeito positivo e significativo, por exemplo, nos meses 6-8 (junho a agosto), que coincidem com o período de férias de verão no hemisfério norte. Já, em novembro (mês 11) parece haver uma queda na demanda por passagens aéreas.
+
+Note que o R quadrado da regressão é extremamente elevado e isso é um indício de que algo está errado. Isto, muito provavelmente é resultado da não-estacionaridade da série.
+
+```{r}
+broom::tidy(model3)
+```
+
+De fato, olhando para a função de autocorrelação do resíduo do modelo de regressão linear, fica evidente que há autocorrelação. Uma forma de contornar isso seria de incluir um termo ARMA no termo de erro. Novamente, este não é o foco do post e vamos seguir normalmente.
+
+```{r}
+acf(resid(model3))
+```
+
+## Comparando as previsões
+
+A maneira mais prática de trabalhar com vários modelos ao mesmo tempo é agregando eles em listas e aplicando funções nessas listas.
+
+Abaixo eu aplico a função `forecast` para gerar as previsões 24 períodos a frente nos três modelos. Depois, eu extraio somente a estimativa pontual de cada previsão.
+
+```{r}
+models <- list(model1, model2, model3)
+yhat <- lapply(models, forecast, h = 24)
+yhat_mean <- lapply(yhat, function(x) x$mean)
+```
+
+Comparamos a performance de modelos de duas formas: (1) olhando para medidas de erro (o quão bem o modelo prevê os dados do *test*) e (2) olhando para critérios de informação (o quão bem o modelo se ajusta aos dados do *train*).
+
+Os critérios de informação têm todos uma interpretação bastante simples: quanto menor, melhor. Tipicamente, o AIC tende a escolher modelos sobreparametrizados enquanto o BIC tende a escolher modelos mais parcimoniosos.
+
+Já a comparação de medidas de erro não é tão simples. Pois ainda que um modelo tenha, por exemplo, um erro médio quadrático menor do que outro, não é claro se esta diferença é significante. Uma maneira de testar isso é via o teste Diebold-Mariano, que compara os erros de previsão de dois modelos. Implicitamente, contudo, ele assume que a diferença entre os erros de previsão é covariância-estacionária (também conhecido como estacionário de segunda ordem ou fracamente estacionário). Dependendo do contexto, esta pode ser uma hipótese mais ou menos razoável.
+
+```{r}
+compute_error <- function(model, test) {
+  y <- test
+	yhat <- model$mean
+	train <- model$x
+
+	# Calcula o erro de previsao
+	y - yhat
+}
+
+compute_error_metrics <- function(model, test) {
+
+	y <- test
+	yhat <- model$mean
+	train <- model$x
+
+	# Calcula o erro de previsao
+	error <- y - yhat
+	
+	# Raiz do erro quadrado medio
+	rmse <- sqrt(mean(error^2))
+	# Erro medio absoluto
+	mae <- mean(abs(error))
+	# Erro medio percentual
+	mape <- mean(abs(100 * error / y))
+	# Root mean squared scaled error
+	rmsse <- sqrt(mean(error^2 / snaive(train)$mean))
+
+	# Devolve os resultados num list
+	list(rmse = rmse, mae = mae, mape = mape, rmsse = rmsse)
+	
+
+}
+
+compute_ics <- function(model) {
+
+	# Extrai criterios de informacao
+	aic  <- AIC(model)
+	bic  <- BIC(model)
+
+	# Devolve os resultados num list
+	list(aic = aic, bic = bic)
+
+} 
+
+fcomparison <- lapply(yhat, function(yhat) compute_error_metrics(yhat, test))
+icc <- lapply(models, compute_ics)
+
+comp_error <- do.call(rbind.data.frame, fcomparison)
+rownames(comp_error) <- c("AutoArima", "Manual SARIMA", "OLS")
+comp_ics <- do.call(rbind.data.frame, icc)
+rownames(comp_ics) <- c("AutoArima", "Manual SARIMA", "OLS")
+```
+
+A tabela abaixo mostra os critérios AIC e BIC para os três modelos. Em ambos os casos, o SARIMA(0, 1, 1)(0, 1, 1)\[12\] parece ser o escolhido. Este tipo de feliz coincidência não costuma acontecer frequentemente na prática, mas neste caso ambos os critérios apontam para o mesmo modelo.
+
+```{r}
+comp_ics
+```
+
+Na comparação de medidas de erro, o SARIMA(0, 1, 1)(0, 1, 1)\[12\] realmente tem uma melhor performance, seguido pelo OLS e pelo SARIMA(1, 1, 1)(1, 1, 0)\[12\].
+
+```{r}
+comp_error
+```
+
+Será que esta diferença é significante? Vamos comparar os modelos SARIMA. Pelo teste DM ela é sim. Lembre-se que o teste DM é, essencialmente, um teste Z de que $e_{1} - e_{2} = 0$ ou $e_{1} = e_{2}$, onde os valores são a média dos erros de previsão dos modelos.
+
+```{r}
+errors <- lapply(yhat, function(yhat) compute_error(yhat, test))
+e1 <- errors[[1]]
+e2 <- errors[[2]]
+
+dm.test(e1, e2, power = 2)
+```
+
+Vale notar que o teste DM serve para comparar os erros de previsão de quaisquer modelos. Como o teste não faz qualquer hipótese sobre "de onde vem" os erros de previsão, ele pode ser utilizado livremente. Vale lembrar também que este teste não deve ser utilizado para escolher o melhor modelo, já que ele compara apenas a capacidade preditiva de dois modelos alternativos.
+
+Outro ponto, também complicado, é de qual a medida de erro que se deve escolher. O teste DM implicitamente usa o erro médio quadrático, mas há várias outras alternativas. [Uma breve discussão pode ser vista aqui](https://otexts.com/fpp3/accuracy.html).
+
+Por fim, o gráfico abaixo mostra as previsões dos modelos alternativos contra a série real.
+
+```{r}
+plot(test, ylim = c(5.8, 6.5), col = "#8ecae6", lwd = 2, type = "o")
+lines(yhat_mean[[1]], col = "#ffb703")
+lines(yhat_mean[[2]], col = "#fb8500")
+lines(yhat_mean[[3]], col = "#B86200")
+grid()
+legend("topleft", lty = 1,
+       legend = c("Test", "AutoArima", "Arima", "OLS"),
+       col = c("#8ecae6", "#ffb703", "#fb8500", "#B86200"))
+```
+
+# Resumo geral
+
+Algumas conclusões gerais para amarrar este post:
+
+1.  A metodologia Box-Jenkins não é tão direta. A interpretação do correlograma é muitas vezes incerta e a melhor opção costuma ser testar vários modelos.
+
+2.  Escolher o melhor modelo não é tão trivial. Uma saída simples é escolher o modelo com menor AIC ou BIC. Ainda assim, é importante levar em conta a capacidade preditiva do modelo.
+
+3.  Mesmo usando apenas funções base do `R` já é possível fazer boas análises com séries de tempo.
