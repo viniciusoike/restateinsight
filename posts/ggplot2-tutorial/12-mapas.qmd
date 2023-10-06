@@ -45,19 +45,20 @@ sf::sf_use_s2(FALSE)
 rent <- readr::read_csv(here::here("posts/ggplot2-tutorial/rents_liberdade.csv"))
 cem <- readr::read_csv(here::here("static/data/cem_imoveis.zip"))
 pod <- readr::read_csv(here::here("posts/ggplot2-tutorial/table_pod.csv"))
+cem2010 <- filter(cem, ano_lanc == 2010)
 ```
 
 # Mapas
 
 Eu começo este post com uma confissão: eu sofri muito até conseguir fazer mapas minimamente apresentáveis com o R. Há duas dificuldades bem sérias: primeiro, objetos geométricos são uma classe de objetos bastante complexa; segundo, há inúmeras convenções na elaboração de mapas que escapam completamente aos objetivos do economista.
 
+Este post vai tentar ensinar a fazer mapas, apresentando absolutamente o mínimo necessário sobre convenções cartográficas, tipos de projeção, e geografia de maneira geral.
+
 No primeiro caso, o desafio é conseguir aprender o mínimo necessário para lidar com objetos espaciais. Neste sentido, não vou fingir que entendo o que significa CRS, EPSG, GDAL, etc. Apenas saiba que a Terra, infelizmente, não é plana, então é preciso sempre escolher algum tipo de projeção que mapeie nosso planeta tri-dimensional num plano bi-dimensional. Na prática, lembre-se dos números 4326, 4674 e 32722.
 
 Felizmente, existe o pacote {sf} que funciona como um `data.frame` com uma coluna especial chamada `geometry`. É possível ignorar a existência desta coluna e trabalhar normalmente com seus dados, usando todo o seu conhecimento acumulado previamente com dados tabulares convencionais. Eventualmente, será necessário juntar um shapefile com uma base de dados e até com outro shapefile; o {sf} também facilita isto bastante.
 
 No segundo caso, das convenções, novamente, não vou fingir que eu entendo algo sobre cartografia, que me interesse fazer mapas com uma escala, com uma seta indicando o norte, com linhas paralelas indicando meridianos, etc. Saiba que tudo isto é muito possível de ser feito dentro do R e que eu não faço isso.
-
-Este post é organizado em três blocos:
 
 # Quero apenas fazer um mapa interativo
 
@@ -77,12 +78,9 @@ leaflet() %>%
 
 A abordagem mais simples para tratar dados espaciais é simplesmente tratá-los como dados tabulados quaisquer. Isto funciona perfeitamente bem para objetos geométricos na forma de pontos e linhas, mas torna-se impraticável no caso de polígonos.
 
-No plano cartesiano, longitude e latitude são literalmente coordenadas; pode-se mapear estas coordenadas como pontos num gráfico de dispersão. No gráfico abaixo cada ponto é um imóvel, anunciado para aluguel.
+No plano cartesiano, longitude e latitude são literalmente coordenadas; pode-se mapear estas coordenadas como pontos num gráfico de dispersão. Para tornar os exemplos mais aplicados vamos usar a base de Empreendimentos Residenciais Verticais do Centro de Estudos da Metrópole da FAU/USP. Os dados compreendem todos os lançamentos residenciais na Região Metropolitana de São Paulo entre 1985 e 2013. Para simplificar nossa análise vamos nos restringir somente aos empreendimentos lançados na capital.
 
-```{r}
-ggplot(rent, aes(x = house_lng, y = house_lat)) +
-  geom_point()
-```
+No gráfico abaixo cada ponto é um empreendimento residencial lançado em São Paulo entre 1985 e 2013.
 
 ```{r}
 cem <- cem |> 
@@ -94,75 +92,171 @@ ggplot(cem, aes(x = lon, y = lat)) +
   coord_sf()
 ```
 
-A principal vantagem desta abordagem é que podemos aplicar todo o nosso conhecimento acumulado até agora. Podemos mapear 
+A principal vantagem de tratar os pontos, simplesmente como pontos, é que podemos aplicar todo o nosso conhecimento acumulado até agora. Os pontos no gráfico seguem a mesma lógica dos [gráficos de dispersão, visto anteriormente](https://restateinsight.com/posts/ggplot2-tutorial/1-grafico-dispersao) e a manipulação dos dados segue as mesmas [convenções de dados tabulares](https://restateinsight.com/posts/ggplot2-tutorial/apendix-manipular-enxergar).
+
+No exemplo abaixo, o tamanho de cada círculo é proporcional ao número de unidades do empreendimento e a cor sinaliza se o empreendimento é veritical ou horizontal.
 
 ```{r}
 #| fig-show: hold
 #| out-width: "100%"
 #| layout-ncol: 2
-ggplot(rent, aes(x = house_lng, y = house_lat)) +
-  geom_point(aes(color = log(rent))) +
-  scale_color_viridis_c()
 
-ggplot(rent, aes(x = house_lng, y = house_lat)) +
-  geom_point() +
-  facet_wrap(vars(room))
+#> Seleciona somente empreendimentos lançados em 2008
+cem08 <- cem |> 
+  filter(ano_lanc == 2008)
+#> Seleciona empreendimentos lançados entre 2008 e 2011
+sub <- cem |> 
+  filter(ano_lanc %in% 2008:2011)
+
+ggplot(cem08, aes(x = lon, y = lat)) +
+  geom_point(aes(size = emp_unid, color = as.factor(emp_tipo)), alpha = 0.5)
+
+ggplot(sub, aes(x = lon, y = lat)) +
+  geom_point(size = 0.4) +
+  facet_wrap(vars(ano_lanc))
 ```
 
-Podemos inclusive acrescentar algumas novas funções que desenham mapas de calor (contorno).
+### Agregando pontos
+
+Pode-se agregar os pontos em mapas de calor (contorno). Há duas funções principais:
+
+-   `geom_density_2d` - que desenha linhas de contorno
+-   `geom_density_2d_filled` - que desenha uma mapa de contorno
 
 ```{r}
-ggplot(rent, aes(x = house_lng, y = house_lat)) +
+#| fig-show: hold
+#| out-width: "100%"
+#| layout-ncol: 2
+ggplot(sub, aes(x = lon, y = lat)) +
   geom_density_2d() +
   theme(legend.position = "none")
 
-ggplot(rent, aes(x = house_lng, y = house_lat)) +
+ggplot(sub, aes(x = lon, y = lat)) +
   geom_density_2d_filled() +
   theme(legend.position = "none")
 ```
 
-```{r}
-ggplot(rent, aes(x = house_lng, y = house_lat)) +
-  geom_density_2d(aes(color = as.factor(studio))) +
+Talvez o argumento mais útil destas funções seja o `bins` ou `binwidth`, similar ao argumento de `geom_histogram`. Os mapas abaixo mostram como este argumento controla o número de quebras nas linhas de contorno. A função que calcula os contornos é a `MASS::kde2d()` e, em geral, ela escolhe bons valores para o número de bins.
+
+```{r density}
+#| eval: false
+ggplot(sub, aes(x = lon, y = lat)) +
+  geom_density_2d_filled(bins = 5)
+
+ggplot(sub, aes(x = lon, y = lat)) +
+  geom_density_2d_filled(bins = 8)
+
+ggplot(sub, aes(x = lon, y = lat)) +
+  geom_density_2d_filled(bins = 10)
+
+ggplot(sub, aes(x = lon, y = lat)) +
+  geom_density_2d_filled(bins = 15)
+```
+
+```{r density-bins}
+#| echo: false
+#| out-width: 100%
+p1 <- ggplot(sub, aes(x = lon, y = lat)) +
+  geom_density_2d_filled(bins = 5) +
+  ggtitle("bins = 5") +
+  labs(x = NULL, y = NULL) +
   theme(legend.position = "none")
 
-ggplot(rent, aes(x = house_lng, y = house_lat)) +
+p2 <- ggplot(sub, aes(x = lon, y = lat)) +
+  geom_density_2d_filled(bins = 8) +
+  ggtitle("bins = 8") +
+  labs(x = NULL, y = NULL) +
+  theme(legend.position = "none")
+
+p3 <- ggplot(sub, aes(x = lon, y = lat)) +
+  geom_density_2d_filled(bins = 10) +
+  ggtitle("bins = 10") +
+  labs(x = NULL, y = NULL) +
+  theme(legend.position = "none")
+
+p4 <- ggplot(sub, aes(x = lon, y = lat)) +
+  geom_density_2d_filled(bins = 15) +
+  ggtitle("bins = 15") +
+  labs(x = NULL, y = NULL) +
+  theme(legend.position = "none")
+
+(p1 + p2) / (p3 + p4)
+```
+
+Mais a título de curiosidade, também é possível usar adaptar a função `stat_density_2d()` para gerar um mapa similar ao do `geom_count`.
+
+```{r}
+#| echo: false
+#| out-width: 100%
+ggplot(sub, aes(x = lon, y = lat)) +
+  geom_count()
+
+ggplot(sub, aes(x = lon, y = lat)) +
+  stat_density_2d(geom = "point", aes(size = after_stat(density)), n = 20, contour = FALSE)
+```
+
+```{r}
+#| eval: false
+sub <- sub |> 
+  mutate(
+    group = findInterval(emp_andares, c(1, 5, 10, 20, 35)),
+    group = factor(
+      group,
+      labels = c("1", "1 a 5", "5 a 10", "10 a 20", "20 a 35")
+      )
+  )
+
+ggplot(sub, aes(x = lon, y = lat)) +
+  geom_density_2d(aes(color = group)) +
+  scale_color_brewer(name = "Número de andares", palette = 6, type = "qual")
+
+ggplot(sub, aes(x = lon, y = lat)) +
   geom_density_2d_filled() +
   theme(legend.position = "none") +
-  facet_wrap(vars(studio))
+  facet_wrap(vars(group))
+```
 
+Como de costume, é possível
 
+```{r}
+sub <- sub |> 
+  mutate(
+    group = findInterval(emp_andares, c(1, 5, 10, 20, 35)),
+    group = factor(
+      group,
+      labels = c("1", "1 a 5", "5 a 10", "10 a 20", "20 a 35")
+      )
+  )
+
+ggplot(filter(sub, group == "10 a 20"), aes(x = lon, y = lat)) +
+  geom_point(aes(size = emp_unid), alpha = 0.1) +
+  geom_density_2d_filled(alpha = 0.5)
 ```
 
 ```{r}
-ggplot(rent, aes(x = house_lng, y = house_lat)) +
-  geom_point() +
-  geom_density_2d_filled(alpha = 0.5) +
-  geom_density_2d() +
-  theme(legend.position = "none")
+#| fig-show: hold
+#| out-width: "100%"
+#| layout-ncol: 2
+ggplot(sub, aes(x = lon, y = lat)) +
+  geom_bin2d() +
+  scale_fill_viridis_c(option = "inferno")
+
+ggplot(sub, aes(x = lon, y = lat)) +
+  geom_bin2d(aes(weight = pc_emp_atu / 1e9)) +
+  scale_fill_viridis_c(option = "inferno")
 ```
 
 ```{r}
-ggplot(rent, aes(x = house_lng, y = house_lat)) +
-  geom_bin2d()
+#| fig-show: hold
+#| out-width: "100%"
+#| layout-ncol: 2
+ggplot(sub, aes(x = lon, y = lat)) +
+  geom_hex(bins = 15) +
+  scale_fill_viridis_c()
 
-ggplot(rent, aes(x = house_lng, y = house_lat)) +
-  geom_hex()
-```
-
-```{r}
-cem2010 <- filter(cem, ano_lanc == 2010)
-
-ggplot(cem2010, aes(x = lon, y = lat)) +
-  geom_point(aes(size = emp_unid, color = pc_m2_au), alpha = 0.5) +
-  scale_color_viridis_c()
-```
-
-```{r}
-ggplot(rent, aes(x = house_lng, y = house_lat)) +
-  geom_point() +
-  geom_density_2d_filled(contour_var = "count") +
-  facet_wrap(vars(room))
+ggplot(sub, aes(x = lon, y = lat)) +
+  geom_hex(bins = 15, aes(weight = pc_emp_atu / 1e9)) +
+  scale_fill_viridis_c()
 ```
 
 ## Objetos espaciais
@@ -171,20 +265,58 @@ Após um longo e raivoso interlúdio chegamos, finalmente, aos mapas estáticos 
 
 Há três peças fundamentais que vamos ver: pontos, linhas e polígonos. Nos três casos, usa-se a mesma função `geom_sf()` para montar a visualização. Os elementos estéticos seguem a mesma lógica das funções `geom_point()`, `geom_line()` e `geom_rect()`, respectivamente. Assim, para tornar um objeto espacial, em formato de linha, mais grosso, usa-se `linewidth = 2`, por exemplo.
 
-Vamos começar importando um shapefile dos estados do Brasil, usando o excelente {geobr}. A estrutura de objetos espaciais é um `sf`/`data.frame` ou um "spatial data frame". Este objeto é essencialmente igual a um `data.frame` convencional, mas ele possui uma coluna especial chamada `geom` ou `geometry`. Esta coluna não pode ser dropada pelas maneiras usuais.
+Vou começar assumindo um conhecimento mínimo de `R` apesar deste ser um capítulo já avançado na série de tutoriais de ggplot2.
 
-A esta altura do campeonato, você já deve ter se deparado com alguma situação em que uma função teve um efeito "destrutivo" no objeto que você estava mexendo. Funções devem ter resultados previsíveis
+A estrutura de objetos espaciais é um `sf`/`data.frame` ou um "spatial data frame". Este objeto é essencialmente igual a um `data.frame` convencional, mas ele possui uma coluna especial chamada `geom` ou `geometry`. Para criar um objeto `sf` a partir de um `data.frame` ou `tibble` usa-se a função `st_as_sf`.
+
+O tipo mais simples de objeto geométrico é o ponto, definido por uma coordenada horizontal e uma coordenada vertical. O exemplo abaixo mostra como criar um spatial data.frame de pontos a partir dos dados de latitude e longitude do CEM. Note que é preciso escolher um sistema de projeção e eu escolho o [SIRGAS 2000 EPSG: 4674](https://epsg.io/4674), um sistema de projeção de referência para a América Latina. Para verificar o tipo de geometria dos objetos uso `st_geometry`.
 
 ```{r}
-sapply(mtcars, mean)
+library(sf)
+library(dplyr)
 
-lapply(mtcars, mean)
+points_cem <- st_as_sf(cem08, coords = c("lon", "lat"), crs = 4674)
 
-purrr::map(mtcars, mean)
+st_geometry(points_cem)
 ```
 
+Para gerar um gráfico a partir dos nossos dados, usa-se a função `geom_sf`, sem argumento algum. Note que este gráfico é idêntico ao que geramos antes usando `geom_point`.
 
-As funções do `dplyr`
+```{r}
+ggplot(points_cem) +
+  geom_sf()
+```
+
+Como comentei, há três tipos principais de objetos geométricos: *pontos*, *linhas* e *polígonos*. É possível gerar linhas e polígonos arbitrários a partir de coordenadas usando as funções do pacote `sf`. Na prática, é pouco usual criar objetos geométricos desta maneira e a sintaxe para desenhar mesmo formas geométricas simples como triângulos e quadrados é bastante trabalhosa, como o código abaixo deixa evidente.
+
+```{r}
+#> Define as coordenadas do quadrado
+quadrado = list(
+  rbind(
+    c(0, 0),
+    c(0, 1),
+    c(1, 1),
+    c(1, 0),
+    #> Note que é preciso repetir (0, 0)
+    c(0, 0)
+  )
+)
+#> Converte as coordenads em um POLYGON
+quadrado <- st_polygon(quadrado)
+#> Converte em SFC
+quadrado <- st_sfc(quadrado)
+#> Plota o quadrado
+ggplot(quadrado) +
+  geom_sf()
+```
+
+Esta coluna não pode ser dropada pelas maneiras usuais.
+
+```{r}
+
+```
+
+Vamos começar importando um shapefile dos estados do Brasil, usando o excelente {geobr}.
 
 ```{r}
 ufs <- geobr::read_state(showProgress = FALSE)
@@ -196,6 +328,8 @@ ufs
 ggplot(ufs) +
   geom_sf()
 ```
+
+Como mencionei acima, a função `geom_sf` aceita vários argumentos estéticos já que ela desenha pontos, linhas e polígonos. No caso do mapa abaixo, `color` define a cor do contorno/fronteira do polígono, enquanto `fill` define a cor do interior do polígono.
 
 ```{r}
 ggplot(ufs) +
@@ -212,11 +346,14 @@ ggplot(ufs) +
   coord_sf(xlim = c(-60, -48), ylim = c(-35, -20))
 ```
 
-## Mapas cloropléticos
+## Mapas coropléticos
+
+Um mapa coroplético é um mapa colorido, em que as cores representam valores de alguma variável.
 
 ### Juntando shapes e dados
 
 ```{r}
+#| code-fold: true
 rented <- tibble::tribble(
   ~abbrev_state, ~share_apto, ~share_rented, ~name_region, 
   #------------#------------#--------------#------------#      
@@ -247,16 +384,69 @@ rented <- tibble::tribble(
            "MT",        3.29,          12.7, "Centro Oeste", 
            "GO",        9.88,          13.6, "Centro Oeste", 
            "DF",        35.4,          17.8, "Centro Oeste"
-)
+  )
 ```
 
 ```{r}
 ufs_rent <- left_join(ufs, rented, by = "abbrev_state")
+```
 
+
+```{r}
 ggplot(ufs_rent) + 
   geom_sf(aes(fill = share_rented)) +
-  scale_fill_distiller(direction = 1)
+  scale_fill_distiller(direction = 1) +
+  coord_sf(xlim = c(NA, -35))
 ```
+
+### Temas para mapas
+
+
+
+```{r}
+#| fig-pos: "hold"
+#| out-width: 100%
+base_map <- ggplot(ufs_rent) + 
+  geom_sf(aes(fill = share_rented)) +
+  scale_fill_distiller(direction = 1, palette = 2) +
+  coord_sf(xlim = c(NA, -35))
+
+base_map + 
+  ggtitle("theme_map()") +
+  ggthemes::theme_map()
+
+base_map + 
+  ggtitle("theme_void()") +
+  theme_void()
+```
+
+
+### Discretizando dados contínuos
+
+O olho humano não é particularmente apto a distinguir diferenças sutis entre cores, quando dispotas lado a lado. Neste sentido, pode ser difícil captar certas nuances nos mapas coropléticos acima.
+
+Há três maneiras simples de agrupar dados contínuos para fazer mapas:
+
+1. Usar alguma variação de percentil, isto, quintis, decis, etc.
+2. Usar o algoritmo de Jenks.
+3. Definir quebras manualmente.
+
+```{r}
+
+```
+
+
+### Usando labels
+
+```{r}
+ggplot(ufs_rent) + 
+  geom_sf(aes(fill = share_rented)) +
+  geom_sf_label(aes(label = share_rented), size = 2) +
+  scale_fill_distiller(direction = 1) +
+  coord_sf(xlim = c(NA, -35))
+```
+
+
 
 ```{r}
 zones <- st_read(here::here("static/data/districts.gpkg"))
@@ -266,6 +456,8 @@ zones <- st_read(here::here("static/data/districts.gpkg"))
 
 ```{r}
 area_ponderacao <- geobr::read_weighting_area(3550308, showProgress = FALSE)
+
+cem2010 <- filter(cem, ano_lanc == 2010)
 
 cem2010 <- st_as_sf(cem2010, coords = c("lon", "lat"), crs = 4674)
 
@@ -337,7 +529,6 @@ ggplot(grid_count) +
   geom_sf(aes(fill = count)) +
   coord_sf()
 ```
-
 
 ## Mapas com elementos de mapas
 
@@ -465,7 +656,6 @@ ggplot() +
   theme(legend.position = "top")
 ```
 
-
 ```{r}
 jbreaks <- BAMMtools::getJenksBreaks(spo_alti$elevation, k = 8)
 jbreaks <- round(jbreaks, -1)
@@ -552,7 +742,6 @@ get_streets_altitude <- function(altitude, streets) {
 streets_alti <- get_streets_altitude(spo_alti, roads_border)
 ```
 
-
 ```{r}
 ggplot() +
   geom_sf(data = streets_alti, aes(color = level, fill = level)) +
@@ -564,7 +753,3 @@ ggplot() +
     legend.position = "right"
   )
 ```
-
-
-
-
