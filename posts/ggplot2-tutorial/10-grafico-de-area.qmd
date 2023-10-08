@@ -30,9 +30,7 @@ knitr::opts_chunk$set(
   fig.asp = 0.618,
   fig.width = 8,
   out.width = "80%",
-  fig.dev = "svg",
-  fig.retina = 2,
-  fig.dpi = 72
+  fig.dev = "svg"
   )
 
 print_table <- function(x) {
@@ -83,9 +81,7 @@ ggplot(tbl_area, aes(x = date, y = trend)) +
 
 Este post ensina como fazer gráficos de área usando o `ggplot2` no `R`. Primeiro, vamos ganhar intuição construindo um gráfico simples a partir de dados simluados. Depois, vamos revisar os principais elementos estéticos de um gráfico de área.
 
-Visto o básico, partiremos para um caso aplicado, analisando as concessões de crédito direcionadas no Brasil. Neste exemplo, vamos usar o conhecimento de escalas e temas para aprimorar o gráfico de área.
-
-Por fim, vamos explorar uma base de projeções demográficas do Brasil usando gráficos de área.
+Visto o básico, partiremos para um caso aplicado, analisando as concessões de crédito direcionadas no Brasil. Neste exemplo, vamos usar o conhecimento de escalas e temas para aprimorar o gráfico de área. Por fim, vamos explorar uma base de projeções demográficas do Brasil usando gráficos de área.
 
 ## ggplot2
 
@@ -105,9 +101,11 @@ library("RcppRoll")
 library("GetBCBData")
 ```
 
-Primeiro, vamos simular alguns dados para o nosso gráfico de área. No primeiro exemplo vamos montar aum base de dados (`tibble`) com os valores de uma série de vendas anuais de 2000 a 2020.
+### Exemplo simulado
 
-A coluna `ano` é uma variável contínua de 2000 a 2005. As colunas `venda_a`, `venda_b` e `venda_c` representam números hipotéticos de venda três lojas distintas ("a", "b" e "c").
+Primeiro, vamos simular alguns dados para o nosso gráfico de área. No primeiro exemplo vamos montar uma base de dados (`tibble`) com os valores de uma série de vendas anuais de 2000 a 2005.
+
+A coluna `ano` é uma variável contínua de 2000 a 2005. As colunas `venda_a`, `venda_b` e `venda_c` representam números hipotéticos de venda três lojas distintas ("1", "2" e "3").
 
 ```{r}
 tbl <- tibble(
@@ -133,7 +131,7 @@ ggplot(data = tbl) +
   geom_area(aes(x = ano, y = venda_1))
 ```
 
-Para adicionar as vendas das outras lojas precisamos remodelar o formato dos nossos dados. Nossos dados estão em formato "wide", no qual cada variável (vendas) é uma coluna distinta e cada observação é uma linha. O `ggplot2` segue os princípios de `tidy data` e funciona melhor com dados em formato "long", onde cada linha é uma observação única.
+Para adicionar as vendas das outras lojas precisamos remodelar o formato dos nossos dados. Nossos dados estão em formato "wide", no qual cada variável (vendas) é uma coluna distinta e cada observação é uma linha. O `ggplot2` segue os princípios de tidy data e funciona melhor com dados em formato "long", onde cada linha é uma observação única.
 
 Convertemos os nossos dados para o formato "long" utilizando a função `pivot_longer()` da seguinte maneira:
 
@@ -141,11 +139,12 @@ Convertemos os nossos dados para o formato "long" utilizando a função `pivot_l
 long <- pivot_longer(
   tbl,
   venda_1:venda_3,
-  names_to = "grupo",
-  values_to = "total")
+  names_to = "loja",
+  values_to = "total"
+  )
 ```
 
-Agora cada linha representa o número de vendas em uma loja específica e num ano específico.
+Agora cada linha representa o número de vendas em uma loja específica e num ano específico. Além disso, cada coluna é uma variável diferente: a coluna `ano` indica que o ano da observação, a coluna `loja` indica a loja e a coluna `total` indica o total de vendas.
 
 ```{r, echo = FALSE}
 print_table(long)
@@ -155,14 +154,16 @@ Agora que temos nossos dados preparados, podemos montar nosso gráfico de área.
 
 ```{r}
 ggplot(data = long) +
-  geom_area(aes(x = ano, y = total, fill = grupo))
+  geom_area(aes(x = ano, y = total, fill = loja))
 ```
 
-No gráfico acima, as áreas são empilhadas umas sobre as outras. Tipicamente, os grupos com os valores mais altos devem estar no topo da pilha e os grupos com valores mais baixos, na parte inferior. Na prática, a ordem é determinada pela ordem da variável `fill`.
+### Factors
 
-Variáveis categóricas no `R` sempre devem ser do tipo `factor`. Um `factor` é um tipo especial de string que possui um ordenamento (`levels`) que define a relação hierárquica entre os grupos.
+No gráfico acima, as áreas são empilhadas umas sobre as outras. Tipicamente, os grupos com os valores mais altos devem estar no topo da pilha e os grupos com valores mais baixos, na parte inferior. Na prática, a ordem é determinada pela ordem da variável `fill`. Neste caso, a ordem é dada pela variável categória `loja`[^1]. Variáveis categóricas no `R` sempre devem ser do tipo `factor`. Já se apresentou factors anteriormente, mas vale a pena revisar esta importante classe.
 
-Imagine que você tem uma série de avaliações que podem ser "Bom", "Médio" ou "Ruim" armazenadas num vetor chamado `feedback`. Para estruturar esta variável como `factor` é preciso definir qual a ordem destes valores. No exemplo abaixo define-se uma relação crescente: de "Ruim" até "Bom".
+[^1]: Para uma breve revisão sobre variáveis categóricas ou discretas, consulte o [post](https://restateinsight.com/posts/ggplot2-tutorial/6-scales-labels#variáveis-discretas).
+
+Um `factor` é um tipo especial de string que possui um ordenamento (`levels`) que define a relação hierárquica entre os grupos. Imagine que você tem uma série de avaliações que podem ser "Bom", "Médio" ou "Ruim" armazenadas num vetor chamado `feedback`. Para estruturar esta variável como `factor` é preciso definir qual a ordem destes valores. No exemplo abaixo define-se uma relação crescente: de "Ruim" até "Bom".
 
 ```{r, eval = FALSE}
 feedback <- c("Bom", "Bom", "Médio", "Ruim", "Médio", "Médio")
@@ -171,16 +172,16 @@ satisfacao <- factor(feedback, levels = c("Ruim", "Médio", "Bom"))
 
 No caso do gráfico acima, como não definimos a ordem da variável categórica, o `ggplot2` tenta adivinha-la. De maneira geral, o `ggplot` respeita a ordem alfabética e a ordem de grandeza numérica. Por isso, no gráfico acima a ordem foi `venda_1`, `venda_2` e `venda_3`.
 
-Para definir a ordem dos grupos é preciso criar uma variável do tipo `factor` e especificar o argumento `levels`. O exemplo abaixo define uma nova ordem para os grupos o que resulta num gráfico diferente.
+Para definir a ordem dos lojass é preciso criar uma variável do tipo `factor` e especificar o argumento `levels`. O exemplo abaixo define uma nova ordem para os grupos o que resulta num gráfico diferente.
 
 ```{r}
 long_reordenado <- long |> 
   dplyr::mutate(
-    grupo = factor(grupo, levels = c("venda_3", "venda_1", "venda_2"))
+    loja = factor(loja, levels = c("venda_3", "venda_1", "venda_2"))
   )
 
 ggplot(data = long_reordenado) +
-  geom_area(aes(x = ano, y = total, fill = grupo))
+  geom_area(aes(x = ano, y = total, fill = loja))
 ```
 
 ## Elementos estéticos
@@ -193,11 +194,9 @@ Os principais elementos estéticos da função `geom_area()` são
 -   `linetype` - O tipo de linha (tracejado).
 -   `linewidth` - A espessura da linha.
 
-Os elementos estéticos podem receber dois tipos de valores: constantes ou variáveis. Uma constante é simplesmente um valor (número, texto, etc.) enquanto uma variável é o nome de alguma coluna da base de dados.
+Os elementos estéticos podem receber dois tipos de valores: constantes ou variáveis. Uma constante é simplesmente um valor (número, texto, etc.) enquanto uma variável é o nome de alguma coluna da base de dados. Mapear variáveis em elementos estéticos permite fazer um gráfico de área em que cada cor representa um grupo distinto, como se viu no exemplo anterior.
 
-No exemplo abaixo o elemento `fill` é variável e definido como `fill = grupo` dentro da função `aes()`. Quando mapeamos uma coluna/variável para um elemento estético sempre usamos a função `aes()` da mesma maneira como fazemos para mapear as variáveis `x` e `y`.
-
-Como a variável `grupo` é mapeada usamos `scale_fill_manual()` para definir as suas cores e para controlar a legenda.
+O gráfico abaixo mostra o volume de inventário de casas à venda em três cidades no Texas, usando a base `txhousing`. Note que o elemento `fill` é variável e definido como `fill = city` dentro da função `aes()`. Quando se mapeia uma coluna/variável para um elemento estético sempre se usa a função `aes()` da mesma maneira como se faz para mapear as variáveis `x` e `y`. Como a variável `city` é mapeada usa-se scale_fill_manual() para definir as suas cores e para controlar a legenda.
 
 ```{r}
 sub <- txhousing |> 
@@ -216,7 +215,7 @@ ggplot(data = sub) +
     values = c("#0a9396", "#ee9b00", "#ae2012"))
 ```
 
-Para seguir os exemplos abaixo será útil definir o gráfico acima como um template padrão. Vamos chamá-lo de `base_plot`.
+Para seguir os exemplos abaixo será útil definir este gráfico como um template padrão. Vamos chamá-lo de `base_plot`.
 
 ```{r}
 base_plot <- ggplot(sub, aes(x = date, y = inventory, fill = city)) +
@@ -232,7 +231,7 @@ base_plot <- ggplot(sub, aes(x = date, y = inventory, fill = city)) +
 
 ### alpha
 
-O argumento `alpha`, igualmente como em casos anteriores, controla o nível de transparência da imagem. O valor escolhido deve variar entre 0 e 1, onde 0 indica transparência máxima. Também é possível mapear uma coluna usando `alpha`, de maneira que cada grupo será representado por um nível de transparência distinto, mas há pouca utilidade prática nisto. O painel de gráficos abaixo mostra alguns valores de `alpha`.
+O argumento `alpha` controla o nível de transparência do objeto, isto é, da linha e da área abaixo da linha. O valor escolhido deve variar entre 0 e 1, onde 0 indica transparência máxima. Também é possível mapear uma coluna usando `alpha`, de maneira que cada grupo será representado por um nível de transparência distinto, mas há pouca utilidade prática nisto. O painel de gráficos abaixo mostra alguns valores de `alpha`.
 
 ```{r}
 #| eval: false
@@ -255,22 +254,26 @@ p4 <- base_plot + geom_area(alpha = 0.8) + ggtitle("alpha = 0.8")
 
 ### fill e color
 
-O padrão da função `geom_area` é de sempre manter os argumentos `fill` e `color` iguais. Isto garante uma visualização simples e fluída. Contudo, é possível definir especificamente uma cor para cade elemento. O argumento `color` define a cor da linha no topo da área, enquanto `fill` define a cor que preenche a área. Os exemplos abaixo devem deixar nítida esta diferença.
+O padrão da função `geom_area` é de sempre manter os argumentos `fill` e `color` iguais. Isto garante uma visualização simples e fluída. Contudo, é possível definir especificamente uma cor para cada elemento. O argumento `color` define a cor da linha no topo da área, enquanto `fill` define a cor que preenche a área. Para mostrar isto, usa-se novamente o exemplo com dados simulados.
 
 Note que para tornar a cor da linha mais aparente uso `linewidth = 3`. Isto torna a linha mais espessa.
 
 ```{r}
 #| eval: false
+#> Linha e área tem a mesma cor
 ggplot(tbl, aes(x = ano, y = venda_1)) +
   geom_area(fill = "#0a9396")
 
+#> Linha amarela e área verde
 ggplot(tbl, aes(x = ano, y = venda_1)) +
   geom_area(fill = "#0a9396", color = "#ee9b00", linewidth = 3)
 
-ggplot(long, aes(x = ano, y = total, fill = grupo)) +
+#> Linha e área tem a mesma cor
+ggplot(long, aes(x = ano, y = total, fill = loja)) +
   geom_area()
 
-ggplot(long, aes(x = ano, y = total, fill = grupo)) +
+#> Linha amarela e área variando por grupo
+ggplot(long, aes(x = ano, y = total, fill = loja)) +
   geom_area(color = "#ee9b00", linewidth = 3)
 ```
 
@@ -284,10 +287,10 @@ p1 <- ggplot(tbl, aes(x = ano, y = venda_1)) +
 p2 <- ggplot(tbl, aes(x = ano, y = venda_1)) +
   geom_area(fill = "#0a9396", color = "#ee9b00", linewidth = 3)
 
-p3 <- ggplot(long, aes(x = ano, y = total, fill = grupo)) +
+p3 <- ggplot(long, aes(x = ano, y = total, fill = loja)) +
   geom_area()
 
-p4 <- ggplot(long, aes(x = ano, y = total, fill = grupo)) +
+p4 <- ggplot(long, aes(x = ano, y = total, fill = loja)) +
   geom_area(color = "#ee9b00", linewidth = 3)
 
 (p1 + p2) / (p3 + p4)
@@ -343,7 +346,7 @@ p4 <- base_plot + geom_area(color = "white", linewidth = 5) + ggtitle("linewidth
 
 Agora vamos seguir para um exemplo aplicado. Vamos explorar o volume de crédito direcionado para pessoas físicas no Brasil. Para importar os dados vamos usar o pacote `GetBCBData` que interage com a API do Banco Central do Brasil e que traz os dados já no formato "long" dentro do `R`.
 
-O código abaixo importa as séries de tempo e identifica elas. A manipulação de dados é feita usando funções do pacote `dplyr`.
+O código abaixo importa as séries de tempo e identifica elas. A manipulação de dados é feita usando funções do pacote `dplyr`. Cria-se uma coluna chamada `linha_credito` que identifica o nome da linha de crédito a partir do ID da série.
 
 ```{r}
 #> Códigos numéricos das séries de crédito direcionado para Pessoas Físicas
@@ -364,7 +367,7 @@ series <- series |>
   )
 ```
 
-Vamos montar um gráfico simples que mostra a composição e evolução do crédito direcionado.
+Vamos montar um gráfico de área simples que mostra a composição e a evolução do crédito direcionado.
 
 ```{r}
 #> Plota o gráfico
@@ -372,7 +375,7 @@ ggplot(data = series) +
   geom_area(aes(x = ref.date, y = value, fill = linha_credito))
 ```
 
-O gráfico acima pode ser melhorado de diversas formas. Vamos explorar algumas opções.
+Este gráfico pode ser melhorado de diversas formas. Vamos explorar algumas opções.
 
 ### Reordenando os grupos
 
@@ -439,9 +442,9 @@ ggplot(data = series) +
 
 No código abaixo a função `scale_y_continuous()` altera o eixo-y de três formas: primeiro, o argumento `breaks` define os números que devem ser destacados no eixo; segundo, o argumento `labels` modifica a aparência destes números no gráfico; por fim, `limits` estabelece os limites inferior e superior do eixo-y.
 
-A função `scales::label_number(big.mark = ".")` pode parecer um pouco confusa, mas ela simplesmente informa que o sinal de ponto "." deve ser utilizado como separador de milhar. Assim `10000` é convertido para `10.000`[^1].
+A função `scales::label_number(big.mark = ".")` pode parecer um pouco confusa, mas ela simplesmente informa que o sinal de ponto "." deve ser utilizado como separador de milhar. Assim `10000` é convertido para `10.000`[^2].
 
-[^1]: Na prática ela faz o mesmo que a função base \`format()\`.
+[^2]: Na prática ela faz o mesmo que a função base \`format()\`.
 
 ```{r}
 ggplot(data = series) +
@@ -458,7 +461,7 @@ ggplot(data = series) +
 
 ### Títulos e elementos temáticos
 
-Para adicionar títulos o modificar o nome de cada eixo utilizamos a função `labs()`f. Para este gráfico escolhemos um tema neutro com fundo branco `theme_minimal()`. Além disso, adiciono alguns argumentos na função theme para customizar o gráfico. Para mais detalhes consulte [o post sobre elementos temáticos](https://restateinsight.com/posts/ggplot2-tutorial/7-themes-fonts).
+Para adicionar títulos o modificar o nome de cada eixo utilizamos a função `labs()`. Para este gráfico escolhemos um tema neutro com fundo branco `theme_minimal()`. Além disso, adiciono alguns argumentos na função theme para customizar o gráfico. Para mais detalhes consulte [o post sobre elementos temáticos](https://restateinsight.com/posts/ggplot2-tutorial/7-themes-fonts).
 
 ```{r}
 ggplot(data = series) +
@@ -506,6 +509,7 @@ series <- series |>
 ggplot(data = series) +
   geom_area(aes(x = ref.date, y = soma_12, fill = linha_credito)) +
   geom_hline(yintercept = 0) +
+    scale_x_date(date_breaks = "1 year", date_labels = "%Y", expand = c(0, 0)) +
   scale_fill_brewer(
     name = "Linha de Crédito",
     type = "qual",
@@ -522,15 +526,24 @@ ggplot(data = series) +
   )
 ```
 
+### Resumo
+
+Em suma, há duas decisões importantes a se fazer com gráficos de área:
+
+1.  *Reordenar a ordem dos grupos*. A variável que define os grupos deve sempre ser um `factor` e sua ordem deve ser significativa. Em geral, apresentar os grupos em ordem decrescente pode ser a melhor opção, mas há exceções.
+2.  *Suavizar as séries de dados*. Oscilações sazonais ou quebras de nível drásticas não são muito bonitas em gráficos de área. Nestes casos, pode ser interessante suavizar a série ou considerar outro tipo de gráfico, como um gráfico de linha convencional.
+
+As demais melhorias apresentadas, como ajustar eixos e cores, são majoritariamente estéticas, mas devem ser feitas em qualquer tipo de gráfico. As cores, eixos e tema padrões do ggplot2 não são adequadas para uma visualização bem trabalhada.
+
 # Demografia
 
-Vamos explorar algumas tendências demográficas do Brasil. Os dados são do projeto de projeções populacionais da ONU (*World Population Prospects*) e estão disponíves em formato `csv` e `xlsx` no [site](https://population.un.org/wpp/Download/Standard/MostUsed/). Esta base de dados inclui tanto valores passados como projeções futuras para a população mundial.
+Vamos explorar algumas tendências demográficas do Brasil. Os dados são do projeto de projeções populacionais da ONU (*World Population Prospects*) e estão disponíves em formato `csv` e `xlsx` no [site](https://population.un.org/wpp/Download/Standard/MostUsed/). Esta base de dados, em particular, inclui tanto valores passados como projeções futuras para a população mundial, por países.
 
 A tabela que vamos usar contém as estimativas passadas e projeções futuras da população em grupos de cinco anos (0-4, 5-9, 10-14, ..., 100+) por sexo. Para ler os dados usamos a função `read_csv()`. Vamos considerar somente a janela entre 2000 e 2050 e a variável `pop_total` que estimativa da população total num determinado ano. Para facilitar a leitura, os dados são agregados em grupos maiores: crianças (0-14), adolescentes (15-24), adultos (25-64) e idosos (65+).
 
-O código abaixo faz a manipulação de dados necessária para montar os gráficos[^2].
+O código abaixo faz a manipulação de dados necessária para montar os gráficos[^3].
 
-[^2]: Para uma revisão sobre manipulação de dados consulte o [post da série sobre o asssunto](https://restateinsight.com/posts/ggplot2-tutorial/apendix-manipular-enxergar#manipulando-dados).
+[^3]: Para uma revisão sobre manipulação de dados consulte o [post da série sobre o asssunto](https://restateinsight.com/posts/ggplot2-tutorial/apendix-manipular-enxergar#manipulando-dados).
 
 ```{r, include = FALSE}
 wpp <- readr::read_csv(here::here("posts/ggplot2-tutorial/wpp_brazil.csv"))
@@ -625,9 +638,9 @@ ggplot(data = pop, aes(x = year, y = population)) +
   theme_area
 ```
 
-Podemos combinar o gráfico acima com a função `facet_wrap()` para montar quatro gráficos, mostrando a evolução da população dentro de cada um dos grupos[^3].
+Podemos combinar o gráfico acima com a função `facet_wrap()` para montar quatro gráficos, mostrando a evolução da população dentro de cada um dos grupos[^4].
 
-[^3]: Para mais detalhes sobre a função `facet_wrap` consulte o post da série sobre o assunto.
+[^4]: Para mais detalhes sobre a função `facet_wrap` consulte o post da série sobre o assunto.
 
 O grupo de crianças (0 a 14 anos) cai, enquanto o grupo de idosos (65+) aumenta expressivamente. O grupo de adultos (25-64) aumenta até atingir um máximo ao redor de 2040 e depois passa a cair suavemente. Por fim, o grupo de adolescentes/jovens (15-24) cai suavamente.
 
@@ -640,7 +653,7 @@ ggplot(data = pop_group, aes(x = year, y = population)) +
   theme_area
 ```
 
-Assim como nos exemplos anteriores, podemos também empilhar os grupos e ter uma noção da representatividade de cada um deles no total da população.
+Assim como nos exemplos anteriores, podemos também empilhar os grupos e ter uma noção da representatividade de cada um deles no total da população. Neste gráfico, vê-se como a população total cresce cada vez mais devagar até quase estabilizar por volta de 2045. A composição da população se altera, além de crescer, com maior participação de idosos e menor participação de crianças na população.
 
 ```{r}
 ggplot(data = pop_group) +
@@ -650,11 +663,13 @@ ggplot(data = pop_group) +
   theme_area
 ```
 
-Pode-se acrescentar elementos textuais no gráfico acima[^4]. Similarmente como se faz com gráficos de coluna, basta usar `position_stack(vjust = 0.5)` dentro de `geom_text` ou `geom_label`. Para evitar que os valores de todos os anos sejam plotados, crio uma variável auxiliar, `label`, que contém valores ausentes exceto em 2000 e em 2050. Além disso, para melhorar a visualização, faço um pequeno deslocamento na variável `year` para desclocar a posição horizontal do label[^5].
+Pode-se acrescentar elementos textuais no gráfico acima[^5]. Similarmente como se faz com gráficos de coluna, basta usar `position_stack(vjust = 0.5)` dentro de `geom_text` ou `geom_label`. Para evitar que os valores de todos os anos sejam plotados, crio uma variável auxiliar, `label`, que contém valores ausentes exceto em 2000 e em 2050. Além disso, para melhorar a visualização, faço um pequeno deslocamento na variável `year` para desclocar a posição horizontal do label[^6].
 
-[^4]: Para mais detalhes sobre como destacar informação com texto consulte o [post da série sobre o assunto](https://restateinsight.com/posts/ggplot2-tutorial/5-grafico-text#usando-texto).
+[^5]: Para mais detalhes sobre como destacar informação com texto consulte o [post da série sobre o assunto](https://restateinsight.com/posts/ggplot2-tutorial/5-grafico-text#usando-texto).
 
-[^5]: Vale notar que o mesmo ajuste poderia ter sido realizado com `nudge_x` dentro de `geom_label`.
+[^6]: Vale notar que o mesmo ajuste poderia ter sido realizado com `nudge_x` dentro de `geom_label`.
+
+Neste gráfico, fica evidente a mudança na composição entre cada grupo da população. Enquanto a população de crianças e adolescentes diminui, a população de idosos mais do que quintuplica no período de 50 anos, subindo de 9,5 milhão para pouco mais de 50 milhão. Os adultos continuam sendo o grupo mais expressivo da população, chegando a 121 milhão em 2050.
 
 ```{r}
 pop_group <- pop_group |> 
@@ -682,7 +697,7 @@ ggplot(pop_group, aes(year, population, fill = age_group, group = age_group)) +
   theme_area
 ```
 
-Gráficos de área não costumam funcionar bem quando há muito grupos, sobretudo quando há pouca variação entre os grupos. O exemplo abaixo mostra a dinâmica da população adulta, em grupos de idade de cinco anos. Com o olhar atento, pode-se perceber que os grupos acima de 50 anos (50-54, 55-59 e 60-64) crescem em número absoluto e ganham participação. Ainda assim, é difícil distinguir diferenças entre os demais grupos.
+Gráficos de área não costumam funcionar bem quando há muito grupos e, sobretudo , quando há pouca variação entre eles. O exemplo abaixo mostra a dinâmica da população adulta (25-64), em grupos de idade de cinco anos. Com o olhar atento, pode-se perceber que os grupos acima de 50 anos (50-54, 55-59 e 60-64) crescem em número absoluto e ganham participação. Ainda assim, é difícil distinguir diferenças entre os demais grupos.
 
 ```{r}
 ggplot(pop_adult, aes(x = year, y = pop_total / 1000, fill = age_subgroup)) +
@@ -694,9 +709,7 @@ ggplot(pop_adult, aes(x = year, y = pop_total / 1000, fill = age_subgroup)) +
 
 # Resumindo
 
-Um dos principais benefícios de usar gráficos de área é que eles permitem visualizar facilmente a tendência geral dos dados e a contribuição de cada grupo individual para o total. No geral, gráficos de área são uma ferramenta útil para visualizar a magnitude da mudança ao longo do tempo e comparar diferentes categorias ou grupos de dados uns com os outros.
-
-Neste post vimos a importância de usar dados em formato "long" e de reordenar as variáveis categóricas usando a função `factor()`. Também vimos que elementos estéticos podem assumir valores constantes ou variáveis.
+Um dos principais benefícios de usar gráficos de área é que eles permitem visualizar facilmente a tendência geral dos dados e a contribuição de cada grupo individual para o total. No geral, gráficos de área são uma ferramenta útil para visualizar a magnitude da mudança ao longo do tempo e comparar diferentes categorias ou grupos de dados uns com os outros. Estes gráficos também podem ser um substituto interessante para gráficos de linha convencionais.
 
 Abaixo seguem algumas recomendações finais na hora de fazer gráficos de área.
 
