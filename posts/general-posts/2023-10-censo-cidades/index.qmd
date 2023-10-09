@@ -100,7 +100,9 @@ tbl_pop_metro <- census_pop %>%
     name_metro = str_remove(name_metro, "RM"),
     name_metro = str_replace(name_metro, "Aglomeração Urbana", "AU"),
     name_metro = ifelse(
-      str_detect(name_metro, "^RIDE"), shorten_ride_names(name_metro), name_metro
+      str_detect(name_metro, "^RIDE"),
+      shorten_ride_names(name_metro),
+      name_metro
       ),
     name_metro = str_trim(name_metro, side = "both")
     ) %>%
@@ -142,11 +144,6 @@ tbl_major_wide <- tbl_major %>%
 ```
 
 ```{r}
-# tbl_major_wide <- tbl_major_wide %>%
-#   mutate(
-#     is_growth = factor(ifelse(tcg_2022 > tcg_2010, 1L, 0L))
-#   )
-
 timeline <- tbl_major %>%
   summarise(
     TCG = list(na.omit(c(tcg * 100))),
@@ -160,7 +157,7 @@ col_names <- c(
 
 names(col_names) <- names(tbl_major_wide)
 
-tbl_major_wide %>%
+gtable_cities <- tbl_major_wide %>%
   left_join(timeline) %>%
   gt() %>%
   cols_label(.list = col_names) %>%
@@ -267,7 +264,7 @@ big_cities <- census_pop |>
   pull(code_muni)
 
 tab_big_cities <- census_pop |> 
-  filter(year %in% c(2010, 2022), code_muni %in% big_cities) |> 
+  filter(code_muni %in% big_cities) |> 
   mutate(
     chg_abs = pop - lag(pop),
     chg_rel = pop / lag(pop) - 1,
@@ -515,4 +512,172 @@ ggplot(state_chg) +
   ) +
   coord_sf(xlim = c(NA, -35)) +
   ggthemes::theme_map(base_family = "Lato")
+```
+
+```{r}
+unique(metro_region$name_metro)
+
+sel_metro <- c(
+  "RM São Paulo",
+  "RM Rio de Janeiro",
+  "RM Belo Horizonte",
+  "RIDE - Região Integrada de Desenvolvimento do Distrito Federal e Entorno",
+  "RM Porto Alegre",
+  "RM Fortaleza",
+  "RM Recife",
+  "RM Curitiba",
+  "RM Salvador",
+  "RM Campinas"
+)
+
+sel_city_code <- metro_region |> 
+  st_drop_geometry() |> 
+  filter(name_metro %in% sel_metro) |> 
+  pull(code_muni)
+
+tab_city_metro <- census_pop |> 
+  filter(code_muni %in% sel_city_code) |> 
+  mutate(
+    chg_rel = pop / lag(pop) - 1,
+    tgc = (pop / lag(pop))^(1/(year - lag(year))) - 1,
+    .by = "code_muni"
+  ) |> 
+  pivot_wider(
+    id_cols = c("code_muni", "name_metro"),
+    names_from = "year",
+    values_from = c("pop", "chg_rel", "tgc")
+  )
+```
+
+```{r}
+cities_metro <- inner_join(cities, tab_city_metro, by = "code_muni")
+
+breaks <- BAMMtools::getJenksBreaks(dat$tgc_2022, k = 7)
+breaks[3] <- 0
+# labels <- format(round(breaks * 100, 2), decimal.mark = ",")
+# labels <- paste(labels, labels[-1], sep = " a ")
+# labels <- c(labels[-length(labels)], ">4,8%")
+
+labels <- c(
+  "-0,55 a -0,20", "-0,20 a 0,00", "0,00 a 0,81", "0,81 a  1,22", 
+  "1,22 a 2,06", "2,06 a 4,79", "> 4,8%")
+
+cities_metro <- cities_metro |> 
+  dplyr::mutate(group = factor(findInterval(tgc_2022, breaks)))
+```
+
+```{r}
+
+plot_metro <- function(metro, size = 3, legend = FALSE) {
+  
+  metro <- ifelse(!str_detect(metro, "RM"), paste("RM", metro), metro)
+  
+  dat <- dplyr::filter(cities_metro, name_metro == metro)
+  
+  colors <- RColorBrewer::brewer.pal(11, "BrBG")[c(2, 4, 7, 8, 9, 10, 11)]
+  
+  plot <- 
+    ggplot(dat) +
+    geom_sf(aes(fill = group), linewidth = 0.5, color = "gray50") +
+    geom_sf_label(
+      aes(label = name_muni),
+      size = size,
+      family = "Lato",
+      color = "gray20") +
+    ggtitle(label = metro) +
+    scale_fill_manual(
+    values = colors,
+    labels = labels
+  ) +
+    ggthemes::theme_map(base_family = "Lato") +
+    theme(
+      plot.title = element_text(
+        size = 18,
+        hjust = 0.5,
+        color = "gray10"
+        )
+      )
+  
+  if (!legend) {
+    plot <- plot + theme(legend.position = "none")
+  }
+  
+  return(plot)
+  
+}
+```
+
+```{r}
+plot_metro("Curitiba")
+```
+
+```{r}
+cities_shrink <- tab_big_cities |> 
+  filter(year == 2022, chg_rel < 0) |> 
+  pull(code_muni)
+
+tab_loss_cities <- tab_big_cities |> 
+  filter(code_muni %in% cities_shrink, !is.na(chg_rel)) |>
+  mutate(is_growth = factor(if_else(chg_rel > 0, 1, 0)))
+
+plot_cities_loss <- 
+  ggplot(tab_loss_cities, aes(x = year, y = chg_rel)) +
+  geom_hline(yintercept = 0, linewidth = 0.4) +
+  geom_point(color = "#224B5E") +
+  geom_line(color = "#224B5E") +
+  geom_text(
+    data = filter(tab_loss_cities, year == 2022),
+    aes(x = year, y = chg_rel, label = round(chg_rel * 100, 2)),
+    family = "Lato",
+    size = 3,
+    nudge_x = 3
+  ) +
+  facet_wrap(vars(name_muni)) +
+  scale_x_continuous(
+    breaks = c(1991, 2000, 2010, 2022),
+    limits = c(NA, 2027)
+    ) +
+  scale_y_continuous(labels = scales::label_percent()) +
+  labs(
+    title = "Queda no crescimento em grandes cidades",
+    subtitle = "Cidades de grande porte que tiveram as maiores quedas populacionais no último Censo.\nMudança percentual da população total.",
+    x = NULL,
+    y = NULL,
+    caption = "Fonte: IBGE (CENSO, 1991, 2000, 2010, 2022)."
+  ) +
+  theme_vini
+```
+
+# Censo 2022
+
+```{r}
+p_pop
+```
+
+```{r}
+plot_cities_loss
+```
+
+```{r}
+plot_growth
+```
+
+```{r}
+gt_growth
+```
+
+```{r}
+tab_growth_cities %>%
+  gt(id = "table_growth") %>%
+  cols_label(.list = col_names) %>%
+  fmt_number(3:4, decimals = 0, sep_mark = ".") %>%
+  fmt_percent(5) %>%
+  tab_caption("Crescimento populacional das cidades por porte.") %>%
+  opt_table_font(font = list(google_font("Lato"))) %>%
+  opt_row_striping() %>%
+  opt_all_caps() %>%
+  tab_options(
+    table.border.top.width = px(3),
+    table.font.size = 12
+  )
 ```
