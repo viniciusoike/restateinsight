@@ -10,7 +10,936 @@
 <atom:link href="https:://www.restateinsight.com/blog.xml" rel="self" type="application/rss+xml"/>
 <description>A blog on economics and cities</description>
 <generator>quarto-1.3.450</generator>
-<lastBuildDate>Mon, 09 Oct 2023 03:00:00 GMT</lastBuildDate>
+<lastBuildDate>Tue, 10 Oct 2023 03:00:00 GMT</lastBuildDate>
+<item>
+  <title>Importando arquivos, visualizando linhas</title>
+  <dc:creator>Vinicius Oike</dc:creator>
+  <link>https:://www.restateinsight.com/posts/general-posts/2023-09-comandos-simples/index.html</link>
+  <description><![CDATA[ 
+
+
+
+
+<section id="o-problema" class="level1">
+<h1>O problema</h1>
+<p>Uma das minhas maiores dificuldades quando comecei a mexer com <code>R</code> era conseguir importar a minha base de dados. Em geral, eu tinha um ou vários arquivos <code>.csv</code> ou planilhas <code>.xlsx</code> que precisavam ser importador para o <code>R</code>. Eu tinha três dificuldades</p>
+<ol type="1">
+<li>Saber qual a função que eu precisava usar.</li>
+<li>Escrever o caminho até o arquivo específico (qualquer errinho e já não funcionava!).</li>
+<li>Calibrar os argumentos na hora de importar.</li>
+</ol>
+<p>Depois de muito esforço eu conseguia importar os dados, mas logo surgia ourto problema: o nome das variáveis vinha num formato muito ruim para trabalhar. No <code>R</code>, idealmente as variáveis são todas:</p>
+<ol type="1">
+<li>Minúsculas</li>
+<li>Não tem acento nem caracteres especiais como <code>$</code>, <code>%</code>, etc.</li>
+<li>Não tem espaços</li>
+<li>Não começa com números</li>
+</ol>
+<p>Isso evita inúmeros problemas e facilita muito na hora de escrever o código.</p>
+<p>Por fim, eu tinha bastante dificuldade de “enxergar os dados” mesmo depois de ter importado eles. No caso de uma planilha de Excel eu poderia simplesmente abrir ela e explorar um pouco. Já se a base de dados fosse em formato <code>dta</code> ou <code>sav</code> isso já não era tão simples, pois eu não tinha Stata e nem SPSS no meu computador.</p>
+<p>Tudo isso me desanimava quando comecei a mexer com <code>R</code> e vejo que isso é um daqueles obstáculos idiotas que acabam segurando muita gente de fazer a transição para o <code>R</code>. É o tipo de problema (que parece) simples, mas que na verdade é difícil de resolver e que faz com que você se sinta burro e fique frustrado.</p>
+<p>Neste post vou te dar algumas dicas de como lidar com todos estes passos. É o post que eu gostaria de poder enviar para mim mesmo no passado.</p>
+</section>
+<section id="a-solução-simples" class="level1">
+<h1>A solução simples</h1>
+<p>O roteiro de como melhorar a sua vida no <code>R</code>:</p>
+<ol type="1">
+<li>Importar usando <code>rio::import()</code></li>
+<li>Escrever paths relativos usando <code>here::here()</code></li>
+<li>Corrigir os nomes das colunas usando <code>janitor::clean_names()</code></li>
+<li>Visualizar usando <code>View()</code>, <code>dplyr::glimpse()</code>, <code>skimr::skim()</code> ou <code>show_in_excel()</code> (ver abaixo)</li>
+<li>Exportar usando <code>rio::export()</code></li>
+</ol>
+<p>Agora, vamos aos detalhes.</p>
+</section>
+<section id="importando-arquivos" class="level1">
+<h1>Importando arquivos</h1>
+<p>Lembrando os problemas de importar arquivos:</p>
+<ol type="1">
+<li>Saber qual a função usar.</li>
+<li>Escrever o caminho até o arquivo específico (qualquer errinho e já dava erro!).</li>
+<li>Calibrar os argumentos na hora de importar.</li>
+<li>Às vezes é preciso importar vários arquivos de uma mesma pasta e juntá-los todos num único objeto.</li>
+</ol>
+<p>Este problema era tão chato de se resolver que eu acabava dependendo de uma facilidade do RStudio, que ajuda a importar uma base de dados, o botão Import Dataset. Eu fazia os comandos clicando e depois copiava o comando que aparecia no console no meu código.</p>
+<p>Isso não era uma solução prática e eu queria a solução “correta”: queria escrever o código certo para importar os dados.</p>
+<p>A solução para os problemas acima:</p>
+<ol type="1">
+<li>Aprender todas as funções para importar arquivos (leva tempo…)</li>
+<li>Escrever <em>paths</em> relativos e usar a tecla <code>tab</code> dentro do RStudio (funciona com autocomplete!)</li>
+<li>Aprender todas os argumentos das funções para importar arquivos (mais tempo ainda…).</li>
+<li>Ver abaixo</li>
+</ol>
+<p>Ainda que no longo prazo acho que seja importante saber todas as funções o propósito aqui é te ajudar um pouco então vamos com duas soluções.</p>
+<section id="a-solução-correta" class="level2">
+<h2 class="anchored" data-anchor-id="a-solução-correta">A solução correta</h2>
+<p>A tabela abaixo resume as principais funções que você provavelmente vai ter que usar.</p>
+<table class="table">
+<colgroup>
+<col style="width: 24%">
+<col style="width: 27%">
+<col style="width: 24%">
+<col style="width: 24%">
+</colgroup>
+<thead>
+<tr class="header">
+<th style="text-align: center;">Formato</th>
+<th style="text-align: center;">Extensao</th>
+<th style="text-align: center;">Importar</th>
+<th style="text-align: center;">Exportar</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: center;">Excel</td>
+<td style="text-align: center;"><code>xls</code>, <code>xlsx</code></td>
+<td style="text-align: center;"><code>readxl::read_excel()</code></td>
+<td style="text-align: center;"><code>xlsx::write.xlsx()</code></td>
+</tr>
+<tr class="even">
+<td style="text-align: center;">Separados</td>
+<td style="text-align: center;"><code>csv</code>, <code>tsv</code>, <code>psv</code>, <code>csvy</code></td>
+<td style="text-align: center;"><code>data.table::fread()</code></td>
+<td style="text-align: center;"><code>data.table::fwrite()</code></td>
+</tr>
+<tr class="odd">
+<td style="text-align: center;">Stata</td>
+<td style="text-align: center;"><code>dta</code></td>
+<td style="text-align: center;"><code>haven::read_dta()</code></td>
+<td style="text-align: center;"><code>haven::write_dta()</code></td>
+</tr>
+<tr class="even">
+<td style="text-align: center;">SPSS</td>
+<td style="text-align: center;"><code>sav</code></td>
+<td style="text-align: center;"><code>haven::read_sav()</code></td>
+<td style="text-align: center;"><code>haven::write_sav()</code></td>
+</tr>
+<tr class="odd">
+<td style="text-align: center;">Shapefiles</td>
+<td style="text-align: center;"><code>shp</code>, <code>geosjon</code>, <code>gpkg</code>, etc.</td>
+<td style="text-align: center;"><code>sf::st_read()</code></td>
+<td style="text-align: center;"><code>sf::st_write()</code></td>
+</tr>
+</tbody>
+</table>
+<p>OBS: Caso não esteja familiarizado com esta sintaxe, aqui <code>readxl</code> é o nome do pacote, <code>read_excel()</code> é a funcão e o <code>::</code> indica que eu quero a função <code>read_excel</code> do pacote <code>readxl</code>. Em geral, é comum omitir a parte do <code>nomepacote::</code> porque acaba sendo desnecessário (exceto no caso de conflitos de funções que têm o mesmo nome).</p>
+<section id="sobre-csvs" class="level3">
+<h3 class="anchored" data-anchor-id="sobre-csvs">Sobre csvs</h3>
+<p>Vale uma nota: existem várias alternativas para importar arquivos <code>csv</code>, várias alternativas mesmo. Eu recomendo evitar, na medida do possível as funções base e usar as funções equivalentes do <code>readr</code>. Então, por exemplo, ao invés de usar <code>read.csv</code> use <code>readr::read_csv</code>. Esta é uma boa decisão por dois motivos: (1) a função <code>read_csv</code> é considervalmente mais rápida e versátil; (2) os argumentos da funções <code>read_*</code> do pacote <code>readr</code> são todos padronizados e são muito similares aos argumentos do <code>read_excel</code> e das funções <code>read_*</code> do pacote <code>haven</code>.</p>
+<p>Na verdade, o combo <code>readr</code> + <code>readxl</code> + <code>haven</code> costuma ser ideal. Pois todas as funções são rápidas e compartilham uma estrutura muito similar.</p>
+<p>Mesmo assim, eu ainda recomendo muito o <code>data.table::fread()</code><sup>1</sup> na hora de importar qualquer arquivo “separado” (<code>csv</code>, <code>tsv</code>, <code>psv</code>, etc.)<sup>2</sup>. Esta função é extremamente rápida, aloca os dados na memória de maneira eficiente e simplesmente funciona. Mesmo sem nenhum argumento adicional ela é muito boa na hora de adivinhar o tipo de separador utilizado e e tipo de dado em cada coluna.</p>
+<p>Um problema bem chato é que arquivos <code>csv</code> de fontes brasileiras costumam ser separadas por <code>;</code> e usam a <code>,</code> como quebra de decimal, ao contrário dos <code>csv</code> de fontes dos EUA que usam a <code>,</code> como separador e <code>.</code> como quebra de decimal. E tem outros ainda que misturam vários outros tipos de separadores e como resultado existem mil funções <code>read_csv</code>, <code>read_csv2</code>, <code>read_delim</code>, etc. para lidar com isso.</p>
+<p>O mesmo vale na hora de exportar arquivos. Apesar de ter recomendado o <code>data.table::fwrite</code> na tabela acima, vale notar que funções como <code>readr::write_excel_csv2()</code> podem ser muito úteis caso seu objetivo seja exportar um csv que vai ser consumido por um usuário brasileiro numa planilha de Excel.</p>
+</section>
+<section id="mais-controle" class="level3">
+<h3 class="anchored" data-anchor-id="mais-controle">Mais controle</h3>
+<p>A prática faz a perfeição na hora de importar arquivos problemáticos. Como comentei acima, uma das vantagens de se ater ao combo <code>readr</code> + <code>readxl</code> + <code>haven</code> é que os argumentos adicionais destas funções seguem o mesmo padrão.</p>
+<ul>
+<li><p><code>skip = k</code>: Pula as primeiras k linhas.</p></li>
+<li><p><code>na</code>: Define quais valores devem ser interpretados como valores ausentes.</p></li>
+<li><p><code>col_types</code>: Permite que se declare explicitamente qual o tipo de dado (numérico, data, texto) que está armazenado em cada coluna.</p></li>
+<li><p><code>col_names</code> ou <code>name_repair</code>: O primeiro permite que se declare explicitamente o nome que cada coluna vai ter dentro do <code>R</code> enquanto o segundo permite que se use uma função que renomeia as colunas.</p></li>
+<li><p><code>locale</code>: Permite selecionar diferentes tipos de padrão de local. Em geral, usa-se <code>locale = locale("pt_BR")</code>.</p></li>
+<li><p>range: Este argumento só vale no caso de planilhas de Excel e permite que se importe uma seleção específica da planilha (e.g.&nbsp;“D4:H115”)</p></li>
+</ul>
+<p>O código abaixo mostra como importar um csv bastante sujo. Veremos detalhes sobre a função <code>janitor::clean_names</code> mais adiante.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb1" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">#&gt; Input de um csv sujo</span></span>
+<span id="cb1-2">dados <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span></span>
+<span id="cb1-3"><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">'Data; Valor (R$/m2)</span></span>
+<span id="cb1-4"><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"01-maio-2020";22,3</span></span>
+<span id="cb1-5"><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"01-junho-2020";21,5</span></span>
+<span id="cb1-6"><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"06-julho-2021";X</span></span>
+<span id="cb1-7"><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"07-novembro-2022";22'</span></span>
+<span id="cb1-8"></span>
+<span id="cb1-9"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">#&gt; Lendo o arquivo</span></span>
+<span id="cb1-10">df <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">read_delim</span>(</span>
+<span id="cb1-11">  <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">#&gt; Substitua esta linha pelo 'path' até o csv</span></span>
+<span id="cb1-12">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">I</span>(dados),</span>
+<span id="cb1-13">  <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">delim =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">";"</span>,</span>
+<span id="cb1-14">  <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">#&gt; Usa , como separador decimal; lê meses em português (e.g. maio, junho, etc.)</span></span>
+<span id="cb1-15">  <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">locale =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">locale</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">decimal_mark =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">","</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">date_names =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"pt"</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">date_format =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"%d-%B-%Y"</span>),</span>
+<span id="cb1-16">  <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">#&gt; Interpreta X como valores ausentes (NA)</span></span>
+<span id="cb1-17">  <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">na =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"X"</span>,</span>
+<span id="cb1-18">  <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">#&gt; Renomeia as colunas</span></span>
+<span id="cb1-19">  <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">name_repair =</span> janitor<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">::</span>clean_names</span>
+<span id="cb1-20">  )</span></code></pre></div>
+</div>
+</section>
+</section>
+<section id="importando-arquivos-o-atalho" class="level2">
+<h2 class="anchored" data-anchor-id="importando-arquivos-o-atalho">Importando arquivos: o atalho</h2>
+<p>Uma função muito prática que inicialmente contorna esses problemas é a <code>rio::import()</code>.</p>
+<p>A função <code>rio::import()</code> simplesmente importa seus dados e funciona com boa parte das extensões mais populares. Na prática, ela é uma função “facilitadora”. Por baixo dos panos, ela está chamando a função correta para o caso específico.</p>
+<p><a href="https://cran.r-project.org/web/packages/rio/vignettes/rio.html">Este site</a> mostra exatamente qual função de qual pacote ele utiliza para importar os dados. A lista é bem completa e inclui bases do Minitab, Matlab, EViews, etc. Spoiler: <code>data.table::fread()</code> é utilizada para importar arquivos <code>csv</code>, <code>psv</code> e <code>tsv</code>.</p>
+<p>O par da função <code>rio::import</code> é a <code>rio::export</code> e serve justamente para exportar bases de dados do <code>R</code> para o formato desejado.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb2" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1">data <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> rio<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">::</span><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">import</span>(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"data/meus_dados.dta"</span>)</span>
+<span id="cb2-2"></span>
+<span id="cb2-3">rio<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">::</span><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">export</span>(mtcars, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"data/mtcars.csv"</span>)</span></code></pre></div>
+</div>
+<p>O único problema desta função é quando seus arquivos não estão num formato muito bacana. Ainda assim, é possível fornecer argumentos adicionais à função <code>import</code> e consultar qual função está sendo usada consultando a documentação <code>help(import)</code>.</p>
+</section>
+<section id="escrevendo-paths-relativos-com-here" class="level2">
+<h2 class="anchored" data-anchor-id="escrevendo-paths-relativos-com-here">Escrevendo paths relativos com here</h2>
+<p>Um problema bem sério que eu enfrentava nos meus códigos era escrever o path até os arquivos externos. Primeiro, eu achava muito trabalhoso escrever ele inteiro. Depois, quando eu mandava meu código para outra pessoa, ou quando eu mesmo ia executar o meu código em outro computador, nada funcionava!</p>
+<p>O primeiro passo para lidar com isso é trabalhar com projetos do RStudio. O melhor workflow é sempre começar seu trabalho num projeto novo e deixar todos os arquivos necessários neste mesmo diretório. Isso facilita na hora de escrever paths relativos.</p>
+<p>Paths relativos, ao contrário de paths absolutos, começam no seu diretório da seguinte forma: <code>"data/subpasta/meus_dados.xlsx"</code>.</p>
+<p>É bem diferente de um path absoluto: <code>/Users/nome_do_usuario/Documentos/meus_projetos/Projeto 1/data/subpasta/meus_dados.xlsx</code>.</p>
+<p>Usar paths absolutos no seu código é garantir que a única pessoa que conseguirá reproduzir ele com sucesso será você, e unicamente no computador em que você escreveu ele (isso se você não formatar ele!).</p>
+<p>Aqui entra o pacote <code>here</code>, um pacotinho muito simples, centrado em uma única função homônima.</p>
+<p>A função <code>here</code> funciona de duas maneiras bastante simples</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb3" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb3-1"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">library</span>(here)</span>
+<span id="cb3-2"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">library</span>(haven)</span>
+<span id="cb3-3"></span>
+<span id="cb3-4">meus_dados <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">read_dta</span>(<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">here</span>(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"data/subpasta/minha_base.dta"</span>))</span>
+<span id="cb3-5">meus_dados <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">read_dta</span>(<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">here</span>(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"data"</span>, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"subpasta"</span>, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"minha_base.dta"</span>))</span></code></pre></div>
+</div>
+<p>A segunda forma de sintaxe é muito útil na hora de criar paths. Isto será muito conveniente depois, quando formos importar vários arquivos de uma mesma pasta.</p>
+<p>A seguinte ilustração que serve de capa do projeto do <code>here</code> resume muito bem a sua utilidade.</p>
+<div class="cell">
+<div class="cell-output-display">
+<p><img src="https:://www.restateinsight.com/static/images/here.png" class="img-fluid" width="1386"></p>
+</div>
+</div>
+<p>Existe um mal hábito dissemeniado de incluir uma linha com <code>setwd("insira_seu_diretorio")</code> no início de todo código. Eu garanto que todo tipo de problema imaginável e inimaginável acontece com pessoas que fazem isso.</p>
+<p>O <code>here</code> simplesmente funciona e funciona com tudo. Ele é especialmente útil na hora de escrever scripts em RMarkdown e Quarto. O pacote <code>here</code> é talvez o único que esteja presente em todos os meus projetos e em todos os meus códigos.</p>
+<p>Outra dica boa para manter seus projetos organizados é de evitar colocar espaços ou caracteres especiais no nome das suas pastas. Em geral, o <code>R</code> consegue lidar bem com isso, mas volta e meia este mau hábito pode gerar problemas inesperados.</p>
+</section>
+<section id="importando-todos-os-arquivos-de-de-uma-pasta" class="level2">
+<h2 class="anchored" data-anchor-id="importando-todos-os-arquivos-de-de-uma-pasta">Importando todos os arquivos de de uma pasta</h2>
+<p>Este é um problema bastante recorrente e que é fácil de resolver usando <code>here</code> e funções base.</p>
+<p>Imagine que você tem vários arquivos <code>.csv</code> numa pasta e os arquivos estão na seguinte estrutura: <code>Dados/inflacao/2012/</code> e aí cada <code>csv</code> individual é um arquivo mensal (com nomes potencialmente fora de padrão) com os dados de inflação mensal por produto. Algo como <code>2012_jan.csv</code>, <code>2012fevereiro.csv</code>, etc.</p>
+<p>A estrutura do código para importar tudo isso no <code>R</code> é bastante simples.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb4" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb4-1"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">library</span>(here)</span>
+<span id="cb4-2"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># Define o diretório</span></span>
+<span id="cb4-3">dir <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">here</span>(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Dados/inflacao/2012"</span>)</span>
+<span id="cb4-4"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># Encontra o nome de todos os arquivos com extensão csv nesta pasta</span></span>
+<span id="cb4-5">filenames <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">list.files</span>(dir, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">pattern =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"</span><span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">\\</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">.csv$"</span>)</span>
+<span id="cb4-6"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># Define o path até cada um dos arquivos</span></span>
+<span id="cb4-7">pathfiles <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">here</span>(dir, filenames)</span>
+<span id="cb4-8"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># Importa todos os csv usando fread</span></span>
+<span id="cb4-9">data <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">lapply</span>(pathfiles, data.table<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">::</span>fread)</span>
+<span id="cb4-10"></span>
+<span id="cb4-11"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># Opcionalmente, empilha todos os resultados e cria uma coluna que identifica</span></span>
+<span id="cb4-12"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># de qual o arquivo a observação pertence</span></span>
+<span id="cb4-13"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">names</span>(data) <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">basename</span>(pathfiles)</span>
+<span id="cb4-14">empilhado <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> data.table<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">::</span><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">rbindlist</span>(data, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">idcol =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"nome_arquivo"</span>)</span></code></pre></div>
+</div>
+<p>Uma maneira ainda mais sucinta de escrever o código seria omitindo os objetos intermediários e simplesmente empilhando o resultado final.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb5" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb5-1"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># Define o path até cada um dos arquivos</span></span>
+<span id="cb5-2">pathfiles <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">list.files</span>(</span>
+<span id="cb5-3">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">here</span>(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Dados/inflacao/2012"</span>),</span>
+<span id="cb5-4">  <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">pattern =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"</span><span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">\\</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">.csv$"</span>,</span>
+<span id="cb5-5">  <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">full.names =</span> <span class="cn" style="color: #8f5902;
+background-color: null;
+font-style: inherit;">TRUE</span></span>
+<span id="cb5-6">  )</span>
+<span id="cb5-7"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># Importa todos os csv usando fread</span></span>
+<span id="cb5-8">files <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">lapply</span>(pathfiles, data.table<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">::</span>fread)</span>
+<span id="cb5-9"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># Empilha todos os resultados</span></span>
+<span id="cb5-10">dat <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> data.table<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">::</span><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">rbindlist</span>(files)</span></code></pre></div>
+</div>
+</section>
+</section>
+<section id="corrigindo-nomes-de-variáveis" class="level1">
+<h1>Corrigindo nomes de variáveis</h1>
+<p>O nome das colunas da nossa base de dados é muito importante, pois no <code>R</code> acabamos usando elas com muita frequência. Tanto para quem usa <code>data.table</code> como para os adeptos do <code>tidyverse</code>, o nome das colunas, na prática, acaba sendo usando como um objeto dentro das funções, então é importante que esse nome seja fácil de digitar.</p>
+<p>Lembrando que, idealmente, os nomes das colunas e também dos objetos que criamos devem ser:</p>
+<ol type="1">
+<li>Minúsculos</li>
+<li>Sem acento e nem caracteres especiais como <code>$</code>, <code>%</code>, etc.</li>
+<li>Sem espaços</li>
+<li>Sem números no começo</li>
+</ol>
+<p>Outro ponto, um pouco óbvio, é que há nomes que devemos evitar na hora de nomear nossas colunas como: <code>FALSE</code>, <code>if</code>, <code>TRUE</code>, <code>for</code>, <code>Inf</code>, etc.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb6" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb6-1"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># Bons nomes</span></span>
+<span id="cb6-2">nm <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">c</span>(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"inflacao"</span>, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"pib"</span>, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"cambio"</span>)</span>
+<span id="cb6-3">nm <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">c</span>(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"inflacao_percentual"</span>, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"pib_reais_correntes"</span>, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"cambio_mensal"</span>)</span>
+<span id="cb6-4"></span>
+<span id="cb6-5"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># Nomes ruins</span></span>
+<span id="cb6-6">nmRuIm <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">c</span>(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Inflação (%)"</span>, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Produto Interno Bruto (R$)"</span>, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Câmbio (Mensal)"</span>)</span>
+<span id="cb6-7">nmRuIm <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">c</span>(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"INFLAÇÃO"</span>, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"PIB"</span>, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"CÂMBIO (MÊS)"</span>)</span></code></pre></div>
+</div>
+<p>A função <code>janitor::clean_names()</code> segue, essencialmente, esses princípios e pode ser aplicada diretamente num <code>data.frame</code>. O resultado é uma base com nomes “limpos”. Considere o exemplo abaixo de um arquivo csv com nomes muito ruins.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb7" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb7-1">csv <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"</span></span>
+<span id="cb7-2"><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">AnoMesDia;Inflação (%);Produto Interno Bruto;DESEMPREGO</span></span>
+<span id="cb7-3"><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">2023-01-01;0.055;0.75;0.1132</span></span>
+<span id="cb7-4"><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">2023-04-01;0.045;0.50;0.1051</span></span>
+<span id="cb7-5"><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">2023-07-01;0.065;0.68;0.1000</span></span>
+<span id="cb7-6"><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">2023-10-01;0.050;1.12;0.9512</span></span>
+<span id="cb7-7"><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"</span></span>
+<span id="cb7-8"></span>
+<span id="cb7-9">data <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> data.table<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">::</span><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">fread</span>(<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">I</span>(csv))</span>
+<span id="cb7-10"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">head</span>(data)</span></code></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>    AnoMesDia Inflação (%) Produto Interno Bruto DESEMPREGO
+1: 2023-01-01        0.055                  0.75     0.1132
+2: 2023-04-01        0.045                  0.50     0.1051
+3: 2023-07-01        0.065                  0.68     0.1000
+4: 2023-10-01        0.050                  1.12     0.9512</code></pre>
+</div>
+</div>
+<p>Note que selecionar uma coluna se torna bem inconveniente e somos forçados a cercar o nome com esse <em>apostrophe</em>.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb9" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb9-1">data<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">$</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">`</span><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">Inflação (%)</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">`</span></span></code></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>[1] 0.055 0.045 0.065 0.050</code></pre>
+</div>
+</div>
+<p>Normalmente, seria necessário usar uma série de funções para, primeiro remover os acentos, depois tirar os parêntesis, depois converter os caracteres para minúsculos e aí substituir os espaços por subscrito.</p>
+<p>A função <code>janitor::clean_names</code> faz tudo isso numa única linha de código. Além disso, como o argumento da função é um <code>data.frame</code>, ela pode ser usada diretamente no início do seu pipe</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb11" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb11-1">clean_data <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> janitor<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">::</span><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">clean_names</span>(data)</span>
+<span id="cb11-2"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">head</span>(clean_data)</span></code></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>   ano_mes_dia inflacao_percent produto_interno_bruto desemprego
+1:  2023-01-01            0.055                  0.75     0.1132
+2:  2023-04-01            0.045                  0.50     0.1051
+3:  2023-07-01            0.065                  0.68     0.1000
+4:  2023-10-01            0.050                  1.12     0.9512</code></pre>
+</div>
+</div>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb13" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb13-1"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">library</span>(dplyr)</span>
+<span id="cb13-2"></span>
+<span id="cb13-3">data <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">|&gt;</span> </span>
+<span id="cb13-4">  janitor<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">::</span><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">clean_names</span>() <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">|&gt;</span> </span>
+<span id="cb13-5">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">filter</span>(inflacao_percent <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">&lt;</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.06</span>)</span></code></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>   ano_mes_dia inflacao_percent produto_interno_bruto desemprego
+1:  2023-01-01            0.055                  0.75     0.1132
+2:  2023-04-01            0.045                  0.50     0.1051
+3:  2023-10-01            0.050                  1.12     0.9512</code></pre>
+</div>
+</div>
+</section>
+<section id="enxergando-os-dados" class="level1">
+<h1>Enxergando os dados</h1>
+<p>Por fim, vamos discutir rapidamente algumas formas de rapidamente olhar seus dados. Aqui, temos várias opções. A maneira mais simples seria usar a função <code>head()</code> que mostra as primeiras dez linhas da base de dados. Se a base não for muito grande, podemos usar a função <code>View()</code>. Quando usada dentro do RStudio funciona quase como um Excel, permite enxergar todas as linhas, ordenar por colunas, etc.</p>
+<p>Há pacotes que oferecem soluções simples para enxergar rapidamente uma base de dados. Da mais simples para a mais complexa, temos: <code>dplyr::glimpse()</code>, <code>summarytools::descr()</code> e <code>skmir::skim()</code></p>
+<p>Abaixo mostro a saída dessas três funções na base de dados <code>iris</code>. A primeira saída é bastante simples, mostra a dimensão da base (número de linhas e colunas), o nome e o tipo das colunas, e as primeiras linhas de cada coluna.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb15" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb15-1">dplyr<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">::</span><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">glimpse</span>(iris)</span></code></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Rows: 150
+Columns: 5
+$ Sepal.Length &lt;dbl&gt; 5.1, 4.9, 4.7, 4.6, 5.0, 5.4, 4.6, 5.0, 4.4, 4.9, 5.4, 4.…
+$ Sepal.Width  &lt;dbl&gt; 3.5, 3.0, 3.2, 3.1, 3.6, 3.9, 3.4, 3.4, 2.9, 3.1, 3.7, 3.…
+$ Petal.Length &lt;dbl&gt; 1.4, 1.4, 1.3, 1.5, 1.4, 1.7, 1.4, 1.5, 1.4, 1.5, 1.5, 1.…
+$ Petal.Width  &lt;dbl&gt; 0.2, 0.2, 0.2, 0.2, 0.2, 0.4, 0.3, 0.2, 0.2, 0.1, 0.2, 0.…
+$ Species      &lt;fct&gt; setosa, setosa, setosa, setosa, setosa, setosa, setosa, s…</code></pre>
+</div>
+</div>
+<p>A função <code>summarytools::descr</code> traz várias estatísticas descritivas (ignorando colunas não-numéricas). Cada um destes valores traz bastante informação, mas sua interpretação depende também de conhecimento técnico. Essencialmente, a saída traz algumas medidas de “tendência central” (média, mediana), dispersão (desvio padrão, MAD, IQR), assimetria e curtose. As últimas duas linhas também informam sobre a presença de observações ausentes.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb17" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb17-1">summarytools<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">::</span><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">descr</span>(iris)</span></code></pre></div>
+<div class="cell-output cell-output-stderr">
+<pre><code>Non-numerical variable(s) ignored: Species</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Descriptive Statistics  
+iris  
+N: 150  
+
+                    Petal.Length   Petal.Width   Sepal.Length   Sepal.Width
+----------------- -------------- ------------- -------------- -------------
+             Mean           3.76          1.20           5.84          3.06
+          Std.Dev           1.77          0.76           0.83          0.44
+              Min           1.00          0.10           4.30          2.00
+               Q1           1.60          0.30           5.10          2.80
+           Median           4.35          1.30           5.80          3.00
+               Q3           5.10          1.80           6.40          3.30
+              Max           6.90          2.50           7.90          4.40
+              MAD           1.85          1.04           1.04          0.44
+              IQR           3.50          1.50           1.30          0.50
+               CV           0.47          0.64           0.14          0.14
+         Skewness          -0.27         -0.10           0.31          0.31
+      SE.Skewness           0.20          0.20           0.20          0.20
+         Kurtosis          -1.42         -1.36          -0.61          0.14
+          N.Valid         150.00        150.00         150.00        150.00
+        Pct.Valid         100.00        100.00         100.00        100.00</code></pre>
+</div>
+</div>
+<p>Por fim, a saída da função <code>skimr::skim</code> é a mais completa e inclui até mini gráficos de histogramas das variáveis numéricas. Vale notar que, diferentemente da <code>descr</code> acima, esta função traz informações também sobre as colunas não numéricas</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb20" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb20-1">skimr<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">::</span><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">skim</span>(iris)</span></code></pre></div>
+<div class="cell-output-display">
+<table class="table table-sm table-striped small">
+<caption>Data summary</caption>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">Name</td>
+<td style="text-align: left;">iris</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Number of rows</td>
+<td style="text-align: left;">150</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Number of columns</td>
+<td style="text-align: left;">5</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">_______________________</td>
+<td style="text-align: left;"></td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Column type frequency:</td>
+<td style="text-align: left;"></td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">factor</td>
+<td style="text-align: left;">1</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">numeric</td>
+<td style="text-align: left;">4</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">________________________</td>
+<td style="text-align: left;"></td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Group variables</td>
+<td style="text-align: left;">None</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Variable type: factor</strong></p>
+<table class="table table-sm table-striped small">
+<colgroup>
+<col style="width: 17%">
+<col style="width: 12%">
+<col style="width: 17%">
+<col style="width: 9%">
+<col style="width: 11%">
+<col style="width: 32%">
+</colgroup>
+<thead>
+<tr class="header">
+<th style="text-align: left;">skim_variable</th>
+<th style="text-align: right;">n_missing</th>
+<th style="text-align: right;">complete_rate</th>
+<th style="text-align: left;">ordered</th>
+<th style="text-align: right;">n_unique</th>
+<th style="text-align: left;">top_counts</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">Species</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: left;">FALSE</td>
+<td style="text-align: right;">3</td>
+<td style="text-align: left;">set: 50, ver: 50, vir: 50</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Variable type: numeric</strong></p>
+<table class="table table-sm table-striped small">
+<colgroup>
+<col style="width: 18%">
+<col style="width: 13%">
+<col style="width: 18%">
+<col style="width: 6%">
+<col style="width: 6%">
+<col style="width: 5%">
+<col style="width: 5%">
+<col style="width: 6%">
+<col style="width: 5%">
+<col style="width: 6%">
+<col style="width: 7%">
+</colgroup>
+<thead>
+<tr class="header">
+<th style="text-align: left;">skim_variable</th>
+<th style="text-align: right;">n_missing</th>
+<th style="text-align: right;">complete_rate</th>
+<th style="text-align: right;">mean</th>
+<th style="text-align: right;">sd</th>
+<th style="text-align: right;">p0</th>
+<th style="text-align: right;">p25</th>
+<th style="text-align: right;">p50</th>
+<th style="text-align: right;">p75</th>
+<th style="text-align: right;">p100</th>
+<th style="text-align: left;">hist</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">Sepal.Length</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">5.84</td>
+<td style="text-align: right;">0.83</td>
+<td style="text-align: right;">4.3</td>
+<td style="text-align: right;">5.1</td>
+<td style="text-align: right;">5.80</td>
+<td style="text-align: right;">6.4</td>
+<td style="text-align: right;">7.9</td>
+<td style="text-align: left;">▆▇▇▅▂</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Sepal.Width</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">3.06</td>
+<td style="text-align: right;">0.44</td>
+<td style="text-align: right;">2.0</td>
+<td style="text-align: right;">2.8</td>
+<td style="text-align: right;">3.00</td>
+<td style="text-align: right;">3.3</td>
+<td style="text-align: right;">4.4</td>
+<td style="text-align: left;">▁▆▇▂▁</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Petal.Length</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">3.76</td>
+<td style="text-align: right;">1.77</td>
+<td style="text-align: right;">1.0</td>
+<td style="text-align: right;">1.6</td>
+<td style="text-align: right;">4.35</td>
+<td style="text-align: right;">5.1</td>
+<td style="text-align: right;">6.9</td>
+<td style="text-align: left;">▇▁▆▇▂</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Petal.Width</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">1.20</td>
+<td style="text-align: right;">0.76</td>
+<td style="text-align: right;">0.1</td>
+<td style="text-align: right;">0.3</td>
+<td style="text-align: right;">1.30</td>
+<td style="text-align: right;">1.8</td>
+<td style="text-align: right;">2.5</td>
+<td style="text-align: left;">▇▁▇▅▃</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<section id="olhando-seus-dados-no-excel" class="level2">
+<h2 class="anchored" data-anchor-id="olhando-seus-dados-no-excel">Olhando seus dados no Excel</h2>
+<p>Por fim, vou colocar uma função customizada bem divertida, que permite você rapidamente dar uma espiada nos seus dados no bom e velho excel. A função abaixo cria um arquivo temporário a partir da sua base de dados no <code>R</code> e abre isso no Excel.</p>
+<p>Evidentemente, é preciso ter o Excel instalado para que o código funcione.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb21" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb21-1">show_in_excel <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="cf" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">function</span>(.data) {</span>
+<span id="cb21-2">  <span class="cf" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">if</span> (<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">interactive</span>()) {</span>
+<span id="cb21-3">    tmp <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">paste0</span>(<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">tempfile</span>(), <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">".xlsx"</span>)</span>
+<span id="cb21-4">    writexl<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">::</span><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">write_xlsx</span>(.data, tmp)</span>
+<span id="cb21-5">    <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">browseURL</span>(tmp)</span>
+<span id="cb21-6">  }</span>
+<span id="cb21-7">  .data</span>
+<span id="cb21-8">}</span>
+<span id="cb21-9"></span>
+<span id="cb21-10"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">show_in_excel</span>(mtcars)</span></code></pre></div>
+</div>
+<p>A figura abaixo mostra o resultado do código</p>
+<div class="cell" data-layout-align="center">
+<div class="cell-output-display">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="https:://www.restateinsight.com/static/images/excel.png" class="img-fluid figure-img" width="402"></p>
+</figure>
+</div>
+</div>
+</div>
+<p>Novamente, como a função aceita um <code>data.frame</code> como argumento é bem fácil de colocá-la no final de um pipe. Esta função é bastante útil quando você precisa rapidamente compartilhar algum resultado ou tabela com alguém.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb22" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb22-1">mtcars <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">|&gt;</span> </span>
+<span id="cb22-2">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">filter</span>(cyl <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">&gt;</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2</span>) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">|&gt;</span> </span>
+<span id="cb22-3">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">group_by</span>(cyl) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">|&gt;</span> </span>
+<span id="cb22-4">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">summarise</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">peso_medio =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">mean</span>(wt)) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">|&gt;</span> </span>
+<span id="cb22-5">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">show_in_excel</span>()</span></code></pre></div>
+</div>
+</section>
+</section>
+<section id="resumo" class="level1">
+<h1>Resumo</h1>
+<p>Concluindo, toda boa análise de dados passa por tarefas de rotina: importar dados, trocar nomes de colunas, remover observações vazias, etc. Por que não facilitar a sua vida e tornar essas tarefas simples?</p>
+<p>Pessoalmente, quase todo código que escrevo utiliza <code>here</code> e <code>janitor::clean_names()</code>. Depois de muito sofirmento, aprendi quase todas as funções de importar e exportar, e só depois disso descobri o <code>rio::import</code> que teria me poupado muito estresse. Como comentei acima o <code>rio::import</code> é um atalho simples, no longo prazo vale a pena aprender com calma todas as funções <code>read_*</code>.</p>
+<p>Uso com frequência o <code>View()</code> no final de um pipe para checar se as coisas estão indo da maneira esperada. E também comecei a criar o hábito de começar a minha exploração de dados com o <code>skim()</code>.</p>
+<p>No fim, este post mostra como organizar seus arquivos, como importar seus dados e como “dar uma checada” para ver se está tudo certo: nomes e tipos de colunas; e também como fazer ajustes rápidos nos dados.</p>
+
+
+</section>
+
+
+<div id="quarto-appendix" class="default"><section id="footnotes" class="footnotes footnotes-end-of-document"><h2 class="anchored quarto-appendix-heading">Footnotes</h2>
+
+<ol>
+<li id="fn1"><p>Disclaimer importante: depois de revisar este texto eu já não recomendo tão fortemente o <code>data.table::fread</code> por um movito bobo e simples. Atualmente, o <code>data.table</code> tem uma classe própria para datas chamada <code>IDate</code>. Esta classe é útil se você pretende fazer todas as suas análises usando as funções do <code>data.table</code> como <code>shift</code>, <code>hour</code>, etc. Contudo, se você pretende usar outros pacotes comuns de séries de tempo será necessário converter para <code>Date</code> todas as vezes. Além disso, como eu já estou bastante habituado a usar o pacote <code>lubridate</code> para manipular datas, não vejo muita vantagem em utilizar as funções do <code>data.table</code>.↩︎</p></li>
+<li id="fn2"><p>Outra alternativa é utilizar a função <code>vroom::vroom</code>, que compartilha de argumentos similares das funções do pacote <code>readr</code>, mas que oferece maior velocidade de importação/exportação.↩︎</p></li>
+</ol>
+</section></div> ]]></description>
+  <category>tutorial-R</category>
+  <category>data-science</category>
+  <guid>https:://www.restateinsight.com/posts/general-posts/2023-09-comandos-simples/index.html</guid>
+  <pubDate>Tue, 10 Oct 2023 03:00:00 GMT</pubDate>
+</item>
 <item>
   <title>A filosofia do Tidyverse</title>
   <dc:creator>Vinicius Oike</dc:creator>
@@ -22237,627 +23166,6 @@ font-style: inherit;">0</span>))</span>
   <guid>https:://www.restateinsight.com/posts/general-posts/repost-aquecimento-global/index.html</guid>
   <pubDate>Fri, 10 Jan 2020 03:00:00 GMT</pubDate>
   <media:content url="https:://www.restateinsight.com/static/climate_issue.svg" medium="image" type="image/svg+xml"/>
-</item>
-<item>
-  <title>OLS com matrizes</title>
-  <dc:creator>Vinicius Oike</dc:creator>
-  <link>https:://www.restateinsight.com/posts/general-posts/repost-ols-com-matrizes/index.html</link>
-  <description><![CDATA[ 
-
-
-
-
-<p>Uma forma instrutiva de entender o modelo de regressão linear é expressando ele em forma matricial. Os cursos introdutórios de econometria costumam omitir esta abordagem e expressam todas as derivações usando somatórios, deixando a abordagem matricial para cursos mais avançados. É bastante simples computar uma regressão usando apenas matrizes no R.</p>
-<p>De fato, um dos objetos fundamentais do R é a e muitas das operações matriciais (decomposições, inversa, transposta, etc.) já estão implementadas em funções base. Uma var <img src="https://latex.codecogs.com/png.latex?k"> .</p>
-<p>Neste post vou mostrar como fazer uma regressão linear usando somente matrizes no R. Além disso, vou computar algumas estatísticas típicas (t, F)</p>
-<p>O modelo linear é da forma</p>
-<p><img src="https://latex.codecogs.com/png.latex?%0Ay_%7Bt%7D%20=%20x%5E%5Cintercal_%7Bt%7D%20%5Cbeta%20+%20e_%7Bt%7D%0A"></p>
-<p>onde <img src="https://latex.codecogs.com/png.latex?x%5E%5Cintercal"> é o vetor transposto de <img src="https://latex.codecogs.com/png.latex?x"> . É importante sempre ter em mente a dimensão destes vetores. O vetor <img src="https://latex.codecogs.com/png.latex?y_%7Bt%7D"> é <img src="https://latex.codecogs.com/png.latex?n%5Ctimes1"> onde <img src="https://latex.codecogs.com/png.latex?n"> representa o número de observações na amostra. O vetor <img src="https://latex.codecogs.com/png.latex?%5Cbeta"> é <img src="https://latex.codecogs.com/png.latex?k%5Ctimes1"> onde <img src="https://latex.codecogs.com/png.latex?k"> é o número de regressores (ou variáveis explicativas). Como há <img src="https://latex.codecogs.com/png.latex?n"> observações para cada uma dos <img src="https://latex.codecogs.com/png.latex?k"> regressores, <img src="https://latex.codecogs.com/png.latex?x"> é <img src="https://latex.codecogs.com/png.latex?k%5Ctimes1"> ; o detalhe é que <img src="https://latex.codecogs.com/png.latex?x%20=%20(1%20%5C,%20%5C,x_%7B1%7D%20%5C,%20%5Cdots%20%5C,x_%7Bk-1%7D)"> , onde cada <img src="https://latex.codecogs.com/png.latex?x_%7Bi%7D"> é <img src="https://latex.codecogs.com/png.latex?n%5Ctimes%201"> e <img src="https://latex.codecogs.com/png.latex?1"> é um vetor de uns <img src="https://latex.codecogs.com/png.latex?n%5Ctimes1"> . Finalmente, <img src="https://latex.codecogs.com/png.latex?e_%7Bt%7D"> é <img src="https://latex.codecogs.com/png.latex?n%5Ctimes1"> . Temos então que:</p>
-<p><img src="https://latex.codecogs.com/png.latex?%0A%5Cbegin%7Bpmatrix%7D%0Ay_%7B1%7D%20%5C%5C%0Ay_%7B2%7D%5C%5C%0A%5Cvdots%5C%5C%0Ay_%7Bn%7D%0A%5Cend%7Bpmatrix%7D=%0A%5Cbegin%7Bpmatrix%7D%0A1%5C%5C%0Ax_%7B1%7D%5C%5C%0A%5Cvdots%5C%5C%0Ax_%7Bk-1%7D%0A%5Cend%7Bpmatrix%7D%5E%5Cintercal%0A%5Cbegin%7Bpmatrix%7D%0A%5Cbeta_%7B0%7D%5C%5C%0A%5Cbeta_%7B1%7D%5C%5C%0A%5Cvdots%5C%5C%0A%5Cbeta_%7Bk-1%7D%0A%5Cend%7Bpmatrix%7D+%0A%5Cbegin%7Bpmatrix%7D%0Ae_%7B1%7D%5C%5C%0Ae_%7B2%7D%5C%5C%0A%5Cvdots%5C%5C%0Ae_%7Bn%7D%0A%5Cend%7Bpmatrix%7D%0A"></p>
-<p>onde:</p>
-<p><img src="https://latex.codecogs.com/png.latex?%0A%5Cbegin%7Bbmatrix%7D%0Ax_%7B1%7D%20&amp;%20=%20(x_%7B11%7D%20&amp;%20x_%7B12%7D%20&amp;%20x_%7B13%7D%20&amp;%20%5Cdots%20&amp;%20x_%7B1n%7D)%5C%5C%0Ax_%7B2%7D%20&amp;%20=%20(x_%7B21%7D%20&amp;%20x_%7B22%7D%20&amp;%20x_%7B23%7D%20&amp;%20%5Cdots%20&amp;%20x_%7B2n%7D)%5C%5C%0Ax_%7B3%7D%20&amp;%20=%20(x_%7B31%7D%20&amp;%20x_%7B32%7D%20&amp;%20x_%7B33%7D%20&amp;%20%5Cdots%20&amp;%20x_%7B3n%7D)%5C%5C%0A%5Cvdots%5C%5C%0Ax_%7Bk-1%7D%20&amp;%20=%20(x_%7B(k-1)1%7D%20&amp;%20x_%7B(k-1)2%7D%20&amp;%20x_%7B(k-1)3%7D%20&amp;%20%5Cdots%20&amp;%20x_%7B(k-1)n%7D)%0A%5Cend%7Bbmatrix%7D%0A"></p>
-<p>Queremos encontrar o vetor <img src="https://latex.codecogs.com/png.latex?%5Chat%7B%5Cbeta%7D"> que minimiza o a soma do quadrado dos erros, isto é, que minimiza</p>
-<p><img src="https://latex.codecogs.com/png.latex?%0AS(%5Cbeta)%20=%20%5Csum_%7Bt%20=%201%7D%5E%7BT%7D(y_%7Bt%7D%20-%20x%5E%5Cintercal_%7Bt%7D%5Cbeta)%5E%7B2%7D%0A"></p>
-<p>Encontramos o ponto crítico derivando a expressão acima e igualando-a a zero. O resultado é o conhecido estimador de mínimos quadrados:</p>
-<p><img src="https://latex.codecogs.com/png.latex?%0A%5Chat%7B%5Cbeta%7D%20=%20%5Cleft%20(%20%5Csum_%7Bt%20=%201%7D%5E%7BT%7Dx_%7Bt%7Dx_%7Bt%7D%5E%7B%5E%5Cintercal%7D%20%5Cright%20)%5E%7B-1%7D%20%5Csum_%7Bt%20=%201%7D%5E%7BT%7Dx_%7Bt%7Dy_%7Bt%7D%0A"></p>
-<p>Para reescrever as equações acima usando matrizes usamos os seguintes fatos:</p>
-<p><img src="https://latex.codecogs.com/png.latex?%0A%5Csum_%7Bt%20=%201%7D%5E%7BT%7Dx_%7Bt%7Dx_%7Bt%7D%5E%7B%5E%5Cintercal%7D%20=%20X%5E%5Cintercal%20X%0A"></p>
-<p>onde <img src="https://latex.codecogs.com/png.latex?X"> é uma matriz <img src="https://latex.codecogs.com/png.latex?n%20%5Ctimes%20k"></p>
-<p><img src="https://latex.codecogs.com/png.latex?%0A%5Csum_%7Bt%20=%201%7D%5E%7BT%7Dx_%7Bt%7Dy_%7Bt%7D%20=%20X%5E%5Cintercal%20y%0A"></p>
-<p>onde <img src="https://latex.codecogs.com/png.latex?X%5E%5Cintercal%20y"> é <img src="https://latex.codecogs.com/png.latex?k%20%5Ctimes%201"> . Lembre-se que uma hipótese do modelo linear é de que <img src="https://latex.codecogs.com/png.latex?X"> é uma matriz de posto completo, logo <img src="https://latex.codecogs.com/png.latex?X%5E%5Cintercal%20X"> possui inversa e podemos escrever:</p>
-<p><img src="https://latex.codecogs.com/png.latex?%0A%5Chat%7B%5Cbeta%7D%20=%20(X%5E%5Cintercal%20X)%5E%7B-1%7DX%5E%5Cintercal%20y%0A"></p>
-<section id="exemplo-salário-wooldridge" class="level2">
-<h2 class="anchored" data-anchor-id="exemplo-salário-wooldridge">Exemplo: salário (Wooldridge)</h2>
-<p>Como exemplo vou usar um exemplo clássico de livro texto de econometria: uma regressão de salário (rendimento) contra algumas variáveis explicativas convencionais: anos de educação, sexo, anos de experiência, etc. As bases de dados do livro <a href="https://www.cengagebrain.com.mx/shop/isbn/9781337558860">Introductory Econometrics</a> estão disponíveis no pacote <code>wooldridge</code>. O código abaixo carrega a base de dados .</p>
-<div class="cell">
-<div class="sourceCode cell-code" id="cb1" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">library</span>(wooldridge)</span>
-<span id="cb1-2"><span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># Carrega a base</span></span>
-<span id="cb1-3"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">data</span>(wage2)</span>
-<span id="cb1-4"><span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># Remove os valores ausentes (NAs)</span></span>
-<span id="cb1-5">sal <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">na.omit</span>(wage2)</span></code></pre></div>
-</div>
-<div class="cell">
-<div class="cell-output-display">
-<div style="border: 1px solid #ddd; padding: 5px; overflow-x: scroll; width:80%; ">
-<table class="table table-hover table-bordered table-striped table-sm small" data-quarto-postprocess="true">
-<thead>
-<tr class="header">
-<th style="text-align: left;" data-quarto-table-cell-role="th"></th>
-<th style="text-align: center;" data-quarto-table-cell-role="th">wage</th>
-<th style="text-align: center;" data-quarto-table-cell-role="th">hours</th>
-<th style="text-align: center;" data-quarto-table-cell-role="th">IQ</th>
-<th style="text-align: center;" data-quarto-table-cell-role="th">KWW</th>
-<th style="text-align: center;" data-quarto-table-cell-role="th">educ</th>
-<th style="text-align: center;" data-quarto-table-cell-role="th">exper</th>
-<th style="text-align: center;" data-quarto-table-cell-role="th">tenure</th>
-<th style="text-align: center;" data-quarto-table-cell-role="th">age</th>
-<th style="text-align: center;" data-quarto-table-cell-role="th">married</th>
-<th style="text-align: center;" data-quarto-table-cell-role="th">black</th>
-<th style="text-align: center;" data-quarto-table-cell-role="th">south</th>
-<th style="text-align: center;" data-quarto-table-cell-role="th">urban</th>
-<th style="text-align: center;" data-quarto-table-cell-role="th">sibs</th>
-<th style="text-align: center;" data-quarto-table-cell-role="th">brthord</th>
-<th style="text-align: center;" data-quarto-table-cell-role="th">meduc</th>
-<th style="text-align: center;" data-quarto-table-cell-role="th">feduc</th>
-<th style="text-align: center;" data-quarto-table-cell-role="th">lwage</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td style="text-align: left;">1</td>
-<td style="text-align: center;">769</td>
-<td style="text-align: center;">40</td>
-<td style="text-align: center;">93</td>
-<td style="text-align: center;">35</td>
-<td style="text-align: center;">12</td>
-<td style="text-align: center;">11</td>
-<td style="text-align: center;">2</td>
-<td style="text-align: center;">31</td>
-<td style="text-align: center;">1</td>
-<td style="text-align: center;">0</td>
-<td style="text-align: center;">0</td>
-<td style="text-align: center;">1</td>
-<td style="text-align: center;">1</td>
-<td style="text-align: center;">2</td>
-<td style="text-align: center;">8</td>
-<td style="text-align: center;">8</td>
-<td style="text-align: center;">6.645091</td>
-</tr>
-<tr class="even">
-<td style="text-align: left;">3</td>
-<td style="text-align: center;">825</td>
-<td style="text-align: center;">40</td>
-<td style="text-align: center;">108</td>
-<td style="text-align: center;">46</td>
-<td style="text-align: center;">14</td>
-<td style="text-align: center;">11</td>
-<td style="text-align: center;">9</td>
-<td style="text-align: center;">33</td>
-<td style="text-align: center;">1</td>
-<td style="text-align: center;">0</td>
-<td style="text-align: center;">0</td>
-<td style="text-align: center;">1</td>
-<td style="text-align: center;">1</td>
-<td style="text-align: center;">2</td>
-<td style="text-align: center;">14</td>
-<td style="text-align: center;">14</td>
-<td style="text-align: center;">6.715383</td>
-</tr>
-<tr class="odd">
-<td style="text-align: left;">4</td>
-<td style="text-align: center;">650</td>
-<td style="text-align: center;">40</td>
-<td style="text-align: center;">96</td>
-<td style="text-align: center;">32</td>
-<td style="text-align: center;">12</td>
-<td style="text-align: center;">13</td>
-<td style="text-align: center;">7</td>
-<td style="text-align: center;">32</td>
-<td style="text-align: center;">1</td>
-<td style="text-align: center;">0</td>
-<td style="text-align: center;">0</td>
-<td style="text-align: center;">1</td>
-<td style="text-align: center;">4</td>
-<td style="text-align: center;">3</td>
-<td style="text-align: center;">12</td>
-<td style="text-align: center;">12</td>
-<td style="text-align: center;">6.476973</td>
-</tr>
-<tr class="even">
-<td style="text-align: left;">5</td>
-<td style="text-align: center;">562</td>
-<td style="text-align: center;">40</td>
-<td style="text-align: center;">74</td>
-<td style="text-align: center;">27</td>
-<td style="text-align: center;">11</td>
-<td style="text-align: center;">14</td>
-<td style="text-align: center;">5</td>
-<td style="text-align: center;">34</td>
-<td style="text-align: center;">1</td>
-<td style="text-align: center;">0</td>
-<td style="text-align: center;">0</td>
-<td style="text-align: center;">1</td>
-<td style="text-align: center;">10</td>
-<td style="text-align: center;">6</td>
-<td style="text-align: center;">6</td>
-<td style="text-align: center;">11</td>
-<td style="text-align: center;">6.331502</td>
-</tr>
-<tr class="odd">
-<td style="text-align: left;">7</td>
-<td style="text-align: center;">600</td>
-<td style="text-align: center;">40</td>
-<td style="text-align: center;">91</td>
-<td style="text-align: center;">24</td>
-<td style="text-align: center;">10</td>
-<td style="text-align: center;">13</td>
-<td style="text-align: center;">0</td>
-<td style="text-align: center;">30</td>
-<td style="text-align: center;">0</td>
-<td style="text-align: center;">0</td>
-<td style="text-align: center;">0</td>
-<td style="text-align: center;">1</td>
-<td style="text-align: center;">1</td>
-<td style="text-align: center;">2</td>
-<td style="text-align: center;">8</td>
-<td style="text-align: center;">8</td>
-<td style="text-align: center;">6.396930</td>
-</tr>
-<tr class="even">
-<td style="text-align: left;">9</td>
-<td style="text-align: center;">1154</td>
-<td style="text-align: center;">45</td>
-<td style="text-align: center;">111</td>
-<td style="text-align: center;">37</td>
-<td style="text-align: center;">15</td>
-<td style="text-align: center;">13</td>
-<td style="text-align: center;">1</td>
-<td style="text-align: center;">36</td>
-<td style="text-align: center;">1</td>
-<td style="text-align: center;">0</td>
-<td style="text-align: center;">0</td>
-<td style="text-align: center;">0</td>
-<td style="text-align: center;">2</td>
-<td style="text-align: center;">3</td>
-<td style="text-align: center;">14</td>
-<td style="text-align: center;">5</td>
-<td style="text-align: center;">7.050990</td>
-</tr>
-<tr class="odd">
-<td style="text-align: left;">10</td>
-<td style="text-align: center;">1000</td>
-<td style="text-align: center;">40</td>
-<td style="text-align: center;">95</td>
-<td style="text-align: center;">44</td>
-<td style="text-align: center;">12</td>
-<td style="text-align: center;">16</td>
-<td style="text-align: center;">16</td>
-<td style="text-align: center;">36</td>
-<td style="text-align: center;">1</td>
-<td style="text-align: center;">0</td>
-<td style="text-align: center;">0</td>
-<td style="text-align: center;">1</td>
-<td style="text-align: center;">1</td>
-<td style="text-align: center;">1</td>
-<td style="text-align: center;">12</td>
-<td style="text-align: center;">11</td>
-<td style="text-align: center;">6.907755</td>
-</tr>
-<tr class="even">
-<td style="text-align: left;">11</td>
-<td style="text-align: center;">930</td>
-<td style="text-align: center;">43</td>
-<td style="text-align: center;">132</td>
-<td style="text-align: center;">44</td>
-<td style="text-align: center;">18</td>
-<td style="text-align: center;">8</td>
-<td style="text-align: center;">13</td>
-<td style="text-align: center;">38</td>
-<td style="text-align: center;">1</td>
-<td style="text-align: center;">0</td>
-<td style="text-align: center;">0</td>
-<td style="text-align: center;">0</td>
-<td style="text-align: center;">1</td>
-<td style="text-align: center;">1</td>
-<td style="text-align: center;">13</td>
-<td style="text-align: center;">14</td>
-<td style="text-align: center;">6.835185</td>
-</tr>
-<tr class="odd">
-<td style="text-align: left;">14</td>
-<td style="text-align: center;">1318</td>
-<td style="text-align: center;">38</td>
-<td style="text-align: center;">119</td>
-<td style="text-align: center;">24</td>
-<td style="text-align: center;">16</td>
-<td style="text-align: center;">7</td>
-<td style="text-align: center;">2</td>
-<td style="text-align: center;">28</td>
-<td style="text-align: center;">1</td>
-<td style="text-align: center;">0</td>
-<td style="text-align: center;">0</td>
-<td style="text-align: center;">1</td>
-<td style="text-align: center;">3</td>
-<td style="text-align: center;">1</td>
-<td style="text-align: center;">10</td>
-<td style="text-align: center;">10</td>
-<td style="text-align: center;">7.183871</td>
-</tr>
-<tr class="even">
-<td style="text-align: left;">15</td>
-<td style="text-align: center;">1792</td>
-<td style="text-align: center;">40</td>
-<td style="text-align: center;">118</td>
-<td style="text-align: center;">47</td>
-<td style="text-align: center;">16</td>
-<td style="text-align: center;">9</td>
-<td style="text-align: center;">9</td>
-<td style="text-align: center;">34</td>
-<td style="text-align: center;">1</td>
-<td style="text-align: center;">0</td>
-<td style="text-align: center;">0</td>
-<td style="text-align: center;">1</td>
-<td style="text-align: center;">1</td>
-<td style="text-align: center;">1</td>
-<td style="text-align: center;">12</td>
-<td style="text-align: center;">12</td>
-<td style="text-align: center;">7.491087</td>
-</tr>
-</tbody>
-</table>
-</div>
-
-</div>
-</div>
-<p>A base traz 663 observações de 17 variáveis. A função <code>str</code> é útil para entender a estrutura dos dados.</p>
-<div class="cell">
-<div class="sourceCode cell-code" id="cb2" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1"><span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># Dimensão da base (# linhas  # colunas)</span></span>
-<span id="cb2-2"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">dim</span>(sal)</span></code></pre></div>
-<div class="cell-output cell-output-stdout">
-<pre><code>[1] 663  17</code></pre>
-</div>
-<div class="sourceCode cell-code" id="cb4" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb4-1"><span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># Descrição da base</span></span>
-<span id="cb4-2"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">str</span>(sal)</span></code></pre></div>
-<div class="cell-output cell-output-stdout">
-<pre><code>'data.frame':   663 obs. of  17 variables:
- $ wage   : int  769 825 650 562 600 1154 1000 930 1318 1792 ...
- $ hours  : int  40 40 40 40 40 45 40 43 38 40 ...
- $ IQ     : int  93 108 96 74 91 111 95 132 119 118 ...
- $ KWW    : int  35 46 32 27 24 37 44 44 24 47 ...
- $ educ   : int  12 14 12 11 10 15 12 18 16 16 ...
- $ exper  : int  11 11 13 14 13 13 16 8 7 9 ...
- $ tenure : int  2 9 7 5 0 1 16 13 2 9 ...
- $ age    : int  31 33 32 34 30 36 36 38 28 34 ...
- $ married: int  1 1 1 1 0 1 1 1 1 1 ...
- $ black  : int  0 0 0 0 0 0 0 0 0 0 ...
- $ south  : int  0 0 0 0 0 0 0 0 0 0 ...
- $ urban  : int  1 1 1 1 1 0 1 0 1 1 ...
- $ sibs   : int  1 1 4 10 1 2 1 1 3 1 ...
- $ brthord: int  2 2 3 6 2 3 1 1 1 1 ...
- $ meduc  : int  8 14 12 6 8 14 12 13 10 12 ...
- $ feduc  : int  8 14 12 11 8 5 11 14 10 12 ...
- $ lwage  : num  6.65 6.72 6.48 6.33 6.4 ...
- - attr(*, "time.stamp")= chr "25 Jun 2011 23:03"
- - attr(*, "na.action")= 'omit' Named int [1:272] 2 6 8 12 13 19 20 21 31 36 ...
-  ..- attr(*, "names")= chr [1:272] "2" "6" "8" "12" ...</code></pre>
-</div>
-</div>
-<p>O modelo proposto é o abaixo:</p>
-<p><img src="https://latex.codecogs.com/png.latex?%0A%5Ctext%7Blwage%7D_%7Bt%7D%20=%20%5Cbeta_%7B0%7D%20+%20%5Cbeta_%7B1%7D%5Ctext%7Beduc%7D_%7Bt%7D%20+%20%5Cbeta_%7B2%7D%5Ctext%7Bexper%7D_%7Bt%7D%20+%20%5Cbeta_%7B3%7D%5Ctext%7Bexper%7D%5E%7B2%7D_%7Bt%7D%20+%20%5Cbeta_%7B4%7D%5Ctext%7Btenure%7D_%7Bt%7D%20+%20%5Cbeta%7B5%7D%5Ctext%7Bmarried%7D_%7Bt%7D%20+%20u_%7Bt%7D%0A"></p>
-<p>onde:</p>
-<ul>
-<li><p>lwage = logaritmo natural do salário</p></li>
-<li><p>educ = anos de educação</p></li>
-<li><p>exper = anos de experiência (trabalhando)</p></li>
-<li><p>tenure = anos trabalhando com o empregador atual</p></li>
-<li><p>married = dummy (1 = casado, 0 = não-casado)</p></li>
-</ul>
-<p>Há 6 coeficientes para estimar logo <img src="https://latex.codecogs.com/png.latex?k%20=%206"> . Além disso, como há <img src="https://latex.codecogs.com/png.latex?663"> observações temos que <img src="https://latex.codecogs.com/png.latex?n%20=%20663"> . A matriz de “dados” é da forma:</p>
-<p><img src="https://latex.codecogs.com/png.latex?%0AX%20=%20%5Cbegin%7Bbmatrix%7D%0A1%20&amp;%2012%20&amp;%2011%20&amp;%20121%20&amp;%202%20&amp;%201%5C%5C%5C%5C%0A1%20&amp;%2014%20&amp;%2011%20&amp;%20121%20&amp;%209%20&amp;%201%5C%5C%5C%5C%0A1%20&amp;%2012%20&amp;%2013%20&amp;%20169%20&amp;%207%20&amp;%201%5C%5C%5C%5C%0A%5Cvdots%20&amp;%20%5Cvdots%20&amp;%20%5Cvdots%20&amp;%20%5Cvdots%20&amp;%20%5Cvdots%20&amp;%20%5Cvdots%20%5C%5C%5C%5C%0A1%20&amp;%2013%20&amp;%2010%20&amp;%20100%20&amp;%203%20&amp;%201%0A%5Cend%7Bbmatrix%7D_%7B663%5Ctimes%206%7D%0A"></p>
-<p>O código abaixo monta a matriz <img src="https://latex.codecogs.com/png.latex?X"> acima. As funções <code>head</code> e <code>tail</code> podem ser usadas para verificar as primeiras e últimas linhas da matriz. Vale esclarecer dois pontos sobre o código a ser usado neste post. Primeiro, quando se cria um objeto usando o operador <code>&lt;-</code> pode-se forçar o R a imprimir o seu valor colocando a expressão entre parêntesis. Por exemplo, teste <code>(x &lt;- 3)</code>. O segundo ponto é que o operador de multiplicação matricial é <code>%*%</code>.</p>
-<div class="cell">
-<div class="sourceCode cell-code" id="cb6" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb6-1"><span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># Define alguns valores úteis: </span></span>
-<span id="cb6-2"><span class="do" style="color: #5E5E5E;
-background-color: null;
-font-style: italic;">## N = número de observações</span></span>
-<span id="cb6-3"><span class="do" style="color: #5E5E5E;
-background-color: null;
-font-style: italic;">## k = número de regressores</span></span>
-<span id="cb6-4"><span class="do" style="color: #5E5E5E;
-background-color: null;
-font-style: italic;">## const = vetor com 1^\intercals (uns)</span></span>
-<span id="cb6-5">N <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">663</span>; k <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">6</span>; const <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">rep</span>(<span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1</span>, <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">663</span>)</span>
-<span id="cb6-6"><span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># Monta a matriz de observações da regressão</span></span>
-<span id="cb6-7">X <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">cbind</span>(const, sal<span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">$</span>educ, sal<span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">$</span>exper, sal<span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">$</span>exper<span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">^</span><span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">2</span>, sal<span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">$</span>tenure, sal<span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">$</span>married)</span>
-<span id="cb6-8">X <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">as.matrix</span>(X)</span>
-<span id="cb6-9"><span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># Define o nome das colunas da matriz de observações</span></span>
-<span id="cb6-10"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">colnames</span>(X) <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">c</span>(<span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"const"</span>, <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"educ"</span>, <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"exper"</span>, <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"exper2"</span>, <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"tenure"</span>, <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"married"</span>)</span>
-<span id="cb6-11"><span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># Função para verificar as primeiras linhas da matriz X</span></span>
-<span id="cb6-12"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">head</span>(X)</span></code></pre></div>
-<div class="cell-output cell-output-stdout">
-<pre><code>     const educ exper exper2 tenure married
-[1,]     1   12    11    121      2       1
-[2,]     1   14    11    121      9       1
-[3,]     1   12    13    169      7       1
-[4,]     1   11    14    196      5       1
-[5,]     1   10    13    169      0       0
-[6,]     1   15    13    169      1       1</code></pre>
-</div>
-<div class="sourceCode cell-code" id="cb8" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb8-1"><span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># Função para verificar as últimas linhas da matriz X</span></span>
-<span id="cb8-2"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">tail</span>(X)</span></code></pre></div>
-<div class="cell-output cell-output-stdout">
-<pre><code>       const educ exper exper2 tenure married
-[658,]     1   12     9     81      2       1
-[659,]     1   16     8     64     10       1
-[660,]     1   12    11    121      3       1
-[661,]     1   12     9     81      3       1
-[662,]     1   16    10    100      9       1
-[663,]     1   13    10    100      3       1</code></pre>
-</div>
-</div>
-<p>Lembrando que o problema de mínimos quadrados é de encontrar os valores de <img src="https://latex.codecogs.com/png.latex?%5Cbeta"> que minimizam a soma dos erros ao quadrado.</p>
-<p><img src="https://latex.codecogs.com/png.latex?%0A%5Cunderset%7B%5Cbeta%7D%7B%5Ctext%7BMin%20%7D%7D%20e%5E%5Cintercal%20e%0A"></p>
-<p>Abrindo mais a expressão acima:</p>
-<p><img src="https://latex.codecogs.com/png.latex?%0A%5Cbegin%7Balign%7D%0A%20%20e%5E%5Cintercal%20e%20&amp;%20=%20(y%20-%20X%5Cbeta%20)%5E%5Cintercal(y%20-%20X%5Cbeta%20)%20%5C%5C%5C%5C%0A%20%20%20%20%20%20&amp;%20=%20y%5E%5Cintercal%20y%20-%20y%5E%5Cintercal%20X%5Cbeta%20-%20%5Cbeta%20%5E%5Cintercal%20X%5E%5Cintercal%20y%20+%20%5Cbeta%20%5E%5Cintercal%20X%5E%5Cintercal%20X%20%5Cbeta%20%5C%5C%5C%5C%0A%20%20%20%20%20%20&amp;%20=%20y%5E%5Cintercal%20y%20-%202%20y%5E%5Cintercal%20X%20%5Cbeta%20+%20%5Cbeta%5E%5Cintercal%20X%5E%5Cintercal%20X%20%5Cbeta%0A%5Cend%7Balign%7D%0A"></p>
-<p>Derivando em relação a <img src="https://latex.codecogs.com/png.latex?%5Cbeta"> e igualando a zero chega-se no estimador de MQO</p>
-<p><img src="https://latex.codecogs.com/png.latex?%0A%5Cbeta_%7B%5Ctext%7BMQO%7D%7D%20=%20(X%5E%5Cintercal%20X)%5E%7B-1%7DX%5E%5Cintercal%20y%0A"></p>
-<p>O código abaixo computa <img src="https://latex.codecogs.com/png.latex?%5Cbeta_%7B%5Ctext%7BMQO%7D%7D"> . Note que os parêntesis por fora da expressão forçam o R a imprimir o valor do objeto. Além disso, como estamos multiplicando matrizes/vetores usamos <code>%*%</code>.</p>
-<div class="cell">
-<div class="sourceCode cell-code" id="cb10" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb10-1"><span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># Define o vetor y (log do salário)</span></span>
-<span id="cb10-2">y <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> sal<span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">$</span>lwage</span>
-<span id="cb10-3"><span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># Computa a estimativa para os betas</span></span>
-<span id="cb10-4">(beta <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">solve</span>(<span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">t</span>(X) <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">%*%</span> X) <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">%*%</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">t</span>(X) <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">%*%</span> y)</span></code></pre></div>
-<div class="cell-output cell-output-stdout">
-<pre><code>                [,1]
-const   5.3563606713
-educ    0.0767258959
-exper   0.0104985672
-exper2  0.0002881339
-tenure  0.0091039254
-married 0.2002468574</code></pre>
-</div>
-</div>
-<p>Os valores estimados dos betas são reportados na tabela abaixo.</p>
-<div class="cell">
-<div class="sourceCode cell-code" id="cb12" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb12-1">tabela <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">as.data.frame</span>(<span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">round</span>(beta, <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">4</span>))</span>
-<span id="cb12-2"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">colnames</span>(tabela) <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">c</span>(<span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"Coeficiente estimado"</span>)</span>
-<span id="cb12-3"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">round</span>(beta, <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">4</span>) <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">%&gt;%</span></span>
-<span id="cb12-4">  <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">kable</span>(<span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">align =</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"c"</span>) <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">%&gt;%</span></span>
-<span id="cb12-5">  <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">kable_styling</span>(<span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">full_width =</span> <span class="cn" style="color: #8f5902;
-background-color: null;
-font-style: inherit;">FALSE</span>)</span></code></pre></div>
-<div class="cell-output-display">
-<table class="table table-sm table-striped small" data-quarto-postprocess="true">
-<tbody>
-<tr class="odd">
-<td style="text-align: left;">const</td>
-<td style="text-align: center;">5.3564</td>
-</tr>
-<tr class="even">
-<td style="text-align: left;">educ</td>
-<td style="text-align: center;">0.0767</td>
-</tr>
-<tr class="odd">
-<td style="text-align: left;">exper</td>
-<td style="text-align: center;">0.0105</td>
-</tr>
-<tr class="even">
-<td style="text-align: left;">exper2</td>
-<td style="text-align: center;">0.0003</td>
-</tr>
-<tr class="odd">
-<td style="text-align: left;">tenure</td>
-<td style="text-align: center;">0.0091</td>
-</tr>
-<tr class="even">
-<td style="text-align: left;">married</td>
-<td style="text-align: center;">0.2002</td>
-</tr>
-</tbody>
-</table>
-
-
-</div>
-</div>
-</section>
-<section id="resíduo-e-variância" class="level2">
-<h2 class="anchored" data-anchor-id="resíduo-e-variância">Resíduo e variância</h2>
-<p>O resíduo do modelo é simplesmente a diferença entre o observado <img src="https://latex.codecogs.com/png.latex?y_%7Bt%7D"> e o estimado <img src="https://latex.codecogs.com/png.latex?%5Chat%7By_%7Bt%7D%7D"> . Isto é,</p>
-<p><img src="https://latex.codecogs.com/png.latex?%0A%5Chat%7Be%7D_%7Bt%7D%20=%20y_%7Bt%7D%20-%20%5Chat%7By%7D_%7Bt%7D%20=%20y_%7Bt%7D%20-%20x_%7Bt%7D%5E%5Cintercal%5Chat%7B%5Cbeta%7D%0A"></p>
-<p>ou, de forma equivalente,</p>
-<p><img src="https://latex.codecogs.com/png.latex?%0A%5Chat%7Be%7D%20=%20y%20-%20X%5Chat%7B%5Cbeta%7D%0A"></p>
-<div class="cell">
-<div class="sourceCode cell-code" id="cb13" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb13-1"><span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># Computa o resíduo da regressão</span></span>
-<span id="cb13-2">u_hat <span class="ot" style="color: #003B4F;
-background-color: null;
-font-style: inherit;">&lt;-</span> y <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">-</span> X <span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">%*%</span> beta</span></code></pre></div>
-</div>
-<p>Usando o histograma pode-se visualizar a distribuição dos resíduos.</p>
-<div class="cell">
-<div class="sourceCode cell-code" id="cb14" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb14-1"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">hist</span>(u_hat, <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">breaks =</span> <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">30</span>, <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">freq =</span> <span class="cn" style="color: #8f5902;
-background-color: null;
-font-style: inherit;">FALSE</span>, <span class="at" style="color: #657422;
-background-color: null;
-font-style: inherit;">main =</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"Histograma dos resíduos"</span>)</span></code></pre></div>
-<div class="cell-output-display">
-<p><img src="https:://www.restateinsight.com/posts/general-posts/repost-ols-com-matrizes/index_files/figure-html/unnamed-chunk-8-1.png" class="img-fluid" width="672"></p>
-</div>
-</div>
-<p>O estimador da variância é dado por:</p>
-<p><img src="https://latex.codecogs.com/png.latex?%0A%5Chat%7B%5Csigma%7D%5E%7B2%7D%20=%20%5Cfrac%7B1%7D%7BN-k%7D%5Csum_%7Bt%20=%201%7D%5E%7BN%7D%5Chat%7Be%7D_%7Bt%7D%5E%7B2%7D%0A"></p>
-<p>Substituindo os valores calculados acima chegamos em:</p>
-<p><img src="https://latex.codecogs.com/png.latex?%0A%5Chat%7B%5Csigma%7D%5E%7B2%7D%20=%20%5Cfrac%7B%5Chat%7Be%7D%5E%5Cintercal%5Chat%7Be%7D%7D%7BN-k%7D%20=%200.1403927%0A"></p>
-
-
-</section>
-
- ]]></description>
-  <category>econometria</category>
-  <category>repost</category>
-  <guid>https:://www.restateinsight.com/posts/general-posts/repost-ols-com-matrizes/index.html</guid>
-  <pubDate>Wed, 01 Jan 2020 03:00:00 GMT</pubDate>
 </item>
 </channel>
 </rss>
