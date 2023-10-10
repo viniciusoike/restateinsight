@@ -1,0 +1,455 @@
+---
+title: "Nascimentos no Brasil"
+categories: ['data-science', 'data-visualization', 'brasil', 'demografia']
+draft: true
+---
+
+
+```{r libs}
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+library(readr)
+library(forcats)
+library(sidrar)
+library(rlang)
+library(forecast)
+
+knitr::opts_chunk$set(
+  fig.align = "center",
+  fig.asp = 0.618,
+  fig.width = 9,
+  out.width = "90%",
+  fig.dev = "svg",
+  fig.retina = 2
+  )
+```
+
+```{r showtext}
+library(showtext)
+
+font_add_google("Roboto Condensed", family = "Roboto Cond")
+font_add_google("Roboto Mono", family = "Roboto Mono")
+
+showtext_auto()
+```
+
+```{r ggplot2-theme}
+theme_vini <- theme_minimal() +
+  theme(
+    text = element_text(family = "Roboto Cond", color = "gray10"),
+    plot.title = element_text(size = 18, hjust = 0, vjust = 1),
+    plot.subtitle = element_text(color = "gray20", size = 9),
+    plot.caption = element_text(color = "gray20", size = 8),
+    axis.text = element_text(family = "Roboto Mono", color = "gray20", size = 8),
+    legend.text = element_text(family = "Roboto Mono", color = "gray20", size = 8),
+    panel.grid = element_blank(),
+    panel.background = element_rect(fill = "#ffffff", color = "#ffffff"),
+    plot.background = element_rect(fill = "#ffffff", color = "#ffffff"),
+    legend.position = "top",
+    legend.key.width = unit(2, "cm")
+  )
+```
+
+```{r import-data}
+nasc <- get_sidra(
+  2612,
+  variable = 218,
+  period = "2003-2021",
+  classific = "c235",
+  category = list("all"),
+  geo = "Region"
+  )
+```
+
+```{r clean-data}
+tbl_birth = nasc |> 
+  as_tibble() %>%
+  janitor::clean_names() |> 
+  select(
+    code_region = grande_regiao_codigo,
+    name_region = grande_regiao,
+    year = ano,
+    month = mes_do_nascimento,
+    birth = valor
+  ) %>%
+  filter(!(month %in% c("Total", "Ignorado"))) %>%
+  mutate(
+    date = paste(year, month, "01", sep = "-"),
+    date = parse_date(date, format = "%Y-%B-%d", locale = locale("pt")),
+    month_abb = lubridate::month(date, label = TRUE, locale = "pt_BR"),
+    month_abb = fct_rev(month_abb),
+    year = as.numeric(year)
+  )
+
+tbl_birth <- tbl_birth %>%
+  mutate(
+    trend = RcppRoll::roll_mean(birth, n = 12, fill = NA),
+    trend = RcppRoll::roll_mean(trend, n = 2, fill = NA),
+    .by = c("code_region", "name_region")
+    )
+
+tbl_brazil <- tbl_birth %>%
+  summarise(total = sum(birth, na.rm = TRUE), .by = "date") |> 
+  mutate(
+    month_abb = lubridate::month(date, label = TRUE, locale = "pt_BR"),
+    month_abb = fct_rev(month_abb),
+    year = as.numeric(lubridate::year(date)),
+    trend = RcppRoll::roll_mean(total, n = 12, fill = NA),
+    trend = RcppRoll::roll_mean(trend, n = 2, fill = NA),
+  )
+```
+
+```{r plot-heatmap-abs}
+p_heatmap_abs <- 
+  ggplot(tbl_brazil, aes(x = year, y = month_abb, fill = total)) + 
+  geom_tile(color = "gray80", linewidth = 0.1) +
+  scale_x_continuous(breaks = 2003:2021, position = "top", expand = c(0, 0)) +
+  scale_fill_viridis_c(
+    name = "",
+    breaks = seq(200, 275, 15) * 1000,
+    labels = scales::label_number(big.mark = "."),
+    limits = c(195000, 280000)
+  ) +
+  labs(
+    x = NULL,
+    y = NULL,
+    title = "Arianos e taurinos formam maioria dos nascidos",
+    subtitle = "Número total de nascidos vivos no Brasil entre 2003 e 2021 a cada mês.",
+    caption = "Fonte: Estatísticas do Registro Civil (IBGE). @viniciusoike") +
+  theme_vini
+```
+
+```{r plot-heatmap-rel}
+p_heatmap_rel <- 
+  tbl_brazil |> 
+  group_by(year) |> 
+  mutate(share = total / sum(total)) %>%
+  ggplot(aes(x = year, y = month_abb, fill = share)) + 
+  geom_tile(color = "gray80", linewidth = 0.1) +
+  scale_x_continuous(breaks = 2003:2021, position = "top", expand = c(0, 0)) +
+  scale_fill_viridis_c(
+    name = "Percentual\nnascidos\nno ano (%)",
+    labels = scales::label_percent(decimal.mark = ".")
+  ) +
+  labs(
+    x = NULL,
+    y = NULL,
+    title = "Arianos e taurinos formam maioria dos nascidos",
+    subtitle = "Número de nascidos vivos no Brasil entre 2003 e 2021 a cada mês.",
+    caption = "Fonte: Estatísticas do Registro Civil (IBGE). @viniciusoike") +
+  theme_vini +
+  theme(
+    legend.title = element_text(
+      family = "Roboto Mono",
+      size = 8,
+      vjust = 1,
+      hjust = 0.5)
+    )
+```
+
+```{r plot-lineplot-trend}
+p_lineplot <- 
+  ggplot(tbl_brazil, aes(x = date)) +
+  geom_line(aes(y = total), alpha = 0.6, linewidth = 1, color = "#26828EFF") +
+  geom_line(aes(y = trend), linewidth = 1, color = "#26828EFF") +
+  scale_x_date(
+    breaks = c(
+      as.Date("2003-01-01"),
+      seq(as.Date("2005-01-01"), as.Date("2020-01-01"), by = "1 year"),
+      as.Date("2021-01-01")
+      ),
+    date_labels = "%Y"
+    ) +
+  scale_y_continuous(labels = scales::label_number(big.mark = ".")) +
+  labs(title = "Nascidos vivos no Brasil", x = NULL, y = "Pessoas") +
+  theme_vini +
+  theme(
+    panel.grid.major = element_line(color = "gray90")
+  )
+```
+
+```{r fun-plot-heatmap}
+plot_heatmap <- function(
+    region,
+    breaks = waiver(),
+    share = FALSE,
+    xmin = NULL,
+    xmax = NULL) {
+  
+  stopifnot(any(region %in% unique(tbl_birth$name_region)))
+  stopifnot(is.logical(share))
+  
+  yvar <- ifelse(share, "share", "birth")
+  
+  sub <- dplyr::filter(tbl_birth, name_region == region)
+  
+  if (share) {
+    sub <- sub |> 
+      mutate(share = birth / sum(birth), .by = "year")
+  } 
+  
+  if (is.null(xmin)) {
+    xmin <- min(sub[[yvar]], na.rm = TRUE) * 0.98
+  }
+  if (is.null(xmax)) {
+    xmax <- max(sub[[yvar]], na.rm = TRUE) * 1.02
+  }
+  
+  plot <- ggplot(sub, aes(x = year, y = month_abb, fill = .data[[yvar]])) + 
+    geom_tile(color = "gray80", linewidth = 0.1) +
+    scale_x_continuous(breaks = 2003:2021, position = "top", expand = c(0, 0)) 
+  
+  if (share) {
+    plot <- plot +
+      scale_fill_viridis_c(
+        name = "Percentual\nnascidos\nno ano (%)",
+        breaks = breaks,
+        labels = scales::label_percent(decimal.mark = ","),
+        limits = c(xmin, xmax)
+    )
+  } else {
+    plot <- plot +
+      scale_fill_viridis_c(
+        name = "",
+        breaks = breaks,
+        labels = scales::label_number(big.mark = "."),
+        limits = c(xmin, xmax)
+    )
+  }
+
+
+  plot <- plot +
+    labs(
+      x = NULL,
+      y = NULL,
+      title = glue::glue("Nascidos vivos: {region}"),
+      subtitle = glue::glue(
+        "Número total de nascidos vivos na região {region} entre 2003 e 2021 a cada mês."),
+      caption = "Fonte: Estatísticas do Registro Civil (IBGE). @viniciusoike") +
+    theme_vini +
+    theme(
+      legend.title = element_text(
+        family = "Roboto Mono",
+        size = 8,
+        vjust = 1,
+        hjust = 0.5)
+      )
+  
+  return(plot)
+  
+}
+```
+
+```{r}
+tbl_birth <- tbl_birth %>%
+  mutate(
+    code_region = as.numeric(code_region),
+    name_region = factor(name_region),
+    name_region = fct_reorder(name_region, code_region)
+  )
+```
+
+```{r plot-trend-region}
+p_trend_region <- 
+  ggplot(tbl_birth, aes(x = date)) + 
+  geom_line(aes(y = birth), alpha = 0.6, linewidth = 1, color = "#26828EFF") +
+  geom_line(aes(y = trend), linewidth = 1, color = "#26828EFF") +
+  scale_x_date(
+    breaks = c(
+      as.Date("2003-01-01"),
+      seq(as.Date("2005-01-01"), as.Date("2020-01-01"), by = "2 year"),
+      as.Date("2021-01-01")
+      ),
+    date_labels = "%Y"
+    ) +
+  scale_y_continuous(labels = scales::label_number(big.mark = ".")) +
+  facet_wrap(vars(name_region), scales = "free_y", ncol = 2) +
+  labs(
+    title = "",
+    x = NULL,
+    y = "Nascimentos",
+    caption = "Fonte: Estatísticas do Registro Civil (IBGE). @viniciusoike"
+  ) +
+  theme_vini +
+  theme(
+    panel.grid.major = element_line(color = "gray90"),
+    axis.text.x = element_text(angle = 90)
+    )
+```
+
+# Nascimentos no Brasil
+
+Tende-se a pensar que a data de nascimento de um indivíduo é algo completamente aleatório. Afinal, ninguém escolhe precisamente quando vai nascer. Alguns atribuem significado profundo à data de nascimento: a depender do horário, dia e mês a pessoa terá tendências a ser mais de uma forma do que outra. Nascer no mês impróprio pode ser um mal negócio para a vida toda.
+
+Já na cultura popular é comum especular que os nascimentos seguem alguns ciclos da vida. As estações do ano regulam as safras de comida, a temperatura, a disposição para sair de casa e, muito acreditam, o desejo sexual. Os feriados, as festividades, o carnaval, as vitórias no campeonato de futebol, tudo isso - imagina-se - tem algum efeito sobre a natalidade no país, nove meses no futuro.
+
+No campo da economia, pode-se especular que os ciclos de crescimento econômico e, sobretudo, os ciclos de desemprego devem ter algum efeito sobre os nascimentos.
+
+## O mês de nascimento
+
+Usando dados do IBGE, mais especificamente das Estatísticas do Registro Civil, pode-se calcular o número total de nascimentos em cada mês desde 2003. Grosso modo, nos últimos vinte anos, março, abril e maio foram os três meses com maior número de nascimentos (27,23%). Já os meses do final do ano, outubro, novembro e dezembro foram os meses com menor número de nascimentos (22,95%).
+
+```{r}
+p_heatmap_rel
+```
+
+Isto significa que o maior número de concepções ocorreu no inverno, nos meses de julho a agosto. Já os meses quentes de janeiro a março tiveram os menores números de concepções. Este fato vai diretamente contra a popular percepção de que épocas quentes - e o Carnaval, em particular - favorecem o número de nascimentos.
+
+```{r}
+tbl_brazil |>
+  summarise(births = sum(total), .by = "month_abb") |> 
+  mutate(share = births / sum(births) * 100) |> 
+  filter(month_abb %in% c("Mar", "Abr", "Mai")) |> 
+  summarise(total = sum(share))
+```
+
+Olhando para as tendências de médio e longo prazo, vê-se que o número de nascimentos no Brasil permaneceu relativamente estável entre 2000 e 2015, variando de 230 mil a 242 mil nascimentos por mês. A quebra na série coincide com a recessão de 2015-17, período de alta inflação e desemprego recorde: de fato, a série sai do seu pico, acima de 265 mil nascimentos para o seu ponto mais baixo, abaixo de 200 mil nascimentos, neste período.
+
+O fim da recessão
+
+```{r}
+p_lineplot
+```
+
+```{r}
+p_heatmap_abs
+```
+
+```{r}
+p_heatmap_rel
+```
+
+## Regiões
+
+```{r}
+p_trend_region
+```
+
+```{r}
+plot_heatmap("Norte", seq(0.05, 0.1, 0.005), share = TRUE)
+```
+
+```{r}
+plot_heatmap("Nordeste", seq(0.05, 0.1, 0.005), share = TRUE)
+```
+
+```{r}
+plot_heatmap("Centro-Oeste", seq(0.05, 0.1, 0.005), share = TRUE)
+```
+
+```{r}
+plot_heatmap("Sudeste", seq(0.05, 0.1, 0.005), share = TRUE)
+```
+
+```{r}
+plot_heatmap("Sul", seq(0.05, 0.1, 0.005), share = TRUE)
+```
+
+## Sazonalidade
+
+E, afinal, há sazonalidade nos nascimentos no Brasil? Visualmente, parece haver fortes indícios de sazonalidade. Uma maneira simples de simultaneamente testar e mensurar o efeito sazonal é via uma regressão linear. Supondo um modelo simples da forma[^1]:
+
+[^1]: Este é um modelo bastente convencional em séries de tempo, também conhecido, modelo "clássico" ou "decomposição clássica". Veja, por exemplo ...
+
+$$
+B_{t} = T_{t}S_{t}E_{t}
+$$
+
+onde $B_{t}$ é o número ajustado de nascimentos mensais[^2], $T_{t}$ é o termo de tendência, $S_{t}$ é o termo sazonal e $E_{t}$ é o termo de resíduo. Aplicando logaritmo natural, temos um modelo aditivo. Para modelar a tendência vamos utilizar o mesmo filtro linear utilizado nos gráficos acima, isto é, uma média móvel 2x12 centrada[^3]. Esta estimativa é descontada da série original para chegar num valor sem tendência. Por fim, vamos supor dummies sazonais da forma:
+
+[^2]: Becker (1989) sugere corrigir o número de nascimentos pelo número de dias no mês da seguinte maneira: $\tilde{x}_{t} = x_{t}\frac{365}{12z}$ onde $z$ é o número de dias do mês.
+
+[^3]: Isto é equivalente a fazer primeiro uma média móvel de dozes meses e depois uma média móvel de dois meses. Na prática, todos os termos têm peso 1/12, exceto pelo primeiro e último que têm peso 1/24.
+
+$$
+b_{t} = \alpha_{0} + \sum_{i = 2}^{12}\beta_{i}\delta_{i} + u_{t}
+$$
+
+onde $b_{t}$ agora é o logartimo natural da série de nascimentos livre de tendência. O parâmetro $\alpha_{0}$ é uma constante e $\delta_{i}$ é uma variável binária que indica com valor unitário se a observação $B_{t}$ pertence ao mês $i$.
+
+A tabela abaixo mostra o resultado da regressão. Assim, como se viu nos gráficos, os três meses do final do ano tem um efeito negativo enquanto os meses de março a maio têm um efeito positivo sobre o número de nascimentos. Além destes, fevereiro e junho aparecem com sinal positivo, mas tem um efeito menor. Agosto também tem um efeito negativo, porém com magnitude inferior aos meses do final do ano.
+
+```{r}
+library(gtsummary)
+library(gt)
+library(gtExtras)
+
+tbl_brazil <- tbl_brazil |> 
+  mutate(
+    days = lubridate::days_in_month(date),
+    births_adjusted = total * (365/12) / days
+    )
+
+
+nasc <- ts(log(tbl_brazil$births_adjusted), start = c(2003, 1), frequency = 12)
+
+mm <- stats::filter(nasc, filter = rep(1/12, 12), method = "convolution")
+mm <- stats::filter(mm, filter = c(1/2, 1/2), method = "convolution")
+
+nasc_mm <- nasc - mm
+
+fit_lm <- tslm(nasc_mm ~ season)
+
+tab_reg <- 
+  tbl_regression(
+    fit_lm,
+    estimate_fun = ~style_sigfig(.x, digits = 3)
+    ) %>%
+  bold_labels() %>%
+  bold_p() %>%
+  as_gt() %>%
+  gt_theme_538()
+
+tab_reg
+```
+
+Visualmente, o resultado da regressão acima pode ser visto no painel abaixo. Note que o padrão sazonal é constante: começa o ano subindo, atinge um pico e aí começa a cair
+
+```{r}
+theme_series <- theme_vini + theme(panel.grid = element_line(color = 'gray90'))
+
+p1 <- autoplot(nasc) +
+  ggtitle("Nascimentos") +
+  labs(x = NULL, y = NULL) +
+  theme_series
+
+p2 <- autoplot(mm) +
+  ggtitle("Tendência") +
+  labs(x = NULL, y = NULL) +
+  theme_series
+
+p3 <- autoplot(fitted(fit_lm)) +
+  ggtitle("Padrão Sazonal") +
+  labs(x = NULL, y = NULL) +
+  theme_series
+
+p4 <- autoplot(resid(fit_lm)) +
+  ggtitle("Resíduo") +
+  labs(x = NULL, y = NULL) +
+  theme_series
+
+library(patchwork)
+
+p1 / p2 / p3 / p4
+```
+
+```{r}
+sub <- window(fitted(fit_lm), start = c(2004, 1), end = c(2004, 12))
+sub <- broom::tidy(sub)
+sub$id = 1:12
+
+ggplot(sub, aes(x = id, y = value)) +
+  geom_line() + 
+  geom_point() +
+  geom_hline(yintercept = 0) +
+  scale_x_continuous(breaks = 1:12) +
+  scale_y_continuous(limits = c(NA, 0.1)) +
+  theme_series +
+  theme(panel.grid.minor = element_blank())
+
+```
+
+```{r}
+autoplot(mstl(nasc)) + theme_series
+```
