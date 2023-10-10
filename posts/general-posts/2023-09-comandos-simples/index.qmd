@@ -49,13 +49,13 @@ Agora, vamos aos detalhes.
 Lembrando os problemas de importar arquivos:
 
 1.  Saber qual a função usar.
-2.  Escrever o caminho até o arquivo específico (qualquer errinho e já dava erro!).
+2.  Escrever o caminho até o arquivo específico (qualquer errinho dá erro!).
 3.  Calibrar os argumentos na hora de importar.
 4.  Às vezes é preciso importar vários arquivos de uma mesma pasta e juntá-los todos num único objeto.
 
 Este problema era tão chato de se resolver que eu acabava dependendo de uma facilidade do RStudio, que ajuda a importar uma base de dados, o botão Import Dataset. Eu fazia os comandos clicando e depois copiava o comando que aparecia no console no meu código.
 
-Isso não era uma solução prática e eu queria a solução "correta": queria escrever o código certo para importar os dados.
+Isto não era uma solução prática e eu queria a solução "correta": queria escrever o código certo para importar os dados.
 
 A solução para os problemas acima:
 
@@ -64,14 +64,14 @@ A solução para os problemas acima:
 3.  Aprender todas os argumentos das funções para importar arquivos (mais tempo ainda...).
 4.  Ver abaixo
 
-Ainda que no longo prazo acho que seja importante saber todas as funções o propósito aqui é te ajudar um pouco então vamos com duas soluções.
+Ainda que no longo prazo acho que seja importante saber todas as funções, o propósito aqui é te ajudar um pouco então vamos com duas soluções.
 
 ## A solução correta
 
 A tabela abaixo resume as principais funções que você provavelmente vai ter que usar.
 
 |  Formato   |            Extensao            |        Importar        |        Exportar        |
-|:----------------:|:------------------:|:----------------:|:----------------:|
+|:----------------:|:-----------------:|:----------------:|:----------------:|
 |   Excel    |         `xls`, `xlsx`          | `readxl::read_excel()` |  `xlsx::write.xlsx()`  |
 | Separados  |  `csv`, `tsv`, `psv`, `csvy`   | `data.table::fread()`  | `data.table::fwrite()` |
 |   Stata    |             `dta`              |  `haven::read_dta()`   |  `haven::write_dta()`  |
@@ -82,19 +82,25 @@ OBS: Caso não esteja familiarizado com esta sintaxe, aqui `readxl` é o nome do
 
 ### Sobre csvs
 
-Vale uma nota: existem várias alternativas para importar arquivos `csv`, várias alternativas mesmo. Eu recomendo evitar, na medida do possível as funções base e usar as funções equivalentes do `readr`. Então, por exemplo, ao invés de usar `read.csv` use `readr::read_csv`. Esta é uma boa decisão por dois motivos: (1) a função `read_csv` é considervalmente mais rápida e versátil; (2) os argumentos da funções `read_*` do pacote `readr` são todos padronizados e são muito similares aos argumentos do `read_excel` e das funções `read_*` do pacote `haven`.
+Vale uma nota: existem várias alternativas para importar arquivos `csv`, várias alternativas mesmo. Eu recomendo evitar as funções base e usar as funções equivalentes do `readr`. Então, por exemplo, ao invés de usar `read.csv` use `readr::read_csv`. Esta é uma boa decisão por três motivos:
 
-Na verdade, o combo `readr` + `readxl` + `haven` costuma ser ideal. Pois todas as funções são rápidas e compartilham uma estrutura muito similar.
+1.  As funções do `readr` são consideravelmente mais rápidas e versáteis do que as funções base equivalentes.
+2.  As funções `read_*` compartilham uma sintaxe padronizada e costumam ter argumentos muito similares. Assim as funções do `readr` são muito parecidas com as funções do pacote `readxl` e `haven`. O combo `readr` + `readxl` + `haven` resolve o problema em 95% dos casos.
+3.  Todos estes pacotes e funções já estão bem integrados ao universo tidyverse[^1].
 
-Mesmo assim, eu ainda recomendo muito o `data.table::fread()`[^1] na hora de importar qualquer arquivo "separado" (`csv`, `tsv`, `psv`, etc.)[^2]. Esta função é extremamente rápida, aloca os dados na memória de maneira eficiente e simplesmente funciona. Mesmo sem nenhum argumento adicional ela é muito boa na hora de adivinhar o tipo de separador utilizado e e tipo de dado em cada coluna.
+[^1]: Para saber mais sobre o tidyverse consulte o meu [post sobre A Filosofia do Tidyverse](https://restateinsight.com/posts/general-posts/2023-09-tidyverse/).
 
-[^1]: Disclaimer importante: depois de revisar este texto eu já não recomendo tão fortemente o `data.table::fread` por um movito bobo e simples. Atualmente, o `data.table` tem uma classe própria para datas chamada `IDate`. Esta classe é útil se você pretende fazer todas as suas análises usando as funções do `data.table` como `shift`, `hour`, etc. Contudo, se você pretende usar outros pacotes comuns de séries de tempo será necessário converter para `Date` todas as vezes. Além disso, como eu já estou bastante habituado a usar o pacote `lubridate` para manipular datas, não vejo muita vantagem em utilizar as funções do `data.table`.
+Se velocidade começar a ser um problema, pode-se experimentar também com o pacote `vroom` que permite importar arquivos `csv` mais rapidamente. A função `vroom::vroom` também compartilha da sintaxe das funções `read_*`.
 
-[^2]: Outra alternativa é utilizar a função `vroom::vroom`, que compartilha de argumentos similares das funções do pacote `readr`, mas que oferece maior velocidade de importação/exportação.
+Um típico problema com arquivos `csv` é que os delimitadores e separadores variam de país para país. Arquivos `csv` de fontes brasileiras costumam ser separadas por `;` e usam a `,` como quebra de decimal, ao contrário dos `csv` de fontes dos EUA que usam a `,` como separador e `.` como quebra de decimal. Os arquivos no padrão EUA devem ser lidos com `read_csv` enquanto os arquivos no padrão brasileiro devem ser lidos com `read_csv2`[^2].
 
-Um problema bem chato é que arquivos `csv` de fontes brasileiras costumam ser separadas por `;` e usam a `,` como quebra de decimal, ao contrário dos `csv` de fontes dos EUA que usam a `,` como separador e `.` como quebra de decimal. E tem outros ainda que misturam vários outros tipos de separadores e como resultado existem mil funções `read_csv`, `read_csv2`, `read_delim`, etc. para lidar com isso.
+[^2]: Alternativamente, pode-se usar a função `read_delim`, que é mais geral e permite especificar quais símbolos são usados como delimitador e separador de números.
 
-O mesmo vale na hora de exportar arquivos. Apesar de ter recomendado o `data.table::fwrite` na tabela acima, vale notar que funções como `readr::write_excel_csv2()` podem ser muito úteis caso seu objetivo seja exportar um csv que vai ser consumido por um usuário brasileiro numa planilha de Excel.
+Apesar de todas as vantagens listadas acima, ainda vale recomendar o `data.table::fread()`[^3] na hora de importar qualquer arquivo "separado" (`csv`, `tsv`, `psv`, etc.). Esta função é extremamente rápida, aloca os dados na memória de maneira eficiente e simplesmente funciona. Mesmo sem nenhum argumento adicional ela é muito boa na hora de adivinhar o tipo de separador utilizado e o tipo de dado em cada coluna.
+
+[^3]: Disclaimer importante: depois de revisar este texto eu já não recomendo tão fortemente o `data.table::fread` por um movito bobo e simples. Atualmente, o `data.table` tem uma classe própria para datas chamada `IDate`. Esta classe é útil se você pretende fazer todas as suas análises usando as funções do `data.table` como `shift`, `hour`, etc. Contudo, se você pretende usar outros pacotes comuns de séries de tempo será necessário converter para `Date` todas as vezes. Além disso, como eu já estou bastante habituado a usar o pacote `lubridate` para manipular datas, não vejo muita vantagem em utilizar as funções do `data.table`.
+
+Por fim, apesar de ter recomendado o `data.table::fwrite` na tabela acima, vale notar que funções como `readr::write_excel_csv2()` podem ser muito úteis caso seu objetivo seja exportar um csv que vai ser consumido por um usuário brasileiro numa planilha de Excel.
 
 ### Mais controle
 
@@ -108,9 +114,9 @@ A prática faz a perfeição na hora de importar arquivos problemáticos. Como c
 
 -   `col_names` ou `name_repair`: O primeiro permite que se declare explicitamente o nome que cada coluna vai ter dentro do `R` enquanto o segundo permite que se use uma função que renomeia as colunas.
 
--   `locale`: Permite selecionar diferentes tipos de padrão de local. Em geral, usa-se `locale = locale("pt_BR")`.
+-   `locale`: Permite selecionar diferentes tipos de padrão de local. Em geral, usa-se `locale = locale("pt")`.
 
--   range: Este argumento só vale no caso de planilhas de Excel e permite que se importe uma seleção específica da planilha (e.g. "D4:H115")
+-   `range`: Este argumento só vale no caso de planilhas de Excel e permite que se importe uma seleção específica da planilha (e.g. "D4:H115")
 
 O código abaixo mostra como importar um csv bastante sujo. Veremos detalhes sobre a função `janitor::clean_names` mais adiante.
 
@@ -141,7 +147,7 @@ df <- read_delim(
 
 ## Importando arquivos: o atalho
 
-Uma função muito prática que inicialmente contorna esses problemas é a `rio::import()`.
+Uma função muito prática que inicialmente contorna todos estes problemas é a `rio::import()`.
 
 A função `rio::import()` simplesmente importa seus dados e funciona com boa parte das extensões mais populares. Na prática, ela é uma função "facilitadora". Por baixo dos panos, ela está chamando a função correta para o caso específico.
 
@@ -155,7 +161,7 @@ data <- rio::import("data/meus_dados.dta")
 rio::export(mtcars, "data/mtcars.csv")
 ```
 
-O único problema desta função é quando seus arquivos não estão num formato muito bacana. Ainda assim, é possível fornecer argumentos adicionais à função `import` e consultar qual função está sendo usada consultando a documentação `help(import)`.
+O único problema desta função é quando seus arquivos não estão num formato muito bacana e argumentos adicionais são necessários. É possível fornecer estes argumentos à função, mas é difícil saber quais são os argumentos, já que não se sabe qual função está sendo chamada. Assim, é preciso consultar a documentação (`?rio::import)` para verificar qual função está sendo utilizada e aí consultar a documentação desta função.
 
 ## Escrevendo paths relativos com here
 
@@ -195,7 +201,7 @@ O `here` simplesmente funciona e funciona com tudo. Ele é especialmente útil n
 
 Outra dica boa para manter seus projetos organizados é de evitar colocar espaços ou caracteres especiais no nome das suas pastas. Em geral, o `R` consegue lidar bem com isso, mas volta e meia este mau hábito pode gerar problemas inesperados.
 
-## Importando todos os arquivos de de uma pasta
+## Importando todos os arquivos de uma pasta
 
 Este é um problema bastante recorrente e que é fácil de resolver usando `here` e funções base.
 
@@ -221,7 +227,7 @@ names(data) <- basename(pathfiles)
 empilhado <- data.table::rbindlist(data, idcol = "nome_arquivo")
 ```
 
-Uma maneira ainda mais sucinta de escrever o código seria omitindo os objetos intermediários e simplesmente empilhando o resultado final.
+Uma maneira ainda mais sucinta de escrever o código seria omitindo os objetos intermediários e simplesmente empilhando o resultado final. Note que, para que as bases de dados sejam empilhadas é necessário que o nome e o tipo das colunas seja compatível. Isto pode ser melhor controlado declarando o tipo das colunas na função `fread`.
 
 ```{r}
 #| eval: false
@@ -248,7 +254,9 @@ Lembrando que, idealmente, os nomes das colunas e também dos objetos que criamo
 3.  Sem espaços
 4.  Sem números no começo
 
-Outro ponto, um pouco óbvio, é que há nomes que devemos evitar na hora de nomear nossas colunas como: `FALSE`, `if`, `TRUE`, `for`, `Inf`, etc.
+Outro ponto, um pouco óbvio, é que há nomes que devemos evitar na hora de nomear nossas colunas como: `FALSE`, `if`, `TRUE`, `for`, `Inf`, etc[^4].
+
+[^4]: Estas palavras são "nomes reservados" dentro do `R` e jamais devem ser utilizados na hora de definir um objeto ou o nome de uma coluna. Para consultar a lista de nomes reservados, veja `help("Reserved")`.
 
 ```{r}
 # Bons nomes
@@ -260,7 +268,7 @@ nmRuIm <- c("Inflação (%)", "Produto Interno Bruto (R$)", "Câmbio (Mensal)")
 nmRuIm <- c("INFLAÇÃO", "PIB", "CÂMBIO (MÊS)")
 ```
 
-A função `janitor::clean_names()` segue, essencialmente, esses princípios e pode ser aplicada diretamente num `data.frame`. O resultado é uma base com nomes "limpos". Considere o exemplo abaixo de um arquivo csv com nomes muito ruins.
+A função `janitor::clean_names()` segue os princípios elencados acima e pode ser aplicada diretamente num `data.frame`. O resultado é uma base com nomes "limpos". Considere o exemplo abaixo de um arquivo csv com nomes muito ruins.
 
 ```{r}
 csv <- "
@@ -324,7 +332,7 @@ skimr::skim(iris)
 
 ## Olhando seus dados no Excel
 
-Por fim, vou colocar uma função customizada bem divertida, que permite você rapidamente dar uma espiada nos seus dados no bom e velho excel. A função abaixo cria um arquivo temporário a partir da sua base de dados no `R` e abre isso no Excel.
+Por fim, vou deixar uma função customizada bem divertida, que permite você rapidamente dar uma espiada nos seus dados no bom e velho Excel. A função abaixo cria um arquivo temporário a partir da sua base de dados no `R` e abre isso no Excel.
 
 Evidentemente, é preciso ter o Excel instalado para que o código funcione.
 
@@ -361,7 +369,7 @@ mtcars |>
 
 Concluindo, toda boa análise de dados passa por tarefas de rotina: importar dados, trocar nomes de colunas, remover observações vazias, etc. Por que não facilitar a sua vida e tornar essas tarefas simples?
 
-Pessoalmente, quase todo código que escrevo utiliza `here` e `janitor::clean_names()`. Depois de muito sofirmento, aprendi quase todas as funções de importar e exportar, e só depois disso descobri o `rio::import` que teria me poupado muito estresse. Como comentei acima o `rio::import` é um atalho simples, no longo prazo vale a pena aprender com calma todas as funções `read_*`.
+Pessoalmente, quase todo código que escrevo utiliza `here` e `janitor::clean_names()`. Depois de muito sofirmento, aprendi quase todas as funções de importar e exportar, e só depois disso descobri o `rio::import` que teria me poupado muito estresse. Como comentei acima o `rio::import` é um atalho simples, mas no longo prazo vale a pena aprender com calma todas as funções `read_*`.
 
 Uso com frequência o `View()` no final de um pipe para checar se as coisas estão indo da maneira esperada. E também comecei a criar o hábito de começar a minha exploração de dados com o `skim()`.
 
