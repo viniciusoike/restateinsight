@@ -1,11 +1,16 @@
 ---
 title: "Censo 2022: O que houve de errado?"
-categories: ["brasil", "demografia"]
+date: "2022-10-23"
+description: "Houve certo rebuliço nas redes sociais, quando do lançamento dos dados mais recentes do Censo Demográfico de 2022. O fato carregado na maior parte das manchetes do Brasil foi a queda na população brasileira. Até 2021, projetava-se que a população brasileira estivesse em torno de 213 milhões de habitantes. O número que o Censo trouxe foi de 203 milhões, queda de 10 milhões de habitantes em relação ao previsto. É importante entender por que este número foi superestimado."
+categories: ["brasil", "demografia", "censo"]
+execute: 
+  echo: false
+  warning: false
+  message: false
 draft: true
 ---
 
-```{r}
-#| include: false
+```{r setup}
 knitr::opts_chunk$set(
   echo = FALSE,
   message = FALSE,
@@ -16,7 +21,7 @@ knitr::opts_chunk$set(
 )
 ```
 
-```{r}
+```{r libs}
 library(sidrar)
 library(dplyr)
 library(tidyr)
@@ -35,12 +40,12 @@ theme_vini <- theme_minimal(base_family = "Lato") +
     panel.grid.minor = element_blank(),
     plot.title = element_text(size = 18, color = "gray10"),
     plot.subtitle = element_text(size = 10),
-    plot.caption = element_text(size = 8),
+    plot.caption = element_text(size = 10, hjust = 0),
     text = element_text(color = "gray40")
     )
 ```
 
-```{r}
+```{r data-census}
 census_pop <- tibble::tribble(
   ~year, ~population, ~growth,
   1872,	9930478, NA,
@@ -59,7 +64,60 @@ census_pop <- tibble::tribble(
 )
 ```
 
-```{r}
+```{r plot-tgc}
+fcast_tgc <- function(x) {
+  
+  p0 = 190755799
+  t = 12
+  p0 * (1 + x / 100)^t
+  
+}
+
+tbl_tgc <- tibble(
+  year = c(2010, 2022),
+  pop_1 = c(190755799, 203062512),
+  pop_2 = c(190755799, fcast_tgc(1.18)),
+  pop_3 = c(190755799, fcast_tgc(0.97)),
+  pop_4 = c(190755799, fcast_tgc(0.88))
+)
+
+tbl_text <- tibble(
+  x = 2023,
+  y = c(203062512, fcast_tgc(1.18), fcast_tgc(0.97), fcast_tgc(0.88)),
+  tgc = c(0.52, 1.18, 0.97, 0.88),
+  label = glue::glue("r = {tgc}%")
+)
+
+tbl_tgc <- tbl_tgc |> 
+  pivot_longer(-year)
+
+plot_tgc <- ggplot() +
+  geom_line(
+    data = tbl_tgc,
+    aes(x = year, y = value / 1e6, color = name),
+    linewidth = 0.9) +
+  geom_text(
+    data = tbl_text,
+    aes(x = x, y = y / 1e6, label = label),
+    size = 3,
+    family = "Lato"
+  ) +
+  scale_x_continuous(breaks = c(2010, 2022), limits = c(NA, 2023.5)) +
+  scale_color_manual(
+    values = c("#000000", "#E29B56", "#8EAF91", "#224B5E")
+  ) +
+  labs(
+    title = "Previsões de crescimento",
+    subtitle = "Curvas de população segundo diferentes premissas de Taxa Geométricas de Crescimento (r).",
+    x = NULL,
+    y = "Pessoas (milhões)",
+    caption = "Fonte: IBGE (Censo)."
+  ) +
+  theme_vini +
+  theme(legend.position = "none")
+```
+
+```{r plot-pop}
 plot_pop <- 
   ggplot(census_pop, aes(x = year, y = population / 1e6)) +
   geom_area(fill = "#224B5E") +
@@ -305,13 +363,13 @@ plot_compare <-
   scale_fill_manual(
     name = "",
     values = c("#E4A45D", "#224B5E"),
-    labels = c("Censo", "Projeção")
+    labels = c("Registro Civil", "Projeção (2018)")
   ) +
   labs(
-    title = "Pandemia trouxe mais óbitos do que o projetado",
+    title = "Menos nascimentos e mais óbitos",
     subtitle = "Comparação anual entre os valores de nascimentos e óbitos projetados e os efetivamente registrados.",
     x = NULL,
-    y = "Pessoas (milhares)",
+    y = "Pessoas (milhões)",
     caption = "Fonte: Projeções da População (2018) e Registro Civil (2022)."
   ) +
   theme_vini +
@@ -325,6 +383,116 @@ plot_compare <-
     )
 ```
 
+```{r fcast-deaths}
+library(forecast)
+
+#> Get only deaths and signal if in_sample or out_sample
+tbl_death <- tbl_stat |> 
+  filter(series == "deaths") |> 
+  mutate(train = if_else(date <= as.Date("2019-12-01"), 1L, 0L))
+
+#> Convert to time-series
+y <- ts(
+  pull(filter(tbl_death, train == 1L), value),
+  start = c(2003, 1),
+  frequency = 12
+  )
+#> BoxCox Transformation to reduce variance
+lambda <- BoxCox.lambda(y)
+ly <- BoxCox(y, lambda)
+#> Simple STL model
+model <- mstl(ly, robust = TRUE)
+#> Forecast 
+fcast <- forecast(model, h = nrow(tbl_death) - length(y), lambda = lambda)
+#> Convert forecast into tibble
+tbl_fcast <- tibble(
+  date = seq(as.Date("2020-01-01"), length.out = length(fcast$mean), by = "month"),
+  mean = fcast$mean,
+  upper = fcast$upper[, 2],
+  lower = fcast$lower[, 2]
+)
+
+#> Build tibble for visualization
+tbl <- tibble(
+  date = seq(as.Date("2018-01-01"), max(tbl_stat$date), by = "month")
+)
+
+tbl <- tbl |> 
+  left_join(tbl_death, by = "date") |> 
+  select(date, original = value) |> 
+  left_join(tbl_fcast, by = "date") |> 
+  pivot_longer(-date, names_to = "series") |> 
+  mutate(is_fcast = factor(
+    if_else(date >= as.Date("2020-01-01") & series != "original", 1L, 0L)
+    )
+  )
+
+tbl_excess_deaths <- tbl |> 
+  filter(
+    series %in% c("original", "mean"),
+    date >= as.Date("2020-01-01")
+    ) |> 
+  pivot_wider(id_cols = "date", names_from = "series", values_from = "value") |> 
+  mutate(
+    abs_diff = original - mean,
+    acum = cumsum(abs_diff)
+    )
+```
+
+```{r plot-fcast}
+plot_fcast <- ggplot() +
+  geom_line(
+    data = filter(tbl, series == "original"),
+    aes(x = date, y = value),
+    color = "#224B5E",
+    linewidth = 0.9
+  ) +
+  geom_line(
+    data = filter(tbl, series == "mean"),
+    aes(x = date, y = value),
+    linetype = 1,
+    linewidth = 0.9,
+    color = "#E4A45D"
+  ) +
+  geom_ribbon(
+    data = tbl_fcast,
+    aes(x = date, ymin = lower, ymax = upper),
+    alpha = 0.2,
+    fill = "#E4A45D"
+  ) +
+  labs(
+    title = "Aumento de óbitos durante Pandemia",
+    subtitle = "Total de óbitos comparado com valor previsto.",
+    x = NULL,
+    y = "Óbitos",
+    caption = "Fonte: IBGE (Estatísticas do Registro Civil, 2022). Previsão de modelo STL."
+    ) +
+  scale_y_continuous(labels = scales::label_number(big.mark = ".")) +
+  theme_vini
+  
+```
+
+```{r}
+plot_acum <- ggplot(tbl_excess_deaths, aes(x = date, y = acum)) +
+  geom_area(
+    fill = "#224B5E",
+    color = "#224B5E",
+    alpha = 0.8,
+    linewidth = 1
+    ) +
+  geom_hline(yintercept = 0) +
+  scale_x_date(date_breaks = "1 year", date_labels = "%Y") +
+  scale_y_continuous(labels = scales::label_number(big.mark = ".")) +
+  labs(
+    title = "",
+    subtitle = "Número acumulado de óbitos acima do previsto no período.",
+    x = NULL,
+    y = "Óbitos acima do previsto (acumulado)"
+    ) +
+  theme_vini +
+  theme(panel.grid.major.x = element_blank())
+```
+
 # Censo 2022
 
 Houve certo rebuliço nas redes sociais, quando do lançamento dos dados mais recentes do Censo Demográfico de 2022. O fato carregado na maior parte das manchetes do Brasil foi a queda no número projetado da população brasileira. Até 2021, projetava-se que a população brasileira estivesse em torno de 213 milhões de habitantes, segundo a pesquisa [Estimativas da População do IBGE](https://agenciadenoticias.ibge.gov.br/agencia-noticias/2012-agencia-de-noticias/noticias/31458-populacao-estimada-do-pais-chega-a-213-3-milhoes-de-habitantes-em-2021). O número que o Censo trouxe foi de 203 milhões, ou seja, houve uma queda de 10 milhões de habitantes em relação ao previsto. Ainda que pareça grande, o "erro de projeção" foi de menos de 5%. Contudo, é importante entender por que este número foi subestimado.
@@ -335,56 +503,76 @@ plot_pop
 
 ## O contexto da pesquisa
 
+### Cortes de orçamento, pandemia e atrasos
+
 Mesmo antes da divulgação dos primeiros dados de população, a mais recente edição do Censo enfrentou diversos problemas. A eclosão da Pandemia Covid-19, em 2020, forçou o adiamento da pesquisa para o ano seguinte; em 2021, contudo, o orçamento do Censo, originalmente de R\$2 bilhão foi [reduzido em mais de 90%](https://www.bbc.com/portuguese/brasil-56490188), efetivamente impossibilitando a sua execução. Inicialmente, previa-se que haveria cerca de 200 mil recenseadores em operação: na prática, houve menos da metade, [em torno de 91 mil](https://jornal.usp.br/radio-usp/desincentivo-e-corte-de-recursos-trazem-problemas-ao-censo-demografico-de-2022/); além disso, a redução do orçamento comprometeu o treinamento destes funcionários. A situação chegou a tal ponto que se decretou uma [medida provisória permitindo a contratação de recenseadores sem processo seletivo algum](https://www12.senado.leg.br/noticias/materias/2022/11/21/censo-2022-governo-edita-mp-que-autoriza-contratacoes-sem-processo-seletivo).
 
 O processo de coleta dos dados enfrentou diversos atrasos, sobretudo em função do número insuficiente de recenseadores em campo. A falta de verba também comprometeu o pagamento destes funcionários, que chegaram a organizar uma [greve em setembro de 2022, em resposta às más condições de trabalho](https://economia.uol.com.br/noticias/estadao-conteudo/2022/09/01/recenseadores-fazem-greve-ibge-diz-que-coleta-do-censo-nao-foi-afetada.htm).
 
+### Não-respondentes
+
 A fraca divulgação do Censo na imprensa, junto com a politização da pesquisa e a [propagação de fake news](https://www1.folha.uol.com.br/cotidiano/2022/10/recenseadores-enfrentam-fake-news-recusas-e-ameacas.shtml), reduziu a [adesão da população à pesquisa](https://www.poder360.com.br/brasil/quase-2-milhoes-nao-quiseram-responder-ao-censo-diz-ibge/#). A taxa geral de não-resposta foi de 4,23%, mas chegou a 8,11% no estado de São Paulo; em alguns municípios como Santana de Parnaíba, na Região Metropolitana de São Paulo, esta taxa chegou a 16,8%[^1]. O problema foi particularmente severo nos [domicílios de alta renda e condomínios fechados](https://g1.globo.com/politica/noticia/2023/03/02/condominios-de-classe-alta-e-comunidades-sao-dificuldade-do-censo-diz-presidente-do-ibge.ghtml); também há evidência de que cidades, com maior proporção de votos para Bolsonaro no 2o turno , [tiveram menor adesão ao Censo](https://www1.folha.uol.com.br/poder/2023/06/abstencao-ao-censo-foi-maior-em-cidades-bolsonaristas.shtml).
 
-[^1]: <https://www1.folha.uol.com.br/cotidiano/2023/06/recusas-para-entrevista-nao-prejudicaram-resultado-final-do-censo-diz-ibge.shtml>
+[^1]: [Recusas para entrevista não prejudicaram resultado final do Censo, diz IBGE (Folha SP)](https://www1.folha.uol.com.br/cotidiano/2023/06/recusas-para-entrevista-nao-prejudicaram-resultado-final-do-censo-diz-ibge.shtml){.uri}
 
-A ex-presidente do IBGE, Wasmália Bivar, avalia que o corte de orçamento comprometeu a pesquisa e que a [subestimação da população era esperada](#0). Já Roberto Olinto, também ex-presidente do instituto, pediu por uma auditoria do Censo, chegando a sugerir a [possibilidade de ser necessário refazer a pesquisa](https://www1.folha.uol.com.br/mercado/2023/01/censo-vive-tragedia-absoluta-e-dados-nao-sao-confiaveis-diz-ex-presidente-do-ibge.shtml). Apesar de todas as dificuldades, os representantes do IBGE defendem que o número divulgado é confiável e avaliam que o Censo foi um sucesso, quando se considera todos os desafios que foram enfrentados.
+### O Censo e o FPM
 
-Por fim, como os dados de população de municípios têm um impacto direto sobre o repasse do Fundo de Participação de Municípios existe um incentivo para distorcer dados populacionais. De fato, o economista Leonardo Monastério verificou que isto [já aconteceu em Censos anteriores e que o problema vem se agravando com o tempo](https://repositorio.ipea.gov.br/bitstream/11058/969/1/TD_1818.pdf). No histograma abaixo, retirado do trabalho original, vê-se que há quebras suspeitas nos valores da população que coincidem as faixas do FPM.
+Por fim, como os dados de população de municípios têm um impacto direto sobre o repasse do Fundo de Participação de Municípios as prefeitura tem um incentivo perverso para distorcer os dados populacionais. De fato, o economista Leonardo Monastério verificou que isto [já aconteceu em Censos anteriores e que o problema vem se agravando com o tempo](https://repositorio.ipea.gov.br/bitstream/11058/969/1/TD_1818.pdf). No histograma abaixo, retirado do trabalho original, vê-se que há quebras suspeitas nos valores da população que coincidem as faixas do FPM. Será interessante replicar o experimento para os dados atuais do Censo.
 
 ![Reprodução de gráfico de Monasterio (2013)](/static/images/lmonasterio_fpm.png){fig-align="center"}
 
+### Balanço do Censo
+
+O Censo enfrentou diversos problemas:
+
+1.  **Pandemia do Covid-19, cortes no orçamento e mudanças na presidência**. Além de gerar atrasos na pesquisa, os cortes comprometeram a capacidade de contratação e treinamento de funcionários.
+2.  **Fraca divulgação da pesquisa e menor adesão da população**. Autoridades importantes do governo, como o próprio presidente da república à época minaram a credibilidade do IBGE publicamente.
+
+A ex-presidente do IBGE, Wasmália Bivar, avalia que o corte de orçamento comprometeu a pesquisa e que a [subestimação da população era esperada](#0). Já Roberto Olinto, também ex-presidente do instituto, pediu por uma auditoria do Censo, chegando a sugerir a [possibilidade de ser necessário refazer a pesquisa](https://www1.folha.uol.com.br/mercado/2023/01/censo-vive-tragedia-absoluta-e-dados-nao-sao-confiaveis-diz-ex-presidente-do-ibge.shtml). Apesar de todas as dificuldades, os representantes do IBGE defendem que o número divulgado é confiável e avaliam que o Censo foi um sucesso, quando se considera todos os desafios que foram enfrentados.
+
 ## A matemática da população
 
-A fórmula da dinâmica populacional é bastante simples. A população num determinado ano é igual à população do ano anterior somada da variação populacional. Esta variação populacional é o número total de nascimentos, óbitos, imigrantes e emigrantes. Simplificando, subtraindo os óbitos dos nascimentos e somando o fluxo líquido de migrantes, temos a variação populacional.
+### Método das Componentes Demográficas
+
+A fórmula da dinâmica populacional é bastante simples. A população num determinado ano é igual à população do ano anterior somada da variação populacional. Esta variação populacional é o (1) número total de nascimentos, (2) óbitos, (3) imigrantes e emigrantes.
+
+Formalmente, seja a população no ano seguinte denotada por $P_{t+1}$ e população no ano corrente, $P_{t}$. A partir deste número, soma-se o total de nascimentos $B_{t, t+1}$, subtrai-se o total de óbitos $D_{t, t+1}$ e soma-se o fluxo líquido de migrantes $NM_{t, t+1}$ . A equação abaixo resume estes fatos:
 
 $$
-P_{t+1} = P_{t} + B_{t,t+1} + D_{t,t+1} + NM_{t,t+1}
+P_{t+1} = P_{t} + B_{t,t+1} - D_{t,t+1} + NM_{t,t+1}
 $$
 
-O IBGE tem boas maneiras de estimar estes números: o número de nascimentos é uma função da taxa de fertilidade e do número de mulheres em idade fértil; o número de óbitos, similarmente, pode ser estimado a partir de tábuas atuariais de mortalidade; por fim, ainda que seja difícil quantificar o fluxo migratório ele tem pouco impacto no número final, no caso do Brasil[^2]. A projeção da população, segundo a equação acima, é chamada de Método das Componentes Demográficas. Esta metodologia tem amplo respaldo teórico[^3] e é utilizada na pesquisa [Projeções da População do IBGE](https://www.ibge.gov.br/estatisticas/sociais/populacao/9109-projecao-da-populacao.html?=&t=conceitos-e-metodos). Na mais recente edição divulgada, de 2018, a projeção populacional do Brasil para 2022 é de 214,8 milhões de habitantes.
+O IBGE tem boas maneiras de estimar estes números:
+
+-   O número de nascimentos, $B_{t, t+1}$, é uma função da taxa de fertilidade e do número de mulheres em idade fértil;
+-   O número de óbitos, $D_{t,t+1}$, similarmente, pode ser estimado a partir de tábuas atuariais de mortalidade, discriminadas por grupos de idade e sexo;
+-   Por fim, ainda que seja difícil quantificar o fluxo migratório, $NM_{t,t+1}$, ele tem pouco impacto no número final, no caso do Brasil[^2].
 
 [^2]: De 2010 a 2020 houve um aumento de 24,4% no número de imigrantes no Brasil, resultando numa população de 1,3 milhão. Isto é equivalent a 0,6% da população total do Brasil. Apesar do Brasil ter hospedado imigrantes de diversos países ao longo do século XX, atualmente o país tem um fluxo migratório negativo (mais brasileiros saem do país do que estrangeiros entram) e uma população de imigrantes bastante reduzida.
 
+A projeção da população, segundo a equação acima, é chamada de Método das Componentes Demográficas. Esta metodologia tem amplo respaldo teórico[^3] e é utilizada na pesquisa [Projeções da População do IBGE](https://www.ibge.gov.br/estatisticas/sociais/populacao/9109-projecao-da-populacao.html?=&t=conceitos-e-metodos). Na mais recente edição divulgada, de 2018, a **projeção populacional do Brasil para 2022 é de 214,8 milhões** de habitantes.
+
 [^3]: Para uma referência simples veja [Census dos EUA](https://www.census.gov/programs-surveys/popproj/about.html#:~:text=What%20is%20the%20cohort%2Dcomponent,born%20in%20a%20given%20year).)
 
-O Método das Componentes Demográficas também é utilizado pela Organização das Nações Unidas (ONU). Na edição de 2019 do [World Population Prospects](https://population.un.org/wpp/), projetava-se que a população do Brasil deveria chegar a 219 milhão de habitantes em 2025. Este número é muito próximo ao projetado pela Projeção da População, citada acima. Segundo os dados do Censo, contudo, seria necessário um crescimento de 16 milhão de habitantes para alcançar este resultado.
+O Método das Componentes Demográficas também é utilizado pela Organização das Nações Unidas (ONU). Na edição de 2019 do [World Population Prospects](https://population.un.org/wpp/), projetava-se que a população do Brasil deveria chegar a 219 milhões de habitantes em 2025. Este número é muito próximo ao projetado pelo Projeções da População, citado acima. Segundo os dados do Censo, contudo, seria necessário um crescimento de 16 milhões de habitantes para alcançar este resultado.
 
-Uma maneira ainda mais simples de modelar a dinâmica da população é via uma equação diferencial que expressa o crescimento exponencial da população. Na prática, populações frequentemente exibem comportamentos deste tipo, crescendo ou decaindo exponencialmente a uma taxa fixa. Esta taxa fixa $r$ pode ser interpretada com a taxa geométrica de crescimento (TGC) da população.
+### Taxa Geométrica de Crescimento
+
+Uma maneira ainda mais simples de modelar a dinâmica da população é via uma equação diferencial que expressa o crescimento exponencial da população. Na prática, populações frequentemente exibem comportamentos deste tipo, crescendo ou decaindo exponencialmente a uma taxa fixa. Esta taxa fixa $r$ pode ser interpretada como a taxa geométrica de crescimento (TGC) da população.
 
 $$
 P_{t} = P_{0}\times(1 + r)^{t}
 $$
 
-Supondo, que a TGC observada entre os censos de 2000 e 2010, de 1,18%, permancesse constante durante os próximos doze anos a população em 2022 deveria ser de 223 milhões. Usando uma estimativa mais conservadora de 0,97% (TGC entre 2009 e 2010) a população seria de 220 milhão. Por fim, usando a estimativa da TGC do IBGE em 2010, de 0,88%, a população brasileira deveria crescer para 218 milhão.
+Supondo, que a TGC observada entre os censos de 2000 e 2010, de 1,18%, permancesse constante durante os próximos doze anos, a população em 2022 deveria ser de 220 milhões. Usando uma estimativa mais conservadora de 0,97% (TGC entre 2009 e 2010) a população seria de 214 milhões - valor muito próximo ao previsto pelo mais complexo Método de Componentes Demográficas acima. Por fim, utilizando a estimativa da TGC do IBGE em 2010, de 0,88%, a população brasileira deveria crescer para 212 milhões. A TGC verifica pelo Censo foi de 0,52%, que resulta na população de 203 milhões verificada.
 
-```{r}
-p0 = 194.5
-p1 = 196.4
-t = 1
-r = ((p1 / p0)^(1/t) - 1)
-r = 0.878979940149227 / 100
-pf = p1 * (1 + r)^12
+```{r tgc}
+plot_tgc
 ```
 
 ## A discrepância do Censo
 
-Comparando os dados da Projeção da População, de 2018, e do Censo Demográfico de 2022 podemos mensurar a discrepância entre os valores projetados e os efetivamente verificados. De maneira geral, as projeções superestimaram o crescimento populacional em todas as Unidades Federativas com exceção de Mato Grosso e Santa Catarina. Em alguns casos, como no Amapá a diferença foi de quase 18%: projetou-se uma população de 886 mil, mas verificou apenas 811 mil. Em termos absolutos, a maior diferença aconteceu no estado de São Paulo, onde o Censo encontrou um valor 2,5 milhão inferior ao projetado.
+Comparando os dados da Projeção da População, de 2018, e do Censo Demográfico de 2022 podemos mensurar a discrepância entre os valores projetados e os efetivamente verificados. De maneira geral, as projeções superestimaram o crescimento populacional em todas as Unidades Federativas com exceção de Mato Grosso e Santa Catarina. Em alguns casos, como no Amapá a diferença foi de quase 18%: projetou-se uma população de 886 mil, mas verificou apenas 811 mil. Em termos absolutos, a maior diferença aconteceu no estado de São Paulo, onde o Censo encontrou um valor 2,5 milhões inferior ao projetado.
 
 ![](/static/maps/map_state.svg){fig-align="center"}
 
@@ -393,18 +581,24 @@ Comparando os dados da Projeção da População, de 2018, e do Censo Demográfi
 Nos termos da equação populacional acima, a divergência do Censo deve ser explicada por:
 
 1.  *Superestimação do número de nascimentos*. Isto pode ter ocorrido em função da queda de renda e aumento de desemprego causado pela recessão de 2015-17[^4] e também pela Pandemia[^5]. Também pode ser o caso de que a taxa de fecundidade do Brasil diminuiu mais rápido do que o esperado.
-2.  *Subestimação do número de óbitos*. Novamente, a Pandemia trouxe muito mais óbitos do que qualquer modelo demográfico razoável poderia prever.
+2.  *Subestimação do número de óbitos*. A Pandemia trouxe muito mais óbitos do que qualquer modelo demográfico razoável poderia prever.
 3.  *Subestimação do fluxo migratório para fora do país*. Desde a crise econômica, [aumentou o número de emigrantes no Brasil](https://valor.globo.com/brasil/noticia/2022/04/08/brasileiro-volta-a-buscar-no-exterior-uma-vida-melhor.ghtml) e taxa de brasileiros que não voltaram ao país também subiu.
 
 [^4]: Existe alguma evidência de que recessões econômicas diminuem as taxas de fecundidade, sobretudo em países em desenvolvimento. Veja, por exemplo, este artigo sobre a [Colômbia](https://www.jstor.org/stable/26332214) e este sobre a [Grécia](https://revistia.com/index.php/ejes/article/view/5253).
 
-[^5]: De maneira geral, a Pandemia do Covid-19 teve um efeito negativo sobre as taxas de fecundidade e natalidade mundo afora. Em alguns países houve uma forte recuperação, mas em outros estas taxas seguem em níveis menores que os pré-pandemicos. [Link](https://osf.io/preprints/socarxiv/87acb/)
+[^5]: De maneira geral, a Pandemia do Covid-19 teve um efeito negativo sobre as taxas de fecundidade e natalidade mundo afora. Em alguns países houve uma forte recuperação, mas em outros estas taxas seguem em níveis menores que os pré-pandêmicos. [Link](https://osf.io/preprints/socarxiv/87acb/)
 
-No Brasil, os fluxos migratórios são pequenos, relativamente ao tamanho da população. Em 2021, por exemplo, o saldo líquido migratório brasileiro foi negativo em cerca de 300 mil pessoas, equivalente a cerca de 0,1% da população. Assim, o número de nascimentos e óbitos deve explicar a maior parte da diferença entre o valor estimado pelo Censo e o valor projetado anteriormente.
+No Brasil, os fluxos migratórios são pequenos, relativamente ao tamanho da população. Em 2021, por exemplo, o saldo líquido migratório brasileiro foi negativo em cerca de 300 mil pessoas[^6], equivalente a cerca de 0,1% da população. Assim, o número de nascimentos e óbitos deve explicar a maior parte da diferença entre o valor estimado pelo Censo e o valor projetado anteriormente.
 
-As séries de nascimentos e óbitos, do Registro Civil, apontam que houve uma queda na tendência de nascimentos durante a última década. Olhando para a tendência da série, vê-se que a crise econômica de 2015-17 parece ter tido impacto negativo no número de nascidos vivos. Mesmo depois da recuperação da crise, a série segue numa tendência de queda, que se acentua a partir da Pandemia.
+[^6]: [Taxa de brasileiros que saem do país e não voltam é a maior em 11 anos (Valor)](https://valor.globo.com/brasil/noticia/2022/04/08/brasileiro-volta-a-buscar-no-exterior-uma-vida-melhor.ghtml)
 
-Já série de óbitos segue uma tendência estável de crescimento desde 2003. Houve um ligeiro aumento dos óbitos em 2015, mas rapidamente viu-se um retorno da série à sua tendência de longo prazo. Por fim, é notável como a Pandemia teve um efeito severo sobre o número de óbitos no país.
+### Nascimentos e Óbitos
+
+As séries de nascimentos e óbitos, do Registro Civil, apontam que houve uma queda na tendência de nascimentos durante a última década[^7]. Olhando para a tendência da série, vê-se que a crise econômica de 2015-17 parece ter tido impacto negativo no número de nascidos vivos. Mesmo depois da recuperação da crise, a série segue numa tendência de queda, que se acentua a partir da Pandemia.
+
+[^7]: A tendência das séries é estimada com uma média móvel centrada de 12 meses.
+
+Já a série de óbitos segue uma tendência estável de crescimento desde 2003. Houve um ligeiro aumento dos óbitos em 2015, mas rapidamente viu-se um retorno da série à sua tendência de longo prazo. Por fim, é notável como a Pandemia teve um efeito severo sobre o número de óbitos no país.
 
 ```{r}
 #| out-width: 100%
@@ -412,9 +606,21 @@ Já série de óbitos segue uma tendência estável de crescimento desde 2003. H
 panel_pop
 ```
 
-Comparando as projeções de curto prazo do IBGE para nascimentos e óbitos, divulgadas em 2018, com os dados mais recentes do Registro Civil, divulgados em 2022, pode-se ver como o número de nascimentos foi superestimado e o número de óbitos, subestimado. Ainda assim, a divergência entre os números não é grande o suficiente para explicar a diferença de 10 milhão de habitantes verificada pelo Censo. Grosso modo, houve cerca de 400 mil mortes a mais do que o projetado e 800 mil nascimentos a menos.
+Modelando o comportamento da série de óbitos, pode-se elaborar uma espécie de contrafactual: isto é, pode-se ter uma estimativa de como teria sido o número de óbitos caso na ausência da pandemia.
+
+No gráfico abaixo, a curva amarela mostra os valores preditos da série junto com intervalo de confiança de 95%. O modelo é treinado com os dados de janeiro de 2003 a dezembro de 2019. Nota-se como os valores previstos divergem dos valores observados a partir de abril de 2020. Ao longo do período, o **número acumulado de óbitos, acima do previsto pelo modelo, supera 600 mil**.
 
 ```{r}
+#| out-width: 100%
+#| fig-width: 10
+plot_fcast + plot_acum
+```
+
+Comparando as projeções de curto prazo do IBGE para nascimentos e óbitos, divulgadas em 2018, com os dados mais recentes do Registro Civil, divulgados em 2022, pode-se ver como o número de **nascimentos foi superestimado** e o **número de óbitos, subestimado**. Ainda assim, a divergência entre os números não é grande o suficiente para explicar a diferença de 10 milhões de habitantes verificada pelo Censo. Grosso modo, houve cerca de **400 mil mortes a mais do que o projetado e 800 mil nascimentos a menos**.
+
+```{r}
+#| out-width: 100%
+#| fig-width: 10
 plot_compare
 ```
 
