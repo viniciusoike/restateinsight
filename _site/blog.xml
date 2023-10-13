@@ -10,28 +10,7 @@
 <atom:link href="https:://www.restateinsight.com/blog.xml" rel="self" type="application/rss+xml"/>
 <description>A blog on economics and cities</description>
 <generator>quarto-1.3.450</generator>
-<lastBuildDate>Fri, 27 Oct 2023 03:00:00 GMT</lastBuildDate>
-<item>
-  <title>Weekly Viz - Metro em São Paulo</title>
-  <dc:creator>Vinicius Oike</dc:creator>
-  <link>https:://www.restateinsight.com/posts/general-posts/2023-10-wz-metro-sp/index.html</link>
-  <description><![CDATA[ 
-
-
-
-
-<div class="cell">
-<div class="cell-output-display">
-<p><img src="https:://www.restateinsight.com/posts/general-posts/2023-10-wz-metro-sp/index_files/figure-html/unnamed-chunk-2-1.png" class="img-fluid" width="672"></p>
-</div>
-</div>
-
-
-
- ]]></description>
-  <guid>https:://www.restateinsight.com/posts/general-posts/2023-10-wz-metro-sp/index.html</guid>
-  <pubDate>Fri, 27 Oct 2023 03:00:00 GMT</pubDate>
-</item>
+<lastBuildDate>Fri, 13 Oct 2023 03:00:00 GMT</lastBuildDate>
 <item>
   <title>Weekly Viz: Nascimentos no Brasil</title>
   <dc:creator>Vinicius Oike</dc:creator>
@@ -21358,6 +21337,1398 @@ font-style: inherit;">theme_bw</span>()</span></code></pre></div>
   <category>tutorial-R</category>
   <guid>https:://www.restateinsight.com/posts/general-posts/repost-arma-exemplo-simples/index.html</guid>
   <pubDate>Mon, 01 Mar 2021 03:00:00 GMT</pubDate>
+</item>
+<item>
+  <title>EMV no R</title>
+  <dc:creator>Vinicius Oike</dc:creator>
+  <link>https:://www.restateinsight.com/posts/general-posts/repost-emv-no-r/index.html</link>
+  <description><![CDATA[ 
+
+
+
+
+<section id="estimadores-de-máxima-verossimilhança" class="level1">
+<h1>Estimadores de Máxima Verossimilhança</h1>
+<p>A estimação por máxima verossimilhança possui várias boas propriedades. O estimador de máxima verossimilhança (EMV) é <strong>consistente</strong> (converge para o valor verdadeiro), <strong>normalmente assintótico</strong> (distribuição assintórica segue uma normal padrão) e <strong>eficiente</strong> (é o estimador de menor variância possível). Por isso, e outros motivos, ele é um estimador muito comumemente utilizado em estatística e econometria.</p>
+<p>A intuição do EMV é a seguinte: temos uma amostra e estimamos os parâmetros que maximizam a probabilidade de que esta amostra tenha sido gerada por uma certa distribuição de probabilidade. Em termos práticos, eu primeiro suponho a forma da distribuição dos meus dados (e.g.&nbsp;normal), depois eu estimo os parâmetros <img src="https://latex.codecogs.com/png.latex?%5Cmu"> e <img src="https://latex.codecogs.com/png.latex?%5Csigma"> de maneira que eles maximizem a probabilidade de que a minha amostra siga uma distribuição normal (tenha sido “gerada” por uma normal).</p>
+<p>Há vários pacotes que ajudam a implementar a estimação por máxima verossimilhança no <code>R</code>. Neste post vou me ater apenas a dois pacotes: o <code>optimx</code> e o <code>maxLik</code>. O primeiro deles agrega funções de otimização de diversos outros pacotes numa sintaxe unificada centrada em algumas poucas funções. O último é feito especificamente para estimação de máxima verossimilhança então traz algumas comodidades como a estimação automática de erros-padrão.</p>
+<p>Vale lembrar que o problema de MV é, essencialmente, um problema de otimização, então é possível resolvê-lo simplesmente com a função <code>optim</code> do <code>R</code>. Os dois pacotes simplesmente trazem algumas comodidades.</p>
+<div class="cell" data-layout-align="center">
+<div class="sourceCode cell-code" id="cb1" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">library</span>(maxLik)</span>
+<span id="cb1-2"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">library</span>(optimx)</span>
+<span id="cb1-3"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># Para reproduzir os resultados</span></span>
+<span id="cb1-4"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">set.seed</span>(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">33</span>)</span></code></pre></div>
+</div>
+</section>
+<section id="exemplo-com-distribuição-poisson" class="level1">
+<h1>Exemplo com distribuição Poisson</h1>
+<p>A ideia da estimação por máxima verossimilhança é de encontrar os parâmetros que maximizam a probabilidade de que um certo conjunto de dados sejam gerados por algum processo específico. Agora, em português: imagine que temos uma amostra aleatória; não sabemos qual distribuição os dados seguem, mas vamos <em>supor</em> que eles seguem alguma distribuição específica, por exemplo, uma Poisson. O formato da Poisson depende do parâmetro <img src="https://latex.codecogs.com/png.latex?%5Clambda"> e a ideia então é de encontrar o valor de <img src="https://latex.codecogs.com/png.latex?%5Clambda"> que melhor aproxima a distribuição empírica/observada dos dados. Isto é, dado uma amostra aleatória <img src="https://latex.codecogs.com/png.latex?x_%7B1%7D,%20x_%7B2%7D,%20%5Cdots%20,%20x_%7Bn%7D"> buscamos o valor de <img src="https://latex.codecogs.com/png.latex?%5Clambda"> que maximiza a probabilidade de que os dados tenham sido gerados por uma distribuição de Poisson.</p>
+<p>A Poisson é uma distribuição discreta parametrizada por um valor <img src="https://latex.codecogs.com/png.latex?%5Clambda%20%3E%200">. O formato da distribuição varia com o valor de <img src="https://latex.codecogs.com/png.latex?%5Clambda">. Lembrando que a função de distribuição da Poisson é dada pela expressão:</p>
+<p><img src="https://latex.codecogs.com/png.latex?%0A%20%20f(k,%20%5Clambda)%20=%20%5Ctext%7BPr%7D(X%20=%20k)%20=%20%5Cfrac%7B%5Clambda%5E%7Bk%7De%5E%7B-%5Clambda%7D%7D%7Bk!%7D,%20%5Cquad%20k%20=%200,%201,%202,%20%5Cdots%0A"></p>
+<p>O código abaixo faz o gráfico da função acima para diferentes valores de <img src="https://latex.codecogs.com/png.latex?%5Clambda">.</p>
+<div class="cell" data-layout-align="center">
+<div class="cell-output-display">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="https:://www.restateinsight.com/posts/general-posts/repost-emv-no-r/index_files/figure-html/unnamed-chunk-3-1.svg" class="img-fluid figure-img" style="width:100.0%"></p>
+</figure>
+</div>
+</div>
+</div>
+<p>Para montar a função de log-verossimilhança começamos com a função de verossimilhança de uma observação <img src="https://latex.codecogs.com/png.latex?i"> qualquer e depois montamos a distribuição conjunta dos dados. Lembrando que a função de verossimilhança da Poisson para uma observação <img src="https://latex.codecogs.com/png.latex?i"> é dada por:</p>
+<p><img src="https://latex.codecogs.com/png.latex?%0A%20%20f(x_%7Bi%7D,%20%5Clambda)%20=%20%5Cfrac%7B%5Clambda%5E%7Bx_%7Bi%7D%7De%5E%7B-%5Clambda%7D%7D%7Bx_%7Bi%7D!%7D%0A"></p>
+<p>Supondo que a amostra é de fato aleatória, a distribuição conjunta dos dados é simplesmente o produtório das distribuições individuais, isto é:</p>
+<p><img src="https://latex.codecogs.com/png.latex?%0A%5Cbegin%7Balign%7D%0A%20%20%5Cprod_%7Bk%20=%201%7D%5E%7Bn%7D%20f(x_%7Bk%7D,%20%5Clambda)%20&amp;%20=%20%5Cprod_%7Bk%20=%201%7D%5E%7Bn%7D%20%5Cleft(%20%5Cfrac%7B%5Clambda%5E%7Bx_%7Bk%7D%7De%5E%7B-%5Clambda%7D%7D%7Bx_%7Bk%7D!%7D%20%5Cright)%20%5C%5C%0A%20%20&amp;%20=%20%5Cfrac%7B%5Clambda%5E%7B%5Csum%20x_%7Bk%7D%7D%20e%5E%7B-n%5Clambda%7D%7D%7B%5Cprod_%7Bk%20=%201%7D%5E%7Bn%7D(x_%7Bk%7D!)%7D%0A%5Cend%7Balign%7D%0A"></p>
+<p>Aplicando log chegamos na função de log-verossimilhança:</p>
+<p><img src="https://latex.codecogs.com/png.latex?%0A%5Cbegin%7Balign%7D%0A%20%20%5Cmathcal%7BL%7D(%5Clambda%20;%20x_%7B1%7D,%20%5Cdots%20,%20x_%7Bn%7D)%20&amp;%20=%20%5Ctext%7Bln%7D(%5Cprod_%7Bk%20=%201%7D%5E%7Bn%7D%20f(x_%7Bk%7D,%20%5Clambda))%20%5C%5C%0A%20%20&amp;%20=%20%5Ctext%7Bln%7D(%5Clambda%5E%7B%5Csum%20x_%7Bk%7D%7D)%20+%20%5Ctext%7Bln%7D(e%5E%7B-n%5Clambda%7D)%20-%20%5Ctext%7Bln%7D(%5Cprod_%7Bk%20=%201%7D%5E%7Bn%7D(x_%7Bk%7D!))%20%5C%5C%0A%20%20&amp;%20=%20%5Ctext%7Bln%7D(%5Clambda)%5Csum_%7Bk%20=%201%7D%5E%7Bn%7Dx_%7Bk%7D%20-%20n%5Clambda%20-%20%5Csum_%7Bk%20=%201%7D%5E%7Bn%7D%20%5Ctext%7Bln%7D(x_%7Bk%7D!)%0A%5Cend%7Balign%7D%0A"></p>
+<p>Dada uma amostra aleatória <img src="https://latex.codecogs.com/png.latex?x_%7B1%7D,%20x_%7B2%7D,%20%5Cdots%20,%20x_%7Bn%7D"> buscamos o valor de <img src="https://latex.codecogs.com/png.latex?%5Clambda"> que maximiza a função acima. Isto é, temos o seguinte problema de otimização:</p>
+<p><img src="https://latex.codecogs.com/png.latex?%0A%20%20%5Cunderset%7B%5Clambda%20%3E%200%7D%7B%5Ctext%7BMax%7D%7D%20%5Cquad%20%5Ctext%7Bln%7D(%5Clambda)%5Csum_%7Bk%20=%201%7D%5E%7Bn%7Dx_%7Bk%7D%20-%20n%5Clambda%20-%20%5Csum_%7Bk%20=%201%7D%5E%7Bn%7D%20%5Ctext%7Bln%7D(x_%7Bk%7D!)%0A"></p>
+<p>onde os valores de <img src="https://latex.codecogs.com/png.latex?x_%7Bk%7D"> são os nossos dados observados. Para implementar este procedimento no R primeiro montamos a função log-verossimilhança no código abaixo. Em seguida vamos usar a função base <code>optim</code> que resolve problemas de minimização. Como a função <code>optim</code> serve para <em>minimizar</em> funções precisamos implementar o negativo da função de log-verossimilhança (lembrando que maximizar <img src="https://latex.codecogs.com/png.latex?f(x)"> é equivalente à minimizar <img src="https://latex.codecogs.com/png.latex?-f(x)">).</p>
+<div class="cell" data-layout-align="center">
+<div class="sourceCode cell-code" id="cb2" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1">ll_pois <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="cf" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">function</span>(x, theta) {</span>
+<span id="cb2-2">    n <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">length</span>(x)</span>
+<span id="cb2-3">    ll <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">log</span>(theta) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">sum</span>(x) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span> n <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> theta <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">sum</span>(<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">log</span>(<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">factorial</span>(x)))</span>
+<span id="cb2-4">    <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">return</span>(<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span>ll)</span>
+<span id="cb2-5">}</span></code></pre></div>
+</div>
+<p>Vamos simular 1000 observações <img src="https://latex.codecogs.com/png.latex?x_%7Bi%7D%20%5Csim%20%5Ctext%7BPoisson%7D(%5Clambda%20=%205)">.</p>
+<div class="cell" data-layout-align="center">
+<div class="sourceCode cell-code" id="cb3" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb3-1">amostra <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">rpois</span>(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1000</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">lambda =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">5</span>)</span></code></pre></div>
+</div>
+<p>Podemos tornar mais claro o procedimento de estimação olhando para o gráfico da função. O código abaixo plota o gráfico da função de log-verossimilhança para valores de <img src="https://latex.codecogs.com/png.latex?%5Clambda"> no intervalo <img src="https://latex.codecogs.com/png.latex?%5B0,%2020%5D">. Note que a função parece atingir um máximo em torno de <img src="https://latex.codecogs.com/png.latex?5">, o valor verdadeiro do parâmetro.</p>
+<div class="cell" data-layout-align="center">
+<div class="sourceCode cell-code" id="cb4" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb4-1">eixo_lambda <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">seq</span>(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">20</span>, .<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">001</span>)</span>
+<span id="cb4-2"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">plot</span>(eixo_lambda, <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">ll_pois</span>(amostra, eixo_lambda), <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">type =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"l"</span>,</span>
+<span id="cb4-3">     <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">xlab =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">bquote</span>(lambda),</span>
+<span id="cb4-4">     <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">ylab =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">bquote</span>(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"L("</span><span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">~</span>lambda<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">~</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">";"</span><span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">~</span>x[<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>]<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">~</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">", ... ,"</span><span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">~</span>x[n]<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">~</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">")"</span>),</span>
+<span id="cb4-5">     <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">main =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Função log-verossimilhança da Poisson"</span>)</span>
+<span id="cb4-6"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">abline</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">v =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">5</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">col =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"indianred"</span>)</span></code></pre></div>
+<div class="cell-output-display">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="https:://www.restateinsight.com/posts/general-posts/repost-emv-no-r/index_files/figure-html/unnamed-chunk-6-1.svg" class="img-fluid figure-img" style="width:100.0%"></p>
+</figure>
+</div>
+</div>
+</div>
+<p>Para estimar <img src="https://latex.codecogs.com/png.latex?%5Clambda"> usamos a função <code>optim</code>. É preciso definir algum valor inicial para que o otimizador numérico comece a procurar pelo máximo global. Em casos mais simples, de funções globalmente côncavas, esta escolha não apresenta grandes consequências. Em casos mais complicados, o resultado da estimação pode ser bastante sensível à escolha de valor inicial porque o otimizador pode cair em máximos/mínimos locais. No final do post discuto brevemente algumas soluções. Neste exemplo escolho arbitrariamente começar no valor <img src="https://latex.codecogs.com/png.latex?1">.</p>
+<p>Neste caso também poderíamos usar o fato de que a esperança da Poisson é igual a <img src="https://latex.codecogs.com/png.latex?%5Clambda">, logo, pela Lei dos Grandes Números, a média amostral já deve estar próxima do verdadeiro valor de <img src="https://latex.codecogs.com/png.latex?%5Clambda">. Assim, poderíamos também ter escolhido <code>mean(amostra)</code> como valor inicial.</p>
+<div class="cell" data-layout-align="center">
+<div class="sourceCode cell-code" id="cb5" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb5-1">fit <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">optim</span>(</span>
+<span id="cb5-2">  <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">par =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>,</span>
+<span id="cb5-3">  <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">fn =</span> ll_pois,</span>
+<span id="cb5-4">  <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">x =</span> amostra,</span>
+<span id="cb5-5">    <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">method =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"BFGS"</span>,</span>
+<span id="cb5-6">  <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">hessian =</span> <span class="cn" style="color: #8f5902;
+background-color: null;
+font-style: inherit;">TRUE</span></span>
+<span id="cb5-7">  )</span>
+<span id="cb5-8"></span>
+<span id="cb5-9">fit</span></code></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>$par
+[1] 4.938
+
+$value
+[1] 2202.837
+
+$counts
+function gradient 
+      34        9 
+
+$convergence
+[1] 0
+
+$message
+NULL
+
+$hessian
+         [,1]
+[1,] 202.5112</code></pre>
+</div>
+</div>
+<p>A saída da função traz várias informações técnicas sobre a otimização numérica. A estimativa pontual computada foi de <img src="https://latex.codecogs.com/png.latex?4.938"> - bastante próxima do verdadeiro valor do parâmetro. Usando a função <code>str</code> podemos observar a estrutura do objeto <code>fit</code> criado acima. As principais informações que podemos extrair são as estimativas dos parâmetros <code>fit$par</code> e a hessiana calculada nestes parâmetros <code>fit$hessian</code>.</p>
+<div class="cell" data-layout-align="center">
+<div class="sourceCode cell-code" id="cb7" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb7-1"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">str</span>(fit)</span></code></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>List of 6
+ $ par        : num 4.94
+ $ value      : num 2203
+ $ counts     : Named int [1:2] 34 9
+  ..- attr(*, "names")= chr [1:2] "function" "gradient"
+ $ convergence: int 0
+ $ message    : NULL
+ $ hessian    : num [1, 1] 203</code></pre>
+</div>
+</div>
+<p>Usando a estimativa da hessiana podemos computar o erro-padrão da estimativa. Lembre que a variância assintótica do estimador de máxima verossimilhança é o inverso da matriz de informação de Fisher que pode ser expressa como o negativo do valor esperado da hessiana. Isto é, podemos encontrar a variância assintótica calculando o inverso da hessiana (como fizemos a minimização do negativo da função log-verossimilhança não precisamos calcular o negativo da hessiana).</p>
+<div class="cell" data-layout-align="center">
+<div class="sourceCode cell-code" id="cb9" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb9-1">(ep <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">sqrt</span>(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span><span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">/</span>fit<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">$</span>hess))</span></code></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>          [,1]
+[1,] 0.0702709</code></pre>
+</div>
+</div>
+<p>Com o erro-padrão podemos calcular intervalos de confiança e estatística t.</p>
+<div class="cell" data-layout-align="center">
+<div class="sourceCode cell-code" id="cb11" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb11-1">(ic <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">c</span>(fit<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">$</span>par <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1.96</span> <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> ep, fit<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">$</span>par <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1.96</span> <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> ep))</span></code></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>[1] 4.800269 5.075731</code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb13" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb13-1">(est_t <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> (fit<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">$</span>par <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">5</span>) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">/</span> ep)</span></code></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>           [,1]
+[1,] -0.8823045</code></pre>
+</div>
+</div>
+<section id="usando-o-pacote-optimx" class="level2">
+<h2 class="anchored" data-anchor-id="usando-o-pacote-optimx">Usando o pacote <code>optimx</code></h2>
+<p>A função <code>optim</code> já é bastante antiga e um novo pacote, chamado <code>optimx</code>, foi criado. A ideia do pacote é de agregar várias funções de otimização que estavam espalhadas em diversos pacotes diferentes. As principais funções do pacote são <code>optimx</code> e <code>optimr</code>. Mais informações sobre o pacote podem ser encontradas <a href="https://rdrr.io/cran/optimx/">aqui</a>.</p>
+<p>A sintaxe das funções é muito similar à sintaxe original do <code>optim</code>. O código abaixo faz o mesmo procedimento de estimação que o acima. Por padrão a função executa dois otimizadores: o BFGS e Nelder-Mead</p>
+<div class="cell" data-layout-align="center">
+<div class="sourceCode cell-code" id="cb15" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb15-1"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">summary</span>(fit <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">optimx</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">par =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">fn =</span> ll_pois, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">x =</span> amostra))</span></code></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>                p1    value fevals gevals niter convcode kkt1 kkt2 xtime
+Nelder-Mead 4.9375 2202.837     32     NA    NA        0 TRUE TRUE 0.001
+BFGS        4.9380 2202.837     34      9    NA        0 TRUE TRUE 0.002</code></pre>
+</div>
+</div>
+<p>Uma das principais vantagens do <code>optimx</code> é a possibilidade de usar vários métodos de otimização numérica numa mesma função.</p>
+<div class="cell" data-layout-align="center">
+<div class="sourceCode cell-code" id="cb17" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb17-1">fit <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">optimx</span>(</span>
+<span id="cb17-2">  <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">par =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>,</span>
+<span id="cb17-3">  <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">fn =</span> ll_pois,</span>
+<span id="cb17-4">  <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">x =</span> amostra,</span>
+<span id="cb17-5">  <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">method =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">c</span>(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"nlm"</span>, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"BFGS"</span>, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Rcgmin"</span>, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"nlminb"</span>)</span>
+<span id="cb17-6">  )</span>
+<span id="cb17-7"></span>
+<span id="cb17-8">fit</span></code></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>             p1    value fevals gevals niter convcode kkt1 kkt2 xtime
+nlm    4.937998 2202.837     NA     NA     8        0 TRUE TRUE 0.001
+BFGS   4.938000 2202.837     34      9    NA        0 TRUE TRUE 0.002
+Rcgmin 4.937999 2202.837    708    112    NA        1 TRUE TRUE 0.039
+nlminb 4.938000 2202.837     10     12     9        0 TRUE TRUE 0.001</code></pre>
+</div>
+</div>
+<p>Como este exemplo é bastante simples os diferentes métodos parecem convergir para valores muito parecidos.</p>
+</section>
+<section id="usando-o-pacote-maxlik" class="level2">
+<h2 class="anchored" data-anchor-id="usando-o-pacote-maxlik">Usando o pacote maxLik</h2>
+<p>A função maxLik (do pacote homônimo) traz algumas comodidades: primeiro, ela maximiza as funções de log-verossimilhança, ou seja, <em>não é preciso montar a função com sinal de menos</em> como fizemos acima; segundo, ela já <em>calcula erros-padrão e estatísticas-t dos coeficientes estimados</em>. Além disso, ela também facilita a implementação de gradientes e hessianas analíticos e conta com métodos de otimização bastante populares como o BHHH. Mais detalhes sobre a função e o pacote podem ser encontradas <a href="https://www.researchgate.net/publication/227354660_MaxLik_A_package_for_maximum_likelihood_estimation_in_R">aqui</a>.</p>
+<p>Para usar a função precisamos primeiro reescrever a função log-verossimilhança, pois agora não precisamos mais buscar o negativo da função. Como o R já vem com as funções de densidade de várias distribuições podemos tornar o código mais enxuto usando o <code>dpois</code> que implementa a função densidade da Poisson. O argumento <code>log = TRUE</code> retorna as probabilidades <img src="https://latex.codecogs.com/png.latex?p"> como <img src="https://latex.codecogs.com/png.latex?log(p)">.</p>
+<div class="cell" data-layout-align="center">
+<div class="sourceCode cell-code" id="cb19" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb19-1">ll_pois <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="cf" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">function</span>(x, theta) {</span>
+<span id="cb19-2">    ll <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">dpois</span>(x, theta, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">log =</span> <span class="cn" style="color: #8f5902;
+background-color: null;
+font-style: inherit;">TRUE</span>)</span>
+<span id="cb19-3">    <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">return</span>(<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">sum</span>(ll))</span>
+<span id="cb19-4">}</span></code></pre></div>
+</div>
+<p>O comando abaixo executa a estimação. Note que a saída agora traz várias informações relevantes.</p>
+<div class="cell" data-layout-align="center">
+<div class="sourceCode cell-code" id="cb20" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb20-1"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">summary</span>(fit <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">maxLik</span>(ll_pois, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">start =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">x =</span> amostra))</span></code></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>--------------------------------------------
+Maximum Likelihood estimation
+Newton-Raphson maximisation, 8 iterations
+Return code 8: successive function values within relative tolerance limit (reltol)
+Log-Likelihood: -2202.837 
+1  free parameters
+Estimates:
+     Estimate Std. error t value Pr(&gt; t)    
+[1,]  4.93800    0.07617   64.83  &lt;2e-16 ***
+---
+Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+--------------------------------------------</code></pre>
+</div>
+</div>
+<p>Podemos implementar manualmente o gradiente e a hessiana da função. Neste caso, a estimativa do parâmetro continua a mesma mas o erro-padrão diminui um pouco. Note que também podemos fornecer estas informações para a função <code>optimx</code>. Derivando a função de log-verossimilhança:</p>
+<p><img src="https://latex.codecogs.com/png.latex?%0A%5Cbegin%7Balign%7D%0A%20%20%5Cfrac%7B%5Cpartial%20%5Cmathcal%7BL%7D(%5Clambda%20;%20x)%7D%7B%5Cpartial%5Clambda%7D%20&amp;%20=%20%5Cfrac%7B1%7D%7B%5Clambda%7D%5Csum_%7Bk%20=%201%7D%5E%7Bn%7Dx_%7Bk%7D%20-%20n%20%5C%5C%0A%20%20%5Cfrac%7B%5Cpartial%5E2%20%5Cmathcal%7BL%7D(%5Clambda%20;%20x)%7D%7B%5Cpartial%5Clambda%5E2%7D%20&amp;%20=%20-%5Cfrac%7B1%7D%7B%5Clambda%5E2%7D%5Csum_%7Bk%20=%201%7D%5E%7Bn%7Dx_%7Bk%7D%0A%5Cend%7Balign%7D%0A"></p>
+<p>O código abaixo implementa o gradiente e a hessiana e faz a estimação. O valor estimado continua praticamente o mesmo, mas o erro-padrão fica menor.</p>
+<div class="cell" data-layout-align="center">
+<div class="sourceCode cell-code" id="cb22" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb22-1">grad_pois <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="cf" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">function</span>(x, theta) {</span>
+<span id="cb22-2">  (<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span> <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">/</span> theta) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">sum</span>(x) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">length</span>(x)</span>
+<span id="cb22-3">  }</span>
+<span id="cb22-4"></span>
+<span id="cb22-5">hess_pois <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="cf" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">function</span>(x, theta) {</span>
+<span id="cb22-6">    <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span>(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span> <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">/</span> theta<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">^</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2</span>) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">sum</span>(x)</span>
+<span id="cb22-7">}</span>
+<span id="cb22-8"></span>
+<span id="cb22-9">fit2 <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">maxLik</span>(</span>
+<span id="cb22-10">  ll_pois,</span>
+<span id="cb22-11">  <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">grad =</span> grad_pois,</span>
+<span id="cb22-12">  <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">hess =</span> hess_pois,</span>
+<span id="cb22-13">  <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">start =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>,</span>
+<span id="cb22-14">  <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">x =</span> amostra</span>
+<span id="cb22-15">  )</span>
+<span id="cb22-16"></span>
+<span id="cb22-17"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">summary</span>(fit2)</span></code></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>--------------------------------------------
+Maximum Likelihood estimation
+Newton-Raphson maximisation, 7 iterations
+Return code 1: gradient close to zero (gradtol)
+Log-Likelihood: -2202.837 
+1  free parameters
+Estimates:
+     Estimate Std. error t value Pr(&gt; t)    
+[1,]  4.93800    0.07027   70.27  &lt;2e-16 ***
+---
+Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+--------------------------------------------</code></pre>
+</div>
+</div>
+</section>
+</section>
+<section id="exemplo-com-a-distribuição-normal" class="level1">
+<h1>Exemplo com a distribuição normal</h1>
+<p>A distribuição normal tem dois parâmetros: <img src="https://latex.codecogs.com/png.latex?%5Cmu"> e <img src="https://latex.codecogs.com/png.latex?%5Csigma">. Lembrando que o primeiro indica a média e o segundo a desvio-padrão. A função de densidade de probabilidade é dada por:</p>
+<p><img src="https://latex.codecogs.com/png.latex?%0A%20%20f(x,%20%5Ctheta)%20=%20%5Cfrac%7B1%7D%7B%5Csqrt%7B2%5Cpi%5Csigma%5E%7B2%7D%7D%7D%5Ctext%7Bexp%7D%5Cleft(%5Cfrac%7B-(x%20-%20%5Cmu)%5E2%7D%7B2%5Csigma%5E%7B2%7D%7D%5Cright)%0A"></p>
+<p>onde <img src="https://latex.codecogs.com/png.latex?%5Ctheta%20=%20(%5Cmu,%20%5Csigma)">. O gráfico abaixo mostra como o formato da função varia conforme o valor destes parâmetros. Basicamente, quando a média aumenta, estamos “deslocando para a direita” e quando aumentamos o desvio-padrão estamos “achatando” a distribuição.</p>
+<div class="cell" data-layout-align="center">
+<div class="cell-output-display">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="https:://www.restateinsight.com/posts/general-posts/repost-emv-no-r/index_files/figure-html/unnamed-chunk-16-1.svg" class="img-fluid figure-img" style="width:100.0%"></p>
+</figure>
+</div>
+</div>
+</div>
+<p>Lembrando que a função de distribuição de probabilidade da normal para uma observação <img src="https://latex.codecogs.com/png.latex?i"></p>
+<p><img src="https://latex.codecogs.com/png.latex?%0A%20%20f(x_%7Bi%7D,%20%5Ctheta)%20=%20%5Cfrac%7B1%7D%7B%5Csqrt%7B2%5Cpi%5Csigma%5E%7B2%7D%7D%7De%5E%7B%5Cfrac%7B-(x_%7Bi%7D%20-%20%5Cmu)%5E2%7D%7B2%5Csigma%5E%7B2%7D%7D%7D%0A"></p>
+<p>Fazendo o produtório da expressão acima para cada <img src="https://latex.codecogs.com/png.latex?i"></p>
+<p><img src="https://latex.codecogs.com/png.latex?%0A%20%20%5Cprod_%7Bi%20=%201%7D%5E%7BN%7Df(x_%7Bi%7D,%20%5Ctheta)%20=%20(2%5Cpi%5Csigma%5E%7B2%7D)%5E%7B-%5Cfrac%7BN%7D%7B2%7D%7D%5Ctext%7Bexp%7D%5Cleft(%20-%5Cfrac%7B1%7D%7B2%5Csigma%5E%7B2%7D%7D%5Cprod_%7Bi%20=%201%7D%5E%7BN%7D(x_%7Bi%7D%20-%20%5Cmu)%5E2%5Cright)%0A"></p>
+<p>e agora passando log, temos:</p>
+<p><img src="https://latex.codecogs.com/png.latex?%0A%20%20L(x_%7Bi%7D,%20%5Ctheta)%20=%20-%5Cfrac%7BN%7D%7B2%7D%5Ctext%7Bln%7D(2%5Cpi)%20-N%5Ctext%7Bln%7D(%5Csigma)%20-%5Cfrac%7B1%7D%7B2%5Csigma%5E%7B2%7D%7D%5Csum_%7Bi%20=%201%7D%5E%7BN%7D(x_%7Bi%7D%20-%20%5Cmu)%5E%7B2%7D%0A"></p>
+<p>Montamos a função log-verossimilhança usando a função <code>dnorm</code></p>
+<div class="cell" data-layout-align="center">
+<div class="sourceCode cell-code" id="cb24" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb24-1">ll_norm <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="cf" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">function</span>(theta) {</span>
+<span id="cb24-2">    ll <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">dnorm</span>(x, theta[<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>], theta[<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2</span>], <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">log =</span> <span class="cn" style="color: #8f5902;
+background-color: null;
+font-style: inherit;">TRUE</span>)</span>
+<span id="cb24-3">    <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">sum</span>(ll)</span>
+<span id="cb24-4">}</span></code></pre></div>
+</div>
+<p>Vamos simular uma amostra aleatória <img src="https://latex.codecogs.com/png.latex?x_%7B1%7D,%20x_%7B2%7D,%20%5Cdots,%20x_%7B1000%7D"> onde cada <img src="https://latex.codecogs.com/png.latex?x_%7Bi%7D"> segue uma distribuição normal com média <img src="https://latex.codecogs.com/png.latex?2"> e desvio-padrão <img src="https://latex.codecogs.com/png.latex?3"> (i.e., variância <img src="https://latex.codecogs.com/png.latex?9">).</p>
+<p>Primeiro vamos usar a função <code>optimx</code></p>
+<div class="cell" data-layout-align="center">
+<div class="sourceCode cell-code" id="cb25" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb25-1"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># warnings por causa dos valores negativos no log</span></span>
+<span id="cb25-2">x <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">rnorm</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">n =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1000</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">mean =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">sd =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">3</span>)</span>
+<span id="cb25-3">(fit <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">optimx</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">par =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">c</span>(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>), <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">fn =</span> ll_norm, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">method =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"BFGS"</span>))</span></code></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>           p1       p2    value fevals gevals niter convcode kkt1 kkt2 xtime
+BFGS 2.138082 3.058111 2536.736     47     20    NA        0 TRUE TRUE 0.003</code></pre>
+</div>
+</div>
+<p>Note que a função retorna mensagens de erro indicando que a função retornou <em>NaNs</em>. Isto acontece porque o otimizador experimenta valores não-positivos para <img src="https://latex.codecogs.com/png.latex?%5Csigma"> e isto não é admissível pois <img src="https://latex.codecogs.com/png.latex?%5Ctext%7Bln%7D(%5Csigma)">, que aparece no segundo termo da equação acima, não é definido para <img src="https://latex.codecogs.com/png.latex?%5Csigma%20%3C%200">. Além disso, <img src="https://latex.codecogs.com/png.latex?%5Csigma"> não pode ser igual a zero pois ele aparece no denominador do último termo à direita da expressão da log-verossimilhança.</p>
+<p>Intuitivamente isto é bastante óbvio: <img src="https://latex.codecogs.com/png.latex?%5Csigma"> representa o desvio-padrão da distribuição e <img src="https://latex.codecogs.com/png.latex?%5Csigma%5E%7B2%7D"> a sua variância: não podemos ter valores negativos ou nulos para estas expressões.</p>
+<p>Podemos restringir os valores dos parâmetros usando os argumentos <code>upper</code> e <code>lower</code> para evitar as mensagens de <code>warning</code>, mas, na prática, isto não costuma fazer diferença no resultado final da estimação. Note que podemos deixar a restrição livre usando <code>Inf</code> e <code>-Inf</code> que correspondem a <img src="https://latex.codecogs.com/png.latex?%5Cinfty"> e <img src="https://latex.codecogs.com/png.latex?-%5Cinfty">.</p>
+<div class="cell" data-layout-align="center">
+<div class="sourceCode cell-code" id="cb27" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb27-1">fit <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">optimx</span>(</span>
+<span id="cb27-2">  <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">par =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">c</span>(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>),</span>
+<span id="cb27-3">  <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">fn =</span> ll_norm,</span>
+<span id="cb27-4">  <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">method =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"L-BFGS-B"</span>,</span>
+<span id="cb27-5">  <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">upper =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">c</span>(<span class="cn" style="color: #8f5902;
+background-color: null;
+font-style: inherit;">Inf</span>, <span class="cn" style="color: #8f5902;
+background-color: null;
+font-style: inherit;">Inf</span>),</span>
+<span id="cb27-6">  <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">lower =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">c</span>(<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span><span class="cn" style="color: #8f5902;
+background-color: null;
+font-style: inherit;">Inf</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>)</span>
+<span id="cb27-7">  )</span>
+<span id="cb27-8"></span>
+<span id="cb27-9">fit</span></code></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>               p1       p2    value fevals gevals niter convcode kkt1 kkt2
+L-BFGS-B 2.138093 3.058112 2536.736     11     11    NA        0 TRUE TRUE
+         xtime
+L-BFGS-B 0.001</code></pre>
+</div>
+</div>
+</section>
+<section id="propriedades-dos-estimadores-de-mv" class="level1">
+<h1>Propriedades dos estimadores de MV</h1>
+<p>A teoria dos estimadores de máxima verossimilhança nos garante que eles são <em>consistentes</em> (i.e.&nbsp;que eles aproximam o valor verdadeiro dos parâmetros) e <em>normalmente assintóticos</em> (a distribuição assintótica segue uma distribuição normal) desde que algumas condições de regularidade sejam atentdidas.</p>
+<p>Podemos demonstrar ambas as propriedades fazendo algumas simulações no <code>R</code>.</p>
+<section id="consistência" class="level2">
+<h2 class="anchored" data-anchor-id="consistência">Consistência</h2>
+<p>Vamos montar um experimento simples: simulamos 5000 amostras aleatórias de tamanho 1000 seguindo uma distribuição <img src="https://latex.codecogs.com/png.latex?N(2,%203)">; computamos as estimativas para <img src="https://latex.codecogs.com/png.latex?%5Cmu"> e <img src="https://latex.codecogs.com/png.latex?%5Csigma"> e suas respectivas variâncias assintóticas e depois analisamos suas propriedades.</p>
+<ol type="1">
+<li>Simular uma amostra segundo uma distribuição.</li>
+<li>Estimata os parâmetros da distribuição.</li>
+<li>Calcula a variância assintótica dos estimadores.</li>
+<li>Repete 5000 vezes os passos 1-3.</li>
+</ol>
+<p>O código abaixo implementa exatamente este experimento. Note que a matriz de informação de Fisher é aproximada pela hessiana.</p>
+<div class="cell" data-layout-align="center">
+<div class="sourceCode cell-code" id="cb29" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb29-1">r <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">5000</span></span>
+<span id="cb29-2">n <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1000</span></span>
+<span id="cb29-3"></span>
+<span id="cb29-4">estimativas <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">matrix</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">ncol =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">4</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">nrow =</span> r)</span>
+<span id="cb29-5"></span>
+<span id="cb29-6"><span class="cf" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">for</span>(i <span class="cf" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">in</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span><span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">:</span>r) {</span>
+<span id="cb29-7">    x <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">rnorm</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">n =</span> n, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">mean =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">sd =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">3</span>)</span>
+<span id="cb29-8">    </span>
+<span id="cb29-9">    fit <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">optimr</span>(</span>
+<span id="cb29-10">      <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">par =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">c</span>(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>),</span>
+<span id="cb29-11">      <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">fn =</span> ll_norm,</span>
+<span id="cb29-12">      <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">method =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"BFGS"</span>,</span>
+<span id="cb29-13">      <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">hessian =</span> <span class="cn" style="color: #8f5902;
+background-color: null;
+font-style: inherit;">TRUE</span></span>
+<span id="cb29-14">      )</span>
+<span id="cb29-15">    <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># Guarda o valor estimado do parâmetro</span></span>
+<span id="cb29-16">    estimativas[i, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span><span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">:</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2</span>] <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> fit<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">$</span>par</span>
+<span id="cb29-17">    estimativas[i, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">3</span><span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">:</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">4</span>] <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">diag</span>(n <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">solve</span>(fit<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">$</span>hess))</span>
+<span id="cb29-18">}</span></code></pre></div>
+</div>
+<p>A <em>consistência</em> dos estimadores <img src="https://latex.codecogs.com/png.latex?%5Chat%7B%5Ctheta%7D_%7BMV%7D"> significa que eles aproximam os valores verdadeiros do parâmetros <img src="https://latex.codecogs.com/png.latex?%5Ctheta_%7B0%7D"> à medida que aumenta o tamanho da amostra. Isto é, se tivermos uma amostra grande <img src="https://latex.codecogs.com/png.latex?%5Cmathbb%7BN%7D%20%5Cto%20%5Cinfty"> então podemos ter confiança de que nossos estimadores estão muito próximos dos valores verdadeiros dos parâmetros <img src="https://latex.codecogs.com/png.latex?%5Chat%7B%5Ctheta%7D_%7B%5Ctext%7BMV%7D%7D%20%5Cto%20%5Ctheta_%7B0%7D"></p>
+<p>O código abaixo calcula a média das estimativas para cada parâmetro - lembrando que <img src="https://latex.codecogs.com/png.latex?%5Cmu_%7B0%7D%20=%202"> e que <img src="https://latex.codecogs.com/png.latex?%5Csigma_%7B0%7D%20=%203">. Além disso, o histograma das estimativas mostra como as estimativas concentram-se em torno do valor verdadeiro do parâmetro (indicado pela linha vertical).</p>
+<div class="cell" data-layout-align="center">
+<div class="sourceCode cell-code" id="cb30" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb30-1"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># | fig-width: 10</span></span>
+<span id="cb30-2"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">par</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">mfrow =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">c</span>(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2</span>))</span>
+<span id="cb30-3"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># Consistência dos estimadores de MV</span></span>
+<span id="cb30-4">mu <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> estimativas[, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>]; sigma <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> estimativas[, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2</span>]</span>
+<span id="cb30-5"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">mean</span>(mu)</span></code></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>[1] 2.000883</code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb32" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb32-1"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">mean</span>(sigma)</span></code></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>[1] 2.997335</code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb34" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb34-1"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">hist</span>(mu, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">main =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">bquote</span>(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Estimativas para "</span><span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">~</span><span class="er" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">~</span>mu), <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">freq =</span> <span class="cn" style="color: #8f5902;
+background-color: null;
+font-style: inherit;">FALSE</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">xlim =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">c</span>(<span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1.5</span>, <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2.5</span>))</span>
+<span id="cb34-2"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">abline</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">v =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">col =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"indianred"</span>)</span>
+<span id="cb34-3"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">hist</span>(sigma, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">main =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">bquote</span>(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Estimativas para "</span><span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">~</span><span class="er" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">~</span>sigma), <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">freq =</span> <span class="cn" style="color: #8f5902;
+background-color: null;
+font-style: inherit;">FALSE</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">xlim =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">c</span>(<span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2.7</span>, <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">3.3</span>))</span>
+<span id="cb34-4"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">abline</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">v =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">3</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">col =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"indianred"</span>)</span></code></pre></div>
+<div class="cell-output-display">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="https:://www.restateinsight.com/posts/general-posts/repost-emv-no-r/index_files/figure-html/unnamed-chunk-21-1.svg" class="img-fluid figure-img" style="width:100.0%"></p>
+</figure>
+</div>
+</div>
+</div>
+</section>
+<section id="normalmente-assintótico" class="level2">
+<h2 class="anchored" data-anchor-id="normalmente-assintótico">Normalmente assintótico</h2>
+<p>Dizemos que os estimadores de máxima verossimilhança são normalmente assintóticos porque a sua distribuição assintótica segue uma normal padrão. Especificamente, temos que:</p>
+<p><img src="https://latex.codecogs.com/png.latex?%0Az_%7B%5Ctheta%7D%20=%20%5Csqrt%7BN%7D%5Cfrac%7B%5Chat%7B%5Ctheta%7D_%7BMV%7D%20-%20%5Ctheta%7D%7B%5Csqrt%7B%5Ctext%7BV%7D_%7Bast%7D%7D%7D%20%5Cto%20%5Cmathbb%7BN%7D(0,%201)%0A"></p>
+<p>onde <img src="https://latex.codecogs.com/png.latex?%5Ctext%7BV%7D_%7Bast%7D"> é a variância assintótica do estimador. O código abaixo calcula a expressão acima para os dois parâmetros e apresenta o histograma dos dados com uma normal padrão superimposta.</p>
+<p>No loop acima usamos o fato que a matriz de informação de Fisher pode ser estimada pela hessiana. O código abaixo calcula a expressão acima para os dois parâmetros e apresenta o histograma dos dados com uma normal padrão superimposta.</p>
+<div class="cell" data-layout-align="center">
+<div class="sourceCode cell-code" id="cb35" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb35-1"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># Normalidade assintótica</span></span>
+<span id="cb35-2"></span>
+<span id="cb35-3"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># Define objetos para facilitar a compreensão</span></span>
+<span id="cb35-4">mu_hat <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> estimativas[, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>]</span>
+<span id="cb35-5">sigma_hat <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> estimativas[, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2</span>]</span>
+<span id="cb35-6">var_mu_hat <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> estimativas[, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">3</span>]</span>
+<span id="cb35-7">var_sg_hat <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> estimativas[, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">4</span>]</span>
+<span id="cb35-8"></span>
+<span id="cb35-9"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># Centra a estimativa</span></span>
+<span id="cb35-10">mu_centrado <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> mu_hat <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2</span> </span>
+<span id="cb35-11">sigma_centrado <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> sigma_hat <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">3</span></span>
+<span id="cb35-12"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># Computa z_mu z_sigma</span></span>
+<span id="cb35-13">mu_normalizado <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">sqrt</span>(n) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> mu_centrado <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">/</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">sqrt</span>(var_mu_hat)</span>
+<span id="cb35-14">sigma_normalizado <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">sqrt</span>(n) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> sigma_centrado <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">/</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">sqrt</span>(var_sg_hat)</span></code></pre></div>
+</div>
+<div class="cell" data-layout-align="center">
+<div class="sourceCode cell-code" id="cb36" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb36-1"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># Monta o gráfico para mu</span></span>
+<span id="cb36-2"></span>
+<span id="cb36-3"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># Eixo x</span></span>
+<span id="cb36-4">grid_x <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">seq</span>(<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">3</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">3</span>, <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.01</span>)</span>
+<span id="cb36-5"></span>
+<span id="cb36-6"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">hist</span>(</span>
+<span id="cb36-7">  mu_normalizado,</span>
+<span id="cb36-8">  <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">main =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">bquote</span>(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Histograma de 5000 simulações para z"</span>[mu]),</span>
+<span id="cb36-9">  <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">freq =</span> <span class="cn" style="color: #8f5902;
+background-color: null;
+font-style: inherit;">FALSE</span>,</span>
+<span id="cb36-10">  <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">xlim =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">c</span>(<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">3</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">3</span>),</span>
+<span id="cb36-11">  <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">breaks =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"fd"</span>,</span>
+<span id="cb36-12">  <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">xlab =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">bquote</span>(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"z"</span>[mu]),</span>
+<span id="cb36-13">  <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">ylab =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Densidade"</span></span>
+<span id="cb36-14">  )</span>
+<span id="cb36-15"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">lines</span>(grid_x, <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">dnorm</span>(grid_x, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">mean =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">sd =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>), <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">col =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"dodgerblue"</span>)</span>
+<span id="cb36-16"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">legend</span>(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"topright"</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">lty =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">col =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"dodgerblue"</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">legend =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Normal (0, 1)"</span>)</span></code></pre></div>
+<div class="cell-output-display">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="https:://www.restateinsight.com/posts/general-posts/repost-emv-no-r/index_files/figure-html/unnamed-chunk-23-1.svg" class="img-fluid figure-img" style="width:100.0%"></p>
+</figure>
+</div>
+</div>
+</div>
+<div class="cell" data-layout-align="center">
+<div class="sourceCode cell-code" id="cb37" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb37-1"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># Monta o gráfico para sigma2</span></span>
+<span id="cb37-2"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">hist</span>(</span>
+<span id="cb37-3">  sigma_normalizado,</span>
+<span id="cb37-4">  <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">main =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">bquote</span>(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Histograma de 5000 simulações para z"</span>[sigma]),</span>
+<span id="cb37-5">  <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">freq =</span> <span class="cn" style="color: #8f5902;
+background-color: null;
+font-style: inherit;">FALSE</span>,</span>
+<span id="cb37-6">  <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">xlim =</span><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">c</span>(<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">3</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">3</span>),</span>
+<span id="cb37-7">  <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">breaks =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"fd"</span>,</span>
+<span id="cb37-8">  <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">xlab =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">bquote</span>(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"z"</span>[sigma]),</span>
+<span id="cb37-9">  <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">ylab =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Densidade"</span></span>
+<span id="cb37-10">  )</span>
+<span id="cb37-11"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">lines</span>(grid_x, <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">dnorm</span>(grid_x, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">mean =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">sd =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>), <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">col =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"dodgerblue"</span>)</span>
+<span id="cb37-12"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">legend</span>(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"topright"</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">lty =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">col =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"dodgerblue"</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">legend =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Normal (0, 1)"</span>)</span></code></pre></div>
+<div class="cell-output-display">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="https:://www.restateinsight.com/posts/general-posts/repost-emv-no-r/index_files/figure-html/unnamed-chunk-24-1.svg" class="img-fluid figure-img" style="width:100.0%"></p>
+</figure>
+</div>
+</div>
+</div>
+</section>
+<section id="escolha-de-valores-inicias" class="level2">
+<h2 class="anchored" data-anchor-id="escolha-de-valores-inicias">Escolha de valores inicias</h2>
+<p>Como comentei acima, o método de estimação por MV exige que o usuário escolha valores iniciais (chutes) para os parâmetros que se quer estimar.</p>
+<p>O exemplo abaixo mostra o caso em que a escolha de valores iniciais impróprios leva a estimativas muito ruins.</p>
+<div class="cell" data-layout-align="center">
+<div class="sourceCode cell-code" id="cb38" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb38-1"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># sensível a escolha de valores inicias</span></span>
+<span id="cb38-2">x <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">rnorm</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">n =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1000</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">mean =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">15</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">sd =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">4</span>)</span>
+<span id="cb38-3">fit <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">optim</span>(</span>
+<span id="cb38-4">  <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">par =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">c</span>(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>),</span>
+<span id="cb38-5">  <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">fn =</span> ll_norm,</span>
+<span id="cb38-6">  <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">method =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"BFGS"</span>,</span>
+<span id="cb38-7">  <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">hessian =</span> <span class="cn" style="color: #8f5902;
+background-color: null;
+font-style: inherit;">TRUE</span></span>
+<span id="cb38-8">  )</span>
+<span id="cb38-9"></span>
+<span id="cb38-10">fit</span></code></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>$par
+[1] 618.6792 962.0739
+
+$value
+[1] 7984.993
+
+$counts
+function gradient 
+     107      100 
+
+$convergence
+[1] 1
+
+$message
+NULL
+
+$hessian
+             [,1]          [,2]
+[1,]  0.001070703 -0.0013531007
+[2,] -0.001353101  0.0001884928</code></pre>
+</div>
+</div>
+<p>Note que as estimativas estão muito distantes dos valores corretos <img src="https://latex.codecogs.com/png.latex?%5Cmu%20=%2015"> e <img src="https://latex.codecogs.com/png.latex?%5Csigma%20=%204">. Uma das soluções, já mencionada acima, é de usar os momentos da distribuição como valores iniciais.</p>
+<p>O código abaixo usa os momentos empíricos como valores inicias para <img src="https://latex.codecogs.com/png.latex?%5Cmu"> e <img src="https://latex.codecogs.com/png.latex?%5Csigma">:</p>
+<p><img src="https://latex.codecogs.com/png.latex?%0A%5Cbegin%7Balign%7D%0A%20%20%5Cmu_%7Binicial%7D%20&amp;%20=%20%5Cfrac%7B1%7D%7Bn%7D%5Csum_%7Bi%20=%201%7D%5E%7Bn%7Dx_%7Bi%7D%20%5C%5C%0A%20%20%5Csigma_%7Binicial%7D%20&amp;%20=%20%5Csqrt%7B%5Cfrac%7B1%7D%7Bn%7D%20%5Csum_%7Bi%20=%201%7D%5E%7Bn%7D%20(x_%7Bi%7D%20-%20%5Cmu_%7Binicial%7D)%5E2%7D%0A%5Cend%7Balign%7D%0A"></p>
+<div class="cell" data-layout-align="center">
+<div class="sourceCode cell-code" id="cb40" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb40-1">(chute_inicial <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">c</span>(<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">mean</span>(x), <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">sqrt</span>(<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">var</span>(x))))</span></code></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>[1] 14.859702  3.930849</code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb42" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb42-1">(est <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">optimx</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">par =</span> chute_inicial, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">fn =</span> ll_norm))</span></code></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>                  p1       p2    value fevals gevals niter convcode kkt1 kkt2
+Nelder-Mead 14.85997 3.929097 2787.294     47     NA    NA        0 TRUE TRUE
+BFGS        14.85970 3.928884 2787.294     15      2    NA        0 TRUE TRUE
+            xtime
+Nelder-Mead 0.001
+BFGS        0.001</code></pre>
+</div>
+</div>
+<p>Agora as estimativas estão muito melhores. Outra opção é experimentar com otimizadores diferentes. Aqui a função <code>optimx</code> se prova bastante conveniente pois admite uma grande variedade de métodos de otimizãção.</p>
+<p>Note como os métodos BFGS e CG retornam valores muito distantes dos verdadeiros. Já o método <code>bobyqa</code> retorna um valor corretor para o parâmetro da média, mas erra no parâmetro da variânica. Já os métodos <code>nlminb</code> e <code>Nelder-Mead</code> ambos retornam os valores corretos.</p>
+<div class="cell" data-layout-align="center">
+<div class="sourceCode cell-code" id="cb44" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb44-1"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># Usando outros métodos numéricos</span></span>
+<span id="cb44-2"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">optimx</span>(</span>
+<span id="cb44-3">  <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">par =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">c</span>(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>),</span>
+<span id="cb44-4">  <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">fn =</span> ll_norm,</span>
+<span id="cb44-5">  <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">method =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">c</span>(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"BFGS"</span>, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Nelder-Mead"</span>, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"CG"</span>, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"nlminb"</span>, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"bobyqa"</span>)</span>
+<span id="cb44-6">  )</span></code></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>                   p1         p2    value fevals gevals niter convcode  kkt1
+BFGS        618.67917 962.073907 7984.993    107    100    NA        1  TRUE
+Nelder-Mead  14.85571   3.929621 2787.294     83     NA    NA        0  TRUE
+CG           46.43586 628.570987 7358.601    204    101    NA        1  TRUE
+nlminb       14.85970   3.928883 2787.294     23     47    19        0  TRUE
+bobyqa       15.20011   8.993240 3211.556    109     NA    NA        0 FALSE
+             kkt2 xtime
+BFGS        FALSE 0.007
+Nelder-Mead  TRUE 0.001
+CG          FALSE 0.008
+nlminb       TRUE 0.001
+bobyqa      FALSE 0.033</code></pre>
+</div>
+</div>
+<p>Vale notar também alguns detalhes técnicos da saída. Em particular, <code>convcode == 0</code> significa que o otimizador conseguiu convergir com sucesso, enquanto <code>convcode == 1</code> indica que o otimizador chegou no límite máximo de iterações sem convergir. Vemos que tanto o BFGS e o CG falharam em convergir e geraram os piores resultados.</p>
+<p>Já o <code>kkt1</code> e <code>kkt2</code> verificam as condições de Karush-Kuhn-Tucker (às vezes apresentadas apenas como condições de Kuhn-Tucker). Resumidamente, a primeira condição verifica a parte <em>necessária</em> do teorema enquanto a segunda condição verifica a parte <em>suficiente</em>. Note que o <code>bobyqa</code> falha em ambas as condições (pois ele não é feito para este tipo de problema).</p>
+<p>Os métodos que retornam os melhores valores, o <code>Nelder-Mead</code> e <code>nlminb</code> são os únicos que convergiram com sucesso e que atenderam a ambas as condições de KKT. Logo, quando for comparar os resltados de vários otimizadores distintos, vale estar atento a estes valores.</p>
+<p>Mais detalhes sobre os métodos podem ser encontrados na página de ajuda da função <code>?optimx</code>.</p>
+
+
+</section>
+</section>
+
+ ]]></description>
+  <category>econometria</category>
+  <category>tutorial-R</category>
+  <category>repost</category>
+  <guid>https:://www.restateinsight.com/posts/general-posts/repost-emv-no-r/index.html</guid>
+  <pubDate>Sat, 01 Feb 2020 03:00:00 GMT</pubDate>
+  <media:content url="https:://www.restateinsight.com/static/emv-r.svg" medium="image" type="image/svg+xml"/>
 </item>
 </channel>
 </rss>

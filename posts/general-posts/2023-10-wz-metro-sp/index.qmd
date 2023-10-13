@@ -1,0 +1,37 @@
+---
+title: "Weekly Viz - Metro em São Paulo"
+date: "2023-10-27"
+execute: 
+  echo: false
+  warning: false
+  message: false
+draft: true
+---
+
+```{r}
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+library(here)
+
+metro <- readr::read_csv(here("static/data/metro_sp.csv"), show_col_types = FALSE)
+```
+
+```{r}
+metro <- metro |> 
+  mutate(
+    metro_line = factor(
+      metro_line,
+      levels = c("azul", "verde", "vermelha", "lilas", "prata"),
+      labels = c("1-Azul", "2-Verde", "3-Vermelha", "5-Lilás", "15-Prata")
+      )
+  )
+
+ggplot(metro, aes(x = date, y = value, color = metro_line)) +
+  geom_line() +
+  geom_point() +
+  facet_grid(rows = vars(metric), cols = vars(variable), scales = "free_y") +
+  scale_color_manual(
+    values = c("#377EB8", "#4DAF4A", "#E41A1C", "#984EA3", "#999999")
+  )
+```
