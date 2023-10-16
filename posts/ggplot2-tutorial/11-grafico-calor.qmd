@@ -27,10 +27,15 @@ knitr::opts_chunk$set(
   fig.asp = 0.618,
   out.width = "100%",
   fig.retina = 2,
+  fig.dev = "svg",
   dpi = 72
   )
 
-library(tidyverse)
+library(ggplot2)
+library(forcats)
+library(tidyr)
+library(dplyr)
+library(stringr)
 library(pwt10)
 library(patchwork)
 
@@ -90,11 +95,11 @@ p2 <- ggplot(faithfuld, aes(waiting, eruptions)) +
 p1 + p2
 ```
 
-O pacote `ggplot2` não tem uma única função para montar mapas de calor, então vamos explorar uma abordagem simples focada na função `geom_tile()`. Contudo, é possível montar mapas de calor também com as funções `geom_bin_2d()`, `geom_density_2d()`, `geom_raster()` ou `geom_hex()`.
+O pacote `ggplot2` não tem uma função única para montar mapas de calor, então vamos explorar uma abordagem simples focada na função `geom_tile()`. Contudo, é possível montar mapas de calor também com as funções `geom_bin_2d()`, `geom_density_2d()`, `geom_raster()` ou `geom_hex()`.
 
 Neste post vamos nos focar em mapas de clusters para depois apresentar apenas brevemente alguns mapas de calor.
 
-O código abaixo carrega os pacotes necessários. Para a paleta de cores vou utilizar o pacote `MetBrewer`, que oferece algumas paletas de cores interessantes, inspiradas em artistas famosos do [Metropolitan Museum de NY.](https://github.com/BlakeRMills/MetBrewer). O pacote `pwt10` carrega a base de dados da Penn World Table que traz uma série de informações socioeconômicas dos países ao longo dos anos. Por fim, o pacote `astsa` carrega diversas funções de séries de tempo, mas vamos utilizá-la aqui somente pela base de dados `globtemp`.
+O código abaixo carrega os pacotes necessários. Para a paleta de cores vou utilizar o pacote `MetBrewer`, que oferece algumas paletas de cores interessantes, inspiradas em artistas famosos do [Metropolitan Museum de NY](https://github.com/BlakeRMills/MetBrewer). O pacote `pwt10` carrega a base de dados da [Penn World Table](https://www.rug.nl/ggdc/productivity/pwt/?lang=en) que traz uma série de informações socioeconômicas dos países ao longo dos anos. Por fim, o pacote `astsa` carrega diversas funções de séries de tempo, mas vamos utilizá-la aqui somente pela base de dados `globtemp`. Por fim, o pacote `GetBCBData` serve para importar séries de tempo do Banco Central do Brasil via API.
 
 ```{r, eval = FALSE}
 # Para instalar um pacote do GitHub
@@ -106,6 +111,7 @@ remotes::install_github("BlakeRMills/MetBrewer")
 library(dplyr)
 library(tidyr)
 library(forcats)
+library(stringr)
 library(ggplot2)
 # Paletas de cores (ver acima como instalar)
 library(MetBrewer)
@@ -113,6 +119,7 @@ library(MetBrewer)
 library(pwt10)
 # Para carregar a base globtemp
 library(astsa)
+library(GetBCBData)
 
 # Colors
 colors_hiroshige <- met.brewer(name = "Hiroshige")
@@ -144,6 +151,7 @@ Vamos selecionar apenas os principais países da América Latina para montar nos
 O primeiro painel que iremos explorar vai exibir os ciclos de expansão e de recessão nos países latino-americanos ao longo dos anos, desde 1950. Para isto vamos primeiro calcular o PIB per capital real de cada país e depois criar uma variável *dummy* que indica com o valor 1 se o país teve crescimento do PIB per capita real e 0 caso contrário.
 
 ```{r}
+#| code-fold: true
 # Vetor com países
 latam_countries <- c(
   "ARG", "BOL", "BRA", "CHL", "COL", "CUB", "DOM", "ECU", "GTM", "HND", "HTI",
@@ -198,7 +206,7 @@ latam <- latam |>
   mutate(country = factor(country, levels = lvls))
 ```
 
-Há, contudo, vários atalhos para melhor lidar com `factors`. Em particular, o pacote `forcats` carrregado junto no `tidyverse` tem uma série de funções que facilitam o trato de variáveis categóricas. A função `fct_rev()`, por exemplo, serve para inverter a ordem de uma variável categórica.
+Há, contudo, vários atalhos para melhor lidar com `factors`. Em particular, o pacote `forcats` carregado junto no `tidyverse` tem uma série de funções que facilitam o trato de variáveis categóricas. A função `fct_rev()`, por exemplo, serve para inverter a ordem de uma variável categórica.
 
 Assim, o código abaixo chega no mesmo resultado.
 
@@ -208,7 +216,7 @@ latam <- latam |>
   mutate(country = fct_rev(country))
 ```
 
-Note que agora o gráfico está em ordem alfabética, começando na Argentina e terminando na Venezuela. Agora a ordem dos países está mais natural, já que está em ordem alfabética e de cima para baixo.
+Note que o gráfico está em ordem alfabética, começando na Argentina e terminando na Venezuela.
 
 ```{r}
 # Monta o gráfico
@@ -227,9 +235,7 @@ ggplot(data = latam, aes(x = year, y = country)) +
 
 ### Alterar as cores
 
-A escolha do esquema de cores é talvez o aspecto mais importante de um heat map. Não é fácil encontrar boas cores que sejam intuitivas e que também sejam inclusivas.
-
-Aqui utilizamos uma paleta inspirada no artista plástico Hiroshige Utagawa para conseguir alguns tons de azul/vermelho para representar os anos de expansão/recessão.
+A escolha do esquema de cores é talvez o aspecto mais importante de um heat map. Não é fácil encontrar boas cores que sejam intuitivas e que também sejam inclusivas. Aqui utilizamos uma paleta inspirada no artista plástico Hiroshige Utagawa para conseguir alguns tons de azul/vermelho para representar os anos de expansão/recessão.
 
 ```{r}
 # Colors
@@ -259,7 +265,7 @@ A leitura dos anos no gráfico acima pode ser melhorada. Primeiro, vamos inserir
 
 Quando temos um gráfico grande, pode ser útil duplicar os eixos para facilitar a sua leitura. Vamos duplicar o eixo-x (anos) usando `sec.axis = dup_axis()`.
 
-Por fim, note que há espaço ocioso tanto no lado esquerdo como no lado direito do gráfico. O argumento `expand = c(0, 0)` para remover o espaço entre as barras e o limite do painel.
+Por fim, note que há espaço ocioso tanto no lado esquerdo como no lado direito do gráfico (espaço entre os "tiles" e a borda do painel do gráfico). O argumento `expand = c(0, 0)` remove o espaço entre as barras e o limite do painel.
 
 ```{r}
 latam_na <- latam |> 
@@ -358,7 +364,7 @@ ggplot(data = latam, aes(x = year, y = country)) +
     ) +
   labs(
     title = "Growth/Recession across Latin America",
-    subtitle = "Cycles are synchronized across countries. The 1980s was a difficult period for most countries, while the mid 2000s\nonwards was more positive overall due to the commodtiy boom.",
+    subtitle = "Cycles are synchronized across countries. The 1980s was a difficult period for most countries, while the mid 2000s\nonwards was more positive due to the commodtiy boom.",
     caption = "Source: Penn World Table (pwt10)"
   ) +
   theme_minimal() +
@@ -392,8 +398,7 @@ theme_heatmap <- theme_minimal() +
     panel.grid.minor = element_blank(),
     legend.position = "top",
     legend.key.size = unit(1, "cm"),
-    legend.title = element_text(vjust = 0.5, hjust = 0.5),
-    legend.title.align = 0.5
+    legend.title = element_text(vjust = 0.75, hjust = 0.5)
   )
 
 gg_heatmap <- function(plot) {
@@ -424,7 +429,7 @@ gg_heatmap <- function(plot) {
 }
 ```
 
-## Exemplo: PIB per capita
+### PIB per capita
 
 Como exemplo vamos olhar para o PIB per capita dos países da América Latina. Para melhorar a visualização uso os dados em escala logarítmica.
 
@@ -453,13 +458,111 @@ p <- ggplot(data = latam, aes(x = year, y = country)) +
 gg_heatmap(p)
 ```
 
+### Inflação
+
+Mapas de calor também podem servir para construir visualizações no formato de um "calendário de observações". A visualização abaixo é adaptada do meu post [Visualizando o IPCA](https://restateinsight.com/posts/general-posts/repost-ipca-visualizacao/) e mostra o valor acumulado do IPCA em 12 meses a cada mês, desde janeiro de 2010. Os dados são importados do Banco Central do Brasil usando o pacote `GetBCBData` e uso o pacote `lubridate` para transformar os dados.
+
+```{r}
+#| code-fold: true
+#> Importa a série do IPCA a partir da API do Banco Central
+ipca <- GetBCBData::gbcbd_get_series(
+  id = 433,
+  first.date = as.Date("1998-01-01")
+  )
+
+#> Limpeza de dados
+ipca <- ipca |> 
+  mutate(
+    #> Cria uma coluna com o ano da observação
+    year = lubridate::year(ref.date),
+    #> Cria uma coluna com o mês da obervação
+    month = lubridate::month(ref.date, label = TRUE, locale = "pt_BR"),
+    #> Acumula os valores do IPCA em 12 meses
+    acum12m = RcppRoll::roll_prodr(1 + value / 100, n = 12) - 1,
+    acum12m = acum12m * 100
+    ) |> 
+  filter(ref.date >= as.Date("2010-01-01"))
+```
+
+```{r}
+ggplot(ipca, aes(x = month, y = year, fill = acum12m)) +
+  geom_tile(color = "gray90") +
+  scale_x_discrete(position = "top") +
+  scale_y_reverse(breaks = 2010:2023, expand = c(0, 0)) +
+  scale_fill_viridis_c(
+    name = "Var. percentual\ndo IPCA acumulada\nem 12 meses",
+    option = "magma",
+    breaks = seq(2, 12, 2),
+    labels = paste0(seq(2, 12, 2), "%")) +
+  labs(title = "Inflação no Brasil") +
+  theme_heatmap +
+  theme(
+    axis.text = element_text(size = 11, color = "gray15")
+    )
+```
+
+Na visualização vê-se como os anos iniciais de 2010-14 foram marcados por uma inflação moderadamente alta, oscilando entre 4-6%. Em 2015, libera-se os preços administrados, que ficaram artificialmente represados durante o período eleitoral, e a inflação estoura, chegando e depois superando a casa de 10%. Nos anos seguintes, a inflação é mais baixa, caindo até a casa de 2-3%. A quebra da série acontece durante a pandemia, quando a inflação chega a 12% e passa vários meses acima de 10%.
+
+Tecnicamente, vale notar o uso da função `scale_x_discrete` já que a variável de mês é armazenada como `factor`. Inverte-se a escala dos anos usando `scale_y_reverse`, assim os anos vão "de cima para baixo", na direção mais natural de leitura. Por fim, especifico manualmente os valores de quebras na legenda de cores, dentro da função `scale_fill_viridis_c`.
+
+### Energia elétrica
+
+Pode-se usar mapas de calor para explorar a presença de padrões sazonais nos dados. A visualização abaixo é adaptada do meu post sobre [nascimentos no Brasil](https://restateinsight.com/posts/general-posts/2023-10-wv-nascimentos-brasil/) mas olha para o consumo mensal de energia elétrica. Mais especificamente, a série apresenta o consumo residencial de energia elétrica desde 2002: escolhe-se este ano para evitar o apagão de 2021, que distorceria muito a visualização. Cada quadrado apresenta o consumo do mês, relativamente ao consumo total naquele ano.
+
+Como podia-se imaginar, o consumo de energia é mais elevado nos meses quentes: dezembro, janeiro, fevereiro e março apresentam os maiores valores. Já nos meses de inverno, em contraste, o consumo costuma ser menor. O pico da série aparece em janeiro de 2015, quande [houve um verão particularmente quente](https://g1.globo.com/sao-paulo/noticia/2015/01/janeiro-de-2015-e-o-4-mes-mais-quente-da-historia-em-sp-diz-inmet.html)[^1].
+
+[^1]: Vale reforçar que este não foi o pico absoluto de consumo de energia no país: os dados representam o consumo percentual de energia em relação ao total de energia consumida no ano.
+
+```{r}
+#| code-fold: true
+#> Importa a série de consumo residencial de energia elétrica a partir da
+#> API do Banco Central
+energia <- GetBCBData::gbcbd_get_series(
+  id = 1403,
+  first.date = as.Date("1980-01-01")
+  )
+
+#> Limpeza de dados
+energia <- energia |> 
+  mutate(
+    mes = lubridate::month(ref.date, label = TRUE, locale = "pt_BR"),
+    mes = fct_rev(mes),
+    ano = lubridate::year(ref.date)
+  ) |> 
+  #> Agrupa por ano e calcula o consumo percentual em cada mês relativamente ao ano
+  group_by(ano) |> 
+  mutate(cons_rel = value / sum(value) * 100) |> 
+  ungroup() |> 
+  #> Começa a série em 2002 para evitar o "apagão" em 2001.
+  filter(ano > 2002, ano < 2023)
+```
+
+```{r}
+ggplot(energia, aes(x = ano, y = mes, fill = cons_rel)) +
+  geom_tile(color = "gray90") +
+  scale_x_continuous(breaks = 2001:2022, expand = c(0, 0), position = "top") +
+  scale_fill_viridis_c(name = "Consumo de Energia\nem relação ao ano (%)") +
+  theme_heatmap +
+  theme(
+    legend.title = element_text(vjust = 0.8),
+    axis.text = element_text(size = 11, color = "gray15")
+    )
+```
+
 ## Escala divergente
 
-Outra aplicação de gráficos de calor é de mostrar uma variável num gradiente de cores "divergente". Um caso comum é quando quer-se mostrar uma variável como um desvio em relação a alguma média.
+Outra aplicação de gráficos de calor é de mostrar uma variável num gradiente de cores "divergente". Um caso comum é quando quer-se mostrar uma variável como um desvio em relação a alguma média. Em geral, há duas possibilidades para visualizar os dados:
 
-O exemplo abaixo usa a base `globtemp` que mensura as "anomalias de temperatura" nos últimos anos. Por anomalia de temperatura, entende-se, o desvio da temperatura média anual em relação à média histórica (1951-1980).
+1.  O desvio dos valores em relação à média na "coluna", isto é, entre os grupos. No caso do mapa de calor do PIB per capita isto seria equivalente a comparar o crescimento dos países (grupo) no mesmo ano.
+2.  O desvio dos valores em relação à média na "linha", isto é, dentro de um mesmo grupo. Novamente, no caso do mapa de calor do PIB per capita, isto seria equivalente a comparar o crescimento do país num ano em relação ao histórico de crescimento do país.
 
-Na visualização, fica evidente que os anos recentes concentram um grande número de "anomalias positivas", isto é, anos em que a temperatura média esteve acima da média histórica.
+Não há uma escolha certa ou errada com este tipo de visualização. É preciso saber somente qual tipo de relação que se quer visualizar.
+
+### Aquecimento Global
+
+O exemplo abaixo usa a base `globtemp` que mensura as "anomalias de temperatura" nos últimos anos. Por anomalia de temperatura, entende-se, o desvio da temperatura média anual em relação à média histórica (1951-1980). Esta visualização é adaptada do meu post [Aquecimento Global](https://restateinsight.com/posts/general-posts/repost-aquecimento-global/).
+
+Na visualização, fica evidente que os anos recentes concentram um grande número de "anomalias positivas", isto é, anos em que a temperatura média esteve acima da média histórica. Este exemplo é bastante simples pois existe apenas um "grupo", logo, os valores estão representados como desvios em relação à média na "linha".
 
 ```{r}
 # Carrega a base de dados 'globtemp'
@@ -479,11 +582,68 @@ ggplot(data = df, aes(x = ano, y = 0, fill = temp)) +
   theme_heatmap
 ```
 
-### Exemplo: desvio em relação à média
+### PIB per capita
 
-Vamos voltar ao gráfico do crescimento do PIB per capita na América Latina. Suponha que seja interessante descobrir quais países estão crescendo acima ou abaixo da média mundial. Para chegar nesta resposta precisa-se primeiro fazer um pouco de manipulação nos dados.
+Restringindo a análise somente à América Latina, há duas maneiras intuitivas de olhar os dados: (1) relativamente ao ano (coluna); (2) relativamente ao país (linha).
+
+No primeiro caso, compara-se a performance entre os países em cada ano: vê-se quais foram os países que cresceram mais ou menos em determinado ano. No segundo caso, compara-se a trajetória de cada país individualmente: fica mais evidente quais foram os anos de maior ou de menor crescimento.
+
+O código abaixo usa a função `scale` para "normalizar" os dados[^2].
+
+[^2]: O termo "normalizar" é um tanto abusado hoje em dia, em contextos estatísticos. A função `scale` subtrai cada valor pela sua média e divide o resultado pelo desvio padrão.
 
 ```{r}
+# Escala os dados em relação ao país
+scale_country <- latam |> 
+  group_by(country) |> 
+  mutate(scaled = as.numeric(scale(d_gdppc)))
+
+# Escala os dados em relação ao ano
+scale_year <- latam |> 
+  group_by(year) |> 
+  mutate(scaled = as.numeric(scale(d_gdppc)))
+```
+
+O primeiro gráfico mostra o crescimento do PIB per capita anual relativamente ao crescimento médio do país. Note como oscila o crescimento da Argentina: anos de crescimento acima da média são imediatamente seguidos por anos de crescimento abaixo da média durante quase toda a sua história.
+
+Já o Brasil parece ter um crescimento mais ao estilo "voos de galinha", com alguns poucos anos de crescimento excepcionais aglomerados. Vale notar, também, como a presença da Venezuela entre os países acaba distorcendo a escala.
+
+```{r}
+p <- ggplot(data = scale_country, aes(x = year, y = country)) +
+  geom_tile(aes(fill = scaled)) +
+  scale_fill_gradientn(
+    name = "Desvio em relação\nao crescimento\nmédio do país",
+    breaks = seq(-4, 4, 1),
+    colours = colors_hiroshige
+    )
+
+gg_heatmap(p) +
+  ggtitle("Crescimento relativo ao país")
+```
+
+Agora o gráfico mostra o crescimento anual de cada país em comparação com os demais países latinoamericanos. O padrão revela quais países cresceram mais ou menos em cada ano.
+
+De maneira geral, o Brasil parece crescer ligeiramente acima da média da região. A Venezuela, que no gráfico anterior parecia exibir um crescimento relativamente estável ao longo dos anos, agora apresenta um padrão com maior oscilação.
+
+Dos anos 2000 em diante, Bolivia, Chile, Colombia e Peru são os países que consistentemente crescem acima da média da região. Novamente o colapso econômico da Venezuela acaba distorcendo a escala de cores.
+
+```{r}
+p <- ggplot(data = scale_year, aes(x = year, y = country)) +
+  geom_tile(aes(fill = scaled)) +
+  scale_fill_gradientn(
+    name = "Desvio em relação\nao crescimento\nmédio de cada ano",
+    breaks = seq(-4, 4, 1),
+    colours = colors_hiroshige
+    )
+
+gg_heatmap(p) +
+  ggtitle("Crescimento relativo ao ano")
+```
+
+Suponha que seja interessante descobrir quais países estão crescendo acima ou abaixo da média mundial. Para chegar nesta resposta precisa-se primeiro fazer um pouco de manipulação nos dados.
+
+```{r}
+#| code-fold: true
 # Calcula o PIB per capita mundial e o seu crescimento 
 world <- pwt |> 
   group_by(year) |> 
@@ -514,9 +674,9 @@ latam_scaled <- latam_scaled %>%
   )
 ```
 
-Após a manipulação de dados acima, pode-se visualizar o crescimento da América Latina em relação ao resto do mundo. O primeiro gráfico abaixo o desvio percentual do crescimento doméstico em relação à média mundial naquele ano.
+Após a manipulação de dados acima, pode-se visualizar o crescimento da América Latina em relação ao resto do mundo. O primeiro gráfico abaixo mostra o desvio percentual do crescimento doméstico em relação à média mundial naquele ano.
 
-Vê-se como, de maneira geral, os países latino-americanos tiveram dificuldades para acompanhar o resto do mundo nos anos 1980. Além disso, a maior parte dos países parece ficar próxima ou abaixo da média. A exceção é durante o começo dos anos 1990 e os anos do boom de commodities (2000-2012).
+Vê-se como, de maneira geral, os países latino-americanos tiveram dificuldades para acompanhar o resto do mundo nos anos 1980. Além disso, a maior parte dos países parece ficar próxima ou abaixo da média. A exceção é durante o começo dos anos 1990 e os anos do boom de commodities (2000-2012). Além disso, vê-se como a recessão brasileira de 2015-17, apesar de ter sido influenciada por uma leve desaceleração global, foi majoritariamente uma crise interna.
 
 ```{r}
 p <- ggplot(data = latam_scaled, aes(x = year, y = country)) +
@@ -530,72 +690,12 @@ p <- ggplot(data = latam_scaled, aes(x = year, y = country)) +
 gg_heatmap(p)
 ```
 
-### Exemplo: desvio em relação ao grupo
-
-Restringindo a análise somente à América Latina, há duas maneiras intuitivas de olhar os dados: (1) relativamente ao ano; (2) relativamente ao país.
-
-o primeiro caso, compara-se a performance entre os países em cada ano: vê-se quais foram os países que cresceram mais ou menos em determinado ano.
-
-No segundo caso, compara-se a trajetória de cada país individualmente: fica mais evidente quais foram os anos de maior ou de menor crescimento.
-
-O código abaixo usa a função `scale` para "normalizar" os dados.
-
-```{r}
-# Escala os dados em relação ao país
-scale_country <- latam |> 
-  group_by(country) |> 
-  mutate(scaled = as.numeric(scale(d_gdppc)))
-
-# Escala os dados em relação ao ano
-scale_year <- latam |> 
-  group_by(year) |> 
-  mutate(scaled = as.numeric(scale(d_gdppc)))
-```
-
-O primeiro gráfico mostra o crescimento do PIB per capita anual relativamente ao crescimento médio do país.
-
-Note como oscila o crescimento da Argentina: anos de crescimento acima da média são imediatamente seguidos por anos de crescimento abaixo da média durante quase toda a sua história.
-
-Já o Brasil parece ter um crescimento mais ao estilo "voos de galinha", com alguns poucos anos de crescimento excepcionais aglomerados.
-
-```{r}
-p <- ggplot(data = scale_country, aes(x = year, y = country)) +
-  geom_tile(aes(fill = scaled)) +
-  scale_fill_gradientn(
-    name = "Desvio em relação\nao crescimento\nmédio do país",
-    breaks = seq(-4, 4, 1),
-    colours = colors_hiroshige
-    )
-
-gg_heatmap(p) +
-  ggtitle("Crescimento relativo ao país")
-```
-
-Agora o gráfico mostra o crescimento anual de cada país em comparação com os demais países. O padrão revela quais países cresceram mais ou menos em cada ano.
-
-De maneira geral, o Brasil parece crescer ligeiramente acima da média da região. A Venezuela, que no gráfico anterior parecia exibir um crescimento relativamente estável ao longo dos anos, agora apresenta um padrão com maior oscilação.
-
-Dos anos 2000 em diante, Bolivia, Chile, Colombia e Peru são os países que consistentemente crescem acima da média da região.
-
-```{r}
-p <- ggplot(data = scale_year, aes(x = year, y = country)) +
-  geom_tile(aes(fill = scaled)) +
-  scale_fill_gradientn(
-    name = "Desvio em relação\nao crescimento\nmédio de cada ano",
-    breaks = seq(-4, 4, 1),
-    colours = colors_hiroshige
-    )
-
-gg_heatmap(p) +
-  ggtitle("Crescimento relativo ao ano")
-```
-
 # Gráfico de calor espacial
 
 ```{r}
 library(here)
-imoveis <- read_csv(here("posts/ggplot2-tutorial/sample_imoveis_sp.csv"))
-imoveis <- dplyr::distinct(imoveis, lng, lat, .keep_all = TRUE)
+imoveis <- readr::read_csv(here("posts/ggplot2-tutorial/sample_imoveis_sp.csv"))
+imoveis <- distinct(imoveis, lng, lat, .keep_all = TRUE)
 ```
 
 ```{r}
