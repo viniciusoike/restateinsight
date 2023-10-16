@@ -1,0 +1,325 @@
+---
+title: "Brazil in Charts: Unemployment"
+cateogories: ['data-visualization', 'brazil', 'weekly-viz', 'ggplot2']
+execute: 
+  warning: false
+  message: false
+  echo: false
+draft: true
+---
+
+```{r, setup}
+knitr::opts_chunk$set(
+  fig.align = "center",
+  out.width = "100%",
+  fig.width = 9,
+  dev = "svg",
+  fig.retina = 2
+)
+```
+
+```{r, libs}
+library(sidrar)
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+library(showtext)
+library(sf)
+library(ggrepel)
+
+font_add_google("Merriweather", "Merriweather")
+font_add_google("Roboto Condensed", "Roboto Condensed")
+font_add_google("Roboto Condensed", "Roboto Condensed")
+
+showtext_auto()
+```
+
+```{r, import-data}
+state <- geobr::read_state(showProgress = FALSE)
+dim_state <- as_tibble(sf::st_drop_geometry(state))
+unemp <- get_sidra(4099, variable = 4099, geo = "State", period = "201201-202302")
+```
+
+```{r, clean-data}
+#> Clean Sidra table
+tbl_unemp <- unemp |> 
+  janitor::clean_names() |> 
+  select(
+    code_state = unidade_da_federacao_codigo,
+    trimestre = trimestre_codigo,
+    unemp = valor 
+    ) |> 
+  mutate(
+    date = zoo::as.Date(zoo::as.yearqtr(trimestre, format = "%Y%q")),
+    code_state = as.numeric(code_state)
+    ) |> 
+  left_join(dim_state, by = "code_state")
+
+#> Lollipop data
+lvls <- tbl_unemp |> 
+  filter(date == as.Date("2019-04-01")) |> 
+  arrange(unemp) |> 
+  pull(abbrev_state)
+
+tbl_compare <- tbl_unemp |> 
+  filter(date %in% c(as.Date("2019-04-01"), as.Date("2023-04-01"))) |> 
+  mutate(abbrev_state = factor(abbrev_state, levels = lvls))
+
+tbl_chg <- tbl_compare |> 
+  mutate(chg = unemp - lag(unemp), .by = "code_state") |> 
+  filter(!is.na(chg)) |> 
+  select(code_state, chg, unemp)
+
+
+#> Map data
+map_chg <- left_join(state, tbl_chg, by = "code_state")
+
+map_chg <- map_chg %>%
+  mutate(
+    x = as.numeric(st_coordinates(st_centroid(.))[, "X"]),
+    y = as.numeric(st_coordinates(st_centroid(.))[, "Y"]),
+    label = round(unemp, 2),
+    repel = if_else(code_state %in% c(24:28, 53), 1L, 0L),
+    group = findInterval(chg, c(6, 10, 12, 16))
+  )
+```
+
+```{r lollipop}
+#| out-width: 80%
+#| fig-width: 8
+#| fig-height: 9
+ggplot(tbl_compare, aes(x = abbrev_state, y = unemp)) +
+  geom_line(aes(group = abbrev_state), color = "gray40") +
+  geom_point(aes(color = as.factor(date)), size = 2) +
+  scale_y_continuous(breaks = seq(0, 18, 2)) +
+  coord_flip() +
+  scale_color_manual(
+    name = "",
+    values = c("#3690c0", "#016c59"),
+    labels = c("2019-Q2", "2023-Q2")
+  ) +
+  labs(
+    title = "Unemployment rate fell in all Brazilian states",
+    subtitle = "Comparison of 2019-Q2 unemployment rate with 2023-Q2. Includes informal workers.",
+    caption = "Source: IBGE (PNADC)",
+    x = NULL,
+    y = "(%)"
+  ) +
+  theme_minimal(base_family = "Roboto Condensed") +
+  theme(
+    plot.title = element_text(family = "Merriweather", size = 16),
+    plot.subtitle = element_text(family = "Merriweather", size = 11, color = "gray10"),
+    legend.position = "top",
+    panel.grid.minor = element_blank()
+  )
+```
+
+```{r, map}
+ggplot(map_chg) +
+  geom_sf(aes(fill = unemp), linewidth = 0.3, color = "white") +
+  geom_label(
+    data = filter(map_chg, repel == 0),
+    aes(x = x, y = y, label = label),
+    size = 3,
+    family = "Roboto Condensed",
+    color = "gray10"
+    ) +
+  geom_label_repel(
+    data = filter(map_chg, repel == 1),
+    aes(x = x, y = y, label = label),
+    size = 3,
+    family = "Roboto Condensed",
+    color = "gray10",
+    nudge_x = 5
+    ) +
+  labs(title = "Southern and Mid-Western States\nHave Lowest Unemployment Rates") +
+  scale_fill_distiller(name = "Unemployment (%)", palette = "PuBuGn") +
+  ggthemes::theme_map() +
+  theme(
+    plot.title = element_text(family = "Merriweather", size = 16),
+    legend.text = element_text(family = "Roboto Condensed"),
+    legend.title = element_text(family = "Roboto Condensed")
+  )
+```
+
+```{r}
+labor_share_br <- get_sidra(
+  6461,
+  variable = 4096,
+  period = "201801-202304",
+  geo = "Brazil"
+  )
+
+tbl_labor_share_br <- labor_share_br |> 
+  janitor::clean_names() |> 
+  select(trimestre = trimestre_codigo, share = valor) |> 
+  mutate(
+    date = zoo::as.Date(zoo::as.yearqtr(trimestre, format = "%Y%q"))
+    )
+
+base_index <- tbl_labor_share_br |> 
+  filter(date >= as.Date("2019-01-01"), date <= as.Date("2019-12-01")) |> 
+  summarise(base = mean(share))
+
+tbl_labor_share_br <- tbl_labor_share_br |> 
+  mutate(index = share / base_index$base * 100)
+```
+
+
+```{r}
+labor_share <- get_sidra(
+  6461,
+  variable = 4096,
+  period = "201801-202304",
+  geo = "State"
+  )
+
+tbl_labor_share <- labor_share |> 
+  janitor::clean_names() |> 
+  select(
+    code_state = unidade_da_federacao_codigo,
+    trimestre = trimestre_codigo,
+    share = valor 
+    ) |> 
+  mutate(
+    date = zoo::as.Date(zoo::as.yearqtr(trimestre, format = "%Y%q")),
+    code_state = as.numeric(code_state)
+    ) |> 
+  left_join(dim_state, by = "code_state")
+
+index_base <- tbl_labor_share |> 
+  filter(date >= as.Date("2019-01-01"), date <= as.Date("2019-12-01")) |> 
+  summarise(base = mean(share), .by = "code_state")
+
+tbl_labor_share <- tbl_labor_share |> 
+  left_join(index_base, by = "code_state") |> 
+  mutate(
+    index = share / base * 100,
+    highlight = if_else(
+      abbrev_state %in% c("AL", "AC", "SP", "RJ", "TO", "RN"), 1L, 0L
+      )
+    )
+```
+
+
+```{r}
+ggplot() +
+  geom_line(
+    data = tbl_labor_share,
+    aes(x = date, y = index, group = code_state, color = as.factor(name_region)),
+    alpha = 0.7
+    ) +
+  geom_line(
+    data = tbl_labor_share_br,
+    aes(x = date, y = index),
+    color = "#000000",
+    linewidth = 1
+  ) +
+  geom_hline(yintercept = 100) +
+  geom_text(
+    data = filter(tbl_labor_share, date == max(date), highlight == 1),
+    aes(x = date, y = index, label = abbrev_state),
+    family = "Roboto Condensed",
+    size = 3,
+    nudge_x = 50
+  ) +
+  scale_x_date(date_breaks = "1 year", date_labels = "%Y") +
+  scale_color_manual(
+    name = "",
+    values = c("#377eb8", "#ff7f00", "#a65628", "#4daf4a", "#984ea3")
+  ) +
+  labs(
+    title = "Drop in labor participation rate",
+    y = "Index (2019 = 100)",
+    x = NULL,
+    caption = "Source: IBGE (PNADC)"
+  ) +
+  theme_minimal(base_family = "Roboto Condensed") +
+  theme(
+    panel.grid.minor = element_blank(),
+    legend.position = "top",
+    plot.title = element_text(family = "Merriweather", size = 16)
+    )
+```
+
+
+
+```{r}
+labor <- get_sidra(
+  4092,
+  variable = 1641,
+  period = "201801-202302",
+  geo = "State"
+  )
+```
+
+```{r}
+tbl_labor <- labor |> 
+  janitor::clean_names() |> 
+  select(
+    code_state = unidade_da_federacao_codigo,
+    status = condicao_em_relacao_a_forca_de_trabalho_e_condicao_de_ocupacao,
+    value = valor,
+    quarter = trimestre_codigo) |> 
+  mutate(
+    date = zoo::as.yearqtr(quarter, format = "%Y%q"),
+    date = zoo::as.Date(date)
+  ) |> 
+  pivot_wider(
+    id_cols = c("code_state", "date"),
+    names_from = "status",
+    values_from = "value"
+  )
+
+index_base <- tbl_labor_share |> 
+  filter(date >= as.Date("2019-01-01"), date <= as.Date("2019-12-01")) |> 
+  summarise(base = mean(share), .by = "code_state")
+
+tbl_labor <- tbl_labor |> 
+  janitor::clean_names() |> 
+  mutate(
+    part_rate = forca_de_trabalho / total * 100,
+    employment_population = forca_de_trabalho_ocupada / total * 100,
+    unemp = forca_de_trabalho_desocupada / forca_de_trabalho,
+    unemp_adjusted = forca_de_trabalho_desocupada / (total * index_base$base) * 100
+    ) |> 
+  pivot_longer(
+    cols = -c(code_state, date),
+    names_to = "series"
+  )
+```
+
+```{r}
+labor_br <- get_sidra(4092, variable = 1641, period = "201801-202302")
+
+tbl_labor_br <- labor_br |> 
+  janitor::clean_names() |> 
+  select(
+    status = condicao_em_relacao_a_forca_de_trabalho_e_condicao_de_ocupacao,
+    value = valor,
+    quarter = trimestre_codigo) |> 
+  mutate(
+    date = zoo::as.yearqtr(quarter, format = "%Y%q"),
+    date = zoo::as.Date(date)
+  ) |> 
+  pivot_wider(id_cols = "date", names_from = "status", values_from = "value") |>
+  janitor::clean_names()
+
+tbl_labor_br <- tbl_labor_br |> 
+  mutate(
+    part_rate = forca_de_trabalho / total * 100,
+    employment_population = forca_de_trabalho_ocupada / total * 100,
+    unemp = forca_de_trabalho_desocupada / forca_de_trabalho
+  )
+
+br_labor_rate <- tbl_labor_br |> 
+  filter(date >= as.Date("2019-01-01"), date <= as.Date("2019-12-01")) |> 
+  summarise(share = mean(part_rate)) |> 
+  pull(share)
+
+tbl_labor_br <- tbl_labor_br |> 
+  mutate(
+    unemp_adjust = forca_de_trabalho_desocupada / (total * br_labor_rate) * 100
+    )
+```
+
