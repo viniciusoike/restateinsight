@@ -1,7 +1,9 @@
 ---
 title: "Cidades Brasil"
-categories: ['tutorial-R', 'mapas']
-draft: true
+categories: ['tutorial-R', 'mapas', 'ggplot-2']
+description: "Este tutorial ensina como fazer um mapa da altitude de ruas de uma cidade usando programação funcional. O princípio da programação funcional é de decompor uma tarefa complexa em funções modulares, que tornam o código mais eficiente e estável. Ao final do tutorial, será possível reproduzir o mapa de altitude usando somente uma linha de código."
+image: "/static/maps/elevation_xx_fortaleza.svg"
+image-alt: "/static/maps/elevation_xx_fortaleza.svg"
 ---
 
 ```{r}
@@ -23,6 +25,9 @@ knitr::opts_chunk$set(
   fig.retina = 2,
   dpi = 72
   )
+
+sysfonts::font_add_google("Roboto Condensed", "Roboto Condensed")
+showtext::showtext_auto()
 ```
 
 # O objetivo
@@ -58,11 +63,11 @@ library(showtext)
 
 # Recife
 
-Para ganhar intuição sobre o processo vamos montar um único caso. Escolho a cidade de Recife, pois ela é uma cidade relativamente pequena em termos de área física.
+Para ganhar intuição sobre o processo vamos fazer o passo a passo de Recife. Escolho a cidade de Recife, pois ela é uma cidade relativamente pequena em termos de área física.
 
 ## Baixando os dados
 
-O objetivo é gerar o mapa de altitude das maiores cidades do Brasil. Ao invés de ranquear as cidades por área, eu prefiro ordená-las por tamanho de população. Uma maneira fácil de conseguir esta informação é buscando ela diretamente na Wikipedia. No link temos uma tabela com código do IBGE, nome do município, nome do estado e população total em 2022.
+O objetivo é gerar o mapa de altitude das principais cidades do Brasil. Ao invés de ranquear as cidades por área, eu prefiro ordená-las por tamanho de população. Uma maneira fácil de conseguir esta informação é buscando ela diretamente na Wikipedia. No link temos uma tabela com código do IBGE, nome do município, nome do estado e população total em 2022.
 
 É bastante simples importar esta tabela no R. O código abaixo, interpreta a página com base na url, encontra todas as tabelas[^2] e escolhe especificamente a tabela principal.
 
@@ -115,15 +120,18 @@ DT::datatable(top200)
 
 ## Shape da cidade
 
-Agora que temos uma lista de cidades podemos importar o shapefile com os limites territoriais do município do Recife. Graças ao pacote {geobr} isto é muito simples. A função `read_municipality` faz justamente isto e precisa apenas do código de 7 dígitos do IBGE.
+Agora que temos uma lista de cidades podemos importar o shapefile com os limites territoriais do município do Recife. Graças ao pacote `{geobr}` isto é muito simples. A função `read_municipality` faz justamente isto e precisa apenas do código de 7 dígitos do IBGE.
 
 ```{r}
+#> Encontra o código do IBGE de Recife
 code_muni = top200 |> 
   filter(name_muni == "Recife") |> 
   pull(code_muni)
 
-border = geobr::read_municipality(code_muni)
+#> Importa o shape dos limites do município
+border = geobr::read_municipality(code_muni, showProgress = FALSE)
 
+#> Um mapa simples para checar o resultado
 ggplot(border) +
   geom_sf() +
   ggtitle("Limites do município")
@@ -131,7 +139,7 @@ ggplot(border) +
 
 ## Principais vias
 
-O segundo passo é importar o shape das principais vias da cidade. Aqui, uso o {osmdata}. O código abaixo importa as vias como "linhas" e depois usa os limites do município para remover os segmentos de linhas que estão fora da cidade.
+O segundo passo é importar o shape das principais vias da cidade. Aqui, uso o pacote `{osmdata}`. O código abaixo importa as vias como "linhas" e depois usa os limites do município para remover os segmentos de linhas que estão fora da cidade.
 
 ```{r}
 #> Define os "limites" da busca. Monta um bounding box em torno do Recife
@@ -172,11 +180,9 @@ ggplot() +
 
 ## Altitude
 
-O terceiro passo é importar os dados de altitude da cidade. Isto é feito com o pacote {elevatr}. Como os dados de altitude são armazenados como raster preciso convertê-los para dados em formato de vetor[^3]. Novamente eu faço a intersecção destes dados com os limites do município para ficar somente com os valores que nos interessam.
+O terceiro passo é importar os dados de altitude da cidade. Isto é feito com o pacote `{elevatr}`. Como os dados de altitude são armazenados como raster preciso convertê-los para dados em formato de vetor[^3]. Novamente eu faço a intersecção destes dados com os limites do município para ficar somente com os valores que nos interessam.
 
 [^3]: Para uma introdução aos tipos de objetos espaciais (*raster* e *vector*) veja [Lovelace (2023)](https://r.geocompx.org/spatial-class).
-
-O gráfico abaixo mostra o resultado final.
 
 ```{r}
 #> Importa os dados de altitude
@@ -194,6 +200,8 @@ rec_alti = rec_alti %>%
   filter(st_is_valid(.))
 ```
 
+O gráfico abaixo mostra o resultado final.
+
 ```{r}
 #> Mapa
 ggplot(rec_alti) +
@@ -204,18 +212,9 @@ ggplot(rec_alti) +
 
 ### Classificando a altitude
 
-Para facilitar a visualização dos dados, classifica-se eles em grupos. Eu uso o algoritmo de Jenks para classificar os dados de elevação em 7 grupos distintos. O algoritmo de Jenks, também conhecido como "quebras naturais", é bastante utilizado com dados espaciais.
+Para facilitar a visualização dos dados, classifica-se eles em grupos. Eu uso o [algoritmo de Jenks](https://en.wikipedia.org/wiki/Jenks_natural_breaks_optimization) para classificar os dados de elevação em 7 grupos distintos. O algoritmo de Jenks, também conhecido como "quebras naturais", é bastante utilizado com dados espaciais.
 
-```{r}
-ggplot(rec_alti, aes(x = elevation)) +
-  geom_histogram(bins = 40, color = "white") +
-  geom_hline(yintercept = 0) +
-  scale_x_continuous(limits = c(-1, NA)) +
-  ggtitle("Distribuição da altitude em Recife") +
-  theme_light()
-```
-
-Como todo algoritmo de clustering, o algoritmo de Jenks busca minimizar a distância intraclasse enquanto tenta maximizar a distância entre as classes; isto é ele busca observações parecidas e juntas elas em um grupo e busca separar os grupos o máximo possível.
+Como todo algoritmo de clustering, o algoritmo de Jenks busca minimizar a distância intraclasse enquanto tenta maximizar a distância entre as classes; isto é, ele busca observações parecidas e juntas elas em um grupo e busca separar os grupos o máximo possível.
 
 A medida de distância/dissemelhança que o algoritmo usa é a soma do quadrado dos desvios (em relação à média do grupo). O algortimo busca minimizar esta "variância" em cada um dos grupos para encontrar os grupos mais "parecidos" possíveis. O número de grupos é arbitrário e precisa ser selecionado manualmente[^4]. Eu costumo escolher algum número entre 3 e 9.
 
@@ -229,7 +228,12 @@ rec_alti = rec_alti %>%
   mutate(
     jenks_group = cut(elevation, jbreaks)
   )
+```
 
+O resultado do agrupamento pode ser visto no histograma abaixo, onde as linhas verticais representam as quebras entre os grupos.
+
+```{r}
+#| code-fold: true
 ggplot(rec_alti, aes(x = elevation)) +
   geom_histogram(bins = 40, color = "white") +
   geom_hline(yintercept = 0) +
@@ -242,7 +246,7 @@ ggplot(rec_alti, aes(x = elevation)) +
   theme_light()
 ```
 
-O mapa abaixo mostra o formato dos dados. Temos um grid retangular que mostram a altura, em metros, da cidade do Recife.
+O mapa abaixo mostra o formato dos dados de altitude. Temos um grid retangular que mostram a altura, em metros, da cidade do Recife.
 
 ```{r}
 #> Mapa
@@ -308,7 +312,7 @@ Para repetir o código acima em todos os grupos, faz-se um loop simples. Os resu
 
 ```{r}
 #> Cria uma lista para gravar os resultados
-streets_altitude <- list()
+streets_altitude = list()
 
 #> For-loop em todos os elementos de jgroups
 for (i in seq_along(jgroups)) {
@@ -353,6 +357,7 @@ ggplot(rec_streets_altitude) +
 Para montar a versão finalizada do mapa, adiciona-se alguns elementos temáticos. Para saber mais sobre elementos temáticos e a função theme, consulte meu [post](https://restateinsight.com/posts/ggplot2-tutorial/7-themes-fonts).
 
 ```{r}
+#| out-width: 100%
 cores = c(
   "#0D0887FF", "#5402A3FF", "#8B0AA5FF", "#B93289FF", "#DB5C68FF", 
   "#F48849FF", "#FEBC2AFF"
@@ -374,7 +379,7 @@ ggplot(data = rec_streets_altitude) +
     plot.title = element_text(size = 16, hjust = 0.5),
     legend.position = "top",
     legend.direction = "horizontal",
-    legend.text = element_text(size = 10),
+    legend.text = element_text(size = 8),
     panel.background = element_rect(color = NA, fill = "#f6eee3"),
     plot.background = element_rect(color = NA, fill = "#f6eee3"),
     legend.background = element_rect(color = NA, fill = "#f6eee3")
@@ -391,7 +396,7 @@ Antes de seguir no tutorial, vale revisar um pouco sobre como funcionam funçõe
 
 ## O básico de funções
 
-Uma função transforma um *input* num *output* seguindo uma série de comandos. Uma função no R é composta de três elementos: (1) formals; (2) body; e (3) environment. O primeiro elemento corresponde aos *argumentos* da função e o segundo elemento corresponde à função, propriamente dita. Tomando um exemplo da matemática considere a função abaixo
+Uma função transforma um *input* num *output* seguindo uma série de comandos. Uma função no R é composta de três elementos: (1) *formals*; (2) *body*; e (3) *environment*. O primeiro elemento corresponde aos *argumentos* da função e o segundo elemento corresponde à função, propriamente dita. Tomando um exemplo da matemática considere a função abaixo
 
 $$
 f(x) = x^2 + 1
@@ -415,11 +420,11 @@ environment(f)
 #> <environment: R_GlobalEnv>
 ```
 
-O *environment* é o ambiente onde a função existe; geralmente, o environment é simplesmente `R_GlobalEnv`, o ambiente "global" onde habitam todos os objetos que você cria com `x <- 1:5`. Este aspecto é um pouco mais técnico, mas é o que permite que funções habitem dentro de funções.
+O *environment* é o ambiente onde a função existe; geralmente, o environment é simplesmente `R_GlobalEnv`, o ambiente "global" onde habitam todos os objetos que você cria como, por exemplo, `x <- 1:5`. Este aspecto é um pouco mais técnico, mas é o que permite que funções habitem dentro de funções.
 
 O exemplo abaixo é adaptado do livro [Advanced R](http://adv-r.had.co.nz/Functions.html) e ilustra como funcionam diferentes environments quando se tem funções dentro de funções.
 
-Funções compartimentalizam o seu ambiente de trabalho. O que acontece dentro da função, fica dentro da função. Assim, a linha `y <- 2` "existe" apenas dentro do contexto da função `j`. Os objetos definidos dentro de funções não interferem com objetos criados fora da função.
+Funções compartimentalizam o seu ambiente de trabalho. **O que acontece dentro da função, fica dentro da função**. Assim, a linha `y <- 2` abaixo "existe" apenas dentro do contexto da função `j`. Os objetos definidos dentro de funções não interferem com objetos criados fora da função.
 
 ```{r}
 #| eval: false
@@ -442,9 +447,11 @@ print(y)
 #> Error in print(y) : object 'y' not found
 ```
 
-Uma função executa um conjunto de ações sobre seus *inputs* dentro de um ambiente controlado e devolve apenas o resultado final, *output*, para a sessão ativa do R. Assim, funções permitem *isolar partes do código* e dispensar resultados intermediários.
+Uma função executa um conjunto de ações sobre seus *inputs* dentro de um "ambiente controlado" e devolve apenas o resultado final, *output*, para a sessão ativa do R. Assim, funções permitem *isolar partes do código* e dispensar resultados intermediários.
 
-O próximo exemplo mostra como filtrar linhas de um `data.frame`. No fundo, esta função simplesmente chama `dplyr::filter` e fornece argumentos numa determinada maneira. Note que declaro o nome do pacote `dplyr` o que evita a necessidade de chamar `library(dplyr)` e torna a função `filtrar_linhas` portátil.
+O próximo exemplo mostra como filtrar linhas de um `data.frame`. No fundo, esta função simplesmente chama `dplyr::filter` e fornece argumentos numa determinada maneira. Note que declaro o nome do pacote `dplyr` o que evita a necessidade de chamar `library(dplyr)` e torna a função `filtrar_linhas` portátil[^5].
+
+[^5]: Declarar explicitamente o pacote utilizado é a melhor maneira de escrever novas funções. Isto garante que a função vai funcionar em qualquer contexto onde o pacote estiver instalado. A longo prazo, isto também permite que se use a mesma função em outro projeto ou até mesmo dentro de um novo pacote. Vale notar que algumas funções base como `mean`, `round`, `findInterval`, etc. não precisam ser declaradas pois elas fazem parte do base-R.
 
 ```{r}
 dados = data.frame(
@@ -463,6 +470,8 @@ filtrar_linhas(dados, "B")
 Este é um ponto importante: em geral, nossas funções simplesmente chamam outras funções prontas numa ordem específica e com argumentos específicos.
 
 O próximo é exemplo é um pouco mais sofisticado. Agora temos uma função que calcula a média geométrica de um vetor numérico. Neste caso há uma estrutura de `if`/`else` dentro do corpo da função que verifica o input antes de executar os cálculos. Especificamente, como a média geométrica é definida apenas para números positivos faz-se um teste para verificar se o *input* contém apenas números positivos.
+
+Note que as funções `exp`, `mean` e `log` são utilizadas sem o sinal `::` pois estas funções do base-R. Isto é, são funções básicas, que permitem que o R funcione enquanto linguagem de programação, e estão sempre disponíveis.
 
 Além disso, desta vez uso `return` para explicitamente declarar qual objeto a função deve retornar. Vale reforçar que o objeto `z <- exp(mean(log(x)))` passa a existir somente dentro da função. Ou seja, ele não interfere com algum objeto `z` que exista ou que possa vir a existir no ambiente global.
 
@@ -500,7 +509,7 @@ Vamos reconstruir todos os passos acima usando funções.
 
 ## Shape da cidade
 
-Por conveniência, eu repito abaixo o código que se usou para chegar no shape dos limites de Recife. Note o que acontece: (1) o primeiro passo filtra um `data.frame` para encontrar o código do IBGE do respectivo município; (2) usando o código, a função `geobr::read_municipality()` importa o shape.
+Por conveniência, eu repito abaixo o código que se usou para chegar no shape dos limites territoriais do Recife. Note o que acontece: (1) o primeiro passo filtra um `data.frame` para encontrar o código do IBGE do respectivo município; (2) usando o código, a função `geobr::read_municipality()` importa o shape.
 
 Há dois objetos importantes nesta função: a tabela que contém as informações de 'nome da cidade' e 'código do ibge'; e o string com o 'nome da cidade'.
 
@@ -513,7 +522,10 @@ code_muni = top200 |>
 border = geobr::read_municipality(code_muni)
 ```
 
-Para transformar o código acima numa função, basta incluir estes objetos como argumentos.
+Para transformar o código acima numa função, basta incluir estes objetos como argumentos. Como a tabela usada é sempre a mesma coloca-se o objeto `top200` dentro da função[^6].
+
+[^6]: Note que isto torna a função limitada, pois temos dados somente das 200 cidades mais populosas do Brasil. Outro fator importante é que estamos usando o nome da cidade como input. Se a tabela fosse expandida para incluir todas as cidades do Brasil seria necessário alterar o argumento pois há cidades com nome duplicado.\
+    Este tipo de generalização está fora do escopo deste post.
 
 ```{r}
 get_border = function(city) {
@@ -533,7 +545,7 @@ A função `get_border`, definida acima, possui um único argumento `city`, o no
 
 ## Principais vias
 
-O processo de transformar o código numa função consiste em entender quais são os elementos essenciais e acidentais. No código abaixo o nome da cidade `"Recife, Pernambuco, Brazil"` é um elemento mutável enquanto `opq(bbox = getbb(…))` é a parte essencial. Similarmente, todos os comandos abaixo de `streets` são essenciais, mas o nome do objeto `rec` é inteiramente acidental.
+O processo de transformar o código numa função consiste em entender quais são os elementos essenciais e circustanciais. No código abaixo o nome da cidade `"Recife, Pernambuco, Brazil"` é um elemento mutável enquanto `opq(bbox = getbb(…))` é a parte essencial. Similarmente, todos os comandos abaixo de `streets` são essenciais, mas o nome do objeto `rec` é inteiramente acidental.
 
 ```{r}
 #| eval: false
@@ -628,8 +640,10 @@ rec_alti = rec_alti %>%
 
 A função `get_elevation` utiliza o shape dos limites do município e retorna um spatial `data.frame` com o grid retangular que contém os dados de altitude do município. O argumento `z` controla o nível de resolução e varia de 1 a 14. Quanto maior, maior será a resolução (o "zoom" da imagem), ou seja, mais detalhado (e mais pesado) será o resultado.
 
+Na definição da função, deixa-se o valor padrão pré-definido em `z = 9`. Isto significa que o argumento pode ser omitido pelo usuário.
+
 ```{r}
-get_elevation = function(border, z = 8) {
+get_elevation = function(border, z = 9) {
   #> Importa os dados de altitude
   altitude = elevatr::get_elev_raster(border, z = z, clip = "bbox")
   #> Converte para 'vector'
@@ -650,6 +664,8 @@ get_elevation = function(border, z = 8) {
 ### Classificando
 
 Para classificar os dados utiliza-se o algoritmo de Jenks. As duas funções abaixo retornam esse agrupamento tomando um spatial `data.frame` como argumento principal. Eu adicionei alguns argumento adicionais que facilitam a escolha do número dos grupos e (opcionalmente) permite os limites dos grupos sejam arredondados para gerar número mais bonitos.
+
+A função `add_jenks_breaks` retorna uma lista com dois elementos: o primeiro elemento é o spatial `data.frame`, acrescido de uma coluna com o argupamento; o segundo elemento é um vetor `character` com a "legenda" do grupo, i.e., `">50", "50-100", …`.
 
 ```{r}
 add_jenks_breaks = function(shp, k = 7, round = FALSE) {
@@ -686,16 +702,18 @@ add_jenks_breaks = function(shp, k = 7, round = FALSE) {
 get_jenks_labels = function(x) {
   labels = paste(x, x[-1], sep = "–")
   labels[1] = paste("<", x[2])
-  labels <- labels[1:(length(labels) - 1)]
+  labels = labels[1:(length(labels) - 1)]
   return(labels)
 }
 ```
 
 ## Juntando as partes
 
-O código que junta o grid de altitude com as ruas usava um `for-loop` em cada um dos grupos. Uma das desvantagens de usar loops é ter de criar objetos temporários; além disso, loops costumam ser mais lentos do que uma função que roda em paralelo, mas há exceções[^5].
+O código que junta o grid de altitude com as ruas usava um `for-loop` em cada um dos grupos. Costuma ser relativamente simples substituir loops por funções. Transforma-se a essência do loop numa função e aplica-se a esta função no objeto usando alguma função `map_*` ou `lapply`. No exemplo abaixo, a parte essencial é o código que filtra o grid de alitutude e faz a sua intersecção com o shape das ruas.
 
-[^5]: Em geral, desde que o loop seja bem feito ele não será muito lento. Para consultar boas práticas de como fazer bons loops consulte [Best Coding Practices for R](https://bookdown.org/content/d1e53ac9-28ce-472f-bc2c-f499f18264a3/loops.html). Uma comparação recente da velocidade de loops no R está disponível em [On the performance of for loops in R](https://jmsallan.netlify.app/blog/2021-03-05-on-the-performance-of-for-loops-in-r/).
+Funções têm algumas vantanges sobre loops. Para rodar um loop quase sempre é necessário criar objetos temporários, que vão armazenar os resultados parciais do loop. Além disso, loops costumam ser mais lentos do que funções rodando em paralelo[^7]. Loops mal construídos, em particular, podem ser bastante ineficientes.
+
+[^7]: Em geral, desde que o loop seja bem feito ele não será muito lento. Para consultar boas práticas de como fazer bons loops consulte [Best Coding Practices for R](https://bookdown.org/content/d1e53ac9-28ce-472f-bc2c-f499f18264a3/loops.html). Uma comparação recente da velocidade de loops no R está disponível em [On the performance of for loops in R](https://jmsallan.netlify.app/blog/2021-03-05-on-the-performance-of-for-loops-in-r/).
 
 ```{r}
 #| code-fold: true
@@ -729,9 +747,9 @@ rec_streets_altitude <- bind_rows(streets_altitude)
 
 A função `get_street_altitude` abaixo pega o grid de altitude da cidade e o shape das principais vias e retorna um spatial `data.frame` único que contém as ruas da cidade agrupadas pela sua altura.
 
-Nesta função, define-se uma função "auxiliar" `join_streets` que existe somente dentro do contexto da função `get_streets_altitude`. Aplica-se esta função em paralelo usando `furrr::future_map`[^6].
+Nesta função, define-se uma função "auxiliar" `join_streets` que existe somente dentro do contexto da função `get_streets_altitude`. Aplica-se esta função em paralelo usando `furrr::future_map`[^8].
 
-[^6]: Alternativamente, pode-se usar `parallel::mclapply`, mas esta função, infelizmente só funciona em sistemas MacOs e Linux.
+[^8]: Alternativamente, pode-se usar `parallel::mclapply`, mas esta função, infelizmente só funciona em sistemas MacOs e Linux.
 
 ```{r}
 get_streets_altitude = function(altitude, streets) {
@@ -771,6 +789,8 @@ get_streets_altitude = function(altitude, streets) {
 ## Mapa
 
 Transformar o mapa final numa função é bastante simples já que quase todos os argumentos das funções vão continuar exatamente iguais. A única diferença importante a se notar é na escolha da paleta de cores. Como o número de grupos de altitude pode mudar, faz sentido que a paleta de cores também se altere. Além disso, adiciono também uma opção de usar a fonte Roboto Condensed com o pacote showtext.
+
+Note que suprimo o uso de `ggplot2::` para deixar o código menos carregado.
 
 ```{r}
 map_plot = function(shp, labels, title, showtext = TRUE) {
@@ -824,8 +844,9 @@ map_plot = function(shp, labels, title, showtext = TRUE) {
   
 }
 
-sysfonts::font_add_google("Roboto Condensed", "Roboto Condensed")
-showtext::showtext_auto()
+#> Para adicionar a fonte
+# sysfonts::font_add_google("Roboto Condensed", "Roboto Condensed")
+# showtext::showtext_auto()
 ```
 
 ## Uma função final
@@ -890,7 +911,7 @@ scs = map_altitude("São Caetano Do Sul", k = 4, z = 8)
 scs$plot
 ```
 
-Os demais mapas gerados foram feitos em resolução bastante elevada, então os códigos podem demorar várias horas para executar. Recomendo começar testando com valores menores de `z`. Mesmo em alta resolução, há melhorias possíveis nos gráficos como mudanças no "enquadramento" do mapa e também na escolha das quebras da legenda.
+Os demais mapas gerados foram feitos em resolução bastante elevada, então os códigos podem demorar várias horas para executar. Recomendo começar testando com valores menores de `z`. Mesmo em alta resolução, há melhorias possíveis nos gráficos como mudanças no "enquadramento" do mapa e também na escolha das quebras da legenda. Ainda assim, o resultado é muito bom.
 
 ### Fortaleza
 
@@ -948,3 +969,29 @@ map_altitude("Curitiba", k = 8, z = 11)
 ```
 
 ![](/static/maps/elevation_xx_curitiba.svg){fig-align="center"}
+
+### Brasília
+
+```{r}
+#| out-width: "100%"
+#| out-height: "100%"
+#| eval: false
+map_altitude("Brasília", k = 7, z = 11)
+```
+
+![](/posts/general-posts/2023-09-brasilia/images/elevation_brasilia.svg){fig-align="center"}
+
+# Concluindo
+
+Funções são elementos fundamentais na linguagem `R`. De fato, *pacotes* nada mais são do que *famílias de funções*, que dividem algum objetivo em comum. E o `R`, grosso modo, é um grande repositório de pacotes, que são chamados para executar alguma tarefa. Pode levar algum tempo para se acostumar a pensar e a escrever código desta maneira, mas os ganhos são tremendos.
+
+Funções permitem **escalar e automatizar o seu trabalho**, diminuem a quantidade de erros no seu código e facilitam a sua vida no longo prazo. Não se enfatizou muito os ganhos de eficiência de usar processamento paralelo neste post; contudo, depois que se cria funções é relativamente simples implementar elas com **processamento paralelo**.
+
+Boas funções são modulares: pode-se **reutilizar elas em outros projetos ou mesmo em novos pacotes**. A reutilização destas funções, naturalmente, vai expondo as suas fragilidades e fomenta um *mindset* de melhorias incrementais. No post, criamos uma função que gera um mapa com a altitude das vias numa cidade. Esta função pode ser melhorada de diversas maneiras:
+
+1.  Permitir que se crie o mapa de qualquer cidade do Brasil.
+2.  Permitir que se troque a paleta de cores.
+3.  Permitir que se defina as quebras dos grupos manualmente.
+4.  Permitir que se faça um "zoom" de certa área numa cidade.
+
+Vale notar, por fim, que **funções costumam ser abstrações de um código previamente construído**. Não é fácil simplesmente começar a escrever uma função que importa e limpa uma base de dados, sem antes explorar esta base, por tentativa e erro. É importante ganhar intuição, da mesma maneira como fizemos neste post, mapeando somente uma cidade em particular. Assim, é melhor começar resolvendo um, dois ou até três casos particulares antes de tentar generalizar o processo numa função.
