@@ -1,0 +1,155 @@
+---
+title: "Weekly Viz: Temperatura em Porto Alegre"
+cateogories: ['data-visualization', 'brazil', 'weekly-viz', 'ggplot2']
+execute: 
+  warning: false
+  message: false
+  echo: false
+draft: true
+---
+
+```{r}
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+library(here)
+library(readr)
+```
+
+```{r}
+dat1 <- read_csv2(here("static/data/poa_jardim_botanico_1.csv"))
+dat2 <- read_csv2(here("static/data/poa_jardim_botanico_2.csv"))
+
+dat <- bind_rows(list(dat1, dat2))
+
+clean_dat <- dat |> 
+  janitor::clean_names() |> 
+  mutate(
+    date = lubridate::dmy(data),
+    week = lubridate::week(date),
+    month = lubridate::month(date),
+    date_time = lubridate::ymd_hm(paste(date, hora_utc))
+  )
+
+day_temp <- clean_dat |> 
+  summarise(
+    temp_max = max(temp_ins_c, na.rm = TRUE),
+    temp_min = min(temp_ins_c, na.rm = TRUE),
+    temp_avg = mean(temp_ins_c, na.rm = TRUE),
+    .by = "date"
+  )
+```
+
+```{r}
+ggplot(day_temp) +
+  geom_line(aes(x = date, y = temp_avg)) +
+  geom_errorbar(
+    aes(x = date, ymin = temp_min, ymax = temp_max),
+    linewidth = 0.8,
+    alpha = 0.3,
+    color = "#C46151") +
+    scale_x_date(
+      date_breaks = "1 month",
+      date_labels = "%b",
+      expand = c(.01,0)
+      ) +
+  scale_y_continuous(
+    breaks = seq(0, 40, 5),
+    labels = paste0(seq(0, 40, 5), "º")
+    ) +
+  theme_minimal() +
+  theme(
+    panel.grid.minor = element_blank()
+  )
+```
+
+```{r}
+library(xts)
+index <- as.POSIXct(clean_dat$date_time)
+temp <- xts(clean_dat$temp_ins_c, order.by = index)
+
+sum(is.na(temp))
+
+interp <- na.approx(temp)
+plot(interp)
+
+dat <- tibble(
+  date_time = lubridate::ymd_hms(index(interp)),
+  temp = as.numeric(coredata(interp)),
+  date = lubridate::floor_date(date_time, unit = "day")
+)
+
+day_temp <- dat |> 
+  mutate(date = lubridate::ymd(date)) |> 
+  summarise(
+    temp_max = max(temp, na.rm = TRUE),
+    temp_min = min(temp, na.rm = TRUE),
+    temp_avg = mean(temp, na.rm = TRUE),
+    count = n(),
+    .by = "date"
+  )
+```
+
+```{r}
+ggplot(day_temp) +
+  geom_line(aes(x = date, y = temp_avg)) +
+  geom_errorbar(
+    aes(x = date, ymin = temp_min, ymax = temp_max),
+    linewidth = 0.8,
+    alpha = 0.3,
+    color = "#C46151") +
+    scale_x_date(
+      date_breaks = "1 month",
+      date_labels = "%b",
+      expand = c(.01,0)
+      ) +
+  scale_y_continuous(
+    breaks = seq(0, 40, 5),
+    labels = paste0(seq(0, 40, 5), "º")
+    ) +
+  theme_minimal() +
+  theme(
+    panel.grid.minor = element_blank()
+  )
+```
+
+```{r}
+dat |> 
+  mutate(mes = lubridate::month(date)) |> 
+  summarise(
+    avg = mean(temp),
+    var = var(temp),
+    .by = "mes"
+  )
+```
+
+```{r}
+dat |> 
+  mutate(mes = lubridate::month(date)) |> 
+  filter(mes == 7) |> 
+  ggplot(aes(x = date_time, y = temp)) +
+  geom_line() +
+  geom_point()
+```
+
+```{r}
+dat |> 
+  mutate(
+    mes = lubridate::month(date),
+    dia = lubridate::day(date),
+    hora = lubridate::hour(date_time)
+    ) |> 
+  filter(mes == 3) |> 
+  ggplot(aes(x = hora, y = temp, group = dia)) +
+  geom_line(alpha = 0.8)
+```
+
+```{r}
+dat |> 
+  mutate(
+    mes = lubridate::month(date),
+    dia = lubridate::day(date),
+    hora = lubridate::hour(date_time)
+    ) |> 
+  filter(mes == 3)
+```
