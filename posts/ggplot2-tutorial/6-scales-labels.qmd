@@ -780,12 +780,29 @@ ggplot(pod, aes(x = prop_educ_superior, y = income_avg)) +
   guides(color = guide_colorbar(reverse = TRUE))
 ```
 
-O {ggplot2} é um pacote muito flexível, oferece todo tipo de visualização imaginável. Como resultado, podemos (como já vimos em vários casos) gerar todo tipo de gráfico sem sentido. O exemplo abaixo mostra novamente a série da taxa de poupança, mas agora a cor da linha é proporcional à taxa de desemprego naquele mês.
+O `{ggplot2}` é um pacote muito flexível, oferece todo tipo de visualização imaginável. Como resultado, podemos (como já vimos em vários casos) gerar todo tipo de gráfico sem sentido. O exemplo abaixo mostra novamente a série da taxa de poupança, mas agora a cor da linha é proporcional à taxa de desemprego naquele mês.
 
 ```{r}
 ggplot(economics, aes(x = date, y = psavert)) +
   geom_line(aes(color = unemploy/pop)) +
   scale_color_viridis_c()
+```
+
+Em geral, usa-se cores em gráficos de linha para ajudar a distinguir entre diferentes séries de tempo. Pode-se usar cores diferentes numa única série para enfatizar a sua mudança no tempo. O gráfico abaixo mostra a série das "anomalias de temperatura" nas últimos décadas. Por anomalia de temperatura, entende-se, o desvio da temperatura média anual em relação à média histórica (1951-1980)[^4].
+
+[^4]: Esta base de dados é exportada em conjunto com o pacote `astsa`. Para mais informações consulte [o site da NASA](https://data.giss.nasa.gov/gistemp/), que é a fonte original dos dados e que, também, disponibiliza uma versão atualizada da série.
+
+```{r}
+globtemp <- astsa::globtemp
+# Converte o objeto para data.frame
+df <- data.frame(
+  date = as.numeric(time(globtemp)),
+  temp = as.numeric(globtemp)
+  )
+
+ggplot(df, aes(x = date, y = temp, color = temp)) + 
+  geom_line() +
+  scale_color_viridis_c(option = "inferno")
 ```
 
 # Outros elementos estéticos
