@@ -2,8 +2,7 @@
 title: 'Indo Além: Lollipops'
 date: '2023-10-17'
 categories: ['data-visualization', 'ggplot2', 'tutorial-R']
-description: "Post intermediário que ensina a fazer gráficos de lollipop no R usando o pacote ggplot2."
-title-block-banner: true
+description: "Post intermediário que ensina a fazer gráficos de lollipop no R usando o pacote ggplot2. Os gráficos de lollipop consistem de barras com círculos no topo, que representam os valores das observações. Eles são utilizados tanto para substituir gráficos de coluna convencionais, como para destacar e comparar valores entre diferentes categorias ou momentos no tempo."
 image: "/static/ggplot2_lollipop.png"
 image-alt: "/static/ggplot2_lollipop.png"
 execute: 
@@ -14,7 +13,6 @@ format:
     code-fold: false
     code-tools: true
 freeze: true
-draft: true
 ---
 
 ```{r setup, include = FALSE}
@@ -49,13 +47,13 @@ print_table <- function(x) {
 
 # Lollipop charts
 
-Os gráficos de lollipop (*pirulito*) consistem de barras (colunas) com círculos no topo, que representam os valores das observações. Visualmente, elas lembram pirulitos. Eles são utilizados tanto para substituir gráficos de coluna convencionais, como para destacar e comparar valores entre diferentes categorias ou momentos no tempo.
+Os gráficos de lollipop (*pirulito*) consistem de barras (colunas) com círculos no topo, que representam os valores das observações. Visualmente, elas lembram pirulitos. Eles são utilizados tanto para substituir gráficos de coluna convencionais, como para destacar e comparar valores entre diferentes categorias ou momentos no tempo. Estes gráficos também funcionam bem para fazer rankings de valores, quando há várias categorias.
 
 ```{r}
 #| echo: false
-#| out-width: 100%
+#| out-width: 90%
 #| fig-width: 11
-#| fig-height: 10.5
+#| fig-height: 12
 #| fig-caption: "Exemplo de lollipop charts"
 panel
 ```
@@ -76,7 +74,7 @@ library("forcats")
 library("gapminder")
 ```
 
-Este é o primeiro post da parte intermediária da série de *Fundamentos de ggplot2*. Para uma introdução aos gráficos de coluna veja o [post introdutório](https://restateinsight.com/posts/ggplot2-tutorial/0-introduction). Além disso, alguma manipulação de dados será necessária para remodelar os dados. Não é necessário ter conhecimento sobre estas funções adicionais, mas caso queira aprender mais sobre manipulação/limpeza de dados veja o post [Manipular para enxergar]().
+Este é o primeiro post da parte intermediária da série de [*Fundamentos de ggplot2*](https://restateinsight.com/posts/ggplot2-tutorial/0-introduction). Para uma introdução aos gráficos de coluna veja o [post introdutório](https://restateinsight.com/posts/ggplot2-tutorial/2-grafico-coluna). Além disso, alguma manipulação de dados será necessária para remodelar os dados. Não é necessário ter conhecimento sobre estas funções adicionais, mas caso queira aprender mais sobre manipulação/limpeza de dados veja o post [Manipular para enxergar](https://restateinsight.com/posts/ggplot2-tutorial/apendix-manipular-enxergar).
 
 ## Exemplo
 
@@ -114,13 +112,11 @@ Vamos destrinchar o código acima em partes.
 
 Primeiro fazemos a chamada do `ggplot` para começar o gráfico. Incluímos o argumento `data = dados` pois ambas as figuras vão utilizar a mesma base de dados.
 
-Por força de ser didático, deixamos todos os argumentos explícitos. Assim, a função `geom_segment` que desenha o segmento de reta precisa de 4 argumentos `x`, `xend`, `y` e `yend`. Como queremos uma linha reta na vertical, deixamos o valor de `x` igual ao de `xend`.
-
-O valor `y = 0` especifica que a linha deve iniciar no zero (no eixo-y) e `yend = vendas_2020` indica que a linha deve se estender até o valor de `vendas_2020`.
+Por força de ser didático, deixamos todos os argumentos explícitos. Assim, a função `geom_segment` que desenha o segmento de reta precisa de 4 argumentos `x`, `xend`, `y` e `yend`. Como queremos uma linha reta na vertical, deixamos o valor de `x` igual ao de `xend`. O valor `y = 0` especifica que a linha deve iniciar no zero (no eixo-y) e `yend = vendas_2020` indica que a linha deve se estender até o valor de `vendas_2020`.
 
 A função `geom_point` precisa apenas dos argumentos `x` e `y` que definem as coordenadas de cada ponto. Assim `x = categoria` indica a coordenada horizontal e `y = vendas_2020` indica a coordenada vertical. O argumento `size = 3` aumenta o tamanho do círculo (opcional, mas recomendado).
 
-O gráfico fica da seguinte forma:
+O resultado do gráfico é apresentado abaixo.
 
 ```{r, echo = FALSE}
 ggplot(data = dados) +
@@ -333,6 +329,7 @@ Por fim, um último ponto importante é a ordem da variável categórica. No pri
 O exemplo abaixo ilustra o problema: no gráfico da direita a ordem do eixo-y começa no E e termina no A.
 
 ```{r, eval = FALSE}
+#| code-fold: true
 # Gráfico na horizontal com a variável categórica da esquerda para a direita
 ggplot(
   data = dados,
@@ -455,9 +452,8 @@ O código completo para o gráfico segue abaixo.
 
 ```{r}
 #| out-width: 100%
-#| out-height: 550px
-#| fig-width: 8.125
-#| fig-height: 10
+#| fig-width: 8.725
+#| fig-height: 11
 #| code-fold: true
 ggplot() +
   geom_segment(
@@ -468,7 +464,7 @@ ggplot() +
     data = americas,
     aes(x = country, y = lifeExp, color = as.factor(year)),
     size = 2) +
-  scale_color_brewer(name = "Ano", type = "qual", palette = 6) +
+  scale_color_brewer(name = "", type = "qual", palette = 6) +
   labs(
     title = "Aumento da Expectativa de Vida",
     subtitle = "Expectativa de vida ao nascer em 1952 e em 2007 nos países americanos.",
@@ -485,7 +481,7 @@ ggplot() +
 
 ## Expectativa de vida em relação à média
 
-Pode-se também montar um gráfico que compara a expectativa de vida nos países em relação à média mundial. O código abaixo pega as observações do ano mais recente e calcula o desvio em relação à média de cada país. Para tornar a visualização mais limpa, seleciona-se um subconjunto de 20 países
+Pode-se também montar um gráfico que compara a expectativa de vida nos países em relação à média mundial. O código abaixo pega as observações do ano mais recente e calcula o desvio em relação à média de cada país. Para tornar a visualização mais limpa, seleciona-se um subconjunto de 20 países.
 
 ```{r}
 gap07 <- gapminder |> 
@@ -496,10 +492,9 @@ gap07 <- gapminder |>
     )
 
 country_sel <- c(
-  "Swaziland", "Rwanda", "Botswana", "Kenya", "Haiti",
-  "India", "Brazil", "Turkey", "Mexico", "United States",
-  "Austria", "France", "Japan", "Taiwan", "Argentina",
-  "Sri Lanka", "Egypt", "Iraq", "Nigeria", "Afghanistan"
+  "Swaziland", "Rwanda", "Botswana", "Kenya", "Haiti", "India", "Brazil",
+  "Turkey", "Mexico", "United States", "Austria", "France", "Japan", "Taiwan",
+  "Argentina", "Sri Lanka", "Egypt", "Iraq", "Nigeria", "Afghanistan"
   )
 
 sub07 <- filter(gap07, country %in% country_sel)
@@ -536,7 +531,7 @@ ggplot(data = sub07) +
   scale_y_continuous(limits = c(-28, 28)) +
   scale_color_manual(
     name = "Continente",
-    values = c("#7F3B08", "#A50026", "#984ea3", "#4daf4a")
+    values = c("#264653", "#e9c46a", "#2a9d8f", "#e76f51")
     ) +
   labs(
     title = "Expectativa de Vida",
@@ -685,6 +680,7 @@ Gráficos de lollipop também podem ser utilizados para mostrar a variância num
 O código abaixo encontra os valores de venda máximo, mínimo e médio em cada uma das cidades. Além disso, também encontro em qual ano que os valores máximo e mínimo ocorreram. Note que se exclui o ano de 2015, pois as observações neste ano não estão completas.
 
 ```{r}
+#| code-fold: true
 tab_summary_sales <- txhousing |> 
   #> Remove 2015
   filter(year < 2015) |> 
@@ -705,6 +701,7 @@ tab_summary_sales <- txhousing |>
 Para melhorar a visualização, escolho somente as cidades pequenas, que registraram número médio de vendas entre 1000 e 5000 unidades.
 
 ```{r}
+#| code-fold: true
 #> Converte os dados para long e remove valores ausentes
 tab_sales <- tab_summary_sales |> 
   pivot_longer(-city, names_to = "stat") |> 
@@ -727,6 +724,7 @@ tab_small_sales <- tab_sales |>
 Separo os valores com os números de vendas num `tibble` e os valores com os anos num outro `tibble`. O primeiro conjunto de dados será utilizado para plotar os pontos e a linha (o lollipop), enquanto o segundo será utilizado para plotar os labels de texto (com os números).
 
 ```{r}
+#| code-fold: true
 #> Número de vendas (pontos e linha)
 sub_sales <- tab_small_sales |> 
   filter(stringr::str_detect(stat, "sales")) |> 
