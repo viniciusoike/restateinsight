@@ -1,6 +1,6 @@
 ---
 title: 'Importando arquivos, visualizando linhas'
-date: '2023-10-10'
+date: '2023-10-19'
 categories: ['tutorial-R', 'data-science']
 description: "Toda análise de dados passa por tarefas de rotina: importar dados, trocar nomes de colunas, remover observações vazias, etc. Por que não facilitar a sua vida e tornar essas tarefas simples?"
 ---
@@ -70,13 +70,13 @@ Ainda que no longo prazo acho que seja importante saber todas as funções, o pr
 
 A tabela abaixo resume as principais funções que você provavelmente vai ter que usar.
 
-|  Formato   |            Extensao            |        Importar        |        Exportar        |
-|:----------------:|:-----------------:|:----------------:|:----------------:|
-|   Excel    |         `xls`, `xlsx`          | `readxl::read_excel()` |  `xlsx::write.xlsx()`  |
-| Separados  |  `csv`, `tsv`, `psv`, `csvy`   | `data.table::fread()`  | `data.table::fwrite()` |
-|   Stata    |             `dta`              |  `haven::read_dta()`   |  `haven::write_dta()`  |
-|    SPSS    |             `sav`              |  `haven::read_sav()`   |  `haven::write_sav()`  |
-| Shapefiles | `shp`, `geosjon`, `gpkg`, etc. |    `sf::st_read()`     |    `sf::st_write()`    |
+|  Formato   |            Extensao            |             Importar             |             Exportar              |
+|:--------------:|:---------------------:|:---------------:|:---------------:|
+|   Excel    |         `xls`, `xlsx`          |      `readxl::read_excel()`      |       `xlsx::write.xlsx()`        |
+| Separados  |  `csv`, `tsv`, `psv`, `csvy`   | `data.table::fread()` ou `readr` | `data.table::fwrite()` ou `readr` |
+|   Stata    |             `dta`              |       `haven::read_dta()`        |       `haven::write_dta()`        |
+|    SPSS    |             `sav`              |       `haven::read_sav()`        |       `haven::write_sav()`        |
+| Shapefiles | `shp`, `geosjon`, `gpkg`, etc. |         `sf::st_read()`          |         `sf::st_write()`          |
 
 OBS: Caso não esteja familiarizado com esta sintaxe, aqui `readxl` é o nome do pacote, `read_excel()` é a funcão e o `::` indica que eu quero a função `read_excel` do pacote `readxl`. Em geral, é comum omitir a parte do `nomepacote::` porque acaba sendo desnecessário (exceto no caso de conflitos de funções que têm o mesmo nome).
 
@@ -167,17 +167,17 @@ O único problema desta função é quando seus arquivos não estão num formato
 
 Um problema bem sério que eu enfrentava nos meus códigos era escrever o path até os arquivos externos. Primeiro, eu achava muito trabalhoso escrever ele inteiro. Depois, quando eu mandava meu código para outra pessoa, ou quando eu mesmo ia executar o meu código em outro computador, nada funcionava!
 
-O primeiro passo para lidar com isso é trabalhar com projetos do RStudio. O melhor workflow é sempre começar seu trabalho num projeto novo e deixar todos os arquivos necessários neste mesmo diretório. Isso facilita na hora de escrever paths relativos.
+O primeiro passo para lidar com isso é trabalhar com projetos do RStudio[^4]. O melhor workflow é sempre começar seu trabalho num projeto novo e deixar todos os arquivos necessários neste mesmo diretório em pastas com nomes simples como `data`, `report`, `graphics`, etc.
 
-Paths relativos, ao contrário de paths absolutos, começam no seu diretório da seguinte forma: `"data/subpasta/meus_dados.xlsx"`.
+[^4]: Evidentemente, projetos não são exclusivos ao RStudio; também é possível trabalhar com um workflow de projeto com VSCode, por exemplo. Para usuários que usam majoritariamente o R, contudo, o RStudio facilita muito a vida.
+
+O segundo passo é utilizar *paths relativos*. Paths relativos, ao contrário de paths absolutos, começam no seu diretório da seguinte forma: `"data/subpasta/meus_dados.xlsx"`. A pasta `data` está dentro da pasta do projeto: isto é indicado implicitamente.
 
 É bem diferente de um path absoluto: `/Users/nome_do_usuario/Documentos/meus_projetos/Projeto 1/data/subpasta/meus_dados.xlsx`.
 
-Usar paths absolutos no seu código é garantir que a única pessoa que conseguirá reproduzir ele com sucesso será você, e unicamente no computador em que você escreveu ele (isso se você não formatar ele!).
+Usar paths absolutos no seu código é garantir que a **única pessoa que conseguirá reproduzir ele com sucesso será você**, e unicamente no computador em que você escreveu ele (isso se você não formatar ele!).
 
-Aqui entra o pacote `here`, um pacotinho muito simples, centrado em uma única função homônima.
-
-A função `here` funciona de duas maneiras bastante simples
+Aqui entra o pacote `here`, um pacotinho muito simples, centrado em uma única função homônima. A função `here` funciona de duas maneiras bastante simples
 
 ```{r, eval = FALSE}
 library(here)
@@ -199,7 +199,7 @@ Existe um mal hábito dissemeniado de incluir uma linha com `setwd("insira_seu_d
 
 O `here` simplesmente funciona e funciona com tudo. Ele é especialmente útil na hora de escrever scripts em RMarkdown e Quarto. O pacote `here` é talvez o único que esteja presente em todos os meus projetos e em todos os meus códigos.
 
-Outra dica boa para manter seus projetos organizados é de evitar colocar espaços ou caracteres especiais no nome das suas pastas. Em geral, o `R` consegue lidar bem com isso, mas volta e meia este mau hábito pode gerar problemas inesperados.
+Outra dica boa para manter seus projetos organizados é de evitar colocar espaços ou caracteres especiais no nome das suas pastas. Em geral, o `R` consegue lidar bem com isso, mas volta e meia este mau hábito pode gerar problemas desnecessários e inesperados.
 
 ## Importando todos os arquivos de uma pasta
 
@@ -254,9 +254,9 @@ Lembrando que, idealmente, os nomes das colunas e também dos objetos que criamo
 3.  Sem espaços
 4.  Sem números no começo
 
-Outro ponto, um pouco óbvio, é que há nomes que devemos evitar na hora de nomear nossas colunas como: `FALSE`, `if`, `TRUE`, `for`, `Inf`, etc[^4].
+Outro ponto, um pouco óbvio, é que há nomes que devemos evitar na hora de nomear nossas colunas como: `FALSE`, `if`, `TRUE`, `for`, `Inf`, etc[^5].
 
-[^4]: Estas palavras são "nomes reservados" dentro do `R` e jamais devem ser utilizados na hora de definir um objeto ou o nome de uma coluna. Para consultar a lista de nomes reservados, veja `help("Reserved")`.
+[^5]: Estas palavras são "nomes reservados" dentro do `R` e jamais devem ser utilizados na hora de definir um objeto ou o nome de uma coluna. Para consultar a lista de nomes reservados, veja `help("Reserved")`.
 
 ```{r}
 # Bons nomes
