@@ -1,11 +1,11 @@
 ---
 title: "Brazil in Charts: Unemployment"
+date: "2023-10-20"
 cateogories: ['data-visualization', 'brazil', 'weekly-viz', 'ggplot2']
 execute: 
   warning: false
   message: false
   echo: false
-draft: true
 ---
 
 ```{r, setup}
@@ -38,9 +38,17 @@ showtext_auto()
 state <- geobr::read_state(showProgress = FALSE)
 dim_state <- as_tibble(sf::st_drop_geometry(state))
 unemp <- get_sidra(4099, variable = 4099, geo = "State", period = "201201-202302")
+unemp_br <- get_sidra(4099, variable = 4099, period = "201201-202302")
 ```
 
 ```{r, clean-data}
+
+#> Clean Sidra table
+tbl_unemp_br <- unemp_br |> 
+  janitor::clean_names() |> 
+  select(trimestre = trimestre_codigo, unemp = valor) |> 
+  mutate(date = zoo::as.Date(zoo::as.yearqtr(trimestre, format = "%Y%q")))
+
 #> Clean Sidra table
 tbl_unemp <- unemp |> 
   janitor::clean_names() |> 
@@ -88,7 +96,7 @@ map_chg <- map_chg %>%
 #| out-width: 80%
 #| fig-width: 8
 #| fig-height: 9
-ggplot(tbl_compare, aes(x = abbrev_state, y = unemp)) +
+plot_chg_states <- ggplot(tbl_compare, aes(x = abbrev_state, y = unemp)) +
   geom_line(aes(group = abbrev_state), color = "gray40") +
   geom_point(aes(color = as.factor(date)), size = 2) +
   scale_y_continuous(breaks = seq(0, 18, 2)) +
@@ -115,7 +123,7 @@ ggplot(tbl_compare, aes(x = abbrev_state, y = unemp)) +
 ```
 
 ```{r, map}
-ggplot(map_chg) +
+map_states <- ggplot(map_chg) +
   geom_sf(aes(fill = unemp), linewidth = 0.3, color = "white") +
   geom_label(
     data = filter(map_chg, repel == 0),
@@ -143,183 +151,65 @@ ggplot(map_chg) +
 ```
 
 ```{r}
-labor_share_br <- get_sidra(
-  6461,
-  variable = 4096,
-  period = "201801-202304",
-  geo = "Brazil"
+library(seasonal)
+unemp_br <- GetBCBData::gbcbd_get_series(24369, first.date = as.Date("2012-01-01"))
+unemp <- ts(unemp_br$value, start = c(2012, 3), frequency = 12)
+seas_unemp <- seasonal::seas(unemp)
+sunemp <- seasonal::final(seas_unemp)
+
+unemp_br <- unemp_br |> 
+  dplyr::mutate(
+    seas_adjusted = as.numeric(sunemp)
   )
-
-tbl_labor_share_br <- labor_share_br |> 
-  janitor::clean_names() |> 
-  select(trimestre = trimestre_codigo, share = valor) |> 
-  mutate(
-    date = zoo::as.Date(zoo::as.yearqtr(trimestre, format = "%Y%q"))
-    )
-
-base_index <- tbl_labor_share_br |> 
-  filter(date >= as.Date("2019-01-01"), date <= as.Date("2019-12-01")) |> 
-  summarise(base = mean(share))
-
-tbl_labor_share_br <- tbl_labor_share_br |> 
-  mutate(index = share / base_index$base * 100)
 ```
 
-
 ```{r}
-labor_share <- get_sidra(
-  6461,
-  variable = 4096,
-  period = "201801-202304",
-  geo = "State"
-  )
-
-tbl_labor_share <- labor_share |> 
-  janitor::clean_names() |> 
-  select(
-    code_state = unidade_da_federacao_codigo,
-    trimestre = trimestre_codigo,
-    share = valor 
-    ) |> 
-  mutate(
-    date = zoo::as.Date(zoo::as.yearqtr(trimestre, format = "%Y%q")),
-    code_state = as.numeric(code_state)
-    ) |> 
-  left_join(dim_state, by = "code_state")
-
-index_base <- tbl_labor_share |> 
-  filter(date >= as.Date("2019-01-01"), date <= as.Date("2019-12-01")) |> 
-  summarise(base = mean(share), .by = "code_state")
-
-tbl_labor_share <- tbl_labor_share |> 
-  left_join(index_base, by = "code_state") |> 
-  mutate(
-    index = share / base * 100,
-    highlight = if_else(
-      abbrev_state %in% c("AL", "AC", "SP", "RJ", "TO", "RN"), 1L, 0L
-      )
-    )
-```
-
-
-```{r}
-ggplot() +
-  geom_line(
-    data = tbl_labor_share,
-    aes(x = date, y = index, group = code_state, color = as.factor(name_region)),
-    alpha = 0.7
-    ) +
-  geom_line(
-    data = tbl_labor_share_br,
-    aes(x = date, y = index),
-    color = "#000000",
-    linewidth = 1
-  ) +
-  geom_hline(yintercept = 100) +
-  geom_text(
-    data = filter(tbl_labor_share, date == max(date), highlight == 1),
-    aes(x = date, y = index, label = abbrev_state),
-    family = "Roboto Condensed",
-    size = 3,
-    nudge_x = 50
-  ) +
+#| out-width: 80%
+plot_unemp <- ggplot(unemp_br, aes(x = ref.date)) +
+  geom_line(aes(y = value), alpha = 0.6, color = "#3690c0") +
+  geom_line(aes(y = seas_adjusted), linewidth = 1, color = "#3690c0") +
   scale_x_date(date_breaks = "1 year", date_labels = "%Y") +
-  scale_color_manual(
-    name = "",
-    values = c("#377eb8", "#ff7f00", "#a65628", "#4daf4a", "#984ea3")
-  ) +
   labs(
-    title = "Drop in labor participation rate",
-    y = "Index (2019 = 100)",
+    title = "Unemployment still above pre-recession values",
+    subtitle = "Monthly unemployment rate and seassonally adjusted series.",
+    caption = "Source: IBGE (PNADC).",
     x = NULL,
-    caption = "Source: IBGE (PNADC)"
+    y = "(%)"
   ) +
-  theme_minimal(base_family = "Roboto Condensed") +
+  theme_minimal(base_size = 12, base_family = "Merriweather") +
   theme(
-    panel.grid.minor = element_blank(),
-    legend.position = "top",
-    plot.title = element_text(family = "Merriweather", size = 16)
-    )
+    panel.grid.minor = element_blank()
+  )
 ```
 
+# Brazil in Charts: Unemployment
 
+## Unemployment rate dropped sharply in the post-pandemic period but still above pre-recession levels
+
+After a slow start in 2021, Brazilian unemployment registered a remarkable drop, boosted by soaring commodity prices and generous fiscal expansion. Throughout 2020 and up until the 2022 elections, the Federal Government sustained several subsidy programs that initially accounted for up to 10% of total GDP. Even after the election, government is still running at a significant deficit, as the promised budget cuts fail to be approved.
+
+The job market numbers are even more impressive when one accounts for the very high real interest rates that prevailed through 2021 and 2022[^1]. Despite a global slowdown in the markets, Brazilian GDP surprised in the first quarter of 2023 due to an impressive performance of the agricultural sector. Agricultural related activities grew 18,8% YoY and led to a 4% increase in GDP YoY[^2].
+
+[^1]: <https://www.nytimes.com/interactive/2022/06/16/business/economy/global-interest-rate-increases.html>
+
+[^2]: <https://agenciadenoticias.ibge.gov.br/agencia-sala-de-imprensa/2013-agencia-de-noticias/releases/37029-pib-cresce-1-9-no-1-trimestre-de-2023>
 
 ```{r}
-labor <- get_sidra(
-  4092,
-  variable = 1641,
-  period = "201801-202302",
-  geo = "State"
-  )
+#| out-width: 80%
+plot_unemp
 ```
+
+The drop in unemployment has been seen across all Brazilian states. The largest drop happened in the northern state of Roraíma, which saw unemployment drop 10 percentage points. Santa Catarina had the lowest unemployment rate in 2019-Q2 and now has the third lowest rate at 3.5%.
 
 ```{r}
-tbl_labor <- labor |> 
-  janitor::clean_names() |> 
-  select(
-    code_state = unidade_da_federacao_codigo,
-    status = condicao_em_relacao_a_forca_de_trabalho_e_condicao_de_ocupacao,
-    value = valor,
-    quarter = trimestre_codigo) |> 
-  mutate(
-    date = zoo::as.yearqtr(quarter, format = "%Y%q"),
-    date = zoo::as.Date(date)
-  ) |> 
-  pivot_wider(
-    id_cols = c("code_state", "date"),
-    names_from = "status",
-    values_from = "value"
-  )
-
-index_base <- tbl_labor_share |> 
-  filter(date >= as.Date("2019-01-01"), date <= as.Date("2019-12-01")) |> 
-  summarise(base = mean(share), .by = "code_state")
-
-tbl_labor <- tbl_labor |> 
-  janitor::clean_names() |> 
-  mutate(
-    part_rate = forca_de_trabalho / total * 100,
-    employment_population = forca_de_trabalho_ocupada / total * 100,
-    unemp = forca_de_trabalho_desocupada / forca_de_trabalho,
-    unemp_adjusted = forca_de_trabalho_desocupada / (total * index_base$base) * 100
-    ) |> 
-  pivot_longer(
-    cols = -c(code_state, date),
-    names_to = "series"
-  )
+#| out-width: 80%
+#| fig-width: 8
+#| fig-height: 9
+plot_chg_states
 ```
+
+Overall, the Mid-Western states of Mato Grosso and Mato Grosso do Sul are at historically low unemployment rates. Both states have strong ties to the primary sector and have benefited from recent record-breaking soybean crops. The states in the South and Southeast all have below average unemployment rates with the exception of Rio de Janeiro. Rio's economy is still struggling after repeated blows; the aftermath of the 2014 World Cup has been a continuing string of crisis: the 2015-17 recession, Lavajato, and the Covid-19 Pandemic have all aggravated a pre-existing economic stagnation.
 
 ```{r}
-labor_br <- get_sidra(4092, variable = 1641, period = "201801-202302")
-
-tbl_labor_br <- labor_br |> 
-  janitor::clean_names() |> 
-  select(
-    status = condicao_em_relacao_a_forca_de_trabalho_e_condicao_de_ocupacao,
-    value = valor,
-    quarter = trimestre_codigo) |> 
-  mutate(
-    date = zoo::as.yearqtr(quarter, format = "%Y%q"),
-    date = zoo::as.Date(date)
-  ) |> 
-  pivot_wider(id_cols = "date", names_from = "status", values_from = "value") |>
-  janitor::clean_names()
-
-tbl_labor_br <- tbl_labor_br |> 
-  mutate(
-    part_rate = forca_de_trabalho / total * 100,
-    employment_population = forca_de_trabalho_ocupada / total * 100,
-    unemp = forca_de_trabalho_desocupada / forca_de_trabalho
-  )
-
-br_labor_rate <- tbl_labor_br |> 
-  filter(date >= as.Date("2019-01-01"), date <= as.Date("2019-12-01")) |> 
-  summarise(share = mean(part_rate)) |> 
-  pull(share)
-
-tbl_labor_br <- tbl_labor_br |> 
-  mutate(
-    unemp_adjust = forca_de_trabalho_desocupada / (total * br_labor_rate) * 100
-    )
+map_states
 ```
-
