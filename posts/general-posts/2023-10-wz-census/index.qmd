@@ -1,0 +1,177 @@
+---
+title: 'Weekly Viz - Brazilian Census'
+date: "2023-10-27"
+cateogories: ['data-visualization', 'weekly-viz', 'brazil', 'ggplot2']
+format:
+  html: 
+    fig-align: "center"
+execute: 
+  echo: false
+  warning: false
+  message: false
+draft: true
+---
+
+```{r}
+library(ggplot2)
+library(here)
+library(dplyr)
+library(tidyr)
+```
+
+```{r}
+census <- sidrar::get_sidra(4709, variable = 10605, geo = "City")
+city_border <- geobr::read_municipality(year = 2020, showProgress = FALSE)
+state_border <- geobr::read_state(showProgress = FALSE)
+```
+
+```{r}
+tbl_census <- census |> 
+  janitor::clean_names() |> 
+  select(code_muni = municipio_codigo, tgc = valor) |> 
+  mutate(code_muni = as.numeric(code_muni))
+```
+
+```{r}
+city_pop <- left_join(city_border, tbl_census, by = "code_muni")
+```
+
+```{r}
+plot_map <- function(region) {
+  
+  breaks <- c(-3, -1, 0, 0.5, 1, 3)
+  labels <- c(
+    "< -3", "-3 to -1", "-1 to 0", "0 to 0.5", "0.5 to 1", "1 to 3", "> 3"
+    )
+  cores <- c(
+    "#B2182B", "#D6604D", "#F4A582", "#92C5DE", "#4393C3", "#2166AC", "#053061"
+    )
+  
+  vlregion <- c(
+    "norte" = 1,
+    "nordeste" = 2,
+    "sudeste" = 3,
+    "sul" = 4,
+    "centro-oeste" = 5 
+  )
+  
+  code <- unname(vlregion[region])
+  
+  sub <- city_pop %>%
+    dplyr::filter(code_region == code) %>%
+    dplyr::mutate(group_tgc = factor(findInterval(tgc, breaks)))
+  
+  ggplot() +
+    geom_sf(
+      data = sub,
+      aes(fill = group_tgc),
+      linewidth = 0.1,
+      color = "gray95"
+      ) +
+    geom_sf(
+      data = filter(state_border, code_region == code),
+      linewidth = 0.75,
+      color = "gray90",
+      fill = NA
+      ) +
+    scale_fill_manual(name = "TGC (%)", values = cores, labels = labels) +
+    ggthemes::theme_map()
+  
+}
+```
+
+# Weekly Visualization
+
+## Brazilian Census in Maps
+
+### North
+
+Both the north and northeastern cities benefit from relatively younger demographics. Adult population is still - by far - the largest demographic group and fertility rates are usually above the national average. These cities usually have the lowest share of above 65 years population. Some regions, and the state of Roraíma in particular, have also benefited from immigration from neighbor Venezuela.
+
+```{r}
+#| out-width: 100%
+#| fig-width: 8
+#| fig-height: 8
+plot_map(region = 1) +
+  guides(color = guide_legend(nrow = 1)) +
+  theme(legend.position = "bottom")
+```
+
+### Northeast
+
+Despite favorable demographics, northeastern cities are aging rapidly and shrinking in size. Alagoas and Bahia registered some of the lowest growth rates at 0.02% and 0.07% respectively. The region, as a whole, struggles with safety issues, high unemployment, and stagnant income growth.
+
+```{r}
+#| out-width: 100%
+#| fig-width: 8
+#| fig-height: 8
+plot_map(region = 2) +
+  theme(legend.position = c(0.8, 0.1))
+```
+
+### Southeast
+
+The southeast region concentrates the largest share of GDP and population in Brazil. Demographic indicators show a large elder population and very low fertility rates. Growth in São Paulo and Espírito Santo has been close to the national average while Rio de Janeiro and Minas Gerais lag behind. The latter state has the second lowest growth rate, 0.03%. As shown in the previous Brazil in Charts post, [Rio de Janeiro has the highest unemployment rate among the southeastern states](https://restateinsight.com/posts/general-posts/2023-09-wz-unemployment/).
+
+```{r}
+#| out-width: 100%
+#| fig-width: 8
+#| fig-height: 8
+plot_map(region = 3) +
+  coord_sf(xlim = c(NA, -38.46)) +
+  theme(legend.position = "right")
+```
+
+### South
+
+The southern region cities registered significant population losses. The southernmost state, Rio Grande do Sul, had a growth rate of only 0.14%. Economic stagnation, fertility rate decreases, and the rise of safety problems have also increased emigrations flows. Santa Catarina had the second highest growth of all states, 1.66%, falling only behind Roraíma, which received a huge influx of Venezuelan migrants. Santa Catarina boasts low unemployment, high income, and solid economic growth. The northeastern cities and the Chapecó metropolitan region, in particular, had some of the highest growth rates among large cities (over 100 thousand inhabitants).
+
+```{r}
+#| out-width: 80%
+#| fig-width: 6.4
+#| fig-height: 6.4
+plot_map(region = 4) +
+  theme(legend.position = "right")
+```
+
+### Midwest
+
+The midwest cities exhibited significant population growth. Agriculture is still the most productive Brazilian sector and the Midwest accounts for the majority of the countries agricultural output. High income per capita and job opportunities make these cities attractive destinations for migrants.
+
+The map can be deceptive, since some of the bigger municipalities actually have medium or small populations.
+
+```{r}
+#| out-width: 100%
+#| fig-width: 8
+#| fig-height: 8
+plot_map(region = 5) +
+  theme(legend.position = "right")
+```
+
+## What is the Geometric Growth Rate?
+
+The geometric growth rate expresses the change in a population, assuming that it increases or decreases at a fixed rate.
+
+Lets assume that population at a given time, $P_{t}$, increases at a fixed rate $R$. Then, the relative population change/growth $\frac{\Delta P_{t}}{P_{t}}$ is given by
+
+$$
+\frac{\Delta P_{t}}{P_{t}} = \frac{P_{t+1} - P_{t}}{P_{t}} = R
+$$
+
+Rearranging terms,
+
+$$
+P_{t+1} = P_{t} + RP_{t} = (1 + R)P_{t}
+$$
+
+which states that the population in a future period is simply the current population increased by $RP_{t}$ where $R$ is the geometric growth rate. Since this growth rate is constant, we can generalize that
+
+$$
+P_{t+n} = (1+R)P_{t+n-1} = (1+R)^2P_{t+n-2} = \dots = (1+R)^nP_{t}
+$$
+
+This means that the population in any given time in the future is equal to the current population increased by the compounded geometric rate of growth. This is likely an unrealistic assumption for long periods of time but is a decent approximation in short periods. This last equation also provides the definition for the geometric growth rate:
+
+$$
+R = (\frac{P_{t+n}}{P_{t}})^\frac{1}{n} - 1
+$$
