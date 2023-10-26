@@ -1,0 +1,287 @@
+---
+title: "Um pacote para dados do mercado imobiliário"
+date: "2023-10-26"
+description: "Consumir os dados do mercado imobiliário brasileiro não é tarefa fácil. Pensando em simplificar este processo eu criei um pacote do R, que importa e limpa diversas bases de dados relacionadas ao mercado residencial."
+categories: ["tutorial-R", "data-science", "real-estate"]
+execute: 
+  warning: false
+  message: false
+format:
+  html:
+    fig-align: "center"
+    fig-asp: 0.618
+---
+
+# Real Estate Brazil
+
+Consumir os dados do mercado imobiliário brasileiro não é tarefa fácil. Pensando em simplificar este processo eu criei um pacote chamado `realestatebr` que importa e limpa diversas bases de dados relacionadas ao mercado imobiliário. Atualmente, o pacote está majoritariamente focado no mercado residencial.
+
+Para instalar o pacote é preciso ter o `devtools` ou `remotes` instalado.
+
+```{r}
+#| eval: false
+
+# Instala (se necessário)
+install.packages("remotes")
+# Instala o pacote realestatebr
+remotes::install_github("viniciusoike/realestatebr")
+```
+
+O pacote é estruturado em torno de funções `get_*` que importam bases de dados. O pacote cobre:
+
+-   Abrainc: Indicadores
+
+-   Abrainc: IAMI
+
+-   Abrainc: Radar
+
+-   Abrainc: Relatórios MCMV e MAP
+
+-   Abecip: IGMI-R
+
+-   Abecip: Indicadores de crédito
+
+-   BIS: Residential Property Price Indices
+
+-   Banco Central do Brasil: Estatísticas do Mercado Imobiliário
+
+-   Banco Central do Brasil: Séries macroeconômicas
+
+-   B3: Ações de empresas relacionadas ao mercado imobiliário
+
+-   FipeZap: Índice FipeZap
+
+-   FGV-Ibre: Séries macroeconômicas, IVAR, INCC, etc.
+
+-   QuintoAndar: Índice QuintoAndar de Aluguel
+
+-   Registro de Imóveis
+
+-   SECOVI-SP: Panorama do Mercado Imobiliário
+
+Para mais detalhes sobre o pacote consulte o [repositório no GitHub](https://github.com/viniciusoike/realestatebr).
+
+## Usando o pacote
+
+Os exemplos abaixo demonstram alguns dos usos do pacote.
+
+```{r}
+library(dplyr)
+library(ggplot2)
+library(RcppRoll)
+library(realestatebr)
+```
+
+## Índices de Preços
+
+O Brasil tem diversos índices de preços imobiliários. A função `get_rppi` permite baixar tanto os índices de aluguel como de compra/venda. O código abaixo importa as séries do FipeZap, IGMI-R (FGV e Abecip) e IVG-R (BCB).
+
+```{r}
+sale <- get_rppi("sale", stack = TRUE)
+```
+
+Os dados são importados em formato longitudinal identificados pela coluna `source`. A coluna `chg` traz a variação mensal do índice enquanto a coluna `acum12m` traz a variação acumulada em 12 meses.
+
+```{r}
+#| echo: false
+DT::datatable(sale, class = 'cell-border stripe')
+```
+
+O código abaixo mostra os três índices desde 2018. Note que há um descolamento interessante entre o IGMI-R e o IVG-R. O Índice FipeZap e o IVG-R, que historicamente costumam convergir, também apresentam comportamento divergente nesta janela de tempo.
+
+```{r}
+# Filter only Brazil
+rppi_brasil <- sale |> 
+  filter(
+    name_muni == "Brazil" | name_muni == "Índice Fipezap",
+    date >= as.Date("2018-01-01"),
+    date <= as.Date("2023-06-01")
+  )
+
+ggplot(rppi_brasil, aes(date, acum12m)) +
+  geom_line(aes(color = source)) +
+  scale_x_date(date_breaks = "1 year", date_labels = "%Y") +
+  scale_y_continuous(labels = scales::label_percent()) +
+  scale_color_manual(
+    name = "", values = c("#264653", "#2a9d8f", "#e9c46a")
+    ) +
+  labs(
+    title = "Índices de Preço",
+    x = NULL,
+    y = "Acumulado 12 meses"
+  ) +
+  theme_light() +
+  theme(legend.position = "top")
+```
+
+O gráfico abaixo mostra as séries num horizonte maior de tempo.
+
+```{r}
+rppi_brasil <- sale |> 
+  filter(
+    name_muni == "Brazil" | name_muni == "Índice Fipezap",
+    date >= as.Date("2009-01-01"),
+    date <= as.Date("2023-06-01")
+  )
+
+ggplot(rppi_brasil, aes(date, acum12m)) +
+  geom_line(aes(color = source)) +
+  scale_x_date(date_breaks = "1 year", date_labels = "%Y") +
+  scale_y_continuous(labels = scales::label_percent()) +
+  scale_color_manual(
+    name = "", values = c("#264653", "#2a9d8f", "#e9c46a")
+    ) +
+  labs(
+    title = "Índices de Preço",
+    x = NULL,
+    y = "Acumulado 12 meses"
+  ) +
+  theme_light() +
+  theme(legend.position = "top")
+```
+
+## Financiamento de Imóveis
+
+Pode-se importar facilmente os dados da Abecip sobre financiamentos imobiliários. A função `get_abecip_indicators` é uma lista que retorna dados sobre o SBPE e o CGI.
+
+```{r}
+# Import data from Abecip
+abecip <- get_abecip_indicators()
+
+names(abecip)
+```
+
+O gráfico abaixo mostra o total de unidades financiadas a cada ano.
+
+```{r}
+unidades <- abecip$units
+
+tbl_unidades_ano <- unidades |> 
+  mutate(ano = lubridate::year(date)) |> 
+  summarise(total_ano = sum(units_total), .by = "ano")
+
+ggplot(tbl_unidades_ano, aes(x = ano, y = total_ano)) +
+  geom_col(fill = "#264653") +
+  geom_hline(yintercept = 0) +
+  scale_x_continuous(breaks = 2001:2023) +
+  scale_y_continuous(labels = scales::label_number(big.mark = ".")) +
+  labs(
+    title = "Unidades Financiadas SBPE",
+    x = NULL,
+    y = "Unidades",
+    caption = "Unidades de 2023 acumuladas até agosto."
+    ) +
+  theme_light() +
+  theme(
+    panel.grid.minor.x = element_blank(),
+    panel.grid.major.x = element_blank(),
+    axis.text.x = element_text(angle = 90)
+  )
+```
+
+## Preços de Imóveis
+
+O Banco Central disponibiliza uma enorme variedade de séries [relacionadas ao mercado imobiliário](https://www.bcb.gov.br/estatisticas/mercadoimobiliario). A função `get_bcb_realestate` retorna mais de 3500 séries. Para agilizar o download destas bases, todas as funções oferecem a opção `cached = TRUE`. Usando esta opção o download é feito via GitHub e tende a ser mais rápido; o dado, contudo, corre o risco de estar levemente desatualizado.
+
+```{r}
+bcb <- get_bcb_realestate(category = "all", cached = TRUE)
+
+length(unique(bcb$series_info))
+```
+
+Infelizmente, não é trivial usar esta base de dados. As colunas `category`, `type` e `v1` a `v5` tentam facilitar o trabalho de filtrar as linhas. Há seis grandes categorias.
+
+```{r}
+count(bcb, category)
+```
+
+Cada série é identificada pela coluna `series_info`. Quebrando esta coluna em outras, fica um pouco mais fácil de encontrar as séries desejadas.
+
+```{r}
+bcb |> 
+  filter(category == "contabil") |> 
+  count(series_info, type, v1)
+```
+
+O gráfico abaixo mostra o preço mediano do imóvel financiado nos estados da região Sul. Note que estas séries possuem um comportamento irregular em 2019.
+
+```{r}
+tbl_imoveis_sul <- bcb |> 
+  filter(
+    category == "imoveis",
+    type == "valor",
+    v1 == "compra",
+    abbrev_state %in% c("RS", "SC", "PR")
+    )
+
+ggplot(tbl_imoveis_sul, aes(x = date, y = value, color = abbrev_state)) +
+  geom_line() +
+  scale_x_date(date_breaks = "1 year", date_labels = "%Y") +
+  scale_color_manual(
+    name = "", values = c("#264653", "#2a9d8f", "#e9c46a")
+    ) +
+  labs(
+    title = "Preço de financiamento",
+    x = NULL,
+    y = "R$"
+  ) +
+  theme_light() +
+  theme(legend.position = "top")
+```
+
+## Séries Macroeconômicas
+
+A função `get_bcb_series` facilita a importação de séries macroeconômicas potencialmente relacionadas com o mercado imobiliário. Como há muitas séries, o argumento `category` facilita a seleção de temas específicos. A categoria de preços inlcui os principais índices de preço relacionados ao mercado, como o INCC, IPCA e IGPM.
+
+```{r}
+macro <- get_bcb_series(category = "price")
+
+unique(macro$name_pt)
+```
+
+O gráfico abaixo combina a série de preços do IGMI-R, importada anteriormente, com o IPCA. Os valores são acumulados em 12 meses e apresentados desde 2018. Nota-se como o preço dos imóveis cresceu acima da inflação a partir de 2020.
+
+```{r}
+series_ipca <- macro |> 
+  filter(name_simplified == "ipca") |> 
+  mutate(
+    acum12m = roll_prodr(1 + value / 100, n = 12) - 1,
+    series = "ipca"
+    ) |> 
+  select(date, series, acum12m)
+
+series_igmi <- sale |> 
+  filter(
+    source == "IGMI-R",
+    name_muni %in% c("Porto Alegre", "Brazil")
+    ) |> 
+  select(date, series = name_muni, acum12m)
+
+series_macro <- rbind(series_ipca, series_igmi)
+
+series_macro <- series_macro |> 
+  filter(date >= as.Date("2018-01-01"), date <= as.Date("2023-07-01")) |> 
+  mutate(
+    series = factor(series, levels = c("Brazil", "Porto Alegre", "ipca"))
+  )
+
+ggplot(series_macro, aes(x = date, y = acum12m, color = series)) +
+  geom_line(linewidth = 0.8) +
+  scale_y_continuous(labels = scales::label_percent()) +
+  scale_color_manual(
+    name = "",
+    values = c("#264653", "#2a9d8f", "#e9c46a"),
+    labels = c("Brasil (geral)", "Porto Alegre", "IPCA")
+    ) +
+  labs(
+    title = "Preços de imóveis crescem acima da inflação",
+    x = NULL,
+    y = "Acumulado 12 meses"
+  ) +
+  theme_light() +
+  theme(legend.position = "top")
+```
+
+## Caminhos futuros
+
+O desenvolvimento futuro do pacote será guiado pela incorporação de mais bases de dados e relatórios de mercado.
