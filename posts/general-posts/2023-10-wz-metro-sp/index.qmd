@@ -10,6 +10,7 @@ draft: true
 
 ```{r}
 library(ggplot2)
+library(ggstream)
 library(dplyr)
 library(tidyr)
 library(here)
@@ -18,20 +19,90 @@ metro <- readr::read_csv(here("static/data/metro_sp.csv"), show_col_types = FALS
 ```
 
 ```{r}
+library(showtext)
+font_add("Helvetica", "Helvetica.ttc")
+showtext_auto()
+```
+
+
+```{r}
 metro <- metro |> 
   mutate(
     metro_line = factor(
       metro_line,
-      levels = c("azul", "verde", "vermelha", "lilas", "prata"),
-      labels = c("1-Azul", "2-Verde", "3-Vermelha", "5-Lilás", "15-Prata")
+      levels = c(
+        "azul", "verde", "vermelha", "amarela", "lilas", "prata"
+        ),
+      labels = c(
+        "1-Azul", "2-Verde", "3-Vermelha", "4-Amarela", "5-Lilás", "15-Prata")
       )
   )
 
 ggplot(metro, aes(x = date, y = value, color = metro_line)) +
   geom_line() +
-  geom_point() +
   facet_grid(rows = vars(metric), cols = vars(variable), scales = "free_y") +
   scale_color_manual(
-    values = c("#377EB8", "#4DAF4A", "#E41A1C", "#984EA3", "#999999")
+    values = c("#0153a1", "#008061", "#ee3f34", "#fed408", "#7c52a1", "#878e91")
   )
 ```
+
+```{r}
+tbl_metro <- metro |> 
+  filter(
+    variable == "transport",
+    metric == "mdu",
+    year >= 2019,
+    date <= as.Date("2023-06-01"),
+    metro_line_num != 15
+    )
+```
+
+```{r}
+tbl_metro 
+```
+
+
+```{r}
+ggplot(tbl_metro, aes(x = date, y = value, fill = metro_line)) +
+  geom_area() +
+    scale_fill_manual(
+      name = "",
+      values = c("#171796", "#008061", "#ee3f34", "#fed408", "#7c52a1"),
+      labels = \(x) toupper(x)
+    ) +
+  theme_minimal(base_size = 10, base_family = "Helvetica") +
+  theme(
+    text = element_text(face = "bold"),
+    legend.position = "bottom"
+  )
+```
+
+```{r}
+ggplot(tbl_metro, aes(x = date, y = value, fill = metro_line)) +
+  geom_stream() +
+  scale_fill_manual(
+    name = "",
+    values = c("#171796", "#008061", "#ee3f34", "#fed408", "#7c52a1"),
+    labels = \(x) toupper(x)
+    ) +
+  theme_minimal()
+  
+```
+
+
+```{r}
+line4 <- readr::read_csv(here("static/data/metro_sp_line_4_stations.csv"))
+```
+
+```{r}
+ggplot(line4, aes(x = date, y = value)) +
+  geom_point() +
+  facet_wrap(vars(name_station))
+```
+
+```{r}
+line4 |> 
+  mutate(month = lubridate::month(date)) |> 
+  filter(month == 3)
+```
+

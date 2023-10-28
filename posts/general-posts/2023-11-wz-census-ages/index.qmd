@@ -1,0 +1,210 @@
+---
+title: "Aging Index in Brazil"
+date: "2023-10-31"
+categories: ["data-visualization", "ggplot2", "brazil", "census"]
+execute: 
+  warning: false
+  message: false
+draft: true
+---
+
+```{r}
+#| include: false
+knitr::opts_chunk$set(
+  warning = FALSE,
+  message = FALSE,
+  fig.align = "center",
+  fig.showtext = TRUE,
+  fig.width = 9,
+  fig.asp = 0.618,
+  out.width = "90%",
+  fig.retina = 2,
+  fig.dev = "svg",
+  dpi = 72
+  )
+```
+
+
+```{r}
+library(ggplot2)
+library(sidrar)
+library(dplyr)
+library(stringr)
+library(tidyr)
+library(showtext)
+font_add_google("Roboto Mono", "Roboto Mono")
+font_add_google("Roboto Condensed", "Roboto Condensed")
+showtext_auto()
+
+cities <- geobr::read_municipality(year = 2020, showProgress = FALSE)
+dim_state <- geobr::read_state(showProgress = FALSE)
+dim_state <- as_tibble(sf::st_drop_geometry(dim_state))
+```
+
+```{r}
+# Tabela 200 - População residente, por sexo, situação e grupos de idade
+# Tabela 1209 - População, por grupos de idade https://sidra.ibge.gov.br/tabela/1209
+```
+
+```{r}
+pop_brasil <- get_sidra(
+  1209,
+  variable = 606,
+  classific = c("c58"),
+  category = list(c(1140:1145, 3299:3301, 3520, 3244)),
+  period = "1940-2022"
+  )
+```
+
+```{r}
+tbl_bra <- pop_brasil |> 
+  janitor::clean_names() |> 
+  mutate(grupo_de_idade = str_remove(grupo_de_idade, " anos")) |> 
+  separate(
+    grupo_de_idade,
+    into = c("age_min", "age_max"),
+    sep = " a ",
+    remove = FALSE,
+    convert = TRUE) |>
+  mutate(age_max = if_else(is.na(age_max), 100, age_max)) |> 
+  select(ano, grupo_de_idade, age_min, age_max, valor)
+  mutate(ano = as.numeric(ano))
+```
+
+```{r}
+get_population <- function(state) {
+  
+  get_sidra(
+    9514,
+    variable = 93,
+    classific = "c287",
+    category = list(c(93070, 93084, 93085:93098, 49108, 49109, 60040, 60041, 6653)),
+    geo = "City",
+    geo.filter = list("State" = state)
+  )
+  
+}
+
+pop <- parallel::mclapply(dim_state$code_state, get_population)
+```
+
+```{r}
+
+tbl_pop <- bind_rows(pop)
+
+tbl_pop <- tbl_pop |> 
+  as_tibble() |> 
+  janitor::clean_names() |> 
+  filter(sexo == "Total", forma_de_declaracao_da_idade == "Total") |> 
+  select(code_muni = municipio_codigo, ano, age_group = idade, pop = valor) |> 
+  separate(age_group, into = c("age_min", "age_max"), sep = " a ", remove = FALSE) |> 
+  mutate(
+    code_muni = as.numeric(code_muni),
+    ano = as.numeric(ano),
+    age_min = as.numeric(age_min),
+    age_min = if_else(is.na(age_min), 100, age_min),
+    age_max = str_remove(age_max, " anos"),
+    age_max = as.numeric(age_max),
+    age_group = factor(age_group),
+    age_group = forcats::fct_reorder(age_group, age_min),
+    age_ibge = case_when(
+      age_min < 15 ~ "young",
+      age_min >= 15 & age_max < 65 ~ "adult",
+      age_min >= 65 ~ "elder"
+    )
+  )
+
+tbl_age <- tbl_pop |> 
+  summarise(total = sum(pop, na.rm = TRUE), .by = c("code_muni", "age_ibge")) |> 
+  pivot_wider(id_cols = "code_muni", names_from = "age_ibge", values_from = "total") |> 
+  mutate(
+    age_index = elder / young,
+    rdy = young / adult,
+    rde = elder / adult,
+    rdt = rdy + rde
+  )
+
+cities_age <- left_join(cities, tbl_age, by = "code_muni")
+```
+
+```{r}
+hist(cities_age$age_index, breaks = "fd")
+BAMMtools::getJenksBreaks(cities_age$age_index, k = 7)
+```
+
+```{r}
+breaks <- c(0.25, 0.5, 0.75, 1, 1.5)
+labels <- c(
+  "Até 0.25", "0.25 a 0.5", "0.5 a 0.75", "0.75 a 1", "1 a 1.5", "1.5 ou mais"
+  )
+
+cities_age |> 
+  mutate(group = factor(findInterval(age_index, breaks))) |> 
+  ggplot() +
+  geom_sf(aes(fill = group), lwd = 0.01, color = "gray80") +
+  scale_fill_viridis_d(labels = labels) +
+  coord_sf(xlim = c(NA, -34.3272)) +
+  ggthemes::theme_map()
+```
+
+```{r}
+tbl_cols <- cities_age |> 
+  sf::st_drop_geometry() |> 
+  mutate(is_old = if_else(age_index > 1, 1L, 0L)) |> 
+  count(abbrev_state, is_old) |> 
+  mutate(share = n / sum(n) * 100, .by = "abbrev_state") |> 
+  filter(is_old == 1) |> 
+  slice_max(share, n = 8) |> 
+  mutate(
+    abbrev_state = factor(abbrev_state),
+    abbrev_state = forcats::fct_reorder(abbrev_state, share),
+    label = format(round(share, 1)),
+    label = paste0(label, "%")
+  ) 
+
+
+
+```
+
+```{r}
+p_age_index <- ggplot(tbl_cols, aes(x = abbrev_state, y = share)) +
+  geom_col(width = 0.5, fill = "#2a9d8f") +
+  geom_text(
+    aes(x = abbrev_state, y = 0, label = abbrev_state),
+    family = "Roboto Mono",
+    nudge_x = 0.4,
+    size = 4,
+    hjust = 0
+  ) +
+  geom_text(
+    aes(x = abbrev_state, y = share, label = label),
+    nudge_y = -2.5,
+    color = "white",
+    family = "Roboto Mono",
+    size = 3
+  ) +
+  scale_y_continuous(
+    expand = c(0, 0),
+    limits = c(0, 50),
+    labels = \(x) paste0(x, "%")
+    ) +
+  labs(
+    title = "Mais idosos do que jovens",
+    subtitle = "Percentual de cidades com mais pessoas acima de 65 anos do que pessoas de 14 anos ou menos (2022).",
+    x = "",
+    y = "Percentual de cidades (%)",
+    caption = "Fonte: IBGE (Censo 2022). @viniciusoike"
+    ) +
+  coord_flip() +
+  theme_minimal(base_family = "Roboto Condensed", base_size = 12) +
+  theme(
+    plot.title = element_text(size = 18),
+    panel.grid.minor = element_blank(),
+    axis.text.y = element_blank(),
+    plot.margin = margin(0.25, 0.5, 0.25, 0.5, "cm"),
+    axis.line.x = element_line(),
+    axis.ticks.x = element_line(),
+    axis.text.x = element_text(size = 12)
+  )
+```
+
