@@ -53,11 +53,7 @@ print_table <- function(x) {
 
 # Graficos ou mapas de calor
 
-Mapas de calor apresentam a variação de uma variável num plano bidimensional. Há dois tipos principais de mapas de calor: o mapa de calor espacial e o mapa de calor de clusters.
-
-O primeiro tipicamente é superimposto sobre um mapa e representa a intensidade de alguma variável, como a pluviosidade, temperatura, concentração de C02 e assim por diante.
-
-Já o mapa de calor de clusters é disposto numa matriz bidimensional para sugerir padrões, tendências, ou mesmo para visualizar a evolução de uma variável num grupo de classes.
+Mapas de calor apresentam a variação de uma variável num plano bidimensional. Há dois tipos principais de mapas de calor: o mapa de calor espacial e o mapa de calor de clusters. O primeiro tipicamente é superimposto sobre um mapa e **representa a intensidade de alguma variável**, como a pluviosidade, temperatura, concentração de C02 e assim por diante. Já o *mapa de calor de clusters* é disposto numa **matriz bidimensional para sugerir padrões**, tendências, ou mesmo para visualizar a evolução de uma variável num grupo de classes.
 
 ```{r, echo = FALSE}
 x <- c(
@@ -97,9 +93,9 @@ p1 + p2
 
 O pacote `ggplot2` não tem uma função única para montar mapas de calor, então vamos explorar uma abordagem simples focada na função `geom_tile()`. Contudo, é possível montar mapas de calor também com as funções `geom_bin_2d()`, `geom_density_2d()`, `geom_raster()` ou `geom_hex()`.
 
-Neste post vamos nos focar em mapas de clusters para depois apresentar apenas brevemente alguns mapas de calor.
+Neste post vamos nos focar em **mapas de clusters**. A discussão de mapas de calor será apresentada no post subsequente que trata sobre mapas.
 
-O código abaixo carrega os pacotes necessários. Para a paleta de cores vou utilizar o pacote `MetBrewer`, que oferece algumas paletas de cores interessantes, inspiradas em artistas famosos do [Metropolitan Museum de NY](https://github.com/BlakeRMills/MetBrewer). O pacote `pwt10` carrega a base de dados da [Penn World Table](https://www.rug.nl/ggdc/productivity/pwt/?lang=en) que traz uma série de informações socioeconômicas dos países ao longo dos anos. Por fim, o pacote `astsa` carrega diversas funções de séries de tempo, mas vamos utilizá-la aqui somente pela base de dados `globtemp`. Por fim, o pacote `GetBCBData` serve para importar séries de tempo do Banco Central do Brasil via API.
+O código abaixo carrega os pacotes necessários. Para a paleta de cores vou utilizar o pacote `MetBrewer`, que oferece algumas paletas de cores interessantes, inspiradas em artistas famosos do [Metropolitan Museum de NY](https://github.com/BlakeRMills/MetBrewer). O pacote `pwt10` carrega a base de dados da [Penn World Table](https://www.rug.nl/ggdc/productivity/pwt/?lang=en) que traz uma série de informações socioeconômicas dos países ao longo dos anos. Por fim, os pacotes `astsa`, `wooldridge` e `GetBCBData` são utilizados para conseguir acesso a base de dados para os exemplos.
 
 ```{r, eval = FALSE}
 # Para instalar um pacote do GitHub
@@ -113,13 +109,19 @@ library(tidyr)
 library(forcats)
 library(stringr)
 library(ggplot2)
+
 # Paletas de cores (ver acima como instalar)
 library(MetBrewer)
+
+# Para carregar bases de dados para os exemplos
 # Dados da Penn World Table
 library(pwt10)
-# Para carregar a base globtemp
+# Aquecimento global
 library(astsa)
+# Séries do Banco Central do Brasil
 library(GetBCBData)
+# Preços de imóveis
+library(wooldridge)
 
 # Colors
 colors_hiroshige <- met.brewer(name = "Hiroshige")
@@ -390,6 +392,7 @@ O código abaixo mostra a implementação da função.
 ### Funções
 
 ```{r}
+#| code-fold: true
 # Cria um tema para os gráficos
 theme_heatmap <- theme_minimal() +
   theme(
@@ -553,10 +556,10 @@ ggplot(energia, aes(x = ano, y = mes, fill = cons_rel)) +
 
 Outra aplicação de gráficos de calor é de mostrar uma variável num gradiente de cores "divergente". Um caso comum é quando quer-se mostrar uma variável como um desvio em relação a alguma média. Em geral, há duas possibilidades para visualizar os dados:
 
-1.  O desvio dos valores em relação à média na "coluna", isto é, entre os grupos. No caso do mapa de calor do PIB per capita isto seria equivalente a comparar o crescimento dos países (grupo) no mesmo ano.
-2.  O desvio dos valores em relação à média na "linha", isto é, dentro de um mesmo grupo. Novamente, no caso do mapa de calor do PIB per capita, isto seria equivalente a comparar o crescimento do país num ano em relação ao histórico de crescimento do país.
+1.  **O desvio dos valores em relação à média na "coluna", isto é, entre os grupos**. No caso do mapa de calor do PIB per capita isto seria equivalente a comparar o crescimento dos países (grupo) no mesmo ano.
+2.  **O desvio dos valores em relação à média na "linha", isto é, dentro de um mesmo grupo**. Novamente, no caso do mapa de calor do PIB per capita, isto seria equivalente a comparar o crescimento do país num ano em relação ao histórico de crescimento do país.
 
-Não há uma escolha certa ou errada com este tipo de visualização. É preciso saber somente qual tipo de relação que se quer visualizar.
+Não há uma escolha certa ou errada com este tipo de visualização. É preciso saber somente qual tipo de relação que se quer visualizar. Em casos mais simples, a própria variável de interesse pode estar expressa na forma de desvios em relação a alguma média. Por fim, há também casos de variáveis que tem valores padronizados, ou indexados, que funcionam bem com escalas divergentes.
 
 ### Aquecimento Global
 
@@ -582,11 +585,60 @@ ggplot(data = df, aes(x = ano, y = 0, fill = temp)) +
   theme_heatmap
 ```
 
+### Correlação
+
+A correlação é uma medida da relação linear entre um par de variáveis. Na construção de um modelo linear, ou modelo de regressão de forma geral, é interessante visualizar a relação de correlação entre as variáveis. Por construção, a correlação (de Pearson) é padronizada pelo desvio-padrão das variáveis, logo, varia entre -1 e 1. Uma correlação igual a -1 indica uma correlação negativa "perfeita" e uma correlação igual a 1 indica uma correlação positiva "perfeita". Se a correlação entre duas variáveis for próxima de 0, não há dependência linear entre as variáveis.
+
+O código abaixo seleciona algumas das colunas da base de dados `hprice2` exportada junto com o pacote wooldridge. Esta base contém o preço de alguns imóveis junto de algumas outras variáveis. Para consultar a definição das variáveis use `?hprice2`.
+
+```{r}
+#| code-fold: true
+dat <- wooldridge::hprice2
+
+#> Seleciona colunas
+num_cols <- c("stratio", "dist", "nox", "crime", "rooms", "lprice")
+sub <- select(dat, all_of(num_cols))
+
+tbl_cor <- sub |> 
+  #> Calcula matriz de correlação
+  cor(method = "pearson") |> 
+  as_tibble() |> 
+  #> Converte para longitudinal e adapta variáveis
+  mutate(name_1 = num_cols) |> 
+  pivot_longer(cols = -"name_1", names_to = "name_2", values_to = "correl") |> 
+  mutate(
+    name_1 = factor(name_1, levels = num_cols, labels = str_to_title(num_cols)),
+    name_2 = factor(name_2, levels = num_cols, labels = str_to_title(num_cols)),
+    correl = if_else(correl == 1, NA_real_, correl)
+  )
+```
+
+O mapa de calor abaixo mostra a correlação entre algumas variáveis. A variável `lprice` é o logaritmo natural do preço do imóvel. Nota-se que esta variável tem uma correlação positiva com `rooms` (número de quartos) e `dist` (distância até polo de emprego). Por outro lado, há uma correlação negativa entre o preço e `nox` (medida de poluição do ar) e `crime` (proporção de crimes).
+
+```{r}
+ggplot(tbl_cor, aes(x = name_1, y = name_2, fill = correl)) +
+  geom_tile() +
+  geom_text(aes(label = round(correl, 2)), size = 4) +
+  scale_fill_gradient2(
+    name = "",
+    low = colors_hiroshige[1],
+    high = colors_hiroshige[10],
+    limits = c(-1, 1),
+    na.value = "gray90"
+    ) +
+  guides(fill = "none") +
+  labs(title = "Correlação entre variáveis") +
+  theme_heatmap +
+  theme(axis.text = element_text(size = 12))
+```
+
+O valor da correlação foi plotado usando `geom_text`. Como a escala da correlação varia sempre entre -1 e 1, suprime-se a legenda de cores. Para construir a escala divergente utiliza-se `scale_fill_gradient2` com a mesma paleta de cores do Met Brewer (Hiroshige). Vale notar que existe um pacote dedicado a este tipo de visualização chamado `ggcorplot` - para mais detalhes [veja o GitHub do pacote](https://rpkgs.datanovia.com/ggcorrplot/index.html).
+
 ### PIB per capita
 
-Restringindo a análise somente à América Latina, há duas maneiras intuitivas de olhar os dados: (1) relativamente ao ano (coluna); (2) relativamente ao país (linha).
+Vamos retornar, novamente, ao exemplo do PIB per capita. Restringindo a análise somente à América Latina, há duas maneiras intuitivas de olhar os dados: (1) relativamente ao ano (coluna); (2) relativamente ao país (linha).
 
-No primeiro caso, compara-se a performance entre os países em cada ano: vê-se quais foram os países que cresceram mais ou menos em determinado ano. No segundo caso, compara-se a trajetória de cada país individualmente: fica mais evidente quais foram os anos de maior ou de menor crescimento.
+No primeiro caso, compara-se a **performance entre os países em cada ano**: vê-se quais foram os países que cresceram mais ou menos em determinado ano. No segundo caso, **compara-se a trajetória de cada país individualmente**: fica mais evidente quais foram os anos de maior ou de menor crescimento.
 
 O código abaixo usa a função `scale` para "normalizar" os dados[^2].
 
@@ -621,11 +673,9 @@ gg_heatmap(p) +
   ggtitle("Crescimento relativo ao país")
 ```
 
-Agora o gráfico mostra o crescimento anual de cada país em comparação com os demais países latinoamericanos. O padrão revela quais países cresceram mais ou menos em cada ano.
+O segundo gráfico mostra o crescimento anual de cada país em comparação com os demais países latinoamericanos. O padrão revela quais países cresceram mais ou menos em cada ano.
 
-De maneira geral, o Brasil parece crescer ligeiramente acima da média da região. A Venezuela, que no gráfico anterior parecia exibir um crescimento relativamente estável ao longo dos anos, agora apresenta um padrão com maior oscilação.
-
-Dos anos 2000 em diante, Bolivia, Chile, Colombia e Peru são os países que consistentemente crescem acima da média da região. Novamente o colapso econômico da Venezuela acaba distorcendo a escala de cores.
+De maneira geral, o Brasil parece crescer ligeiramente acima da média da região. A Venezuela, que no gráfico anterior parecia exibir um crescimento relativamente estável ao longo dos anos, agora apresenta um padrão com maior oscilação. Dos anos 2000 em diante, Bolivia, Chile, Colombia e Peru são os países que consistentemente crescem acima da média da região. Novamente o colapso econômico da Venezuela acaba distorcendo a escala de cores.
 
 ```{r}
 p <- ggplot(data = scale_year, aes(x = year, y = country)) +
@@ -690,29 +740,20 @@ p <- ggplot(data = latam_scaled, aes(x = year, y = country)) +
 gg_heatmap(p)
 ```
 
-# Gráfico de calor espacial
-
-```{r}
-library(here)
-imoveis <- readr::read_csv(here("posts/ggplot2-tutorial/sample_imoveis_sp.csv"))
-imoveis <- distinct(imoveis, lng, lat, .keep_all = TRUE)
-```
-
-```{r}
-ggplot(data = imoveis, aes(x = lng, y = lat)) +
-  geom_bin_2d()
-```
-
-```{r}
-ggplot(data = imoveis, aes(x = lng, y = lat)) +
-  geom_hex(aes(weight = price))
-```
-
 # Resumo
 
-Vale explorar outros pacotes que incluem paletas de cores como
+Mapas de calor de clusters são uma visualização interessante e versátil. Este tipo de visualização permite detectar padrões e tendências nos dados de maneira bastante intuitiva. Nos exemplos vimos como encontrar padrões sazonais, macrotendências entre grupos e até correlações entre variáveis. Este tipo de visualização parece estar ganhando mais popularidade recentemente, mas ainda é subutilizada.
 
--   [ColorBrewer](https://colorbrewer2.org/#type=sequential&scheme=BuGn&n=3): `scale_fill_brewer()`
--   [Viridis](https://cran.r-project.org/web/packages/viridis/vignettes/intro-to-viridis.html): `scale_fill_viridis_c()`, `scale_fill_viridis_d()`
--   [Paletteer](https://github.com/EmilHvitfeldt/paletteer): `scale_color_paletteer_d()`
--   Para os cinéfilos: [Wes Anderson](https://github.com/karthik/wesanderson), [Ghibli](https://github.com/ewenme/ghibli)
+A escolha da escala de cores é particularmente importante neste tipo de gráfico: a depender das cores pode ser difícil verificar pequenas variações no valores, sobretudo, se os valores estiverem adjacentes no gráfico. Neste sentido, o mapa de calor de clusters não é apropriado quando se quer ver pequenas variações nos dados. Além disso, pode ser necessário testar várias paletas de cores alternativas até chegar num resultado satisfatório.
+
+## Posts relacionados
+
+-   [Nascimentos no Brasil](https://restateinsight.com/posts/general-posts/2023-10-wv-nascimentos-brasil/)
+
+-   [Crescimento do PIB per capita no mundo](https://restateinsight.com/posts/general-posts/repost-crescimento-pib-mundo/)
+
+-   [Visualizando o IPCA](https://restateinsight.com/posts/general-posts/repost-ipca-visualizacao/)
+
+-   [Estético: destacando informação](https://restateinsight.com/posts/ggplot2-tutorial/5-grafico-text)
+
+-   [Estético: tipografia e temas](https://restateinsight.com/posts/ggplot2-tutorial/7-themes-fonts)
