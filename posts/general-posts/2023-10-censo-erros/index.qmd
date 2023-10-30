@@ -7,7 +7,6 @@ execute:
   echo: false
   warning: false
   message: false
-draft: true
 ---
 
 ```{r setup}
@@ -26,6 +25,7 @@ library(sidrar)
 library(dplyr)
 library(tidyr)
 library(stringr)
+library(forcats)
 library(ggplot2)
 library(sf)
 library(ggrepel)
@@ -493,6 +493,174 @@ plot_acum <- ggplot(tbl_excess_deaths, aes(x = date, y = acum)) +
   theme(panel.grid.major.x = element_blank())
 ```
 
+```{r data-pop-age}
+#| eval: false
+pop_age <- get_sidra(9514, variable = 93, geo = "Brazil")
+age_codes_proj <- c(93070, 93084:93098, 113623)
+
+get_proj_state <- function(state) {
+  
+  projecao <- get_sidra(
+    7358,
+    geo = "State",
+    geo.filter = list("State" = as.numeric(state))
+    )
+  
+  df <- projecao |> 
+    janitor::clean_names() |> 
+    as_tibble() |> 
+    filter(sexo != "Total", ano_2 == 2022, idade_codigo %in% age_codes_proj) |> 
+    select(
+      code_state = unidade_da_federacao_codigo,
+      sex = sexo,
+      population = valor,
+      age_group = idade
+    )
+  
+  return(df)
+  
+}
+
+dim_state <- geobr::read_state()
+proj_states <- parallel::mclapply(dim_state$code_state, get_proj_state)
+
+tbl_states <- bind_rows(proj_states)
+
+tbl_states <- tbl_states |> 
+  summarise(total = sum(population), .by = c("sex", "age_group")) |> 
+  separate(age_group, into = c("age_min", "age_max"), sep = " a ", remove = FALSE) |> 
+  mutate(
+    sex = factor(sex, levels = c("Homens", "Mulheres"), labels = c("Masculino", "Feminino")),
+    age_min = str_remove(age_min, " anos ou mais"),
+    age_min = as.numeric(age_min),
+    age_group = factor(age_group),
+    age_group = str_remove(age_group, "(anos)|( anos ou mais)"),
+    age_group = str_trim(age_group),
+    age_group = fct_reorder(age_group, age_min)
+    ) |> 
+  select(sex, age_group, total)
+
+tbl_pyramid_proj <- tbl_states |> 
+  mutate(share = total / sum(total) * 100, .by = "sex") |> 
+  mutate(
+    share = if_else(sex == "Masculino", -share, share),
+    total = if_else(sex == "Masculino", -total, total)
+    )
+
+
+age_codes <- c(93070, 93084:93098, 49108, 49109, 60040, 60041, 6653)
+
+
+tbl_pop_age <- pop_age |> 
+  as_tibble() |> 
+  janitor::clean_names() |> 
+  filter(
+    idade_codigo %in% age_codes,
+    forma_de_declaracao_da_idade == "Total",
+    sexo != "Total"
+    ) |> 
+  select(
+    age_group = idade,
+    population = valor,
+    sex = sexo
+  )
+
+tbl_pop_age <- tbl_pop_age |> 
+  separate(age_group, into = c("age_min", "age_max"), sep = " a ", remove = FALSE) |> 
+  mutate(
+    age_min = str_remove(age_min, " anos ou mais"),
+    age_min = as.numeric(age_min),
+    sex = factor(sex, levels = c("Homens", "Mulheres"), labels = c("Masculino", "Feminino"))
+  )
+
+tbl_pyramid <- tbl_pop_age |> 
+  mutate(
+    age_group = as.character(age_group),
+    age_group = if_else(age_min >= 80, "80 anos ou mais", age_group),
+    age_group = str_remove(age_group, "(anos)|( anos ou mais)"),
+    age_group = str_trim(age_group),
+    age_group = factor(age_group),
+    age_group = fct_reorder(age_group, age_min)
+    ) |> 
+  summarise(total = sum(population), .by = c("sex", "age_group")) |> 
+  mutate(
+    share = total / sum(total) * 100, .by = "sex",
+    share = if_else(sex == "Masculino", -share, share),
+    total = if_else(sex == "Masculino", -total, total)
+    )
+```
+
+```{r pyramid}
+pyramid <- readr::read_rds(here::here("static/data/census_pyramids.rds"))
+
+tbl_pyramid <- pyramid$pyramid_census
+tbl_pyramid_proj <- pyramid$pyramid_proj
+
+plot_pyramid <- ggplot() +
+  geom_col(
+    data = tbl_pyramid, aes(x = age_group, y = total, fill = sex),
+    width = 0.7,
+    color = "gray10") +
+  geom_col(
+    data = tbl_pyramid_proj, aes(x = age_group, y = total, fill = sex),
+    width = 0.6,
+    alpha = 0.6) +
+  scale_y_continuous(
+    name = "Pop. (milhao)",
+    breaks = c(-8, -6, -4, -2, 0, 2, 4, 6, 8) * 1e6,
+    labels = c(8, 6, 4, 2, 0, 2, 4, 6, 8)
+  ) +
+  geom_text(
+    data = tibble(x = "80  ou mais", y = -5.5 * 1000000, label = "Maculino"),
+    aes(x = x, y = y, label = label),
+    family = "Lato",
+    size = 3
+  ) +
+  geom_text(
+    data = tibble(x = "80  ou mais", y = 5.5 * 1000000, label = "Feminino"),
+    aes(x = x, y = y, label = label),
+    family = "Lato",
+    size = 3
+  ) +
+  scale_fill_manual(name = "", values = c("#e29578", "#006d77")) +
+  guides(fill = "none") +
+  coord_flip() +
+  labs(
+    subtitle = "População verificada no Censo 2022 x população projetada",
+    x = NULL
+  ) +
+  theme_vini +
+  theme(
+    legend.position = "bottom",
+    panel.grid.minor = element_blank(),
+    panel.grid.major.y = element_blank(),
+    axis.text.x = element_text(size = 12),
+    axis.text.y = element_text(size = 10)
+  )
+```
+
+```{r error-pop-age}
+tbl_compare <- pyramid$errors
+
+plot_error_popage <- ggplot(tbl_compare, aes(x = age_group, y = diff)) +
+  geom_point(size = 3, color = "#264653") +
+  geom_segment(
+    aes(x = age_group, xend = age_group, y = 0, yend = diff),
+    color = "#264653") +
+  scale_y_continuous(breaks = seq(0, 15, 2.5), expand = c(0, 0), limits = c(NA, 16)) +
+  coord_flip() +
+  labs(
+    subtitle = str_wrap("Diferença percentual entre população\nverificada no Censo e população projetada", 30),
+    x = NULL,
+    y = "(%) Projetado / Observado") +
+  theme_vini +
+  theme(
+    legend.position = "bottom",
+    panel.grid.minor = element_blank(),
+    panel.grid.major.y = element_blank()
+  )
+```
+
 # Censo 2022
 
 Houve certo rebuliço nas redes sociais, quando do lançamento dos dados mais recentes do Censo Demográfico de 2022. O fato carregado na maior parte das manchetes do Brasil foi a queda no número projetado da população brasileira. Até 2021, projetava-se que a população brasileira estivesse em torno de 213 milhões de habitantes, segundo a pesquisa [Estimativas da População do IBGE](https://agenciadenoticias.ibge.gov.br/agencia-noticias/2012-agencia-de-noticias/noticias/31458-populacao-estimada-do-pais-chega-a-213-3-milhoes-de-habitantes-em-2021). O número que o Censo trouxe foi de 203 milhões, ou seja, houve uma queda de 10 milhões de habitantes em relação ao previsto. Ainda que pareça grande, o "erro de projeção" foi de menos de 5%. Contudo, é importante entender por que este número foi subestimado.
@@ -626,4 +794,33 @@ plot_compare
 
 Pode-se também usar os dados do Censo de 2010 e atualizar os valores populacionais, ano a ano, usando os nascimentos e óbitos do Registro Civil. O economista [Francisco Faria, no blog do IBRE](https://blogdoibre.fgv.br/posts/censo-2022-por-enquanto-use-com-moderacao), simulou este cenário e encontrou populações de 208,5 ou 212,9 milhões, a depender se usa-se o valor original ou revisado do Censo de 2010. De qualquer modo, ambos os valores estão acima do valor de 203 milhões.
 
-Não há consenso ainda que explique a discrepância verificada entre as projeções do IBGE e o valor auferido no Censo. Certamente, a causa será um misto dos três motivos apresentados acima. Somente com o tempo será possível entender melhor o que houve com o Censo de 2022. Por fim, vale terminar o texto relembrando que os funcionários do IBGE são extremamente competentes e plenamente capacitados. O Censo sofreu, infortuitamente, cortes de orçamento severos e teve de ser atrasado devido à pandemia. Os dados do Censo de 2022, assim como dos Censos anteriores, serão revisados futuramente e, muito provavelmente, as discrepâncias mencionadas neste texto serão dirmidas.
+Recentemente, o IBGE divulgou os resultados de [Censo por grupos de idade](https://sidra.ibge.gov.br/tabela/7358) o que nos permite fazer ainda mais uma comparação. Os valores projetados estão disponíveis em grupos quinquenais de idade-sexo até 80 anos. O primeiro gráfico abaixo mostra a pirâmide populacional observada no Censo de 2022; as colunas transparentes mostram o valor projetado em cada grupo: vê-se como o valor observado foi menor em praticamente todos os grupos.
+
+O gráfico da direita mostra a diferença percentual entre o valor projetado e o valor observado em cada grupo de idade. É interessante notar que as projeções, aparentemente, superestimaram o número de novos nascidos vivos. Projetou-se quase 15 milhões de recém-nascidos, de 0 a 4 anos, mas verificou-se algo em torno de 12.7 milhões. O número de jovens e de adultos também foi superestimado, enquanto a população de 55 a 74 anos observada ficou muito próxima da projetada.
+
+```{r}
+#| out-width: 100%
+#| fig-width: 10
+panel <- plot_pyramid + plot_error_popage
+panel +
+  plot_layout(widths = c(2/3, 1/3)) +
+  plot_annotation(
+    title = "Projeções superestimaram população em todos grupos idade",
+    caption = "Fontes: IBGE (Censo 2022, Projeções da População 2018)"
+  ) &
+  theme(text = element_text(family = "Lato"))
+```
+
+## O futuro do Brasil
+
+Não há consenso ainda que explique a discrepância verificada entre as projeções do IBGE e o valor auferido no Censo. Certamente, a causa será um misto dos três motivos apresentados acima: nascimentos, óbitos e fluxos migratórios. Somente com o tempo será possível entender melhor o que houve com o Censo de 2022. Ainda que os dados do Censo possam apresentar algum erro, a tendência geral demográfica é certa, o Brasil:
+
+1. Tem uma proporção cada vez maior de idosos em relação a jovens.
+2. Apresenta taxa de crescimento populacional decrescente.
+3. Em alguns anos vai começar a observar quedas na sua população.
+
+Estes três fatos já são a realidade de países desenvolvidos como Itália, Coreia do Sul, Japão, Alemanha e tantos outros. Até agora nenhum país conseguiu reverter a queda da taxa de fecundidade, mesmo com generosos benefícios fiscais. Os poucos países ricos que conseguem manter algum crescimento populacional se beneficiam de grandes influxos de migrantes que, por sua vez, trazem desafios adicionais. O Brasil encontra-se numa posição delicada, pois ele chega ao fim do seu crescimento populacional com um PIB per capita ainda relativamente baixo; além disso, o Brasil, há muitos anos, é um país com fluxo migratório negativo, isto é, mais brasileiros emigram (saem) do país do que estrangeiros imigram para cá.
+
+No próximo texto desta série vou explorar mais a fundo os dados por cidades e metrópoles. O envelhecimento da população e acúmulo de problemas urbanos em grandes cidades parece estar reduzindo o puxo destas metrópoles. Rio de Janeiro e Salvador, por exemplo, registraram perdas populacionais que, muito provavelmente, devem-se a fluxos migratórios internos.
+
+Por fim, vale terminar o texto relembrando que os funcionários do IBGE são extremamente competentes e plenamente capacitados. O Censo sofreu, infortuitamente, cortes de orçamento severos e teve de ser atrasado devido à pandemia. Os dados do Censo de 2022, assim como dos Censos anteriores, serão revisados futuramente e, muito provavelmente, as discrepâncias mencionadas neste texto serão dirmidas.
