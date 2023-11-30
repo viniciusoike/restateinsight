@@ -5,6 +5,7 @@ categories: ["data-visualization", "ggplot2", "brazil", "census"]
 execute: 
   warning: false
   message: false
+  eval: false
 draft: true
 ---
 
@@ -24,7 +25,6 @@ knitr::opts_chunk$set(
   )
 ```
 
-
 ```{r}
 library(ggplot2)
 library(sidrar)
@@ -35,122 +35,102 @@ library(showtext)
 font_add_google("Roboto Mono", "Roboto Mono")
 font_add_google("Roboto Condensed", "Roboto Condensed")
 showtext_auto()
-
-cities <- geobr::read_municipality(year = 2020, showProgress = FALSE)
-dim_state <- geobr::read_state(showProgress = FALSE)
-dim_state <- as_tibble(sf::st_drop_geometry(dim_state))
 ```
 
 ```{r}
 # Tabela 200 - População residente, por sexo, situação e grupos de idade
 # Tabela 1209 - População, por grupos de idade https://sidra.ibge.gov.br/tabela/1209
-```
-
-```{r}
-pop_brasil <- get_sidra(
-  1209,
-  variable = 606,
-  classific = c("c58"),
-  category = list(c(1140:1145, 3299:3301, 3520, 3244)),
-  period = "1940-2022"
+cities_age <- readr::read_rds(
+  here::here("static/data/census_aging_index_city.rds")
   )
 ```
 
 ```{r}
-tbl_bra <- pop_brasil |> 
-  janitor::clean_names() |> 
-  mutate(grupo_de_idade = str_remove(grupo_de_idade, " anos")) |> 
-  separate(
-    grupo_de_idade,
-    into = c("age_min", "age_max"),
-    sep = " a ",
-    remove = FALSE,
-    convert = TRUE) |>
-  mutate(age_max = if_else(is.na(age_max), 100, age_max)) |> 
-  select(ano, grupo_de_idade, age_min, age_max, valor)
-  mutate(ano = as.numeric(ano))
-```
+breaks <- c(0.25, 0.5, 0.75, 1) * 100
+labels <- c(
+  "Até 25", "25 a 50", "50 a 75", "75 a 100", "100 ou mais"
+  )
 
-```{r}
-get_population <- function(state) {
+age_to_color <- Vectorize(function(x) {
   
-  get_sidra(
-    9514,
-    variable = 93,
-    classific = "c287",
-    category = list(c(93070, 93084, 93085:93098, 49108, 49109, 60040, 60041, 6653)),
-    geo = "City",
-    geo.filter = list("State" = state)
-  )
+  breaks <- c(0.25, 0.5, 0.75, 1) * 100
+  y <- findInterval(x, breaks)
+  
+  colors <- c(
+    "#440154FF", "#3B528BFF", "#21908CFF", "#5DC863FF", "#FDE725FF"
+    )
+  
+  colors[y + 1]
+  
+})
+
+
+library(cowplot)
+
+map_census <- function(year) {
+  
+  col_name <- glue::glue("age_index_{year}")
+  
+  sub <- cities_age %>%
+    mutate(
+      color = age_to_color(.data[[col_name]]),
+      color = if_else(is.na(color), "gray50", color)
+      )
+  
+  ggplot(sub) +
+    geom_sf(aes(fill = color), lwd = 0.01, color = "gray80") +
+    scale_fill_identity() +
+    coord_sf(xlim = c(NA, -34.469802)) +
+    ggtitle(year) +
+    ggthemes::theme_map(base_family = "Roboto Condensed") +
+    theme(plot.title = element_text(hjust = 0.5, size = 18))
   
 }
 
-pop <- parallel::mclapply(dim_state$code_state, get_population)
-```
+m1 <- map_census(1991)
+m2 <- map_census(2000)
+m3 <- map_census(2010)
+m4 <- map_census(2022)
 
-```{r}
+breaks <- c(0.25, 0.5, 0.75, 1) * 100
+labels <- c("Até 25", "25 a 50", "50 a 75", "75 a 100", "100 ou mais")
 
-tbl_pop <- bind_rows(pop)
-
-tbl_pop <- tbl_pop |> 
-  as_tibble() |> 
-  janitor::clean_names() |> 
-  filter(sexo == "Total", forma_de_declaracao_da_idade == "Total") |> 
-  select(code_muni = municipio_codigo, ano, age_group = idade, pop = valor) |> 
-  separate(age_group, into = c("age_min", "age_max"), sep = " a ", remove = FALSE) |> 
+map_legend <- cities_age |> 
   mutate(
-    code_muni = as.numeric(code_muni),
-    ano = as.numeric(ano),
-    age_min = as.numeric(age_min),
-    age_min = if_else(is.na(age_min), 100, age_min),
-    age_max = str_remove(age_max, " anos"),
-    age_max = as.numeric(age_max),
-    age_group = factor(age_group),
-    age_group = forcats::fct_reorder(age_group, age_min),
-    age_ibge = case_when(
-      age_min < 15 ~ "young",
-      age_min >= 15 & age_max < 65 ~ "adult",
-      age_min >= 65 ~ "elder"
-    )
-  )
-
-tbl_age <- tbl_pop |> 
-  summarise(total = sum(pop, na.rm = TRUE), .by = c("code_muni", "age_ibge")) |> 
-  pivot_wider(id_cols = "code_muni", names_from = "age_ibge", values_from = "total") |> 
-  mutate(
-    age_index = elder / young,
-    rdy = young / adult,
-    rde = elder / adult,
-    rdt = rdy + rde
-  )
-
-cities_age <- left_join(cities, tbl_age, by = "code_muni")
+    group = factor(findInterval(age_index_2022, breaks))
+    ) |> 
+  ggplot(aes(fill = group)) +
+  geom_sf(color = "gray80") +
+  scale_fill_viridis_d(labels = labels, name = "Índice de\nEnvelhecimento")
 ```
 
 ```{r}
-hist(cities_age$age_index, breaks = "fd")
-BAMMtools::getJenksBreaks(cities_age$age_index, k = 7)
+fill_legend <- cowplot::get_legend(map_legend)
+plot_maps <- plot_grid(m1, m2, m3, m4, nrow = 2, ncol = 2)
+plot_compare <- plot_grid(plot_maps, fill_legend, ncol = 2, rel_widths = c(0.9, 0.1))
 ```
 
-```{r}
-breaks <- c(0.25, 0.5, 0.75, 1, 1.5)
-labels <- c(
-  "Até 0.25", "0.25 a 0.5", "0.5 a 0.75", "0.75 a 1", "1 a 1.5", "1.5 ou mais"
-  )
 
-cities_age |> 
-  mutate(group = factor(findInterval(age_index, breaks))) |> 
+```{r}
+map2022 <- cities_age |> 
+  mutate(group = factor(findInterval(age_index_2022, breaks))) |> 
   ggplot() +
-  geom_sf(aes(fill = group), lwd = 0.01, color = "gray80") +
-  scale_fill_viridis_d(labels = labels) +
-  coord_sf(xlim = c(NA, -34.3272)) +
-  ggthemes::theme_map()
+    geom_sf(aes(fill = group), lwd = 0.01, color = "gray80") +
+    scale_fill_viridis_d(
+      name = "Índice de\nEnvelhecimento",
+      labels = labels
+      ) +
+    coord_sf(xlim = c(NA, -34.469802)) +
+    ggtitle("Índice de Envelhecimento (2022)") +
+    ggthemes::theme_map(base_family = "Roboto Condensed") +
+    theme(plot.title = element_text(hjust = 0.5, size = 18))
 ```
+
 
 ```{r}
 tbl_cols <- cities_age |> 
   sf::st_drop_geometry() |> 
-  mutate(is_old = if_else(age_index > 1, 1L, 0L)) |> 
+  mutate(is_old = if_else(age_index_2022 > 100, 1L, 0L)) |> 
   count(abbrev_state, is_old) |> 
   mutate(share = n / sum(n) * 100, .by = "abbrev_state") |> 
   filter(is_old == 1) |> 
@@ -161,9 +141,6 @@ tbl_cols <- cities_age |>
     label = format(round(share, 1)),
     label = paste0(label, "%")
   ) 
-
-
-
 ```
 
 ```{r}
@@ -208,3 +185,6 @@ p_age_index <- ggplot(tbl_cols, aes(x = abbrev_state, y = share)) +
   )
 ```
 
+```{r}
+p_age_index
+```
