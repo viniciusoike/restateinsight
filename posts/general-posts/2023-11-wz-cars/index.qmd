@@ -1,6 +1,8 @@
 ---
-title: "Weekly Viz: Cars and Car Dependency"
+title: "Weekly Viz: Car Dependency in São Paulo"
 date: "2023-11-24"
+categories: ["data-visualization", "sao-paulo", "ggplot2", "weekly-viz"]
+description: "São Paulo boasts a predominantly clean energy matrix, with the city's primary challenge lying in the transportation sector. A simple manner to capture car dependency is to measure the prevalence of car-free households. Using OD data across 329 zones I make simple visualizations that suggest that income constraints, rather than preferences, play a pivotal role in keeping car usage low. Notably, some affluent OD zones in close proximity to key business districts exhibit the lowest share of car-free households."
 execute: 
   message: false
   warning: false
@@ -25,34 +27,136 @@ x <- c(
   "Tucuruvi", "Alto da Lapa", "Mandaqui", "Lapa", "Pamplona", "Parque Novo Mundo",
   "Vila Zelina", "Consolação", "Jardim da Glória", "Santa Ifigênia", "Morumbi"
   )
+
+spo <- filter(pod, code_muni == 36)
 ```
 
 # The damage of cars
 
-Cars present a major challenge in the climate change effort: transportation accounts for around a fifth of total carbon emissions in the world, and the petrol-burning car is perhaps the most inefficient of the contemporary transportation options available. Cars don't only pollute the air, they also take a considerable amount of space to operate
+Automobiles pose a significant challenge in the global effort to combat climate change. Transportation contributes to roughly a fifth of total carbon emissions worldwide, and among contemporary transportation options, petrol-burning cars are notably inefficient. Beyond air pollution, cars require substantial space for operation and inflict various negative externalities on cities.
+
+In this post, I revisit São Paulo to assess the extent of the city's dependence on cars. The data used is available via my R package [tidypod](https://github.com/viniciusoike/tidypod).
+
+## São Paulo
+
+São Paulo is a megacity with over 12 million inhabitants. The city recently declared its commitment to a significant reduction in greenhouse gas emissions, aiming for net-zero emissions by 2050. Achieving this goal requires a strategic focus on improving public transit options and diminishing reliance on cars. In the Greater São Paulo area, cars currently represent nearly 27% of all trips.
+
+Similar to much of the southeastern region of Brazil, São Paulo boasts a predominantly clean energy matrix. The city's primary challenge lies in the realm of transportation. Specifically, there is a need to reduce the size of the car fleet and enhance public transportation alternatives.
+
+One effective measure of car-dependency is assessing the prevalence of car-free households. Using the most recent Origin Destination Survey data I estimate the share of households without cars. The data is aggregated by OD zone: after cleaning, there are 329 valid OD zones in São Paulo[^1]. To quickly get this data I use the [tidypod](https://github.com/viniciusoike/tidypod) package.
+
+[^1]: Excluding zero-income and zero-population OD zones.
+
+The data suggest that constraints related to income, rather than preferences, predominantly keep car usage low. Interestingly, some of the OD zones with the lowest share of car-free households are affluent neighborhoods spatially close to key business districts in the city.
+
+It's important to note that reducing car-dependency doesn't necessarily mean removing cars from the streets. As professor Dorel Soares Ramos, from the University of São Paulo, explains "renewable gaseous fuels" such as "biomethane" are considered "green for fleet adaptation"[^2]. Similarly, electric automobiles will contribute to lowering carbon emissions. However, irrespective of the energy source for cars, we must still address the numerous negative externalities associated with their use.
+
+[^2]: Original quote: ["Um ponto muito importante também é utilização, por exemplo, de combustíveis como o biometano e os combustíveis gasosos renováveis que são considerados verdes para a adaptação da frota"](https://jornal.usp.br/radio-usp/plano-estadual-paulista-de-energia-preve-ate-2050-transicao-energetica-e-politica-de-carbono-zero/).
+
+### Share of car-free households
+
+Car-free households seem to be spatially concentrated at peripheral regions of the city, very far away from any of the cities CBDs. The notable exception is the green mass right at the "old" CBD (Centro Histórico). While this region has very high share of car-free households, it should be noted that is also is not a very populated region. The "newer" CBDs of Paulista and Itaim have much lower shares of car-free households.
 
 ```{r}
-spo <- filter(pod, code_muni == 36)
+breaks <- c(10, 20, 35, 45, 60, 90)
+labels <- c("<10", "10-20", "20-35", "35-45", "45-60", "60-90")
 
-ggplot(spo) +
-  geom_sf(aes(fill = share_car_0), lwd = 0.05, color = "gray90") +
-  scale_fill_viridis_c(option = "inferno", direction = -1) +
+spo <- spo |> 
+  mutate(
+    group = factor(findInterval(share_car_0, breaks, left.open = TRUE))
+  )
+
+m1 <- ggplot(spo) +
+  geom_sf(aes(fill = group), lwd = 0.02, color = "gray20") +
+  scale_fill_brewer(
+    type = "div",
+    name = "Share of\ncar-free\nhouseholds (%)",
+    labels = labels,
+    na.translate = FALSE
+    ) +
   ggthemes::theme_map() +
   theme(
-    legend.position = c(0.75, 0.1)
+    legend.position = c(0.75, 0.05),
+    legend.title = element_text(family = "Lato", hjust = 0.5)
   )
+
+m1
+```
+
+Close to half of São Paulo's households are entirely car-free, and in certain regions, virtually every household opts to go without any cars.
+
+```{r}
+x <- weighted.mean(spo$share_car_0, spo$hh)
+
+p1 <- ggplot(spo, aes(x = share_car_0)) +
+  geom_hline(yintercept = 0) +
+  geom_histogram(aes(fill = group)) +
+  geom_vline(xintercept = x, linetype = 2, color = "gray30") +
+  scale_x_continuous(breaks = seq(0, 100, 10)) +
+  scale_y_continuous(breaks = seq(0, 30, 5)) +
+  scale_fill_brewer(
+    type = "div",
+    name = "",
+    labels = labels,
+    na.translate = FALSE
+    ) +
+  labs(
+    title = "",
+    subtitle = "Dashed line indicates the household-weighted share across the city.",
+    x = "Share of car-free households (%)",
+    y = "Number of regions"
+  ) +
+  theme_minimal(base_family = "Lato") +
+  theme(
+    panel.grid.minor = element_blank()
+  )
+
+p1
+```
+
+A distinct negative correlation exists between income and car-dependency in São Paulo. As income rises, households tend to demand more cars and the likelihood of finding car-free households decreases. The plot below shows average household income (in log-scale) against the percentage share of car-free households across all 329 zones. The size of each circle is scaled to represent the total population living in each zone. The richer, less populated zones, have the lowest shares of car-free households. Meanwhile, the more populated and poor households have some of the highest shares of car-free households[^3].
+
+[^3]: Given the considerable variation in OD zone sizes, one could argue that a more appropriate measure would be to utilize population density instead of total population. However, showcasing total population figures makes it easier to understand the overall impact on emissions.
+
+```{r}
+sub <- filter(spo, income_avg > 0, !is.na(name_region))
+
+size_breaks <- c(40, 60, 80, 100, 120) * 1000
+size_labels <- format(size_breaks, big.mark = ",")
+
+p2 <- ggplot(sub, aes(x = log(income_avg), y = share_car_0)) +
+  geom_point(aes(size = pop), alpha = 0.7, color = "#35978F") +
+  geom_smooth(se = FALSE, method = "lm") +
+  scale_size_continuous(
+    name = "Population (total)",
+    breaks = size_breaks,
+    labels = size_labels,
+    range = c(1, 7.5)) +
+  labs(
+    title = "Cars and Income",
+    subtitle = "Share of car-free households declines as average household income increases.",
+    x = "Avg. Income (log)",
+    y = "Share of car-free households (%)"
+  ) +
+  theme_minimal(base_family = "Lato") +
+  theme(
+    legend.position = c(0.1, 0.1),
+    panel.grid.minor = element_blank()
+  )
+
+p2
 ```
 
 ```{r}
+#| eval: false
 ggplot(spo) +
   geom_sf(aes(fill = share_car_0), lwd = 0.05, color = "gray90") +
   scale_fill_viridis_c(option = "inferno", direction = -1) +
   coord_sf(xlim = c(-46.75, -46.55), ylim = c(-23.64, -23.50))
 ```
 
-Like most goods, cars behave as *normal goods*, meaning that an individual's demand for cars tends to increase as personal income increases.
-
 ```{r}
+#| eval: false
 sub <- filter(pod, income_avg > 0, !is.na(name_region))
 
 ggplot(sub, aes(x = log(income_avg), y = car_rate)) +
@@ -70,6 +174,7 @@ ggplot(sub, aes(x = log(income_avg), y = car_rate)) +
 ```
 
 ```{r}
+#| eval: false
 ggplot(sub, aes(x = log(income_avg), y = 1 - share_car_0)) +
   geom_point(aes(size = pop_density, color = name_region), alpha = 0.7) +
   geom_smooth(aes(weight = hh), method = "lm", se = FALSE) +
@@ -85,6 +190,7 @@ ggplot(sub, aes(x = log(income_avg), y = 1 - share_car_0)) +
 ```
 
 ```{r}
+#| eval: false
 travel_mode <- travels$travel_mode$mode_grouped |> 
   pivot_wider(id_cols = "code_zone", names_from = "cat", values_from = "share") |> 
   janitor::clean_names()
@@ -97,6 +203,7 @@ tbl_travel <- sub |>
 ```
 
 ```{r}
+#| eval: false
 p <- ggplot(tbl_travel, aes(x = log(income_avg), y = automovel)) +
   geom_point(aes(size = pop_density, color = name_region, text = name_zone), alpha = 0.7) +
   geom_smooth(aes(weight = hh), method = "lm", se = FALSE) +
