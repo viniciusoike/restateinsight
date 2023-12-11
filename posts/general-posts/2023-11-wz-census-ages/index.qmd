@@ -1,19 +1,16 @@
 ---
-title: "Aging Index in Brazil"
+title: "Envelhecimento no Brasil"
 date: "2023-10-31"
-categories: ["data-visualization", "ggplot2", "brazil", "census"]
+categories: ["data-visualization", "ggplot2", "censo"]
 execute: 
   warning: false
   message: false
-  eval: false
-draft: true
+  echo: false
 ---
 
 ```{r}
 #| include: false
 knitr::opts_chunk$set(
-  warning = FALSE,
-  message = FALSE,
   fig.align = "center",
   fig.showtext = TRUE,
   fig.width = 9,
@@ -29,12 +26,16 @@ knitr::opts_chunk$set(
 library(ggplot2)
 library(sidrar)
 library(dplyr)
-library(stringr)
-library(tidyr)
 library(showtext)
+library(cowplot)
 font_add_google("Roboto Mono", "Roboto Mono")
 font_add_google("Roboto Condensed", "Roboto Condensed")
 showtext_auto()
+
+breaks <- c(0.25, 0.5, 0.75, 1) * 100
+labels <- c(
+  "Até 25", "25 a 50", "50 a 75", "75 a 100", "100 ou mais"
+)
 ```
 
 ```{r}
@@ -44,88 +45,6 @@ cities_age <- readr::read_rds(
   here::here("static/data/census_aging_index_city.rds")
   )
 ```
-
-```{r}
-breaks <- c(0.25, 0.5, 0.75, 1) * 100
-labels <- c(
-  "Até 25", "25 a 50", "50 a 75", "75 a 100", "100 ou mais"
-  )
-
-age_to_color <- Vectorize(function(x) {
-  
-  breaks <- c(0.25, 0.5, 0.75, 1) * 100
-  y <- findInterval(x, breaks)
-  
-  colors <- c(
-    "#440154FF", "#3B528BFF", "#21908CFF", "#5DC863FF", "#FDE725FF"
-    )
-  
-  colors[y + 1]
-  
-})
-
-
-library(cowplot)
-
-map_census <- function(year) {
-  
-  col_name <- glue::glue("age_index_{year}")
-  
-  sub <- cities_age %>%
-    mutate(
-      color = age_to_color(.data[[col_name]]),
-      color = if_else(is.na(color), "gray50", color)
-      )
-  
-  ggplot(sub) +
-    geom_sf(aes(fill = color), lwd = 0.01, color = "gray80") +
-    scale_fill_identity() +
-    coord_sf(xlim = c(NA, -34.469802)) +
-    ggtitle(year) +
-    ggthemes::theme_map(base_family = "Roboto Condensed") +
-    theme(plot.title = element_text(hjust = 0.5, size = 18))
-  
-}
-
-m1 <- map_census(1991)
-m2 <- map_census(2000)
-m3 <- map_census(2010)
-m4 <- map_census(2022)
-
-breaks <- c(0.25, 0.5, 0.75, 1) * 100
-labels <- c("Até 25", "25 a 50", "50 a 75", "75 a 100", "100 ou mais")
-
-map_legend <- cities_age |> 
-  mutate(
-    group = factor(findInterval(age_index_2022, breaks))
-    ) |> 
-  ggplot(aes(fill = group)) +
-  geom_sf(color = "gray80") +
-  scale_fill_viridis_d(labels = labels, name = "Índice de\nEnvelhecimento")
-```
-
-```{r}
-fill_legend <- cowplot::get_legend(map_legend)
-plot_maps <- plot_grid(m1, m2, m3, m4, nrow = 2, ncol = 2)
-plot_compare <- plot_grid(plot_maps, fill_legend, ncol = 2, rel_widths = c(0.9, 0.1))
-```
-
-
-```{r}
-map2022 <- cities_age |> 
-  mutate(group = factor(findInterval(age_index_2022, breaks))) |> 
-  ggplot() +
-    geom_sf(aes(fill = group), lwd = 0.01, color = "gray80") +
-    scale_fill_viridis_d(
-      name = "Índice de\nEnvelhecimento",
-      labels = labels
-      ) +
-    coord_sf(xlim = c(NA, -34.469802)) +
-    ggtitle("Índice de Envelhecimento (2022)") +
-    ggthemes::theme_map(base_family = "Roboto Condensed") +
-    theme(plot.title = element_text(hjust = 0.5, size = 18))
-```
-
 
 ```{r}
 tbl_cols <- cities_age |> 
@@ -186,5 +105,76 @@ p_age_index <- ggplot(tbl_cols, aes(x = abbrev_state, y = share)) +
 ```
 
 ```{r}
+dim_state <- geobr::read_state(showProgress = FALSE)
+dim_state <- sf::st_drop_geometry(dim_state)
+
+tab_sidra <- sidrar::get_sidra(9515, variable = 10612, geo = "State")
+
+tab_ageuf <- tab_sidra |> 
+  janitor::clean_names() |> 
+  select(code_state = unidade_da_federacao_codigo, ie = valor) |> 
+  mutate(code_state = as.numeric(code_state)) |> 
+  left_join(dim_state, by = "code_state") |> 
+  mutate(
+    abbrev_state = factor(abbrev_state),
+    abbrev_state = forcats::fct_reorder(abbrev_state, ie),
+    label = format(round(ie, 0))
+  )
+```
+
+```{r}
+p_age_index_uf <- ggplot(tab_ageuf, aes(x = abbrev_state, y = ie)) +
+  geom_col(fill = "#2a9d8f", width = 0.9) +
+  geom_text(
+    aes(x = abbrev_state, y = 2.5, label = abbrev_state),
+    family = "Roboto Condensed") +
+  geom_text(
+    aes(x = abbrev_state, y = ie - 2.5, label = label),
+    family = "Roboto Condensed") +
+  coord_flip() +
+    theme_minimal(base_family = "Roboto Condensed", base_size = 12) +
+  labs(
+    title = "Índice de Envelhecimento (2022)",
+    subtitle = "Percentual de cidades com mais pessoas acima de 65 anos do que pessoas de 14 anos ou menos (2022).",
+    x = "",
+    y = "Razão entre Idosos e Jovens",
+    caption = "Fonte: IBGE (Censo 2022). @viniciusoike"
+    ) +
+  theme(
+    plot.title = element_text(size = 18),
+    panel.grid.minor = element_blank(),
+    panel.grid.major.y = element_blank(),
+    axis.text.y = element_blank(),
+    plot.margin = margin(0.25, 0.5, 0.25, 0.5, "cm"),
+    axis.line.x = element_line(),
+    axis.ticks.x = element_line(),
+    axis.text.x = element_text(size = 12)
+  )
+```
+
+# Envelhecimento no Brasil
+
+O futuro demográfico do Brasil, em grande parte, já é conhecido. Assim como no resto do mundo, a combinação de queda de taxa de fecundidade e aumento de expectativa de vida implica no envelhecimento da população. Pelo índice de envelhecimento[^1], a razão entre idosos e jovens, vê-se como esta tendência já é realidade em boa parte do território brasileiro.
+
+[^1]: Formalmente, o índice de envelhecimento, $IE$, é definido como a razão entre a população idosa ($p_{idosa}$), com 65 anos ou mais e a população jovem ($p_{jovem}$), com 14 anos ou menos. $IE = 100\frac{p_{idosa}}{p_{jovem}}$
+
+![](/static/images/census_age_index_map.png){fig-align="center" width="80%"}
+
+No começo dos anos 2000 apenas o Rio Grande do Sul e uma parte do Sudeste apresentavam os sinais do envelhecimento. Já no Censo seguinte,
+
+O mapa abaixo mostra em maiores detalhes o índice de envelhecimento nas cidades brasileiras. Os dados são do mais recente Censo do IBGE. Vale lembrar que valores maiores do que 100 indicam que há uma proporção maior de idosos do que jovens.
+
+![](/static/images/census_age_index_map_2022.png){fig-align="center"}
+
+No Rio Grande do Sul, quase metade dos municípios tem mais idosos do que jovens. O gráfico abaixo mostra a proporção de cidades onde há mais idosos que jovens, isto é, onde o índice de envelhecimento é maior do que 100. Isto acontece, em parte, pois há muitos municípios pequenos no interior do estado que sofrem com a emigração de jovens. Vale notar que todos os estados do Sul e Sudeste aparecem no ranking.
+
+```{r}
 p_age_index
+```
+
+Considerando a população total de cada estado, ao invés da proporção de municípios, o Rio Grande do Sul continua no topo da lista. O ranking continua dominado por estados do Sul e Sudeste, mas vê-se como também o nordeste está envelhecendo.
+
+```{r}
+#| out-width: 100%
+p_age_index_uf
 ```
