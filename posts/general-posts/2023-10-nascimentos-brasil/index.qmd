@@ -1,7 +1,11 @@
 ---
 title: "Nascimentos no Brasil"
 categories: ['data-science', 'data-visualization', 'brasil', 'demografia']
-draft: true
+description: "Tende-se a pensar que a data de nascimento de um indivíduo é algo completamente aleatório. Neste post faço algumas visualizações para investigar o padrão de sazonalidade nos nascimentos e concluo com uma regressão simples que aponta a presença de sazonalidade."
+execute: 
+  message: false
+  warning: false
+  echo: false
 ---
 
 ```{r libs}
@@ -48,6 +52,8 @@ theme_vini <- theme_minimal() +
     legend.position = "top",
     legend.key.width = unit(2, "cm")
   )
+
+theme_series <- theme_vini + theme(panel.grid = element_line(color = 'gray90'))
 ```
 
 ```{r import-data}
@@ -155,7 +161,7 @@ p_lineplot <-
   scale_x_date(
     breaks = c(
       as.Date("2003-01-01"),
-      seq(as.Date("2005-01-01"), as.Date("2020-01-01"), by = "1 year"),
+      seq(as.Date("2004-01-01"), as.Date("2020-01-01"), by = "1 year"),
       as.Date("2021-01-01")
       ),
     date_labels = "%Y"
@@ -293,37 +299,25 @@ Usando dados do IBGE, mais especificamente das Estatísticas do Registro Civil, 
 p_heatmap_rel
 ```
 
-Isto significa que o maior número de concepções ocorreu no inverno, nos meses de julho a agosto. Já os meses quentes de janeiro a março tiveram os menores números de concepções. Este fato vai diretamente contra a popular percepção de que épocas quentes - e o Carnaval, em particular - favorecem o número de nascimentos.
-
-```{r}
-tbl_brazil |>
-  summarise(births = sum(total), .by = "month_abb") |> 
-  mutate(share = births / sum(births) * 100) |> 
-  filter(month_abb %in% c("Mar", "Abr", "Mai")) |> 
-  summarise(total = sum(share))
-```
+Isto significa que o maior número de concepções ocorreu no inverno, nos meses de julho a agosto. Já os meses quentes de janeiro a março tiveram os menores números de concepções. Este fato vai diretamente contra a popular percepção de que épocas quentes favorecem o número de nascimentos.
 
 Olhando para as tendências de médio e longo prazo, vê-se que o número de nascimentos no Brasil permaneceu relativamente estável entre 2000 e 2015, variando de 230 mil a 242 mil nascimentos por mês. A quebra na série coincide com a recessão de 2015-17, período de alta inflação e desemprego recorde: de fato, a série sai do seu pico, acima de 265 mil nascimentos para o seu ponto mais baixo, abaixo de 200 mil nascimentos, neste período.
 
-O fim da recessão
+O fim da recessão não significou, contudo, um retorno à antiga tendência. Desde 2018-19, o número de nascidos vivos no Brasil segue em tendência de queda.
 
 ```{r}
 p_lineplot
 ```
 
-```{r}
-p_heatmap_abs
-```
-
-```{r}
-p_heatmap_rel
-```
-
 ## Regiões
+
+A tendência geral, observada no Brasil, repete-se em quase todas as grandes regiões. Apenas a região Norte parece escapar da tendência de queda, ainda que os valores correntes estejam levemente abaixo dos valores observados em 2013-14.
 
 ```{r}
 p_trend_region
 ```
+
+Visualmente, o padrão sazonal dos nascimentos nas regiões é muito similar ao padrão geral brasileiro. Novamente, a região norte é uma exceção, já que a proporção de nascimentos em cada mês é muito homogênea.
 
 ```{r}
 plot_heatmap("Norte", seq(0.05, 0.1, 0.005), share = TRUE)
@@ -365,11 +359,13 @@ $$
 b_{t} = \alpha_{0} + \sum_{i = 2}^{12}\beta_{i}\delta_{i} + u_{t}
 $$
 
-onde $b_{t}$ agora é o logartimo natural da série de nascimentos livre de tendência. O parâmetro $\alpha_{0}$ é uma constante e $\delta_{i}$ é uma variável binária que indica com valor unitário se a observação $B_{t}$ pertence ao mês $i$.
+onde $b_{t}$ agora é o logartimo natural da série de nascimentos livre de tendência. O parâmetro $\alpha_{0}$ é uma constante e $\delta_{i}$ é uma variável binária que indica com valor unitário se a observação pertence ao mês $i$.
 
 A tabela abaixo mostra o resultado da regressão. Assim, como se viu nos gráficos, os três meses do final do ano tem um efeito negativo enquanto os meses de março a maio têm um efeito positivo sobre o número de nascimentos. Além destes, fevereiro e junho aparecem com sinal positivo, mas tem um efeito menor. Agosto também tem um efeito negativo, porém com magnitude inferior aos meses do final do ano.
 
 ```{r}
+#| code-fold: true
+#| echo: true
 library(gtsummary)
 library(gt)
 library(gtExtras)
@@ -403,11 +399,26 @@ tab_reg <-
 tab_reg
 ```
 
-Visualmente, o resultado da regressão acima pode ser visto no painel abaixo. Note que o padrão sazonal é constante: começa o ano subindo, atinge um pico e aí começa a cair
+Visualmente, o resultado da regressão acima pode ser visto no painel abaixo. Note que o padrão sazonal é constante: começa o ano subindo, atinge um pico e aí começa a cair.
 
 ```{r}
-theme_series <- theme_vini + theme(panel.grid = element_line(color = 'gray90'))
+sub <- window(fitted(fit_lm), start = c(2004, 1), end = c(2004, 12))
+sub <- broom::tidy(sub)
+sub$id = 1:12
 
+ggplot(sub, aes(x = id, y = value)) +
+  geom_line() + 
+  geom_point() +
+  geom_hline(yintercept = 0) +
+  scale_x_continuous(breaks = 1:12) +
+  scale_y_continuous(limits = c(NA, 0.1)) +
+  theme_series +
+  theme(panel.grid.minor = element_blank())
+```
+
+O painel abaixo mostra a decomposição completa da série de nascimentos.
+
+```{r}
 p1 <- autoplot(nasc) +
   ggtitle("Nascimentos") +
   labs(x = NULL, y = NULL) +
@@ -433,12 +444,80 @@ library(patchwork)
 p1 / p2 / p3 / p4
 ```
 
-```{r}
-sub <- window(fitted(fit_lm), start = c(2004, 1), end = c(2004, 12))
-sub <- broom::tidy(sub)
-sub$id = 1:12
+Um exercício semelhante poderia ser feito analisando cada estado individualmente. Os dados de nascimentos por UF funcionam como um painel longitudinal e pode-se fazer um regressão com efeitos fixos. Por completude, faço este exercício, mas como se vê no gráfico final, o padrão sazonal é muito similar. Em verdade, os efeitos de UF parecem ter ligeiramente intensificado o efeito sazonal.
 
-ggplot(sub, aes(x = id, y = value)) +
+```{r}
+#| code-fold: true
+nasc <- get_sidra(
+  2612,
+  variable = 218,
+  period = "2003-2021",
+  classific = "c235",
+  category = list("all"),
+  geo = "State"
+)
+
+tbl_birth = nasc |> 
+  as_tibble() %>%
+  janitor::clean_names() |> 
+  select(
+    code_state = unidade_da_federacao_codigo,
+    name_state = unidade_da_federacao,
+    year = ano,
+    month = mes_do_nascimento,
+    birth = valor
+  ) %>%
+  filter(!(month %in% c("Total", "Ignorado"))) %>%
+  mutate(
+    date = paste(year, month, "01", sep = "-"),
+    date = parse_date(date, format = "%Y-%B-%d", locale = locale("pt")),
+    month_abb = lubridate::month(date, label = TRUE, locale = "pt_BR"),
+    month_abb = fct_rev(month_abb),
+    year = as.numeric(year)
+  )
+
+tbl_birth <- tbl_birth %>%
+  mutate(
+    trend = RcppRoll::roll_mean(birth, n = 12, fill = NA),
+    trend = RcppRoll::roll_mean(trend, n = 2, fill = NA),
+    .by = c("code_state", "name_state")
+  )
+
+xreg <- tbl_birth |> 
+  mutate(
+    days = lubridate::days_in_month(date),
+    births_adjusted = birth * (365/12) / days,
+    .by = "code_state"
+  ) |> 
+  mutate(
+    nasc = log(births_adjusted),
+    mm = RcppRoll::roll_mean(nasc, n = 12, fill = NA),
+    mm = RcppRoll::roll_mean(mm, n = 2, fill = NA),
+    nasc_mm = nasc - mm,
+    .by = "code_state"
+  ) |> 
+  mutate(
+    crise = factor(if_else(year >= 2015 & year <= 2017, 1L, 0L)),
+    month = factor(lubridate::month(date))
+  )
+
+fit = lm(nasc_mm ~ as.factor(name_state) + month + crise, data = xreg)
+```
+
+```{r}
+sub <- broom::tidy(fit)
+
+x <- sub |> 
+  as_tibble() |> 
+  filter(stringr::str_detect(term, "^month")) |> 
+  pull(estimate)
+
+tbl <- tibble(
+  id = 1:12,
+  value = c(0, x)
+)
+
+ggplot(tbl, aes(x = id, y = value)) +
   geom_line() + 
   geom_point() +
   geom_hline(yintercept = 0) +
@@ -446,9 +525,4 @@ ggplot(sub, aes(x = id, y = value)) +
   scale_y_continuous(limits = c(NA, 0.1)) +
   theme_series +
   theme(panel.grid.minor = element_blank())
-
-```
-
-```{r}
-autoplot(mstl(nasc)) + theme_series
 ```
