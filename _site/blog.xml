@@ -10,7 +10,1683 @@
 <atom:link href="https:://www.restateinsight.com/blog.xml" rel="self" type="application/rss+xml"/>
 <description>A blog on economics and cities</description>
 <generator>quarto-1.3.450</generator>
-<lastBuildDate>Tue, 05 Dec 2023 03:00:00 GMT</lastBuildDate>
+<lastBuildDate>Tue, 26 Dec 2023 03:00:00 GMT</lastBuildDate>
+<item>
+  <title>Bump Plots</title>
+  <dc:creator>Vinicius Oike</dc:creator>
+  <link>https:://www.restateinsight.com/posts/general-posts/2023-12-bump-plots/index.html</link>
+  <description><![CDATA[ 
+
+
+
+
+<section id="setup" class="level1">
+<h1>Setup</h1>
+<p>Existe um pacote auxiliar específico para criar “bump charts” <a href="https://github.com/davidsjoberg/ggbump">chamado {ggbump}</a>. O pacote está disponível tanto no CRAN como no Github do autor.</p>
+<p>Neste tipo de gráfico, quer-se comparar o valor de uma variável em diferentes contextos. Podemos ter uma comparação entre os mesmos grupos ao longo do tempo ou os mesmos grupos ao longo de variáveis distintas. Em geral, estes gráficos são organizados em forma de rankings e têm como objetivo facilitar a comparação entre grupos.</p>
+<p>Alguns exemplos de aplicação incluem:</p>
+<ol type="1">
+<li>Número de medalhas de ouro nas olimpíadas de uma subamostra de países.</li>
+<li>Gênero mais escutado de música de um usuário ao longo dos anos.</li>
+<li>Países mais populosos do mundo ao longo de décadas.</li>
+<li>Ranking de imóveis em vários critérios.</li>
+<li>Ranking de times num campeonato a cada semana.</li>
+<li>Ranking de países mais ricos segundo diferentes critérios de riqueza</li>
+</ol>
+<section id="pacotes" class="level2">
+<h2 class="anchored" data-anchor-id="pacotes">Pacotes</h2>
+<div class="cell" data-layout-align="center">
+<div class="sourceCode cell-code" id="cb1" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">library</span>(ggplot2)</span>
+<span id="cb1-2"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">library</span>(ggbump)</span>
+<span id="cb1-3"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">library</span>(dplyr)</span>
+<span id="cb1-4"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">library</span>(tidyr)</span></code></pre></div>
+</div>
+</section>
+<section id="exemplo-simples" class="level2">
+<h2 class="anchored" data-anchor-id="exemplo-simples">Exemplo simples</h2>
+<p>O primeiro exemplo é tomado emprestado da página de apresentação do pacote e ilustra o básico da função <code>geom_bump</code>. Os dados tem de estar em formato ‘tidy’ (longitudinal) onde a posição dos “pontos” é informada pelos argumentos x e y e os grupos identificados via group. Isto é, essencialmente, temos um grid de pontos, que ocupa 100% do espaço do gráfico, conectados via uma coluna “group”.</p>
+<div class="cell" data-layout-align="center">
+<div class="sourceCode cell-code" id="cb2" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1">year <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">rep</span>(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2019</span><span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">:</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2021</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">4</span>)</span>
+<span id="cb2-2">position <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">c</span>(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">4</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">3</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">4</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">3</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">4</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">3</span>)</span>
+<span id="cb2-3">player <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">c</span>(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"A"</span>, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"A"</span>, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"A"</span>,</span>
+<span id="cb2-4">            <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"B"</span>, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"B"</span>, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"B"</span>, </span>
+<span id="cb2-5">            <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"C"</span>, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"C"</span>, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"C"</span>,</span>
+<span id="cb2-6">            <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"D"</span>, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"D"</span>, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"D"</span>)</span>
+<span id="cb2-7"></span>
+<span id="cb2-8">df <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">data.frame</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">x =</span> year,</span>
+<span id="cb2-9">                 <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">y =</span> position,</span>
+<span id="cb2-10">                 <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">group =</span> player)</span></code></pre></div>
+</div>
+<div class="cell" data-layout-align="center">
+<div class="cell-output-display">
+<table class="table table-condensed table-hover table-sm table-striped small" data-quarto-postprocess="true">
+<thead>
+<tr class="header">
+<th style="text-align: center;" data-quarto-table-cell-role="th">x</th>
+<th style="text-align: center;" data-quarto-table-cell-role="th">y</th>
+<th style="text-align: center;" data-quarto-table-cell-role="th">group</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: center;">2019</td>
+<td style="text-align: center;">4</td>
+<td style="text-align: center;">A</td>
+</tr>
+<tr class="even">
+<td style="text-align: center;">2020</td>
+<td style="text-align: center;">2</td>
+<td style="text-align: center;">A</td>
+</tr>
+<tr class="odd">
+<td style="text-align: center;">2021</td>
+<td style="text-align: center;">2</td>
+<td style="text-align: center;">A</td>
+</tr>
+<tr class="even">
+<td style="text-align: center;">2019</td>
+<td style="text-align: center;">3</td>
+<td style="text-align: center;">B</td>
+</tr>
+<tr class="odd">
+<td style="text-align: center;">2020</td>
+<td style="text-align: center;">1</td>
+<td style="text-align: center;">B</td>
+</tr>
+<tr class="even">
+<td style="text-align: center;">2021</td>
+<td style="text-align: center;">4</td>
+<td style="text-align: center;">B</td>
+</tr>
+<tr class="odd">
+<td style="text-align: center;">2019</td>
+<td style="text-align: center;">2</td>
+<td style="text-align: center;">C</td>
+</tr>
+<tr class="even">
+<td style="text-align: center;">2020</td>
+<td style="text-align: center;">3</td>
+<td style="text-align: center;">C</td>
+</tr>
+<tr class="odd">
+<td style="text-align: center;">2021</td>
+<td style="text-align: center;">1</td>
+<td style="text-align: center;">C</td>
+</tr>
+<tr class="even">
+<td style="text-align: center;">2019</td>
+<td style="text-align: center;">1</td>
+<td style="text-align: center;">D</td>
+</tr>
+<tr class="odd">
+<td style="text-align: center;">2020</td>
+<td style="text-align: center;">4</td>
+<td style="text-align: center;">D</td>
+</tr>
+<tr class="even">
+<td style="text-align: center;">2021</td>
+<td style="text-align: center;">3</td>
+<td style="text-align: center;">D</td>
+</tr>
+</tbody>
+</table>
+
+
+</div>
+</div>
+<p>Vale tirar um tempo para comparar, com calma, as entradas na tabela acima e o resultado no gráfico abaixo.</p>
+<div class="cell" data-layout-align="center">
+<div class="sourceCode cell-code" id="cb3" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb3-1"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">ggplot</span>(df, <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">aes</span>(year, position, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">color =</span> player)) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb3-2">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">geom_bump</span>()</span></code></pre></div>
+<div class="cell-output-display">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="https:://www.restateinsight.com/posts/general-posts/2023-12-bump-plots/index_files/figure-html/unnamed-chunk-5-1.png" class="img-fluid figure-img" style="width:90.0%"></p>
+</figure>
+</div>
+</div>
+</div>
+</section>
+<section id="venda-de-imóveis" class="level2">
+<h2 class="anchored" data-anchor-id="venda-de-imóveis">Venda de Imóveis</h2>
+<p>Podemos analisar as cidades com maior número de vendas ao longo dos anos usando a já conhecida <code>txhousing</code>. Quem acompanhou meus tutoriais de ggplot2 já deve estar cansado de ver esta base sendo utilizada.</p>
+<p>Queremos montar um gráfico que mostra o ranking de vendas de imóveis ao longo dos anos. Removo o ano de 2015, pois este ano não está completo na amostra. Como há mais de quarenta cidades na amostra eu crio uma subamostra que contém apenas as cidades com maior número de vendas em 2014. O código abaixo mostra o passo-a-passo da manipulação de dados.</p>
+<div class="cell" data-layout-align="center">
+<div class="sourceCode cell-code" id="cb4" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb4-1"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">#&gt; Encontra as top-15 cidades com maior número de vendas em 2014</span></span>
+<span id="cb4-2">top_cities <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> txhousing <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">|&gt;</span> </span>
+<span id="cb4-3">  <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">#&gt; Seleciona apenas o ano de 2014</span></span>
+<span id="cb4-4">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">filter</span>(year <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">==</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2014</span>) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">|&gt;</span> </span>
+<span id="cb4-5">  <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">#&gt; Calcula o total de vendas em cada cidade</span></span>
+<span id="cb4-6">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">summarise</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">total =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">sum</span>(listings, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">na.rm =</span> <span class="cn" style="color: #8f5902;
+background-color: null;
+font-style: inherit;">TRUE</span>), <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">.by =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"city"</span>) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">|&gt;</span> </span>
+<span id="cb4-7">  <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">#&gt; Seleciona o top-15</span></span>
+<span id="cb4-8">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">slice_max</span>(total, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">n =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">15</span>) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">|&gt;</span> </span>
+<span id="cb4-9">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">pull</span>(city)</span>
+<span id="cb4-10"></span>
+<span id="cb4-11"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">#&gt; Calcula o total de vendas anuais na subamostra de cidades e faz o ranking anual</span></span>
+<span id="cb4-12"></span>
+<span id="cb4-13">rank_housing <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> txhousing <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">|&gt;</span> </span>
+<span id="cb4-14">  <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">#&gt; Seleciona apenas cidades dentro da subamostra</span></span>
+<span id="cb4-15">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">filter</span>(city <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">%in%</span> top_cities, year <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">&gt;</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2005</span>, year <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">&lt;</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2015</span>) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">|&gt;</span> </span>
+<span id="cb4-16">  <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">#&gt; Calcula o total de vendas a cada ano</span></span>
+<span id="cb4-17">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">summarise</span>(</span>
+<span id="cb4-18">    <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">listing_year =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">sum</span>(listings, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">na.rm =</span> <span class="cn" style="color: #8f5902;
+background-color: null;
+font-style: inherit;">TRUE</span>),</span>
+<span id="cb4-19">    <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">.by =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">c</span>(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"city"</span>, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"year"</span>)</span>
+<span id="cb4-20">    ) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">|&gt;</span> </span>
+<span id="cb4-21">  <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">#&gt; Faz o ranking das cidades dentro de cada ano</span></span>
+<span id="cb4-22">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">mutate</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">rank =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">rank</span>(<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span>listing_year, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"first"</span>), <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">.by =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"year"</span>)</span></code></pre></div>
+</div>
+<p>No gráfico abaixo, cada cidade tem uma cor diferente, mas omito a legenda de cores. Note o uso de <code>scale_y_reverse</code> já que, tipicamente, queremos mostrar os menores valores na parte superior do gráfico.</p>
+<div class="cell" data-layout-align="center">
+<div class="sourceCode cell-code" id="cb5" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb5-1"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">ggplot</span>(rank_housing, <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">aes</span>(year, rank, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">group =</span> city, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">color =</span> city)) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb5-2">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">geom_bump</span>() <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb5-3">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">scale_y_reverse</span>() <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb5-4">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">guides</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">color =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"none"</span>)</span></code></pre></div>
+<div class="cell-output-display">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="https:://www.restateinsight.com/posts/general-posts/2023-12-bump-plots/index_files/figure-html/unnamed-chunk-7-1.png" class="img-fluid figure-img" style="width:90.0%"></p>
+</figure>
+</div>
+</div>
+</div>
+<p>Para melhorar a legibilidade do gráfico podemos colocar o nome das cidades ao lado das linhas usando <code>geom_text</code>.</p>
+<div class="cell" data-layout-align="center">
+<div class="sourceCode cell-code" id="cb6" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb6-1"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">ggplot</span>() <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb6-2">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">geom_bump</span>(</span>
+<span id="cb6-3">    <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">data =</span> rank_housing,</span>
+<span id="cb6-4">    <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">aes</span>(year, rank, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">group =</span> city, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">color =</span> city)</span>
+<span id="cb6-5">    ) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb6-6">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">geom_text</span>(</span>
+<span id="cb6-7">    <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">data =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">filter</span>(rank_housing, year <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">==</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">max</span>(year)),</span>
+<span id="cb6-8">    <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">aes</span>(year, rank, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">label =</span> city),</span>
+<span id="cb6-9">    <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">nudge_x =</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.1</span>,</span>
+<span id="cb6-10">    <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">hjust =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span></span>
+<span id="cb6-11">  ) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb6-12">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">scale_y_reverse</span>() <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb6-13">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">scale_x_continuous</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">limits =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">c</span>(<span class="cn" style="color: #8f5902;
+background-color: null;
+font-style: inherit;">NA</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2017</span>)) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb6-14">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">guides</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">color =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"none"</span>)</span></code></pre></div>
+<div class="cell-output-display">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="https:://www.restateinsight.com/posts/general-posts/2023-12-bump-plots/index_files/figure-html/unnamed-chunk-8-1.png" class="img-fluid figure-img" style="width:90.0%"></p>
+</figure>
+</div>
+</div>
+</div>
+<p>Mesmo com o nome das cidades, há muitas linhas para acompanhar no gráfico. Imagine, por exemplo, que queremos destacar apenas algumas das cidades selecionadas. Não parece fazer muito sentido destacar as cidades do top 4 (Houston, Dallas, San Antonio e Austin), já que elas praticamente não se alternam no ranking durante todo o período. Vamos, então, destacar as cidades de Bay Area, El Paso, Corpus Christi e Tyler.</p>
+<div class="cell" data-layout-align="center">
+<div class="sourceCode cell-code" id="cb7" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb7-1">sel_cities <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">c</span>(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Bay Area"</span>, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"El Paso"</span>, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Corpus Christi"</span>, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Tyler"</span>)</span>
+<span id="cb7-2"></span>
+<span id="cb7-3">rank_housing <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> rank_housing <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">|&gt;</span> </span>
+<span id="cb7-4">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">mutate</span>(</span>
+<span id="cb7-5">    <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">highlight =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">if_else</span>(city <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">%in%</span> sel_cities, city, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">""</span>),</span>
+<span id="cb7-6">    <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">is_highlight =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">factor</span>(<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">if_else</span>(city <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">%in%</span> sel_cities, 1L, 0L))</span>
+<span id="cb7-7">  )</span></code></pre></div>
+</div>
+<p>O gráfico abaixo exige um código considervalmente mais longo, mas melhora o gráfico original em vários aspectos. Agora temos um maior destaque para as cidades de interesse. Os eixos estão melhor delimitados e as linhas de fundo redundantes foram removidas.</p>
+<div class="cell" data-layout-align="center">
+<details>
+<summary>Code</summary>
+<div class="sourceCode cell-code" id="cb8" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb8-1"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">ggplot</span>() <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb8-2">  <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">#&gt; Linhas em cinza (sem destaque)</span></span>
+<span id="cb8-3">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">geom_bump</span>(</span>
+<span id="cb8-4">    <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">data =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">filter</span>(rank_housing, is_highlight <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">==</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>),</span>
+<span id="cb8-5">    <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">aes</span>(year, rank, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">group =</span> city, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">color =</span> highlight),</span>
+<span id="cb8-6">    <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">linewidth =</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.8</span>,</span>
+<span id="cb8-7">    <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">smooth =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">8</span></span>
+<span id="cb8-8">    ) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb8-9">  <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">#&gt; Linhas coloridas (com destaque)</span></span>
+<span id="cb8-10">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">geom_bump</span>(</span>
+<span id="cb8-11">    <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">data =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">filter</span>(rank_housing, is_highlight <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">==</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>),</span>
+<span id="cb8-12">    <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">aes</span>(year, rank, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">group =</span> city, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">color =</span> highlight),</span>
+<span id="cb8-13">    <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">linewidth =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2</span>,</span>
+<span id="cb8-14">    <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">smooth =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">8</span></span>
+<span id="cb8-15">  ) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb8-16">  <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">#&gt; Pontos </span></span>
+<span id="cb8-17">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">geom_point</span>(</span>
+<span id="cb8-18">    <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">data =</span> rank_housing,</span>
+<span id="cb8-19">    <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">aes</span>(year, rank, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">color =</span> highlight),</span>
+<span id="cb8-20">    <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">size =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">4</span></span>
+<span id="cb8-21">  ) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb8-22">  <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">#&gt; Nomes sem destaque</span></span>
+<span id="cb8-23">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">geom_text</span>(</span>
+<span id="cb8-24">    <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">data =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">filter</span>(rank_housing, year <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">==</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">max</span>(year), <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">!</span>(city <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">%in%</span> sel_cities)),</span>
+<span id="cb8-25">    <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">aes</span>(year, rank, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">label =</span> city),</span>
+<span id="cb8-26">    <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">nudge_x =</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.2</span>,</span>
+<span id="cb8-27">    <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">hjust =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>,</span>
+<span id="cb8-28">    <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">color =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"gray20"</span></span>
+<span id="cb8-29">  ) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb8-30">  <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">#&gt; Nome com destaque (em negrito)</span></span>
+<span id="cb8-31">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">geom_text</span>(</span>
+<span id="cb8-32">    <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">data =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">filter</span>(rank_housing, year <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">==</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">max</span>(year), city <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">%in%</span> sel_cities),</span>
+<span id="cb8-33">    <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">aes</span>(year, rank, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">label =</span> city),</span>
+<span id="cb8-34">    <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">nudge_x =</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.2</span>,</span>
+<span id="cb8-35">    <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">hjust =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>,</span>
+<span id="cb8-36">    <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">fontface =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"bold"</span></span>
+<span id="cb8-37">  ) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb8-38">  <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">#&gt; Adiciona os eixos para melhorar leitura do gráfico</span></span>
+<span id="cb8-39">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">scale_y_reverse</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">breaks =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span><span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">:</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">15</span>) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb8-40">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">scale_x_continuous</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">limits =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">c</span>(<span class="cn" style="color: #8f5902;
+background-color: null;
+font-style: inherit;">NA</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2017</span>), <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">breaks =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2006</span><span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">:</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2014</span>) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb8-41">  <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">#&gt; Cores</span></span>
+<span id="cb8-42">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">scale_color_manual</span>(</span>
+<span id="cb8-43">    <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">values =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">c</span>(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"gray70"</span>, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"#2f4858"</span>, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"#86bbd8"</span>, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"#f6ae2d"</span>, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"#f26419"</span>)</span>
+<span id="cb8-44">  ) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb8-45">  <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">#&gt; Elementos temáticos</span></span>
+<span id="cb8-46">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">labs</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">x =</span> <span class="cn" style="color: #8f5902;
+background-color: null;
+font-style: inherit;">NULL</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">y =</span> <span class="cn" style="color: #8f5902;
+background-color: null;
+font-style: inherit;">NULL</span>) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb8-47">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">theme_minimal</span>() <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb8-48">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">theme</span>(</span>
+<span id="cb8-49">    <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">panel.grid =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">element_blank</span>(),</span>
+<span id="cb8-50">    <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">legend.position =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"none"</span></span>
+<span id="cb8-51">  )</span></code></pre></div>
+</details>
+<div class="cell-output-display">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="https:://www.restateinsight.com/posts/general-posts/2023-12-bump-plots/index_files/figure-html/unnamed-chunk-10-1.png" class="img-fluid figure-img" style="width:90.0%"></p>
+</figure>
+</div>
+</div>
+</div>
+</section>
+</section>
+<section id="replicando" class="level1">
+<h1>Replicando</h1>
+<p>Como exercício final vamos replicar um gráfico da revista The Economist. O <a href="https://www.economist.com/graphic-detail/2023/12/15/the-worlds-richest-countries-in-2023">artigo original</a> discute diferentes maneiras de mensurar e de comparar a riqueza entre países. Vamos nos focar apenas no gráfico abaixo. Este gráfico mostra um ranking dos países mais ricos do mundo segundo três métricas.</p>
+<p>Na primeira “coluna”, temos o PIB per capita a preços correntes convencional. Esta é a medida mais crua de riqueza disponível. Na segunda coluna temos o PIB per capita em <a href="https://pt.wikipedia.org/wiki/Paridade_do_poder_de_compra">paridade de poder de compra (PPC)</a>, que ajusta a medida do PIB per capita pelo “custo de vida” de cada país. Por fim, a última coluna ajusta o PIB per capita em PPC pela número médio de horas trabalhado em cada país. Note como esta medida eleva consideravelmente a posição de países europeus como Bélgica, Alemanha, Áustria e Dinamarca, enquanto derruba alguns países como EUA e Singapura.</p>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="https:://www.restateinsight.com/static/images/economist_bump_plot.jpeg" class="img-fluid figure-img" width="400"></p>
+</figure>
+</div>
+<p>Os dados originais estão disponíveis on <a href="https://github.com/TheEconomist">GitHub da The Economist</a> mas eu não consegui encontrar o código que gera o gráfico acima. Como resultado, vou tentar adivinhar quais colunas, de fato, são utilizadas no gráfico. Além disso, como a fonte da The Economist é proprietária vou utilizar a Lato, da Google Fonts.</p>
+<div class="cell" data-layout-align="center">
+<div class="sourceCode cell-code" id="cb9" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb9-1"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">library</span>(showtext)</span>
+<span id="cb9-2"></span>
+<span id="cb9-3"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">font_add_google</span>(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Lato"</span>, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Lato"</span>)</span>
+<span id="cb9-4"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">showtext_auto</span>()</span></code></pre></div>
+</div>
+<p>Boa parte da construção da visualização acima está na manipulação dos dados. Assim, vou fazer um passo-a-passo.</p>
+<section id="dados" class="level2">
+<h2 class="anchored" data-anchor-id="dados">Dados</h2>
+<p>Primeiro defino alguns objetos úteis como o nome dos países que serão destacados e o nome das colunas que contém as variáveis de PIB. Além disso, crio uma tabela menor que contém apenas as colunas necessárias para a visualização.</p>
+<div class="cell" data-layout-align="center">
+<div class="sourceCode cell-code" id="cb10" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb10-1">countries_sel <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">c</span>(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Norway"</span>, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Belgium"</span>, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Austria"</span>, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"United States"</span>, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Germany"</span>)</span>
+<span id="cb10-2"></span>
+<span id="cb10-3">measures <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">c</span>(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"gdp_over_pop"</span>, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"gdp_ppp_over_pop"</span>, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"gdp_ppp_over_k_hours_worked"</span>)</span>
+<span id="cb10-4"></span>
+<span id="cb10-5">sub <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> dat <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">|&gt;</span> </span>
+<span id="cb10-6">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">select</span>(country, year, <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">all_of</span>(measures)) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">|&gt;</span> </span>
+<span id="cb10-7">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">na.omit</span>()</span></code></pre></div>
+</div>
+<p>A transformação essencial é converter os dados em formato tidy e ranquear as observações dentro de cada métrica de PIB.</p>
+<div class="cell" data-layout-align="center">
+<div class="sourceCode cell-code" id="cb11" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb11-1">ranking <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> sub <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">|&gt;</span> </span>
+<span id="cb11-2">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">filter</span>(year <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">==</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">max</span>(year)) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">|&gt;</span> </span>
+<span id="cb11-3">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">pivot_longer</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">cols =</span> <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">c</span>(country, year), <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">names_to =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"measure"</span>) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">|&gt;</span> </span>
+<span id="cb11-4">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">mutate</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">rank =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">rank</span>(<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span>value), <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">.by =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"measure"</span>)</span></code></pre></div>
+</div>
+<p>Agora, mais por conveniência, eu crio algumas variáveis auxiliares que serão úteis para mapear os diferentes elementos estéticos.</p>
+<div class="cell" data-layout-align="center">
+<div class="sourceCode cell-code" id="cb12" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb12-1">ranking <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> ranking <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">|&gt;</span> </span>
+<span id="cb12-2">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">mutate</span>(</span>
+<span id="cb12-3">    <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">highlight =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">if_else</span>(country <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">%in%</span> countries_sel, country, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">""</span>),</span>
+<span id="cb12-4">    <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">highlight =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">factor</span>(highlight, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">levels =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">c</span>(countries_sel, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">""</span>)),</span>
+<span id="cb12-5">    <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">is_highlight =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">factor</span>(<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">if_else</span>(country <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">%in%</span> countries_sel, 1L, 0L)),</span>
+<span id="cb12-6">    <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">rank_labels =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">if_else</span>(rank <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">%in%</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">c</span>(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">5</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">10</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">15</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">20</span>), rank, <span class="cn" style="color: #8f5902;
+background-color: null;
+font-style: inherit;">NA</span>),</span>
+<span id="cb12-7">    <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">rank_labels =</span> stringr<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">::</span><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">str_replace</span>(rank_labels, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"^1$"</span>, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"1st"</span>),</span>
+<span id="cb12-8">    <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">measure =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">factor</span>(measure, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">levels =</span> measures)</span>
+<span id="cb12-9">    )</span></code></pre></div>
+</div>
+<p>Por fim, eu defino as cores das linhas e crio uma tabela auxiliar que contém apenas o texto que vai em cima do gráfico.</p>
+<div class="cell" data-layout-align="center">
+<div class="sourceCode cell-code" id="cb13" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb13-1">cores <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">c</span>(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"#101010"</span>, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"#f7443e"</span>, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"#8db0cc"</span>, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"#fa9494"</span>, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"#225d9f"</span>, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"#c7c7c7"</span>)</span>
+<span id="cb13-2"></span>
+<span id="cb13-3">df_gdp <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">tibble</span>(</span>
+<span id="cb13-4">  <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">measure =</span> measures,</span>
+<span id="cb13-5">  <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">measure_label =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">c</span>(</span>
+<span id="cb13-6">    <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"GDP per person at market rates"</span>,</span>
+<span id="cb13-7">    <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Adjusted for cost differences*"</span>,</span>
+<span id="cb13-8">    <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Adjusted for costs and hours worked"</span></span>
+<span id="cb13-9">  ),</span>
+<span id="cb13-10">  <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">position =</span> <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span><span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1.2</span></span>
+<span id="cb13-11">)</span>
+<span id="cb13-12"></span>
+<span id="cb13-13">df_gdp <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> df_gdp <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">|&gt;</span> </span>
+<span id="cb13-14">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">mutate</span>(</span>
+<span id="cb13-15">    <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">measure =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">factor</span>(measure, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">levels =</span> measures),</span>
+<span id="cb13-16">    <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">measure_label =</span> stringr<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">::</span><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">str_wrap</span>(measure_label, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">width =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">12</span>),</span>
+<span id="cb13-17">    <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">measure_label =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">paste0</span>(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"  "</span>, measure_label)</span>
+<span id="cb13-18">    )</span></code></pre></div>
+</div>
+<p>A versão simplificada do gráfico está resumida no código abaixo. Vale notar o uso da coord_cartesian para “cortar o gráfico” sem perder informação. Não é muito usual utilizar <code>linewidth</code> como um elemento estético dentro de <code>aes</code> mas pode-se ver como isto é bastante simples e como isto economiza algumas linhas de código, quando comparado com o gráfico anterior.</p>
+<div class="cell" data-layout-align="center">
+<div class="sourceCode cell-code" id="cb14" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb14-1"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">ggplot</span>(ranking, <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">aes</span>(measure, rank, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">group =</span> country)) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb14-2">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">geom_bump</span>(<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">aes</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">color =</span> highlight, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">linewidth =</span> is_highlight)) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb14-3">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">geom_point</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">shape =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">21</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">color =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"white"</span>, <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">aes</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">fill =</span> highlight), <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">size =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">3</span>) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb14-4">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">geom_text</span>(</span>
+<span id="cb14-5">    <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">data =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">filter</span>(ranking, measure <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">==</span> measures[[<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">3</span>]]),</span>
+<span id="cb14-6">    <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">aes</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">x =</span> measure, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">y =</span> rank, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">label =</span> country),</span>
+<span id="cb14-7">    <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">nudge_x =</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.05</span>,</span>
+<span id="cb14-8">    <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">hjust =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>,</span>
+<span id="cb14-9">    <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">family =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Lato"</span></span>
+<span id="cb14-10">  ) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb14-11">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">coord_cartesian</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">ylim =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">c</span>(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">21</span>, <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2</span>)) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb14-12">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">scale_color_manual</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">values =</span> cores) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb14-13">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">scale_fill_manual</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">values =</span> cores) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb14-14">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">scale_linewidth_manual</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">values =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">c</span>(<span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.5</span>, <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1.2</span>))</span></code></pre></div>
+<div class="cell-output-display">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="https:://www.restateinsight.com/posts/general-posts/2023-12-bump-plots/index_files/figure-html/unnamed-chunk-16-1.png" class="img-fluid figure-img" style="width:90.0%"></p>
+</figure>
+</div>
+</div>
+</div>
+<p>Note que o gráfico acima inclui alguns países que não aparecem na visualização original como Irlanda e Luxemburgo. Existe um certo debate sobre a <a href="https://www.noahpinion.blog/p/how-ireland-got-so-rich">inflação do PIB per capita da Irlanda</a> (devido ao grande número de empresas estrangeiras que mantêm suas sedes no país, em função dos baixos impostos da Irlanda). Um argumento similar pode ser feito sobre Luxemburgo. Ainda assim, decidi manter os dois países no gráfico final.</p>
+<p>O código final, como de costume, é bastante extenso. De maneira geral, o resultado é bastante satisfatório.</p>
+<div class="cell" data-layout-align="center">
+<details>
+<summary>Code</summary>
+<div class="sourceCode cell-code" id="cb15" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb15-1"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">ggplot</span>(ranking, <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">aes</span>(measure, rank, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">group =</span> country)) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb15-2">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">geom_bump</span>(<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">aes</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">color =</span> highlight, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">linewidth =</span> is_highlight)) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb15-3">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">geom_point</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">shape =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">21</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">color =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"white"</span>, <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">aes</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">fill =</span> highlight), <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">size =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">3</span>) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb15-4">  <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">#&gt; Nome dos páises sem destaque</span></span>
+<span id="cb15-5">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">geom_text</span>(</span>
+<span id="cb15-6">    <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">data =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">filter</span>(ranking, measure <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">==</span> measures[[<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">3</span>]], is_highlight <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">!=</span> 1L),</span>
+<span id="cb15-7">    <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">aes</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">x =</span> measure, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">y =</span> rank, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">label =</span> country),</span>
+<span id="cb15-8">    <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">nudge_x =</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.05</span>,</span>
+<span id="cb15-9">    <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">hjust =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>,</span>
+<span id="cb15-10">    <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">family =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Lato"</span></span>
+<span id="cb15-11">  ) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb15-12">  <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">#&gt; Nome dos páises com destaque (em negrito)</span></span>
+<span id="cb15-13">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">geom_text</span>(</span>
+<span id="cb15-14">    <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">data =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">filter</span>(ranking, measure <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">==</span> measures[[<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">3</span>]], is_highlight <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">==</span> 1L),</span>
+<span id="cb15-15">    <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">aes</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">x =</span> measure, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">y =</span> rank, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">label =</span> country),</span>
+<span id="cb15-16">    <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">nudge_x =</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.05</span>,</span>
+<span id="cb15-17">    <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">hjust =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>,</span>
+<span id="cb15-18">    <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">family =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Lato"</span>,</span>
+<span id="cb15-19">    <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">fontface =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"bold"</span></span>
+<span id="cb15-20">  ) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb15-21">  <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">#&gt; "Eixo" na esquerda (1st, 5, 10, 15, 20)</span></span>
+<span id="cb15-22">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">geom_text</span>(</span>
+<span id="cb15-23">    <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">data =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">filter</span>(ranking, measure <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">==</span> measures[[<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>]]),</span>
+<span id="cb15-24">    <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">aes</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">x =</span> measure, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">y =</span> rank, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">label =</span> rank_labels),</span>
+<span id="cb15-25">    <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">nudge_x =</span> <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span><span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.15</span>,</span>
+<span id="cb15-26">    <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">hjust =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>,</span>
+<span id="cb15-27">    <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">family =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Lato"</span></span>
+<span id="cb15-28">  ) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb15-29">  <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">#&gt; Texto descritivo acima do gráfico</span></span>
+<span id="cb15-30">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">geom_text</span>(</span>
+<span id="cb15-31">    <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">data =</span> df_gdp,</span>
+<span id="cb15-32">    <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">aes</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">x =</span> measure, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">y =</span> position, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">label =</span> measure_label),</span>
+<span id="cb15-33">    <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">inherit.aes =</span> <span class="cn" style="color: #8f5902;
+background-color: null;
+font-style: inherit;">FALSE</span>,</span>
+<span id="cb15-34">    <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">hjust =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>,</span>
+<span id="cb15-35">    <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">family =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Lato"</span>,</span>
+<span id="cb15-36">    <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">fontface =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"bold"</span></span>
+<span id="cb15-37">  ) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb15-38">  <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">#&gt; Posiciona as flechas apontando para baixo</span></span>
+<span id="cb15-39">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">annotate</span>(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"text"</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">x =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">y =</span> <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span><span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2.2</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">label =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">expression</span>(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"\u2193"</span>)) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb15-40">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">annotate</span>(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"text"</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">x =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">y =</span> <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span><span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2.2</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">label =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">expression</span>(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"\u2193"</span>)) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb15-41">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">annotate</span>(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"text"</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">x =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">3</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">y =</span> <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span><span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2.2</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">label =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">expression</span>(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"\u2193"</span>)) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb15-42">  <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">#&gt; Corta o gráfico</span></span>
+<span id="cb15-43">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">coord_cartesian</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">ylim =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">c</span>(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">21</span>, <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2</span>)) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb15-44">  <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">#&gt; Cores</span></span>
+<span id="cb15-45">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">scale_color_manual</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">values =</span> cores) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb15-46">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">scale_fill_manual</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">values =</span> cores) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb15-47">  <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">#&gt; Espessura das linhas</span></span>
+<span id="cb15-48">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">scale_linewidth_manual</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">values =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">c</span>(<span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.5</span>, <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1.2</span>)) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb15-49">  <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">#&gt; Elementos temáticos</span></span>
+<span id="cb15-50">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">labs</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">x =</span> <span class="cn" style="color: #8f5902;
+background-color: null;
+font-style: inherit;">NULL</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">y =</span> <span class="cn" style="color: #8f5902;
+background-color: null;
+font-style: inherit;">NULL</span>) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb15-51">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">theme_minimal</span>() <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span></span>
+<span id="cb15-52">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">theme</span>(</span>
+<span id="cb15-53">    <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">panel.background =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">element_rect</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">fill =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"#ffffff"</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">color =</span> <span class="cn" style="color: #8f5902;
+background-color: null;
+font-style: inherit;">NA</span>),</span>
+<span id="cb15-54">    <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">plot.background =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">element_rect</span>(<span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">fill =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"#ffffff"</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">color =</span> <span class="cn" style="color: #8f5902;
+background-color: null;
+font-style: inherit;">NA</span>),</span>
+<span id="cb15-55">    <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">panel.grid =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">element_blank</span>(),</span>
+<span id="cb15-56">    <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">legend.position =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"none"</span>,</span>
+<span id="cb15-57">    <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">axis.text =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">element_blank</span>()</span>
+<span id="cb15-58">  )</span></code></pre></div>
+</details>
+<div class="cell-output-display">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="https:://www.restateinsight.com/posts/general-posts/2023-12-bump-plots/index_files/figure-html/unnamed-chunk-17-1.png" class="img-fluid figure-img" style="width:90.0%"></p>
+</figure>
+</div>
+</div>
+</div>
+<p>O objetivo destes posts é de sempre fazer o máximo possível usando <code>ggplot2</code> mas, na prática, as caixas de texto acima do gráfico podem ser feitas num software externo. Não é muito fácil usar caracteres especiais (neste caso, flechas) e a própria fonte (Lato) não inclui flechas em unicode. Pode-se melhorar a ordem da sobreposição das linhas usando <code>geom_bump</code> duas vezes como fizemos no gráfico dos imóveis, mas isto exigiria várias linhas adicionais de código.</p>
+
+
+</section>
+</section>
+
+ ]]></description>
+  <category>ggplot2</category>
+  <category>tutorial-R</category>
+  <guid>https:://www.restateinsight.com/posts/general-posts/2023-12-bump-plots/index.html</guid>
+  <pubDate>Tue, 26 Dec 2023 03:00:00 GMT</pubDate>
+  <media:content url="https:://www.restateinsight.com/static/images/replication_economist_bump_plot.jpeg" medium="image" type="image/jpeg"/>
+</item>
 <item>
   <title>Weekly Viz: Brazilian Inflation</title>
   <dc:creator>Vinicius Oike</dc:creator>
@@ -16337,89 +18013,6 @@ font-style: inherit;">#safe_export("Brasília", z = 8, k = 7)</span></span></cod
   <category>brasil</category>
   <guid>https:://www.restateinsight.com/posts/general-posts/2023-08-firjan-app/index.html</guid>
   <pubDate>Fri, 25 Aug 2023 03:00:00 GMT</pubDate>
-</item>
-<item>
-  <title>Weekly Viz: Recife em mapas</title>
-  <dc:creator>Vinicius Oike</dc:creator>
-  <link>https:://www.restateinsight.com/posts/general-posts/2023-08-recife/index.html</link>
-  <description><![CDATA[ 
-
-
-
-
-<section id="recife" class="level1">
-<h1>Recife</h1>
-<p>Semana que vem vou estar no Recife a trabalho e para conhecer um pouco da cidade resolvi tirar um tempo para fazer alguns mapas da cidade.</p>
-<div class="quarto-figure quarto-figure-center">
-<figure class="figure">
-<p><img src="https:://www.restateinsight.com/static/maps/summary_recife.svg" class="img-fluid figure-img"></p>
-</figure>
-</div>
-<section id="detalhes-do-mapa" class="level2">
-<h2 class="anchored" data-anchor-id="detalhes-do-mapa">Detalhes do mapa</h2>
-<p>Os dados dos dois primeiros mapas, das principais vias e dos corpos d’água, são do <a href="OpenStreetMap OpenStreetMap https://www.openstreetmap.org">OpenStreetMap</a>. Pode-se ver, por exemplo, a Rodovia Mario Covas, que corta a cidade de norte a sul e o famoso Rio Capibaribe que atravessa a cidade.</p>
-<p>Para o terceiro mapa puxei os dados do <a href="https://ciclomapa.org.br/?lat=-8.0584930&amp;lng=-34.8848190&amp;z=12.00">Ciclomapa</a>. Apesar do título, eu incluí tanto ciclovias, ciclofaixas e ciclorrotas.</p>
-<p>Os mapas da segunda linha foram todos feitos com dados do projeto de <a href="https://github.com/ipeaGIT/aopdata">Acesso a Oportunidades</a> do IPEA. Os dados de população e renda são do Censo de 2010 e espacialmente interpolados com os hexágonos H3, da Uber. Para facilitar a visualização usei o algoritmo de Jenks para agrupar os dados em 7 grupos. Além disso, usei uma transformação log tanto na renda como na população para reduzir um pouco da variância nos dados.</p>
-<p>A renda da cidade é visivelmente concentrada na região sul-sudeste, próxima do litoral e na região centro-leste, no que me parece ser a região dos bairros Madalena e Boa Vista. Já a densidade populacional não segue um padrão simples; a população está espalhada por toda a cidade.</p>
-<p>Como medida de acesso a empregos usei o percentual de oportunidades de emprego acessíveis a 15 minutos de carro em horário de pico. Segundo os dados do Censo, a maior parte dos deslocamentos casa-trabalho na RM de Recife são de menos de uma hora (83,4%). Assim, 15 minutos de carro (em horário de pico) me parece ser um “luxo” que as pessoas estão dispostas a pagar e que deve se refletir, em algum nível, no preço dos imóveis.</p>
-<p>O mapa sugere que Recife é uma cidade monocêntrica, com a maior parte dos empregos concentrada na região central. Interessante notar que, apesar da distância geográfica, a região sul, de Boa Viagem, Pina, etc. continua com indicadores de acessibilidade relativamente altos.</p>
-<p>Para tentar mensurar a verticalização calculei a proporção de apartamentos em relação ao total de domicílios em cada região. Novamente os dados vem do Censo e são agrupados a nível de setor censitário. Eu faço uma interpolação espacial simples com os hexágonos H3, na mesma resolução 9 do projeto do IPEA, para manter o padrão. Grosso modo, parece que as regiões de rendas mais altas coincidem com as regiões mais verticalizadas.</p>
-<p>Por fim, os dados de anúncios e preço provém de anúncios online de venda de imóveis ativos entre janeiro e junho de 2023. Por simplicidade, eu escolhi trabalhar apenas com anúncios de apartamentos e removi algumas observações discrepantes para conseguir um valor médio mais razoável. O preço médio observado na cidade neste período foi de R$7.900, com a maior parte das observações caindo dentro do intervalo R$3.800-R$12.700.</p>
-</section>
-<section id="mapas" class="level2">
-<h2 class="anchored" data-anchor-id="mapas">Mapas</h2>
-<div class="quarto-figure quarto-figure-center">
-<figure class="figure">
-<p><img src="https:://www.restateinsight.com/static/maps/summary_rec_1.svg" class="img-fluid figure-img"></p>
-</figure>
-</div>
-<div class="quarto-figure quarto-figure-center">
-<figure class="figure">
-<p><img src="https:://www.restateinsight.com/static/maps/summary_rec_2.svg" class="img-fluid figure-img"></p>
-</figure>
-</div>
-<div class="quarto-figure quarto-figure-center">
-<figure class="figure">
-<p><img src="https:://www.restateinsight.com/static/maps/summary_rec_3.svg" class="img-fluid figure-img"></p>
-</figure>
-</div>
-<div class="quarto-figure quarto-figure-center">
-<figure class="figure">
-<p><img src="https:://www.restateinsight.com/static/maps/summary_rec_4.svg" class="img-fluid figure-img"></p>
-</figure>
-</div>
-<div class="quarto-figure quarto-figure-center">
-<figure class="figure">
-<p><img src="https:://www.restateinsight.com/static/maps/summary_rec_5.svg" class="img-fluid figure-img"></p>
-</figure>
-</div>
-<div class="quarto-figure quarto-figure-center">
-<figure class="figure">
-<p><img src="https:://www.restateinsight.com/static/maps/summary_rec_6.svg" class="img-fluid figure-img"></p>
-</figure>
-</div>
-<div class="quarto-figure quarto-figure-center">
-<figure class="figure">
-<p><img src="https:://www.restateinsight.com/static/maps/summary_rec_7.svg" class="img-fluid figure-img"></p>
-</figure>
-</div>
-<div class="quarto-figure quarto-figure-center">
-<figure class="figure">
-<p><img src="https:://www.restateinsight.com/static/maps/summary_rec_8.svg" class="img-fluid figure-img"></p>
-</figure>
-</div>
-
-
-</section>
-</section>
-
- ]]></description>
-  <category>mapas</category>
-  <category>ggplot2</category>
-  <category>weekly-viz</category>
-  <category>data-visualization</category>
-  <guid>https:://www.restateinsight.com/posts/general-posts/2023-08-recife/index.html</guid>
-  <pubDate>Wed, 23 Aug 2023 03:00:00 GMT</pubDate>
 </item>
 </channel>
 </rss>
