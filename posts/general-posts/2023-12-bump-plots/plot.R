@@ -9,7 +9,7 @@ showtext_opts(dpi = 300)
 showtext_auto()
 
 
-dat <- readr::read_csv("static/data/gdp_over_hours_worked_with_estimated_hours_worked.csv")
+dat <- readr::read_csv(here::here("static/data/gdp_over_hours_worked_with_estimated_hours_worked.csv"))
 
 countries_sel <- c("Norway", "Belgium", "Austria", "United States", "Germany")
 
