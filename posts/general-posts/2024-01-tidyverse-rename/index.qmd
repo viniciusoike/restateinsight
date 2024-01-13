@@ -1,0 +1,365 @@
+---
+title: "O novo tidyverse: rename"
+date: "2024-01-08"
+categories: ['data-science', 'tutorial-R', 'tidyverse']
+description: "Neste post ensino abordagens diferentes para renomear colunas de maneira eficiente."
+image: "/static/images/dplyr_logo.png" 
+image-alt: "/static/images/dplyr_logo.png" 
+---
+
+```{r}
+#| include: false
+
+print_table <- function(dat) {
+  
+  dat |> 
+    gt::gt() |> 
+    gt::opt_stylize(style = 6, color = "green")
+  
+}
+
+library(dplyr)
+```
+
+# Tidyverse
+
+O tidyverse é uma coleção poderosa de pacotes, voltados para a manipulação e limpeza de dados. Num outro post, discuti alguns [aspectos gerais da filosofia](https://restateinsight.com/posts/general-posts/2023-09-tidyverse/) destes pacotes que incluem a sua consistência sintática e o uso de [pipes](https://restateinsight.com/posts/general-posts/2023-09-pipes-in-r/). O tidyverse está em constante expansão, novas funcionalidades são criadas para melhorar a performance e capabilidade de suas funções. Assim, é importante atualizar nosso conhecimento destes pacotes periodicamente. Nesta série de posts vou focar nas funções principais dos pacotes `dplyr` e `tidyr`, voltados para a limpeza de dados.
+
+# Alguns verbos
+
+Essencialmente, o `dplyr` gira em torno de quatro grandes funções: `filter`, `select`, `mutate` e `summarise`. Estas funções fazem o grosso do trabalho de limpeza de dados: filtram linhas, selecionam colunas e transformam os dados. A tabela abaixo resume as principais funções do pacote.
+
+| Nome da Função | Tradução          | O que faz                                                         |
+|------------------|------------------|------------------------------------|
+| `rename`       | Renomear          | Modifica o nome das colunas.                                      |
+| `select`       | Selecionar        | Seleciona as colunas.                                             |
+| `filter`       | Filtrar           | Filtra/seleciona as linhas segundo alguma condição.               |
+| `arrange`      | Arranjar/ordenar  | Ordena as linhas (crescente/decrescente) segundo alguma variável. |
+| `mutate`       | Mutar/transformar | Cria uma nova coluna a partir de outras colunas ou dados.         |
+| `summarise`    | Sumarizar/resumir | Aplica alguma função sobre as linhas. Cria uma tabela "resumo".   |
+| `group_by`     | Agrupar           | Agrupa as linhas segundo alguma variável.                         |
+
+# Rename
+
+## O básico
+
+Os pacotes utilizados neste tutorial são listados abaixo.
+
+```{r}
+#| eval: false
+library(dplyr)
+library(stringr)
+library(stringi)
+library(janitor)
+library(sidrar)
+```
+
+Antes de mais nada, vamos importar uma base de dados qualquer do IBGE usando o pacote `sidrar`. A base importada mostra o custo médio m² de construção no Brasil da pesquisa SINAPI.
+
+```{r}
+#| warning: false
+#| message: false
+dat <- sidrar::get_sidra(2296, period = "202201-202301")
+```
+
+```{r}
+#| echo: false
+dat |> 
+  dplyr::select(1:5) |> 
+  head() |> 
+  print_table()
+```
+
+A função `rename` serve para trocar o nome de uma coluna seguindo a sintaxe:
+
+-   `rename(nome_novo = nome_velho)`
+
+A forma mais imediata de utilizar a função é simplesmente:
+
+```{r}
+dat_renamed <- rename(dat, valor = Valor)
+```
+
+```{r}
+#| echo: false
+dat_renamed |> 
+  select(1:5) |> 
+  head() |> 
+  print_table()
+```
+
+Para renomear múliplas colunas, segue-se uma lógica similar, separando os argumentos adicionais por vírgulas. Note que somos forçados a utilizar o sinal ``` `` ``` pois o nome de algumas colunas contêm acentos.
+
+```{r}
+dat_renamed <- rename(
+  dat,
+  valor = Valor,
+  nivel_territorial = `Nível Territorial`,
+  code_unit = `Unidade de Medida (Código)`
+  )
+```
+
+```{r}
+#| echo: false
+dat_renamed |> 
+  select(1:5) |> 
+  head() |> 
+  print_table()
+```
+
+Alternativamente, pode-se escrever os nomes usando aspas como no código abaixo.
+
+```{r}
+dat_renamed <- rename(
+  dat,
+  valor = "Valor",
+  nivel_territorial = "Nível Territorial",
+  code_unit = "Unidade de Medida (Código)"
+  )
+```
+
+Literalmente reescrever o nome das colunas pode ser bastante enfadonho. Há duas maneiras mais interessantes de renomear colunas: (1) **utilizando uma função**; e (2) **utilizando um vetor de "swap"**. A primeira abordagem, em geral, é mais simples e pode-se aproveitar funções úteis pré-existentes para manipulação de strings como as do pacote `stringr`. A segunda abordagem exige mais esforço manual é recomendada quando não existem regras simples para renomear as colunas.
+
+### Boas práticas
+
+Os nomes das colunas de um `data.frame` devem:
+
+1.  Ser únicos (não-duplicados) e evitar caracteres maiúsculos.
+2.  Não devem incluir caracteres especiais (e.g. !\*&\@%), nem começar com um número ou caractere especial. Também é recomendável evitar o uso de acentos (é, ç, à, etc.).
+3.  Evitar espaços em branco, que devem ser substituídos por `_` ou omitidos (e.g. `PIB Agro` deve ser reescrito como `pibAgro` ou `pib_agro`.
+4.  Evitar nomes "reservados" como `for`, `in`, `TRUE`, `if`, etc. Estas palavras tem tratamento especial dentro do R e não se deve utilizá-las como nome de coluna[^1].
+
+[^1]: Para verificar a lista completa de palavras reservadas consulte `?Reserved`. Vale notar que não se deve criar objetos com estes nomes também, i.e., não se deve fazer `TRUE <- c(1, 2, 3)`.
+
+Existe uma lógica bastante simples para seguir estas convenções: nomes sintaticamente válidos facilitam (e, em alguns casos, possibilitam) a seleção de colunas. É muito simples escrever `dat$pib_agro` do que `` dat$`PIB Agrícola (R$)` ``.
+
+## Usando funções
+
+A maneira mais simples de entender o uso de funções para renomear colunas é através de exemplos. Para tornar os exemplos mais sucintos vamos focar apenas no nome das colunas através da função `names`. Esta abordagem torna mais claro o fato de que os nomes das colunas de um `data.frame` são, essencialmente, um vetor de texto.
+
+```{r}
+names(dat)
+```
+
+Para aplicar uma função sobre o nome de todas as colunas da base de dados `dat` usa-se `rename_with`, uma variação da função `rename`. A sintaxe da função é simples: `rename_with(dados, fn)`. No caso abaixo converte-se o nome de todas as colunas para maiúculo.
+
+```{r}
+dat_renamed <- rename_with(dat, toupper)
+names(dat_renamed)
+```
+
+Abaixo mostro algumas funções úteis para renomear colunas.
+
+```{r}
+#> Converte para minúsculo
+rename_with(dat, tolower) |> names()
+#> Converte texto para um formato de 'título'
+rename_with(dat, stringr::str_to_title) |> names()
+#> Remove acentos
+rename_with(dat, ~stringi::stri_trans_general(.x, id ="latin-ascii")) |> names()
+```
+
+Pode-se criar uma função customizada mais completa para renomear colunas. A função abaixo costuma funcionar bem para colunas problemáticas escritas em português.
+
+```{r}
+nice_col_names <- function(x) {
+  
+  #> Remove acentos em geral
+  x <- stringi::stri_trans_general(x, id = "latin-ascii")
+  #> Remove pontuação e caracteres especiais (%$#& etc.)
+  x <- stringr::str_replace_all(x, "[[:punct:]]", "")
+  #> Remove espaços em branco antes e/ou depois do texto
+  x <- stringr::str_trim(x, side = "both")
+  #> Substitui espaços em branco por _
+  x <- stringr::str_replace_all(x, " ", "_")
+  #> Converte tudo para minúsculo
+  x <- stringr::str_to_lower(x)
+  
+  #> Avisa se houver nomes duplicados
+  check_dups <- x[duplicated(x)]
+  
+  if (length(check_dups) > 0) {
+    warning("Duplicated names!")
+  }
+  
+  return(x)
+  
+}
+```
+
+```{r}
+dat |> 
+  rename_with(nice_col_names) |> 
+  names()
+```
+
+As funções base `make.names` e `make.unique` também podem ser úteis para ajudar a criar nomes de colunas válidos sem causar grandes alterações.
+
+```{r}
+dat |> 
+  rename_with(make.names) |> 
+  names()
+```
+
+Por fim, vale notar que a função `jantior::make_clean_names()` é bastante eficiente em "limpar" o nome de colunas
+
+```{r}
+dat |> 
+  rename_with(janitor::make_clean_names) |> 
+  names()
+```
+
+### Renomeando apenas algumas colunas
+
+Eventualmente, pode ser interessante renomear apenas algumas colunas. A função rename_with tem um terceiro argumento opcional que perimite selecionar um subconjunto de colunas que deve ser renomeada utilizando a função definida. A maneira mais simples de selecionar estas colunas é pela sua posição.
+
+```{r}
+dat_renamed <- rename_with(dat, janitor::make_clean_names)
+
+dat_prefix <- rename_with(
+  dat_renamed,
+  ~paste0("abs_", .x),
+  c(1, 2, 3)
+)
+
+names(dat_prefix)
+```
+
+Como de praxe, pode-se usar as funções `tidyselect` para facilitar a vida:
+
+```{r}
+#| eval: false
+#> Adiciona um prefixo nas colunas numéricas
+rename_with(
+  dat_renamed,
+  ~paste0("num_", .x),
+  where(is.numeric)
+)
+
+#> Adiciona um sufixo nas colunas numéricas
+rename_with(
+  dat_renamed,
+  ~paste0(.x, "_num"),
+  where(is.numeric)
+)
+
+#> Converte para maiúsculo as colunas que contem 'codigo' no nome
+rename_with(
+  dat_renamed,
+  stringr::str_to_upper,
+  contains("codigo")
+)
+```
+
+## Usando vetores
+
+Um dos elementos básicos do `R` são os vetores. Um vetor, em linhas gerais, é uma coleção de elementos básicos do mesmo tipo. Uma sequência de números é um exemplo de vetor numérico, como `c(2, 4, 6, 8)`. Um vetor de texto, similarmente, tem a forma `c("abacaxi", "abacate", "tomate")`.
+
+Um tipo especial de vetor é um named vector, um vetor com nomes. Um named vector é um vetor onde cada elemento tem um nome, como `c("a" = 2, "b" = 4, "c" = 6, "d" = 8)`. Tipicamente, seleciona-se um elemento específico de um vetor através da sua posição, como em `x[2]` ou `y[5:10]`. No caso de um named vector, é possível especificar um elemento através do seu nome.
+
+Note que a sintaxe `c("A" = "abacaxi", "B = "banana")` é muito similar à sintaxe da função `rename`. De fato, pode-se usar um vetor deste tipo para renomear as colunas usando um "swap" vector. Este tipo de vetor funciona como `c("nome_novo" = "Nome Velho")`. Antigamente, podia-se simplesmente inserir o vetor dentro da função rename.
+
+```{r}
+swap <- c("valor" = "Valor", "geo_level" = "Nível Territorial")
+dat_renamed <- rename(dat, swap)
+```
+
+Como deixa claro o aviso, desde a versão `1.1.0` do `tidyselect` este tipo de sintaxe foi descontinuada e agora é preciso usar mais uma função.
+
+### `all_of` e `any_of`
+
+Atualmente, é preciso colocar o vetor `swap` em uma de duas funções auxiliares: `any_of` e `all_of`. A primeira função é a mais branda e substitui o nome de todas as colunas que for possível. A segunda função é mais exigente: se qualquer umas das variáveis estiver ausente retorna-se um erro.
+
+Para tornar a distinção mais clara, vale criar um novo vetor com o nome de coluna que não consta na nossa base. Note como a função `any_of` retorna o mesmo output, ignorando a coluna inexistente `Ano`.
+
+```{r}
+swap <- c("valor" = "Valor", "geo_level" = "Nível Territorial", "ano" = "Ano")
+
+dat |> 
+  rename(any_of(swap)) |> 
+  names()
+```
+
+```{r}
+#| error: true
+dat |> 
+  rename(all_of(swap)) |> 
+  names()
+```
+
+No caso em que se quer renomear *exatamente* todas as colunas, usa-se a função auxiliar `all_of` da seguinte maneira.
+
+```{r}
+new_names <- c(
+  "geo_code" = "Nível Territorial (Código)",
+  "geo_level" = "Nível Territorial",
+  "unit_code" = "Unidade de Medida (Código)",
+  "unit" = "Unidade de Medida",
+  "value" = "Valor",
+  "geo_name_code" = "Brasil (Código)",
+  "geo_name" = "Brasil",
+  "month_code" = "Mês (Código)",
+  "month" = "Mês",
+  "variable_code" = "Variável (Código)",
+  "variable" = "Variável"
+)
+
+dat |> 
+  rename(all_of(new_names)) |> 
+  names()
+```
+
+Uma maneira mais sucinta de escrever o código acima é aproveitar os nomes pré-existentes da base.
+
+```{r}
+new_names <- c(
+  "geo_code", "geo_level", "unit_code", "unit", "value", "geo_name_code", 
+  "geo_name", "month_code", "month", "variable_code", "variable"
+)
+
+swap_names <- names(dat)
+names(swap_names) <- new_names
+
+dat |> 
+  rename(all_of(swap_names)) |> 
+  names()
+```
+
+Na maior parte das aplicações, pode-se usar a função `any_of` sem grandes preocupações. Apenas em casos quando maior controle sobre o output for necessário deve-se considerar usar a função `all_of`.
+
+Por fim, vale notar que um swap vector pode ter algumas "redundâncias". Imagine, por exemplo, que temos várias bases de dados com pequenas inconsistências de ortografia. Em alguns casos temos "Nível Territorial (Código)", mas em outras temos "nível territorial (Código)" e em outras "Nível Territorial (código)", etc. etc. Pode-se construir um vetor que corrige isto sem grandes dificuldades, pois o nome do named vector não precisa ser único. Isto é muito conveniente quando se cria uma função genérica que limpa uma base de dados.
+
+```{r}
+new_names <- c(
+  "geo_code" = "Nível Territorial (Código)",
+  "geo_code" = "Nível Territorial (código)",
+  "geo_code" = "nível territorial (Código)"
+)
+
+dat |> 
+  rename(any_of(new_names)) |> 
+  names()
+```
+
+## Usando funções e vetores
+
+Também é possível fazer um mix de vetores e funções. Aqui, infelizmente, a lógica da ordem do vetor se inverte, o que pode causar grande confusão. No exemplo abaixo, monto uma função que "traduz" alguns termos do português para o inglês. A mágica é feita usando a função `stringr::str_replace_all` que troca um termo por outro seguindo a ordem `nome_velho = nome_novo`.
+
+```{r}
+translate_pt <- function(x) {
+  
+  trans <- c(
+    "Código" = "code",
+    "Valor" = "value",
+    "Nível" = "level",
+    "Mês" = "month"
+  )
+  
+  stringr::str_replace_all(x, trans)
+  
+}
+
+dat |> 
+  rename_with(translate_pt) |> 
+  names()
+```
