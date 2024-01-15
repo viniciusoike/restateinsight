@@ -1,127 +1,29 @@
 ---
 title: "Hiperinflation: a Brazilian journey"
-categories: ['brasil', 'data-visualization']
+categories: ['english', 'data-visualization', 'brazil']
 draft: true
 ---
 
-```{r}
-library(ggplot2)
-sysfonts::font_add("Helvetica", "Helvetica.ttc")
-showtext::showtext_auto()
+# Brazilian Inflation
 
-ipca <- GetBCBData::gbcbd_get_series(433, first.date = as.Date("1980-01-01"))
+For most of its modern history, Brazil has lived high inflation. Brazil's official consumer price index was created only in 1980 so for a broader historical perspective we must look at other indices. The IGP-DI, devised by the Getulio Vargas Foundation, is a broad price index
 
-ipca <- ipca |> 
-  dplyr::rename(date = ref.date)
-```
+## Hyperinflation under the scope
 
-```{r}
-df <- tidyr::tribble(
-  ~date, ~event, ~date_label,
-  "1980-01-01", "Delfim + Oil Crisis", "Dez 1989",
-  "1983-02-01", "Delfim (2nd)", "Fev 1983",
-  "1985-05-01", "Military Regime Ends", NA,
-  "1986-04-01", "Cruzado Plan", "Fev 1986",
-  "1987-08-01", "Bresser Plan", "Jun 1987",
-  "1989-03-01", "Verão Plan", "Jan 1989",
-  "1990-05-01", "Collor Plan", "Mar 1990",
-  "1991-04-01", "Collor II Plan", "Jan 1991",
-  "1994-08-01", "Real Plan", "Jul 1994",
-  "1999-01-01", "Flotaing Exchange Rate", "Jan 1999",
-  "2002-11-01", "Argentina + Lula", "2002/2003",
-  "2008-07-01", "Great Financial Recession", "2008",
-  "2016-08-01", "Dilma Impeachment", "2016",
-  "2020-03-01", "Covid-19", "Mar 2019"
-)
+From January 1980 to July 1994, Brazil accumulated over a 13 trillion percentage inflation. In the following 14 years, total inflation would be much lower, close to 320%, and ever since Plano Real, inflation has totaled around 560%
 
-df <- dplyr::mutate(df, date = as.Date(date))
+![](/static/images/inflation_historic.svg){fig-align="center"}
 
-events <- dplyr::left_join(df, ipca, by = "date")
-```
+## Post-Real Brazil
 
-```{r}
-ggplot() +
-  geom_area(
-    data = ipca,
-    aes(x = date, y = value),
-    fill = "gray50") +
-  geom_point(
-    data = events,
-    aes(x = date, y = value),
-    shape = 21,
-    fill = "#de2d26",
-    color = "gray90"
-  ) +
-  geom_hline(yintercept = 0) +
-  labs(
-    title = "The Story of Brazilian Inflation",
-    subtitle = "Monthly percent variation in Consumer Price Index",
-    caption = "Source: IBGE",
-    x = NULL,
-    y = "IPCA\n(MoM, %)") +
-  theme_minimal(base_family = "Helvetica") +
-  theme(
-    panel.grid.minor = element_blank(),
-    panel.grid.major.x = element_blank(),
-    panel.grid.major.y = element_line(linetype = 2),
-    plot.title = element_text(size = 18),
-    axis.text.x = element_text(size = 12),
-    axis.text.y = element_text(size = 10),
-    axis.title.y = element_text(size = 12, angle = 0, vjust = 1)
-  )
-```
+Even after the ingenious Plano Real, it took some more effort to bring down inflation. The second chart highlights the post-Real Brazil and now presents the year-on-year percent changes in consumer prices. Since Plano Real was implemented in July of 1994, I exclude the first twelve months to avoid contaminating the series with previous hyperinflation.
 
-```{r}
-subipca <- ipca |> 
-  dplyr::mutate(acum = RcppRoll::roll_prodr(1 + value / 100, n = 12) - 1) |> 
-  dplyr::filter(date >= as.Date("1995-07-01"))
+![](/static/images/inflation_historic_post_real.svg){fig-align="center"}
 
-df <- tidyr::tribble(
-  ~date, ~event, ~date_label,
-  "1999-01-01", "Flotaing Exchange Rate", "Lowest YoY Inflation",
-  "2002-11-01", "Argentina + Lula", "2002/2003",
-  "2008-07-01", "Great Financial Recession", "2008",
-  "2016-08-01", "Dilma Impeachment", "2016",
-  "2020-03-01", "Covid-19", "Mar 2019",
-  "2022-04-01", "Pandemic Peak", "12,1%"
-)
+Brazil's CPI index dropped steadily after Plano Real and reached its lowest point in decades at the end of the 1990s. The series of economic crisis that began in Asia, spread across other emerging economies and eventually forced the Brazilian Central Bank to devalue the Real and abandon its fixed exchange rate to the USD. Wwo significant institutional changes were introduced in the late 1990s. First, the adoption of a **formal inflation target**: starting at 8% and decreasing to 4% in 2001, with a 2% interval of tolerance. Second, the implementation of a new fiscal regime, known as the **Law of Fiscal Responsibility**, sought to streamline public finance administration and limit spending.
 
-df <- dplyr::mutate(df, date = as.Date(date))
+In the 2000s, inflation in Brazil was "higher than comfort". **Despite fiscal surpluses and high interest rates, the country struggled to keep inflation within its revised 4.5% target**. The overall outlook of the economy was much more positive. The commodity boom resulted in bigger commercial surpluses, and the country's fiscal stability and solid institutions made it an attractive destination for foreign investment. Even during the 2008 financial crisis, Brazil remained relatively unscathed.
 
-events <- dplyr::left_join(df, subipca, by = "date")
-```
+In the following decade, the specter of inflation appeared once again. Facing a slowing econonmy, the Brazilian government launched an aggressive pro-growth agenda. Government spending rose (with little to no accountability), interest rates were cut, and the Real devalued significantly. New subsidized credit lines and tax reliefs aimed to improve business conditions and foster growth. To contain the rising inflation that resulted from this massive injection of stimulus, arbitrary price controls were implemented. Bus fares, electric energy, and even oil prices were tinkered with to help curb rising prices. In 2015, Brazil was forced to come back to terms with reality: **administered prices are increased causing a surge in inflation** and a further deterioration of macroeconomic conditions. In August 2016, **president Dilma Roussef is impeached** and vice-president Michel Temer takes stance.
 
-```{r}
-
-
-ggplot(subipca, aes(x = date, y = acum)) +
-  geom_area(fill = "#fcbba1") +
-  geom_point(
-    data = events,
-    aes(x = date, y = acum),
-    color = "#cb181d"
-  ) +
-  geom_hline(yintercept = 0) +
-  scale_x_date(expand = c(0, 0)) +
-  scale_y_continuous(
-    breaks = seq(0, 0.25, 0.05),
-    labels = scales::label_percent(decimal.mark = ","),
-    limits = c(NA, 0.35)
-    ) +
-  theme_minimal(base_family = "Helvetica") +
-  theme(
-    panel.grid.minor = element_blank(),
-    panel.grid.major.x = element_blank(),
-    panel.grid.major.y = element_line(linetype = 2),
-    plot.title = element_text(size = 18),
-    axis.text.x = element_text(size = 12),
-    axis.text.y = element_text(size = 10),
-    axis.title.y = element_text(size = 12, angle = 0, vjust = 0.7)
-  )
-```
-
-```{r}
-subipca |> 
-  dplyr::filter(date >= as.Date("2020-01-01")) |> 
-  dplyr::slice_max(acum, n = 5)
-```
+In the period that followed, inflation was much lower and important fiscal measures such as the Expenditure Ceiling and Pensions Reform were passed. Central Bank independence

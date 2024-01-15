@@ -10,8 +10,18 @@ execute:
 ---
 
 ```{r}
+
+knitr::opts_chunk$set(
+  fig.align = "center",
+  fig.asp = 0.618,
+  out.width = "80%",
+  fig.width = 9,
+  fig.dev = "svg"
+)
+
 library(tidypod)
-library(tidyverse)
+library(dplyr)
+library(ggplot2)
 library(sf)
 library(showtext)
 font_add_google("Lato", "Lato")
@@ -57,6 +67,9 @@ It's important to note that reducing car-dependency doesn't necessarily mean rem
 Car-free households seem to be spatially concentrated at peripheral regions of the city, very far away from any of the cities CBDs. The notable exception is the green mass right at the "old" CBD (Centro Histórico). While this region has very high share of car-free households, it should be noted that is also is not a very populated region. The "newer" CBDs of Paulista and Itaim have much lower shares of car-free households.
 
 ```{r}
+#| fig-width: 9
+#| fig-height: 9
+#| out-width: 100%
 breaks <- c(10, 20, 35, 45, 60, 90)
 labels <- c("<10", "10-20", "20-35", "35-45", "45-60", "60-90")
 
@@ -100,7 +113,7 @@ p1 <- ggplot(spo, aes(x = share_car_0)) +
     na.translate = FALSE
     ) +
   labs(
-    title = "",
+    title = "Distribution of car-free households in São Paulo",
     subtitle = "Dashed line indicates the household-weighted share across the city.",
     x = "Share of car-free households (%)",
     y = "Number of regions"
@@ -147,17 +160,94 @@ p2
 ```
 
 ```{r}
-#| eval: false
-ggplot(spo) +
-  geom_sf(aes(fill = share_car_0), lwd = 0.05, color = "gray90") +
-  scale_fill_viridis_c(option = "inferno", direction = -1) +
-  coord_sf(xlim = c(-46.75, -46.55), ylim = c(-23.64, -23.50))
+library(sfdep)
+podnb <- sub %>%
+  filter(!is.na(share_car_0)) %>%
+  mutate(
+    nb = st_contiguity(geom),
+    wt = st_weights(nb)
+  )
+
+lisa <- podnb %>%
+  mutate(
+    share_car_0 = as.numeric(scale(share_car_0)),
+    income_avg = as.numeric(scale(log(income_avg))),
+    local_c = local_c_perm(list(share_car_0, income_avg), nb, wt),
+    local_m = local_moran_bv(share_car_0, income_avg, nb, wt)
+  )
+
+moran <- tidyr::unnest(lisa, local_m)
+geary <- tidyr::unnest(lisa, local_c)
+```
+
+```{r}
+global_moran_test(sub$share_car_0, podnb$nb, podnb$wt, randomization = FALSE)
+```
+
+```{r}
+ggplot() +
+  geom_sf(data = lisa) +
+  geom_sf(data = filter(lisa, p_ci < 0.05), aes(fill = cluster))
+
+```
+
+```{r}
+guerry_nb <- guerry %>% 
+  mutate(nb = st_contiguity(geometry),
+         wt = st_weights(nb),
+         .before = 1) # to put them in the front
+
+guerry_nb
+```
+
+```{r}
+ggplot(sub) +
+  geom_sf(aes(fill = name_region)) +
+  scale_fill_brewer(
+    name = "",
+    type = "qual",
+    palette = 3) +
+  labs(title = "Regions in São Paulo") +
+  ggthemes::theme_map(base_family = "Lato") +
+  theme(
+    legend.position = c(0.75, 0.05),
+    legend.title = element_text(family = "Lato", hjust = 0.5)
+  )
+```
+
+```{r}
+sub <- filter(pod, income_avg > 0, !is.na(name_region))
+
+p3 <- ggplot(sub, aes(x = log(income_avg), y = share_car_0)) +
+  geom_point(aes(size = pop_density, color = name_region), alpha = 0.7) +
+  geom_smooth(aes(weight = hh), method = "lm", se = FALSE) +
+  ggrepel::geom_label_repel(
+    data = filter(sub, name_zone %in% x),
+    aes(label = name_zone),
+    size = 3,
+    family = "Lato"
+  ) +
+  scale_color_brewer(
+    name = "",
+    type = "qual",
+    palette = 3) +
+  guides(size = "none") +
+  labs(
+    title = "Cars and Income",
+    subtitle = "Share of car-free households declines as average household income increases.",
+    x = "Avg. Income (log)",
+    y = "Share of car-free households (%)"
+  ) +
+  theme_minimal() +
+  theme(
+    legend.position = "bottom"
+  )
+
+p3
 ```
 
 ```{r}
 #| eval: false
-sub <- filter(pod, income_avg > 0, !is.na(name_region))
-
 ggplot(sub, aes(x = log(income_avg), y = car_rate)) +
   geom_point(aes(size = pop_density, color = name_region), alpha = 0.7) +
   geom_smooth(aes(weight = hh), method = "lm", se = FALSE) +
@@ -167,25 +257,18 @@ ggplot(sub, aes(x = log(income_avg), y = car_rate)) +
     size = 3,
     family = "Lato"
   ) +
-  scale_color_brewer(type = "qual", palette = 3) +
+  scale_color_brewer(name = "", type = "qual", palette = 3) +
   guides(size = "none") +
-  theme_minimal()
-```
-
-```{r}
-#| eval: false
-ggplot(sub, aes(x = log(income_avg), y = 1 - share_car_0)) +
-  geom_point(aes(size = pop_density, color = name_region), alpha = 0.7) +
-  geom_smooth(aes(weight = hh), method = "lm", se = FALSE) +
-  ggrepel::geom_label_repel(
-    data = filter(sub, name_zone %in% x),
-    aes(label = name_zone),
-    size = 3,
-    family = "Lato"
+  labs(
+    title = "Cars and Income",
+    subtitle = "Share of car-free households declines as average household income increases.",
+    x = "Avg. Income (log)",
+    y = "Share of car-free households (%)"
   ) +
-  scale_color_brewer(type = "qual", palette = 3) +
-  guides(size = "none") +
-  theme_minimal()
+  theme_minimal(base_family = "Lato") +
+  theme(
+    legend.position = "bottom"
+  )
 ```
 
 ```{r}
