@@ -1,0 +1,701 @@
+---
+title: "Carros e Renda em Sao Paulo"
+date: "2024-01-15"
+categories: ['data-science', 'sao-paulo', 'transporte']
+description: "Este post analisa a relação entre a posse de automóveis e a renda domiciliar usando dados da Pesquisa Origem e Destino do Metrô de 2017. Um modelo de escolha discreta revela um impacto significativo da renda na decisão de possuir um carro. Idade, educação e filhos também são fatores importantes e que aumentam a probabilidade do domicílio ter um automóvel. O único fator encontrado que reduz a probabilidade do domicílio ter um automóvel é ele ser chefiado por uma mulher."
+execute: 
+  message: false
+  warning: false
+  echo: false
+---
+
+```{r setup}
+library(tidypod)
+library(ggplot2)
+library(tidyr)
+library(dplyr)
+library(sf)
+library(showtext)
+library(tmap)
+library(tmaptools)
+library(plotly)
+library(biscale)
+library(interactions)
+library(gt)
+library(gtExtras)
+library(gtsummary)
+
+knitr::opts_chunk$set(
+  fig.align = "center",
+  fig.asp = 0.618,
+  out.width = "90%",
+  fig.width = 9,
+  fig.dev = "svg"
+)
+
+
+font_add_google("Lato", "Lato")
+showtext_auto()
+
+tmap_mode(mode = "view")
+
+theme_vini <- theme_minimal(base_family = "Lato") +
+  theme(
+    plot.title = element_text(size = 18),
+    legend.position = "none",
+    panel.grid.minor = element_blank(),
+    plot.background = element_rect(fill = "#f8f8f8", color = NA),
+    panel.background = element_rect(fill = "#f8f8f8", color = NA)
+  )
+```
+
+```{r import-data}
+#| echo: false
+pod <- readr::read_csv(here::here("posts/ggplot2-tutorial/table_pod.csv"))
+pod <- pod |> 
+  filter(
+    pop > 0
+  )
+
+zones <- readr::read_rds(here::here("static/data/zones_pod.rds"))
+dstr <- sf::st_read(here::here("static/data/districts.gpkg"), quiet = TRUE)
+
+metro <- geobr::read_metro_area(showProgress = FALSE)
+
+codes <- metro |> 
+  filter(name_metro == "RM São Paulo") |> 
+  pull(code_muni) 
+
+border <- lapply(codes, geobr::read_municipality, showProgress = FALSE, simplified = FALSE)
+border <- bind_rows(border)
+
+tab_pod <- import_pod_tables(geo = TRUE)
+tab_travels <- import_pod_travel_tables(geo = TRUE)
+spo <- filter(tab_pod, code_muni == 36)
+```
+
+```{r cars-total}
+#> Sum cars and households across Sao Paulo districts
+tab_cars <- pod |> 
+  filter(code_muni == 36) |> 
+  summarise(
+    total_car = sum(cars),
+    total_hh = sum(hh),
+    .by = "name_district"
+  ) |> 
+  #> Compute ratio of cars per household and deviation wrt city average
+  mutate(
+    car_rate = total_car / total_hh,
+    diff = car_rate - weighted.mean(car_rate, total_hh, na.rm = TRUE)
+  )
+
+tab_diff <- tab_cars |> 
+  mutate(
+    rank = rank(diff),
+    name_district = factor(name_district),
+    name_district = forcats::fct_reorder(name_district, rank),
+    group = factor(if_else(rank > 6, 1L, 0L))
+    ) |> 
+  filter(rank %in% c(1:6, 91:96))
+
+media_cidade <- sum(tab_cars$total_car) / sum(tab_cars$total_hh)
+```
+
+# Carros e Renda
+
+Este post investiga a relação entre a "demanda por automóveis", entendida simplesmente como a posse (ou não) de um automóvel. Usando dados da Pesquisa Origem e Destino do Metrô de 2017, estima-se um modelo de escolha discreta para investigar o efeito da renda domiciliar sobre a escolha de ter um carro. Encontrou-se um efeito forte e significante da renda sobre a "demanda" por carros. Idade, educação e filhos também são fatores importantes e que aumentam a probabilidade do domicílio ter um automóvel. O único fator encontrado que reduz a probabilidade do domicílio ter um automóvel é ele ser chefiado por uma mulher.
+
+Vale notar que não se pode falar propriamente em "demanda" por automóveis já que temos somente dados de um único momento no tempo. Eventualmente, quando os dados da POD 2022 forem liberados, será possível construir uma curva de demanda por automóveis.
+
+## São Paulo: fatos gerais
+
+A Região Metropolitana de São Paulo abriga aproximadamente 20 milhões de pessoas e gera mais de 40 milhões de viagens todos os dias. Segundo [Relatório do Metrô](https://transparencia.metrosp.com.br/sites/default/files/SÍNTESE_OD2017_ago19.pdf) as viagens na Região Metropolitana de São Paulo dividem-se da seguinte maneira: um terço das viagens é feita por modos não-motorizados (a pé ou de bicicleta), enquanto dois terços das viagens é feito por modos motorizados. Neste último grupo, 55% das viagens são feitas com modais coletivos (ônibus, metrô, trem) e 45% das viagens são feitas com modais individuais (carro, táxi, moto). Ao todo, as viagens em automóveis particulares (excluindo táxis) representam cerca de 27% de todas as viagens diárias; ou seja, cerca de 1 em cada 4 viagens na RMSP é feita com carro particular.
+
+O diagrama abaixo esquematiza todas as viagens diárias realizadas na RMSP. Vale notar que os dados são de 2017, então muitas das estações das linhas 4-amarela e 5-coral ainda estavam sob construção. Similarmente, as linhas 13-Jade, 15-Prata (monotrilho) ainda não estavam operando. Por simplicidade considerei o universo de todas as viagens: ainda que os deslocamentos casa-trabalho componham a maior parte deste conjunto, inclui-se todo tipo de deslocamento.
+
+```{r sankey-transport}
+fig <- plot_ly(
+  type = "sankey",
+  orientation = "h",
+  
+  node = list(
+    label = c(
+      "Motorizado", "Coletivo", "Particular", "Ônibus", "Fretado", "Escolar",
+      "Metrô", "Trem", "Automóvel", "Táxi", "Moto", "Não-motorizado", "A pé",
+      "Bicicleta", "Viagens"
+      ),
+    color = c("#08519c", "#2171b5", "#238b45", "#6baed6", "#9ecae1", "#c6dbef",
+              "#6a51a3", "#9e9ac8", "#41ab5d", "#a1d99b", "#c7e9c0", "#fc4e2a",
+              "#fd8d3c", "#feb24c"),
+    pad = 15,
+    thickness = 15,
+    line = list(
+      color = "black",
+      width = 0.5
+    )
+  ),
+  size = I(20),
+  link = list(
+    source = c(0,0,1,1,1,1,1,2,2,2,11,11),
+    target = c(1,2,3,4,5,6,7,8,9,10,12,13),
+    value =  c(36.4,30.9,19.8,0.61,4.98,8.1,3,27, 1.14, 2.56, 31.8, 0.9)
+  )
+)
+
+fig <- fig %>% layout(
+  title = list(
+    text = "Distribuição das viagens na RMSP",
+    y = 0.95),
+  font = list(
+    size = 20,
+    family = "Gill Sans"
+  )
+)
+
+fig
+```
+
+## Carros por domicílio
+
+Pouco mais da metade dos domicílios na RMSP possui algum automóvel: 53% dos domicílios possui ao menos um carro, enquanto 47% dos domicílios não possui carro particular. Mais especificamente, 43,8% possui somente um carro. Domicílios com 2 automóveis são apenas 8% do total e domicílios com 3 automóveis ou mais são pouco mais de 1% do total.
+
+```{r}
+car_sp <- tibble(
+  qt_auto = factor(0:3),
+  share = c(47.04, 43.77, 8.05, 1.14)
+)
+
+xlab <- c(
+  "Nenhum automóvel", "1 automóvel", "2 automóveis", "3 automóveis ou mais"
+  )
+
+ggplot(car_sp, aes(x = qt_auto, y = share)) +
+  geom_col(fill = "#1b9e77") +
+  geom_text(
+    aes(y = share + 2, label = paste0(format(share, decimal.mark = ","), "%")),
+    family = "Lato",
+    size = 3
+    ) +
+  geom_hline(yintercept = 0) +
+  scale_x_discrete(labels = stringr::str_wrap(xlab, width = 12)) +
+  labs(
+    title = "Posse de automóveis por domicílios",
+    subtitle = "Share de domicílios na RMSP por posse de automóvel particular (2017).",
+    caption = "Fonte: POD (2017)",
+    x = NULL,
+    y = NULL
+  ) +
+  theme_vini +
+  theme(
+    axis.text.x = element_text(size = 12),
+    axis.text.y = element_blank(),
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+  )
+```
+
+Na média da RMSP, há 0,635 carros por domicílios. Na capital, o número é similar, 0,6. Olhando para os distritos de São Paulo, vê-se que os menos "carro-dependentes" são distritos centrais como República e Sé. Distritos de baixa renda média como Parelheiros e Cidade Tiradentes também tem uma baixa razão de carros por domicílio.
+
+Os distritos mais carro-dependentes têm rendas elevadas e estão dentro ou próximos do Centro Expandido da cidade. É curioso notar que bairros verticalizados como Moema e Morumbi aparecem junto com o distrito de Alto de Pinheiros que é majoritariamente composto por residências horizontais. Isto sugere que a verticalização não acompanha menor dependência do automóvel particular.
+
+```{r plot-cars-district}
+ggplot(tab_diff, aes(x = name_district, y = diff, color = group)) +
+  geom_segment(aes(xend = name_district, yend = 0), alpha = 0.8) +
+  geom_point(size = 3) +
+  geom_hline(yintercept = 0) +
+  scale_y_continuous(breaks = c(-0.45, -0.3, -0.15, 0, 0.15, 0.3, 0.45)) +
+  scale_color_manual(values = c("#1b9e77", "#7570b3")) +
+  labs(
+    title = "Distritos mais e menos carro-dependentes",
+    subtitle = "Proporção de carros por domicílio nos distritos de São Paulo",
+    x = NULL,
+    y = "Desvio em relação à média da cidade",
+    caption = "Fonte: POD (2017)."
+  ) +
+  coord_flip() +
+  theme_vini
+```
+
+O mapa abaixo mostra a taxa de motorização, a razão de carros por domicílios, nos distritos da RMSP. Vê-se um padrão espacial onde as regiões com **maiores taxas de motorização concentram-se no quadrante sudoeste do Centro Expandido** da capital. No começo da zona oeste, na região do Tatuapé, também vê-se taxas mais elevadas. Fora da capital, vale notar que a cidade de Santana de Parnaíba tem elevada taxa de motorização, comparável aos distritos mais carro-dependentes de São Paulo.
+
+```{r}
+tab_dstr <- pod |> 
+  summarise(
+    total_car = sum(cars),
+    total_hh = sum(hh),
+    income = round(weighted.mean(income_avg, hh) * 1.34, -2),
+    dstr_car_rate = round(total_car / total_hh, 3),
+    .by = "code_district"
+  )
+
+dat_map <- left_join(dstr, tab_dstr, by = "code_district")
+```
+
+```{r car-rate-distrito}
+tm_shape(dat_map) +
+  tm_fill(
+    col = "dstr_car_rate",
+    alpha = 0.7,
+    palette = "-BrBG",
+    title = "Car Rate",
+    style = "jenks",
+    n = 9,
+    id = "name_district",
+    popup.vars = c(
+      "Domicílios: " = "total_hh",
+      "Renda (R$ IPCA): " = "income",
+      "Car rate: " = "dstr_car_rate"
+      ),
+    popup.format = list(big.mark = ".", decimal.mark = ",")
+  ) +
+  tm_borders(col = "white", lwd = 0.5) +
+  tm_shape(border) +
+  tm_borders(col = "gray80", lwd = 2) +
+  tm_basemap(server = "CartoDB.Positron")
+```
+
+O share de domicílios sem carro segue um padrão espacial similar. O mapa detalha as zonas OD da cidade de São Paulo. Em [outro post](https://restateinsight.com/posts/general-posts/2023-11-wz-cars/), discuti a distribuição desta métrica na cidade.
+
+```{r}
+#| fig-width: 9
+#| fig-height: 9
+#| out-width: 100%
+breaks <- c(10, 20, 35, 45, 60, 90)
+labels <- c("<10", "10-20", "20-35", "35-45", "45-60", "60-90")
+
+spo <- spo |> 
+  mutate(
+    group = factor(findInterval(share_car_0, breaks, left.open = TRUE))
+  )
+
+m1 <- ggplot(spo) +
+  geom_sf(aes(fill = group), lwd = 0.02, color = "gray20") +
+  scale_fill_brewer(
+    type = "div",
+    name = "Share of\ncar-free\nhouseholds (%)",
+    labels = labels,
+    na.translate = FALSE
+    ) +
+  ggthemes::theme_map() +
+  theme(
+    legend.position = c(0.75, 0.05),
+    legend.title = element_text(family = "Lato", hjust = 0.5)
+  )
+
+m1
+```
+
+## Carros por domicílio e renda
+
+A demanda por automóveis tende a aumentar junto com a renda das famílias. Mesmo famílias que moram em regiões centrais, próximas de polos de empregos e com boa oferta de infraestrutura urbana, preferem ter mais automóveis. O gráfico abaixo mostra a relação entre a renda domiciliar média e a razão de carros por domicílio; os dados são agregados por zona OD. A linha de tendência mostra uma relação quadrática ponderada (usando a população total de cada zona como peso).
+
+É interessante notar as zonas que "fogem" da tendência esperada. A região do Morumbi, por exemplo, tem renda similar a do Paraíso, mas tem uma taxa de motorização consideravelmente melhor. Possivelmente, isto reflete a infraestrutura de cada bairro: o Morumbi não tem acesso fácil nem a trem e nem a metrô; já o bairro do Paraíso tem acesso fácil a duas linhas de metrô, ciclovias e corredores de ônibus.
+
+```{r}
+spo <- filter(pod, code_muni == 36)
+
+sel_zone <- c(
+  "Masp", "Jóquei Clube", "Alto de Pinheiros", "Alto da Lapa",
+  "Berrini", "Chácara Klabin", "Paraíso", "Jaceguava", "República",
+  "Santa Cecília", "Tatuapé", "Parelheiros", "Jaraguá", "Pirituba",
+  "Cidade Ademar", "Capão Redondo", "Morumbi", "Consolação",
+  "Fazenda Itaim", "Vila Helena", "Vila Bertioga", "Higienópolis",
+  "Cidade Líder", "Vila Zelina", "Bom Retiro", "Jardim Europa",
+  "Pompéia"
+  )
+
+ggplot(spo, aes(x = income_avg * 1.34, y = car_rate)) +
+  geom_point(
+    aes(size = pop),
+    alpha = 0.5,
+    fill = "#023047",
+    color = "gray50",
+    shape = 21) +
+  geom_smooth(
+    method = "lm",
+    mapping = aes(weight = pop),
+    formula = y ~ poly(x, 2),
+    se = FALSE) +
+  ggrepel::geom_label_repel(
+    data = filter(spo, name_zone %in% sel_zone),
+    aes(x = income_avg * 1.34, y = car_rate, label = name_zone),
+    family = "Lato",
+    size = 3,
+    label.padding = unit(0.1, "line")) +
+  scale_x_continuous(labels = scales::label_number(big.mark = ".")) +
+  scale_y_continuous(labels = scales::label_number(decimal.mark = ",")) +
+  scale_size_continuous(range = c(0, 10)) +
+  labs(
+    title = "Carros e Renda",
+    subtitle = "Número médio de carros por domicílio e renda domiciliar média por Zona OD.\nTamanho do círculo é proporcional à população da Zona.",
+    caption = "Fonte: POD (2017)",
+    x = "Renda Domiciliar (R$ IPCA)",
+    y = "Carros por Domicílio"
+  ) +
+  theme_vini +
+  theme(legend.position = "none")
+```
+
+### RMSP e Centro Expandido
+
+A demanda por automóveis também parece variar por região. O gráfico abaixo agrupa as zonas por regiões: Centro Expandido, São Paulo (capital) e RMSP (resto da região metropolitana). Nota-se que as zonas dentro do CE da capital tem uma tendência a ter menos carros do que regiões de renda equivalente na RMSP.
+
+Note que agora os gráficos agora mostram a *renda domiciliar per capita* em escala logarítmica e usa-se uma tendência linear. A regressão continua sendo ponderada pela população total de cada zona, mas todos os círculos no painel da direita tem igual tamanho para facilitar a visualização dos dados.
+
+```{r}
+pod <- pod |> 
+  mutate(
+    location = case_when(
+      is_cbd == 1 ~ "Centro Expandido",
+      code_muni == 36 & is_cbd == 0 ~ "São Paulo",
+      TRUE ~ "RMSP"
+    ),
+    location = factor(location, levels = c("RMSP", "São Paulo", "Centro Expandido"))
+  )
+
+p1 <- ggplot(pod, aes(x = log(income_pc), y = car_rate, fill = location, size = pop)) +
+  geom_point(alpha = 0.5, shape = 21, color = "white") +
+  scale_fill_manual(name = "", values = c("#023047", "#fb8500", "#126782")) +
+  scale_y_continuous(labels = scales::label_number(decimal.mark = ",")) +
+  labs(
+    x = "Renda Domiciliar (R$ log)",
+    y = "Carros por Domicílio"
+  ) +
+  theme_vini
+```
+
+```{r}
+p2 <- ggplot(pod, aes(x = log(income_avg), y = car_rate, color = location)) +
+  geom_point(
+    data = select(pod, -location),
+    aes(x = log(income_avg), y = car_rate),
+    alpha = 0.5,
+    color = "gray10",
+    shape = 21
+  ) +
+  geom_point(
+    aes(fill = location),
+    alpha = 0.5,
+    shape = 21
+    ) +
+  geom_smooth(
+    method = "lm",
+    mapping = aes(weight = pop),
+    se = FALSE) +
+  facet_wrap(vars(location), ncol = 1) +
+  scale_y_continuous(labels = scales::label_number(decimal.mark = ",")) +
+  scale_fill_manual(
+    name = "",
+    values = c("#023047", "#fb8500", "#126782")
+    ) +
+  scale_color_manual(
+    name = "",
+    values = c("#023047", "#fb8500", "#126782")
+    ) +
+  scale_size_continuous(range = c(1, 10)) +
+  guides(fill = "none", size = "none", color = "none") +
+  labs(
+    x = "Renda Domiciliar (R$ log)",
+    y = "Carros por Domicílio"
+  ) +
+  theme_vini
+```
+
+```{r}
+library(patchwork)
+p1 + p2 + plot_annotation(
+  title = "Carros e Renda",
+  subtitle = "Número médio de carros por domicílio e renda domiciliar média por Zona OD.\nTamanho do círculo é proporcional à população da Zona."
+) & theme_vini + theme(text = element_text(family = "Lato"))
+```
+
+### Regressão linear
+
+Indo um pouco mais a fundo, pode-se fazer uma regressão linear para melhor avaliar a diferença entre os grupos. Visualmente, as zonas dentro do CE parecem ter uma proporção menor de carros por habitante do que as zonas na RMSP, relativamente à renda familiar. A tabela abaixo mostra o resultado da regressão, onde adiciona-se também algumas variáveis auxiliares como a proporção de adultos (18-64 anos) que habita na zona e a densidade populacional da zona.
+
+A relação de interesse aparece nas duas últimas linhas que indica a relação entre a renda domiciliar per capita e a localização (estrato) para a proporção de carros por domicílio. Tanto regiões dentro da capital como dentro do CE apresentam uma menor proporção de carros por domicílios, relativamente às zonas da RMSP.
+
+```{r}
+dep_var <- c("car_rate")
+exp_var <- c(
+  "linc", "location", "prop_adult", "pop_density", "pop", "prop_educ_superior"
+  )
+
+xreg <- pod |> 
+  mutate(linc = log(income_pc)) |>
+  mutate(across(starts_with("prop"))) |> 
+  select(all_of(c(dep_var, exp_var))) |> 
+  na.omit()
+
+model_lm <- lm(
+  car_rate ~ prop_adult + pop_density + prop_educ_superior + linc * location,
+  data = xreg,
+  weights = pop
+  )
+```
+
+```{r}
+gtsummary::tbl_regression(
+  model_lm,
+  label = c(prop_adult = "Prop. Adultos (%)",
+            pop_density = "Densidade Populacional",
+            prop_educ_superior = "Prop Ensino Superior (%)",
+            linc = "Renda Domiciliar per capita (log)",
+            location = "Estrato"),
+  estimate_fun = function(x) style_number(x, digits = 5)
+  ) |> 
+  gtsummary::add_glance_table(include = c(r.squared, adj.r.squared, AIC, sigma, logLik))
+```
+
+Visualmente, pode-se verificar isto no gráfico abaixo que mostra a relação entre a renda domiciliar per capita e a "demanda por automóveis" em cada um dos estratos geográficos.
+
+```{r}
+interact_plot(model_lm, pred = "linc", modx = "location")
+```
+
+### Zonas
+
+O mapa abaixo apresenta visualmente a relação entre renda e a taxa de automóveis. A classificação das zonas é simples e segue o algoritmo de Jenks sem considerar explicitamente a dependência espacial entre as zonas. Ainda assim, é possível distinguir entre as regiões. A região da Paraíso, por exemplo, é de renda alta e taxa de motorização média; Pinheiros é de renda média e taxa de motorização média; e Jardim Europa é de renda alta e taxa alta. Algumas regiões do Centro-Sul como Brooklin e Campo Belo são médio-alto (renda média e taxa alta). O centro antigo da cidade é baixo-baixo, assim como boa parte da periferia da cidade.
+
+```{r}
+dat_map <- left_join(
+  zones,
+  select(pod, code_zone, income_avg, car_rate),
+  by = "code_zone"
+)
+
+biscale_labels <- c(
+  "1-1" = "Low-Low", "1-2" = "Low-Medium", "1-3" = "Low-High", "2-1" = "Medium-Low",
+  "2-2" = "Medium-Medium", "2-3" = "Medium-High", "3-1" = "High-Low",
+  "3-2" = "High-Medium", "3-3" = "High-High"
+)
+
+grpink <- biscale::bi_pal("DkBlue", dim = 3, preview = FALSE)
+
+clean_dat <- dat_map |> 
+  filter(!is.na(income_avg), !is.na(car_rate)) |> 
+  mutate(linc = log(income_avg))
+
+biclassed <- bi_class(clean_dat, linc, car_rate, style = "jenks")
+
+lvls = unique(biclassed$bi_class)
+lvls = lvls[order(lvls)]
+labels = biscale_labels[lvls]
+
+biclassed <- biclassed %>%
+  select(name_zone, linc, income_avg, car_rate, bi_class) %>%
+  mutate(
+    bi_class_label = factor(bi_class, levels = lvls, labels = labels)
+  )
+
+tm_shape(biclassed) +
+  tm_fill(
+    col = "bi_class_label",
+    alpha = 0.7,
+    title = "Cluster: Income - Car",
+    palette = grpink[lvls],
+    id = "name_zone",
+    popup.vars = c(
+      "Cluster: " = "bi_class_label",
+      "Income: " = "income_avg",
+      "Car rate: " = "car_rate")
+  ) +
+  tm_borders(col = "white", lwd = 0.5) +
+  tm_shape(border) +
+  tm_borders(col = "gray50", lwd = 2)
+```
+
+A maior parte das zonas classificadas é do tipo "low-low", isto é, de renda baixa e de baixa razão carros/domicílios. De fato, quase metada das zonas entra no grupo de "renda baixa" (R\$2000 a R\$4500). Dentre as zonas de renda alta (\> R\$ 8000), a maior parte tem uma razão alta de carros/domicílio; ainda assim, uma proporção relativamente expressiva têm razão média de carros/domicílios (36%). Apenas duas zonas (MASP e Rodrigues Alves) são classificados como renda alta e baixa razão carros/domicílios.
+
+```{r}
+biclassed |> 
+  st_drop_geometry() |> 
+  count(bi_class_label, sort = TRUE) |> 
+  mutate(share = n / sum(n)) |> 
+  gt() |> 
+  cols_label(
+    bi_class_label = "Renda - Carros",
+    n = "Número de Zonas",
+    share = "Proporção de zonas"
+  ) |> 
+  fmt_percent(columns = share) |> 
+  gt_theme_538()
+```
+
+A tabela abaixo ilustra a classificação acima trazendo alguns exemplos de cada grupo.
+
+```{r}
+my_sample <- function(x, size) {
+  
+  if (length(x) < size) {
+    return(x)
+  } else {
+    sample(x, size)
+  }
+  
+}
+
+
+biclassed |> 
+  st_drop_geometry() |> 
+  filter(bi_class_label != "Low-High") |> 
+  summarise(s = paste(my_sample(name_zone, size = 5), collapse = ", "), .by = "bi_class_label") |> 
+  arrange(bi_class_label) |> 
+  gt() |> 
+  cols_label(bi_class_label = "Renda - Carros", s = "Exemplos de Região") |> 
+  gt_theme_538()
+```
+
+## Carros e renda: analisando a relação
+
+Até agora este post assumiu que o deslocamento total de carro de uma família é, de alguma forma, proporcional ao número de automóveis que ela possui. Isto é, o número total de quilômetros rodados em automóvel particular é uma função da posse do automóvel.
+
+Esta é uma hipótese razoável, mas como viu-se acima, a maioria dos domicílios ou não têm um carro ou tem somente um. Assim, é possível fazer ainda mais uma simplificação: **considerar a posse ou não de um automóvel** (ou mais).
+
+### Análise visual
+
+Há dois fatores bastante intuitivos, indicados pela literatura, que estão relacionados com a posse de automóvel: **renda e idade**. O gráfico abaixo mostra a relação entre a posse de automóveis e a idade do chefe da família. Como se vê, há uma relação não-linear entre as variáveis: a proporção de famílias com automóvel cresce até certo ponto e depois diminui.
+
+Os pontos agrupam as idades em grupos de cinco anos (18-22, 23-27, etc.) e representam a média de cada grupo. A linha de ajuste é de uma regressão polinomial de segundo grau, ajustada pelo peso proporcional da cada grupo na população total.
+
+```{r}
+age <- readr::read_rds(here::here("posts/general-posts/2023-12-carros-renda/dat_age.rds"))
+
+ggplot(age$tab, aes(x = idade, y = share)) +
+  geom_smooth(
+    color = "#000000",
+    se = FALSE,
+    method = "lm",
+    formula = y ~ poly(x, 2),
+    aes(weight = total)
+    ) +
+  geom_point(
+    data = age$points,
+    aes(x = midpoint, y = avg),
+    shape = 21,
+    size = 3,
+    color = "white",
+    fill = "#2a9d8f") +
+  labs(
+    title = "Posse de automóvel e idade",
+    subtitle = "Proporção de famílias que possui ao menos um automóvel segundo a idade do(a) responsável pelo domicílio.",
+    x = "Idade (anos)",
+    y = "Proporção com automóvel"
+  ) +
+  scale_x_continuous(breaks = seq(20, 100, 20)) +
+  scale_y_continuous(breaks = seq(0.1, 0.6, 0.1), labels = scales::label_percent()) +
+  theme_vini
+```
+
+O gráfico de colunas abaixo mostra a proporção de domicílios que possui ao menos um carro por decil de renda. Abaixo dos eixos, apresenta-se o intervalo de renda considerado. As barrinhas pequenas são o intervalo de confiança de cada estimativa.
+
+```{r}
+income <- readr::read_rds(here::here("posts/general-posts/2023-12-carros-renda/dat_income_car.rds"))
+
+ggplot(income, aes(x = income_decile, y = share)) +
+  geom_col(fill = "#2a9d8f") +
+  geom_hline(yintercept = 0) +
+  geom_errorbar(
+    linewidth = 0.5,
+    width = 0.4,
+    aes(x = income_decile, ymin = share_low, ymax = share_upp)
+    ) +
+  scale_x_continuous(breaks = 0:9,labels = income$labels) +
+  scale_y_continuous(
+    breaks = seq(0, 0.9, 0.1),
+    labels = scales::label_percent()) +
+  labs(
+    title = "Posse de automóvel e renda",
+    subtitle = "Proporção de famílias que possui ao menos um automóvel segundo decil de renda.",
+    x = "R$",
+    y = "Proporção com automóvel.") +
+  theme_vini +
+  theme(panel.grid.major.x = element_blank())
+```
+
+### Regressão simples
+
+Como agora temos uma variável binária (posse ou não-posse de automóvel) pode-se usar um modelo de escolha discreta para estudar a relação entre renda e automóveis. Na regressão abaixo, mostro os resultados de uma regressão Logística e de uma regressão Probit. A regressão é feita sobre os microdados da Pesquisa Origem Destino (identificados por domicílio) usando os fatores de expansão como pesos.
+
+Para simplificar a análise, restringiu-se a amostra às zonas dentro da cidade de São Paulo (capital). Além disso, removeu-se domicílios com renda muita baixa (menos de 1/4 do salário mínimo da época) e domicílios chefiados por um responsável com menos de 18 anos. Esta regressão inclui algumas variáveis adicionais relevantes:
+
+-   Criança: variável binária que indica se há pelo menos uma criança no domicílio (menor de 18 anos com vínculo familiar)
+
+-   Ensino superior: variável binária que indica se o responsável pelo domicílio possui ensino superior.
+
+-   Empregado: variável binária que indica se o responsável pelo domicílio estava empregado.
+
+-   Feminino: variável binária que indica se a responsável pelo domicílio se identifica como do sexo feminino.
+
+-   A variável de idade foi "discretizada" em grupos para melhor capturar o seu efeito não-linear.
+
+A tabela abaixo ilustra o efeito das variáveis binárias acima sobre a frequência de domicílios em relação à posse de automóveis. A tabela soma o número de domicílios com ou sem automóvel e compara as famílias com e sem crianças. Proporcionalmente, as famílias com ao menos um filho tem uma chance cerca de 1,5 maior de ter um carro (em contraste com uma família sem filhos).
+
+![](carros_crianca.png){fig-align="center" width="50%"}
+
+Para levar em consideração o efeito espacial das variáveis incluiu-se efeitos fixos de cada zona OD. Existem métodos mais sofisticados para modelar a dependências espacial entre as regiões, mas para os propósitos deste post esta abordagem é suficiente. Os resultados das duas regressões é apresentado abaixo.
+
+Vale notar que apresento os odd-ratios ao invés dos coeficientes na regressão logística[^1]. Assim, pode-se ver mais imediatamente o efeito das variáveis. De maneira geral, todos os fatores tem efeito de aumentar a chance que um domicílio tenha um automóvel; apenas "feminino" tem valor menor que um, indicando que domicílios chefiados por mulheres tem uma chance menor de ter automóvel (em relação a domicílios chefiados por homens). Um domicílio que recebe incremento de 1% na sua renda tem um aumento de 6,74% na chance de ter um carro. Similarmente, um domicílio com criança tem um aumento de 1,33 na chance de ter um carro em relação a um domicílio sem criança.
+
+[^1]: Isto é equivalente a tomar a exponencial do coeficiente. Isto é, ao invés de mostrar $\beta$ mostra-se $exp(\beta)$.
+
+![](glm_tab_regression.png){fig-align="center" width="70%"}
+
+A interpretação dos coeficientes de uma regressão Probit não é tão imediato. Vale notar que o sinal de todos os coeficientes corrobora o modelo Logit: com exceção de "feminino", todas as variáveis têm efeito positivo, isto é, aumentam a probabilidade do domicílio possuir um automóvel.
+
+O gráfico abaixo simula a probabilidade esperada de um domicílio de Pinheiros chefiado por um indivíduo de 35 a 44 anos possuir um automóvel, condicional a alguns fatores:
+
+-   <div>
+
+    1.  **Criança**. Se a família possui pelo menos um filho no domicílio.
+    2.  **Ensino Universitário**. Se a pessoa responsável pelo domicílio possui ensino supeior.
+    3.  **Renda**. O nível de renda domiciliar (ajustado pelo IPC-Fipe).
+
+    </div>
+
+Em todos os casos analisados, ter um filho aumenta a probabilidade de ter um automóvel, mas este efeito varia de acordo com a renda.
+
+```{r}
+tab_probit <- readr::read_rds(
+  here::here("posts/general-posts/2023-12-carros-renda/tab_results_probit.rds")
+)
+
+ggplot(tab_probit, aes(x = lrenda, y = response, color = child_label)) +
+  geom_point() +
+  geom_line(lwd = 0.8) +
+  facet_grid(vars(educ_label), vars(fem_label)) +
+  scale_x_continuous(
+    breaks = log(seq(1000, 10000, 1000)),
+    labels = format(round(seq(1000, 10000, 1000) * 1.37918360, -2), big.mark = ".")
+    ) +
+  scale_y_continuous(
+    breaks = seq(0, 1, 0.2),
+    labels = scales::label_percent(),
+    limits = c(0, 1)
+    ) +
+  scale_color_manual(name = "", values = c("#023047", "#fb8500")) +
+  labs(
+    title = "Ter uma criança aumenta a probabilidade de ter um automóvel",
+    subtitle = "Simulações do modelo Probit considerando um domicílio chefiado por uma pessoa de 35 a 44 anos localizado em Pinheiros.",
+    x = "Renda Familiar (R$ dez/2023, log)",
+    y = "Probabilidade de ter um automóvel"
+    ) +
+  theme_vini +
+  theme(
+    legend.position = "bottom",
+    axis.text.x = element_text(angle = 90),
+    strip.background = element_rect(color = "gray10"),
+    plot.background = element_rect(color = "gray10"),
+    panel.background = element_rect(color = "gray20")
+  )
+```
+
+## Referências
+
+-   [Cornut, B., & Madre, J. L. (2017). A longitudinal perspective on car ownership and use in relation with income inequalities in the Paris metropolitan area. *Transport Reviews*, *37*(2), 227-244.](https://www.tandfonline.com/doi/abs/10.1080/01441647.2016.1245218)
+
+-   [Dargay, J. M. (2001). The effect of income on car ownership: evidence of asymmetry. *Transportation Research Part A: Policy and Practice*, *35*(9), 807-821.](https://www.sciencedirect.com/science/article/abs/pii/S0965856400000185)
+
+-   [Dargay, J., & Gately, D. (1999). Income's effect on car and vehicle ownership, worldwide: 1960--2015. *Transportation Research Part A: Policy and Practice*, *33*(2), 101-138.](https://www.sciencedirect.com/science/article/pii/S0965856498000263)
+
+-   [Nolan, A. (2010). A dynamic analysis of household car ownership. *Transportation research part A: policy and practice*, *44*(6), 446-455.](https://www.sciencedirect.com/science/article/abs/pii/S0965856410000571)
