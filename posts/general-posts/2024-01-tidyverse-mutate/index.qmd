@@ -1,0 +1,309 @@
+---
+title: "O novo tidyverse: mutate"
+date: "2024-01-21"
+categories: ['data-science', 'tutorial-R', 'tidyverse']
+description: "Neste post ensino abordagens diferentes para renomear colunas de maneira eficiente."
+image: "/static/images/dplyr_logo.png" 
+image-alt: "/static/images/dplyr_logo.png"
+execute: 
+  eval: false
+  message: false
+  warning: false
+---
+
+```{r}
+#| include: false
+
+print_table <- function(dat) {
+  
+  dat |> 
+    gt::gt() |> 
+    gt::opt_stylize(style = 6, color = "green")
+  
+}
+
+library(dplyr)
+```
+
+# Tidyverse
+
+O tidyverse é uma coleção poderosa de pacotes, voltados para a manipulação e limpeza de dados. Num outro post, discuti alguns [aspectos gerais da filosofia](https://restateinsight.com/posts/general-posts/2023-09-tidyverse/) destes pacotes que incluem a sua consistência sintática e o uso de [pipes](https://restateinsight.com/posts/general-posts/2023-09-pipes-in-r/). A filosofia geral do tidyverse toma muito emprestado da gramática. As funções têm nomes de verbos que costumam ser intuitivos e são encadeados via "pipes" que funcionam como conectivos numa frase. Em tese, isto torna o código mais legível e até mais didático.
+
+O tidyverse está em constante expansão, novas funcionalidades são criadas para melhorar a performance e capabilidade de suas funções. Assim, é importante atualizar nosso conhecimento destes pacotes periodicamente. Nesta série de posts vou focar nas funções principais dos pacotes `dplyr` e `tidyr`, voltados para a limpeza de dados.
+
+# Alguns verbos
+
+Essencialmente, o `dplyr` gira em torno de quatro grandes funções: `filter`, `select`, `mutate` e `summarise`. Estas funções fazem o grosso do trabalho de limpeza de dados: filtram linhas, selecionam colunas e transformam os dados. A tabela abaixo resume as principais funções do pacote.
+
+| Nome da Função | Tradução          | O que faz                                                         |
+|---------------|---------------|-------------------------------------------|
+| `rename`       | Renomear          | Modifica o nome das colunas.                                      |
+| `select`       | Selecionar        | Seleciona as colunas.                                             |
+| `filter`       | Filtrar           | Filtra/seleciona as linhas segundo alguma condição.               |
+| `arrange`      | Arranjar/ordenar  | Ordena as linhas (crescente/decrescente) segundo alguma variável. |
+| `mutate`       | Mutar/transformar | Cria uma nova coluna a partir de outras colunas ou dados.         |
+| `summarise`    | Sumarizar/resumir | Aplica alguma função sobre as linhas. Cria uma tabela "resumo".   |
+| `group_by`     | Agrupar           | Agrupa as linhas segundo alguma variável.                         |
+
+# mutate
+
+## O básico
+
+Os pacotes utilizados neste tutorial são listados abaixo.
+
+```{r}
+#| eval: true
+library(dplyr)
+library(readr)
+```
+
+Para praticar as funções vamos utilizar uma tabela que traz informações sobre as cidades do Brasil.
+
+```{r}
+#| include: false
+#| eval: true
+tbl <- readr::read_csv(here::here("static/data/cities_brazil.csv"))
+```
+
+```{r}
+tbl <- readr::read_csv(
+  "https://github.com/viniciusoike/restateinsight/raw/main/static/data/cities_brazil.csv"
+  )
+```
+
+A função mutate serve para criar novas colunas a partir de colunas pré-existentes. Ela segue a seguinte sintaxe:
+
+``` r
+mutate(coluna_nova = f(coluna_velha))
+```
+
+onde `f()` designa algum transformação que é feita sobre os dados antigos. Em geral, esta transformação é alguma operação matemática (`+`, `-`, `log`, etc.), transformação de classe (e.g. `as.numeric`), ou função em geral. Abaixo mostra-se alguns exemplos de transformações simples. Como as saídas ocupam muito espaço, vou omiti-las.
+
+A primeira linha cria uma coluna onde todas as entradas são iguais a 1. O segundo exemplo aplica a função `log` sobre a variável `pib`. O terceiro exemplo divide a coluna `household` por um milhão. Por fim, o quarto exemplo mostra como dropar uma coluna usando a função `mutate`.
+
+```{r}
+#| eval: false
+#> Cria uma coluna onde todas as entradas são iguais a 1
+mutate(tbl, id = 1)
+#> Cria a coluna 'lpib' igual ao logaritmo natural do 'pib'
+mutate(tbl, lpib = log(pib))
+#> Cria a coluna hh igual a 'household' dividido por 1 milhão
+mutate(tbl, hh = household / 1e6)
+#> Dropa a coluna pib
+mutate(tbl, pib = NULL)
+```
+
+Vale notar que, assim como a função `filter` é mais eficiente juntar todas as operações dentro de um único `mutate`:
+
+```{r}
+#| eval: false
+tbl |> 
+  mutate(
+    id = 1,
+    lpib = log(pib),
+    hh = household / 1e6,
+    pib = NULL
+  )
+```
+
+Um fato conveniente da função `mutate` é que ela vai criando as colunas sequencialmente, assim é possível fazer diversas transformações numa mesma chamada à função. No caso abaixo, pode-se criar a variável `lpibpc` a partir das colunas `lpib` e `lpop`; similarmente, pode-se criar a coluna `lpibs` a partir de `pibserv`, que é a soma de `pib_services` e `pib_govmt_services`
+
+```{r}
+#| eval: false
+tbl |> 
+  mutate(
+    lpib = log(pib),
+    lpop = log(population),
+    #> Criando uma variável a partir de duas colunas criadas anteriormente
+    lpibpc = lpib - lpop,
+    pibserv = pib_services + pib_govmt_services,
+    #> Criando uma variável a partir de duas colunas criadas anteriormente
+    lpibs = log(pibserv)
+  )
+```
+
+## Grupos
+
+A expressão `mutate` sempre é aplicada dentro de grupos. No caso em que não existe um grupo, a expressão é aplicada para todos os dados disponíveis. O código abaixo, por exemplo, encontra a participação percentual do PIB de cada município no PIB brasileiro.
+
+```{r}
+#| eval: true
+tbl |> 
+  select(name_muni, abbrev_state, pib) |> 
+  mutate(pib_share = pib / sum(pib) * 100) |> 
+  arrange(desc(pib_share))
+```
+
+Já este segundo código encontra a participação percentual do PIB de cada município dentro do seu respectivo estado.
+
+```{r}
+#| eval: true
+tbl |> 
+  select(name_muni, abbrev_state, pib) |> 
+  mutate(pib_share = pib / sum(pib) * 100, .by = "abbrev_state") |> 
+  arrange(desc(pib_share))
+```
+
+Vale notar que a sintaxe `.by = "coluna"` é nova e ainda está em fase experimental. Ela substitui a sintaxe mais antiga do `group_by`. O código acima é equivalente ao código abaixo.
+
+```{r}
+tbl |> 
+  select(name_muni, abbrev_state, pib) |> 
+  group_by(abbre_state) |> 
+  mutate(pib_share = pib / sum(pib) * 100) |> 
+  ungroup()
+```
+
+Uma das vantagens de usar `.by` é que não é necessário usar `ungroup` já que os dados são desagrupados automaticamente.
+
+## Transformando múltiplas colunas
+
+A função `mutate` tem um par importante na função `across`, que permite aplicar uma mesma função a múltiplas colunas com facilidade. Imagine o seguinte caso, onde quer-se aplicar a função `scale`, que serve para "normalizar" vetores numéricos, em todas as colunas de uma base. Tipicamente, seria necessário escrever e nomear cada coluna
+
+```{r}
+#| eval: false
+tbl |> 
+  mutate(
+    scaled_pib = scale(pib),
+    scaled_pop = scale(population),
+    scaled_agriculture = scale(pib_agriculture),
+    scaled_industrial = scale(pib_industrial),
+    ...
+  )
+```
+
+Em linhas gerais, o resultado do código acima pode ser replicado simplesmente com:
+
+```{r}
+tbl |> 
+  mutate(
+    across(where(is.numeric), scale)
+  )
+```
+
+A função `across` serve para aplicar uma função sobre um subconjunto de colunas seguindo: `across(colunas, funcao)`. Ela funciona com os `tidyselectors`, facilitando a seleção de colunas a ser transformadas. Funções mais complexas podem ser utilizadas via função anônima usando o operador `~`.
+
+O primeiro exemplo abaixo mostra como aplicar a função `log` em todas as colunas cujo nome começa com `pib`. Já o segundo exemplo mostra como converter todas as colunas do tipo `character` para `factor`. O terceiro exemplo mostra como converter as colunas de `factor` para `numeric` utilizando o operador `~`. Os últimos dois exemplos mostram outras aplicações do mesmo operador.
+
+```{r}
+#> Aplica uma transformação log em todas as colunas que começam com pib
+mutate(tbl, across(starts_with("pib"), log))
+#> Converte todas as colunas de strings para factors
+mutate(tbl, across(where(is.character), as.factor))
+#> Converte as colunas de factors para numeric
+mutate(tbl, across(where(is.factor), ~ as.numeric(as.character(.x))))
+#> Divide por pib e multiplica por 100 todas as colunas entre pib_taxes e
+#> pib_govmt_services
+mutate(tbl, across(pib_taxes:pib_govmt_services, ~.x / pib * 100))
+#> Normaliza todas as colunas numéricas
+mutate(tbl, across(where(is.numeric), ~ as.numeric(scale(.x))))
+```
+
+Por fim, existe um argumento opcional `.names` que permite renomear as novas colunas usando uma sintaxe estilo `glue`[^1]. Esta sintaxe tem dois tipos especiais importantes: `{.col}`, que faz referência ao nome original da coluna, e `{.fn}`, que faz referência ao nome da função utilizada. O exemplo abaixo refina o primeiro caso que vimos acima. Agora aplica-se a função `as.numeric(scale(x))` sobre cada uma das colunas numéricas. As novas colunas têm o nome `"scaled_NomeOriginalDaColuna"`.
+
+[^1]: Do pacote `glue`. [Veja mais aqui](https://glue.tidyverse.org).
+
+```{r}
+tbl |> 
+  mutate(
+    across(
+      where(is.numeric),
+      ~ as.numeric(scale(.x)),
+      .names = "scaled_{.col}"
+      )
+  )
+```
+
+O tipo especial `{.fn}` é bastante útil com a função `summarise`, que permite aplicar uma lista de múltiplas funções simultaneamente. Ainda assim, é possível utilizá-lo com a função `mutate`. A sintaxe tem de ser adaptada, pois `{.fn}` espera que a função tenha sido passada como uma lista com nomes. No exemplo abaixo, aplica-se a função `log` sobre todas as colunas númericas e as colunas resultantes são renomeadas. Vale notar que, na maioria dos casos, não vale a pena utilizar `{.fn}` no contexto do `mutate`.
+
+```{r}
+tbl |> 
+  mutate(
+    across(
+      where(is.numeric),
+      list("ln" = log),
+      .names = "{.fn}_{.col}"
+      )
+  )
+```
+
+## Outros argumentos
+
+A função `mutate` tem alguns outros argumentos, de uso diverso. Os argumentos `.before` e `.after` permitem selecionar a posição das novas colunas. O padrão da função é de sempre adicionar as novas colunas ao final do `data.frame`. Estes argumentos aceitam o nome de alguma das colunas ou mesmo funções tidyselect. No caso abaixo, cria-se a coluna `lpib` que é posta no início do `data.frame`.
+
+```{r}
+#| eval: true
+tbl |> 
+  mutate(
+    lpib = log(pib),
+    .before = everything()
+  ) |> 
+  select(1:5)
+```
+
+O outro argumento opcional é o `.keep` que permite controlar quais colunas devem ser preservadas após a aplicação da função `mutate`. O padrão da função, naturalmente, é de preservar todas as colunas, isto é, `.keep = "all"`. Contudo, pode-se usar `.keep = "used"` para manter somente as colunas que foram utilizadas.
+
+```{r}
+#| eval: true
+tbl |> 
+  mutate(
+    code_muni = as.character(code_muni),
+    lpib = log(pib),
+    .keep = "used"
+    )
+```
+
+Vale notar que `.keep = "used"` sempre preserva as colunas "agrupadoras".
+
+```{r}
+#| eval: true
+tbl |> 
+  mutate(
+    code_muni = as.character(code_muni),
+    lpib = log(pib),
+    .by = "code_state",
+    .keep = "used"
+    )
+```
+
+## Funções úteis
+
+Abaixo segue uma lista de funções úteis.
+
+```{r}
+tbl |> 
+  mutate(
+    #> Cria um ranking da variável
+    rank_pib = rank(pib),
+    #> Cria um rakning (em percentil) da variável
+    rank_perc_pib = percent_rank(pib),
+    #> Agrupa em decis 
+    group_decile_pib = ntile(pib, 10),
+    #> Cria um id
+    id = row_number(),
+    #> Aplica uma transformação condicional a uma condição lógica
+    lpib = ifelse(pib > 0, log(pib), 1),
+    #> Aplica uma transformação condicional a múltiplas condições lógicas
+    type = case_when(
+      code_state %in% c(11, 12, 13) ~ "grupo_1",
+      code_state %in% c(14, 15, 16) ~ "grupo_2",
+      TRUE ~ "outros"
+    ),
+    #> Soma cumulativa
+    spib = cumsum(pib),
+    #> Diferença percentual usando o valor imediatamente anterior
+    diff_pib = pib / lag(pib) - 1,
+    #> Participação relativa da variável
+    share_pib = pib / sum(pib, na.rm = TRUE) * 100,
+    #> Normalizar variável
+    scaled_pib = as.numeric(scale(pib))
+  )
+```
+
+# Outros posts da série
+
+-   select
+
+-   filter
+
+-   [rename](https://restateinsight.com/posts/general-posts/2024-01-tidyverse-rename/)
