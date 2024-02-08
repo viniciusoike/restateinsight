@@ -1,9 +1,9 @@
 ---
 title: 'You need a map - Parte 2'
-date: '2023-01-05'
+date: '2024-01-05'
 categories: ['data visualization', 'ggplot2', 'turorial-R']
-description: "Facets são pequenos gráficos que, lado a lado, ajudam a comparar várias informações ao mesmo tempo. Este post intermediário ensina a fazer gráficos de facets no R usando o ggplot2."
-draft: true
+description: "Neste segundo post mostro o básico de como trabalhar com objetos espaciais e como montar mapas coropléticos. Estes mapas apresentam a distribuição espacial de uma variável numérica e são extremamente úteis. Apresento também alguns mapas temáticas como o mapa de quebras naturais e o mapa de desvios-padrão."
+image: "/static/maps/ggplot2_tutorial.png"
 ---
 
 ```{r}
@@ -26,9 +26,6 @@ knitr::opts_chunk$set(
   dpi = 72
   )
 
-library(dplyr)
-library(tidyr)
-library(pwt10)
 library(patchwork)
 
 print_table <- function(x) {
@@ -50,7 +47,6 @@ library(sf)
 library(dplyr)
 sf::sf_use_s2(FALSE)
 
-rent <- readr::read_csv(here::here("posts/ggplot2-tutorial/rents_liberdade.csv"))
 cem <- readr::read_csv(here::here("static/data/cem_imoveis.zip"))
 pod <- readr::read_csv(here::here("posts/ggplot2-tutorial/table_pod.csv"))
 cem2010 <- filter(cem, ano_lanc == 2010)
@@ -64,13 +60,35 @@ cem08 <- filter(cem, ano_lanc == 2008)
 
 # Objetos espaciais
 
-No primeiro caso, o desafio é conseguir aprender o mínimo necessário para lidar com objetos espaciais. Neste sentido, não vou fingir que entendo o que significa CRS, EPSG, GDAL, etc. Apenas saiba que a Terra, infelizmente, não é plana, então é preciso sempre escolher algum tipo de projeção que mapeie nosso planeta tri-dimensional num plano bi-dimensional. Na prática, lembre-se dos números 4326, 4674 e 32722.
+Dados espaciais são um tipo especial de dado geralmente representados por uma de três formas geométricas: pontos, linhas ou polígonos. Em alguns casos, como visto no post anterior, é possível tratar estes dados como dados tabulares quaisquer. Na maioria dos casos, contudo, será necessário maior cuidado. Isto acontece não somente por causa da complexidade das figuras geométricas, mas também porque dados espaciais carregam uma quantidade relativamente expressiva de metadados. Estes metadados caracterizam diversos aspectos sobre estes dados. Uma das funções destes metadados é de explicar ao `R` como aqueles dados estão projetados no espaço.
 
-Felizmente, existe o pacote {sf} que funciona como um `data.frame` com uma coluna especial chamada `geometry`. É possível ignorar a existência desta coluna e trabalhar normalmente com seus dados, usando todo o seu conhecimento acumulado previamente com dados tabulares convencionais. Eventualmente, será necessário juntar um shapefile com uma base de dados e até com outro shapefile; o {sf} também facilita isto bastante.
+Esta é uma discussão bastante técnica e neste post vou apresentar apenas o essencial para a construção de mapas. Isto é, vou ignorar os detalhes da projeção e até de convenções cartográficas e vou me focar em casos aplicados simples. Uma introdução a estes assuntos pode ser vista em [Geocomputation with R](https://r.geocompx.org/spatial-class).
 
-No segundo caso, das convenções, novamente, não vou fingir que eu entendo algo sobre cartografia, que me interesse fazer mapas com uma escala, com uma seta indicando o norte, com linhas paralelas indicando meridianos, etc. Saiba que tudo isto é muito possível de ser feito dentro do R e que eu não faço isso.
+```{r}
+#| eval: false
+library(ggplot2)
+library(ggthemes)
+library(dplyr)
+library(readr)
 
-Após um longo e raivoso interlúdio chegamos, finalmente, aos mapas estáticos que utilizam, de fato, objetos espaciais. Vou discutir apenas objetos espaciais no formato de vetores (*vector shape file*) já que eles são mais prevalentes nas ciências socias em geral.
+library(sf)
+library(spData)
+library(geobr)
+library(censobr)
+library(osmdata)
+library(raster)
+library(elevatr)
+```
+
+## Introdução ao `sf`
+
+O pacote `{sf}` funciona como um `data.frame` com uma coluna especial chamada `geometry`. É possível ignorar a existência desta coluna e trabalhar normalmente com seus dados, usando todo o seu conhecimento acumulado previamente com dados tabulares convencionais. Eventualmente, será necessário juntar um shapefile com uma base de dados e até com outro shapefile; o `{sf}` também facilita isto bastante.
+
+Como comentado acima, vou ignorar a maior parte das convenções cartográficas (escala, rosa dos ventos, etc.). Vale comentar, contudo, que é possível incluir estes elementos no `R` sem grandes problemas.
+
+Vou discutir majoritariamente sobre objetos espaciais no formato de vetores (*vector shape file*) já que eles são mais prevalentes nas ciências socias em geral. Vou mostrar apenas um exemplo usando dados em formato *raster*.
+
+### Introdução a objetos espaciais
 
 Há três peças fundamentais que vamos ver: pontos, linhas e polígonos. Nos três casos, usa-se a mesma função `geom_sf()` para montar a visualização. Os elementos estéticos seguem a mesma lógica das funções `geom_point()`, `geom_line()` e `geom_rect()`, respectivamente. Assim, para tornar um objeto espacial, em formato de linha, mais grosso, usa-se `linewidth = 2`, por exemplo.
 
@@ -78,12 +96,24 @@ Vou começar assumindo um conhecimento mínimo de `R` apesar deste ser um capít
 
 A estrutura de objetos espaciais é um `sf`/`data.frame` ou um "spatial data frame". Este objeto é essencialmente igual a um `data.frame` convencional, mas ele possui uma coluna especial chamada `geom` ou `geometry`. Para criar um objeto `sf` a partir de um `data.frame` ou `tibble` usa-se a função `st_as_sf`.
 
-O tipo mais simples de objeto geométrico é o ponto, definido por uma coordenada horizontal e uma coordenada vertical. O exemplo abaixo mostra como criar um spatial data.frame de pontos a partir dos dados de latitude e longitude do CEM. Note que é preciso escolher um sistema de projeção e eu escolho o [SIRGAS 2000 EPSG: 4674](https://epsg.io/4674), um sistema de projeção de referência para a América Latina. Para verificar o tipo de geometria dos objetos uso `st_geometry`.
+### Pontos
+
+O tipo mais simples de objeto geométrico é o ponto, definido por uma coordenada horizontal e uma coordenada vertical. O exemplo abaixo mostra como criar um spatial `data.frame` de pontos a partir dos dados de latitude e longitude da base do CEM. O primeiro código abaixo importa a base de dados tabulares e filtra os dados apenas para o ano de 2008 em São Paulo.
 
 ```{r}
-library(sf)
-library(dplyr)
+#| eval: false
+cem <- read_csv("...")
 
+cem <- cem |> 
+  mutate(code_muni = as.numeric(substr(ap2010, 1, 7))) |> 
+  filter(code_muni == 3550308)
+
+cem08 <- filter(cem, ano_lanc == 2008)
+```
+
+Note que é preciso escolher um sistema de projeção e eu escolho o [SIRGAS 2000 EPSG: 4674](https://epsg.io/4674), um sistema de projeção de referência para a América Latina. Para verificar o tipo de geometria dos objetos uso `st_geometry`.
+
+```{r}
 points_cem <- st_as_sf(cem08, coords = c("lon", "lat"), crs = 4674)
 
 st_geometry(points_cem)
@@ -119,7 +149,46 @@ ggplot(quadrado) +
   geom_sf()
 ```
 
-Vamos começar importando um shapefile dos estados do Brasil, usando o excelente {geobr}. Note que este objeto possui uma coluna `geom` que guarda um objeto do tipo `MULTIPOLYGON`. Este é um tipo de polígono.
+### Linhas
+
+O pacote `spData` traz várias bases de dados espaciais interessantes. Para exemplificar um caso de linhas, vamos explorar a base `seine` que mostra os rios Seine, Marne e Yonne, na França.
+
+```{r}
+spData::seine
+```
+
+Novamente, podemos verificar o tipo de geometria deste objeto. Note que os dados estão em uma projeção específica (RGF93 / EPSG2154) em que os dados não estão em latitude/longitude, mas sim em metros.
+
+```{r}
+st_geometry(seine)
+```
+
+O gráfico abaixo mostra o gráfico padrão usando `geom_sf` e mais alguns exemplos de customização. Note que os argumentos são essencialmente os mesmos que se fornece à função `geom_line`/`geom_path`.
+
+```{r}
+#| eval: false
+#| 
+ggplot(seine) + geom_sf()
+ggplot(seine) + geom_sf(lwd = 1)
+ggplot(seine) + geom_sf(lwd = 0.4, color = "dodgerblue3")
+ggplot(seine) + geom_sf(linetype = 2)
+```
+
+```{r}
+#| echo: false
+library(patchwork)
+
+p1 <- ggplot(seine) + geom_sf() + ggtitle("Padrão")
+p2 <- ggplot(seine) + geom_sf(lwd = 1) + ggtitle("lwd = 1")
+p3 <- ggplot(seine) + geom_sf(lwd = 0.4, color = "dodgerblue3") + ggtitle("lwd = 0.4")
+p4 <- ggplot(seine) + geom_sf(linetype = 2) + ggtitle("linetype = 2")
+
+(p1 + p2) / (p3 + p4)
+```
+
+### Polígonos
+
+Vamos começar importando um shapefile dos estados do Brasil, usando o excelente `{geobr}`. Note que este objeto possui uma coluna `geom` que guarda um objeto do tipo `MULTIPOLYGON`. Este é um tipo de polígono.
 
 ```{r}
 ufs <- geobr::read_state(showProgress = FALSE)
@@ -134,18 +203,20 @@ ggplot(ufs) +
   geom_sf()
 ```
 
-Como mencionei acima, a função `geom_sf` aceita vários argumentos estéticos já que ela desenha pontos, linhas e polígonos. No caso do mapa abaixo, `color` define a cor do contorno/fronteira do polígono, enquanto `fill` define a cor do interior do polígono.
+A função `geom_sf` aceita vários argumentos estéticos já que ela desenha pontos, linhas e polígonos. No caso do mapa abaixo, `color` define a cor do contorno/fronteira do polígono, enquanto `fill` define a cor do interior do polígono.
 
 ```{r}
 ggplot(ufs) +
-  geom_sf(color = "#000000", aes(fill = name_region)) +
+  geom_sf(color = "gray90", aes(fill = name_region), lwd = 0.05) +
   scale_fill_brewer(name = "", type = "qual") +
   theme(legend.position = "top")
 ```
 
+Por fim, vale notar que é possível usar a função `coord_sf` para fazer um "zoom" no mapa.
+
 ```{r}
 ggplot(ufs) +
-  geom_sf(color = "#000000", aes(fill = name_region)) +
+  geom_sf(aes(fill = name_region), lwd = 0.05) +
   scale_fill_brewer(name = "", type = "qual") +
   theme(legend.position = "top") +
   coord_sf(xlim = c(-60, -48), ylim = c(-35, -20))
@@ -153,9 +224,17 @@ ggplot(ufs) +
 
 # Mapas coropléticos
 
-Um mapa coroplético é um mapa colorido, em que as cores representam valores de alguma variável.
+Um mapa coroplético é um mapa colorido, em que as cores representam valores de alguma variável. Há inúmeros exemplos de mapas coropléticos. Abaixo listo alguns posts recentes em que faço mapas deste tipo.
+
+-   [Taxa de veículos em São Paulo](https://restateinsight.com/posts/general-posts/2023-11-wz-cars/)
+
+-   [Taxa de envelhecimento nos municípios do Brasil](https://restateinsight.com/posts/general-posts/2023-11-wz-census-ages/)
+
+-   [Taxa de crescimento geométrico nos municípios do Brasil](https://restateinsight.com/posts/general-posts/2023-10-wz-census/)
 
 ## Juntando shapes e dados
+
+Para compor este tipo de mapa é necessário combinar dados tabulares com objetos geométricos. No exemplo abaixo, vamos novamente considerar a tabela de tipo de propriedade do domicílio por UF.
 
 ```{r}
 #| code-fold: true
@@ -192,11 +271,11 @@ rented <- tibble::tribble(
   )
 ```
 
-```{r}
-ufs_rent <- left_join(ufs, rented, by = "abbrev_state")
-```
+Para juntar esta base com o shapefile das UFs, gerado pelo `geobr`, basta usar a função `left_join` do pacote `dplyr`. Esta função tem o cuidado de preservar a geometria do objeto espacial. Note que o objeto espacial (`sf`) deve sempre vir na esquerda: `left_join(objeto_espacial, base_de_dados, by = "chave")`.
 
 ```{r}
+ufs_rent <- left_join(ufs, rented, by = "abbrev_state")
+
 ggplot(ufs_rent) + 
   geom_sf(aes(fill = share_rented)) +
   scale_fill_distiller(direction = 1) +
@@ -204,6 +283,8 @@ ggplot(ufs_rent) +
 ```
 
 ## Temas para mapas
+
+Não há grande variedade de temas para mapas. Em geral, usa-se ou `ggthemes::theme_map()` ou `theme_void()`. Estes temas apagam a maioria dos elementos temáticos do gráfico, como eixos e linhas de grade.
 
 ```{r}
 #| fig-pos: "hold"
@@ -230,320 +311,213 @@ Há três maneiras simples de agrupar dados contínuos para fazer mapas:
 
 1.  Usar alguma variação de percentil, isto, quintis, decis, etc.
 2.  Usar o algoritmo de Jenks.
-3.  Definir quebras manualmente.
+3.  Usar a distribuição dos dados.
+4.  Definir quebras manualmente.
+
+Vamos montar o mapa da renda domiciliar per capita de Porto Alegre a nível de setor censitário. Para importar os dados vamos usar o pacote `censobr`. O código abaixo é adaptado da páginas de exemplos do pacote.
 
 ```{r}
+#| code-fold: true
 
-```
+library(arrow)
+library(censobr)
 
-## Usando labels
-
-```{r}
-ggplot(ufs_rent) + 
-  geom_sf(aes(fill = share_rented)) +
-  geom_sf_label(aes(label = share_rented), size = 2) +
-  scale_fill_distiller(direction = 1) +
-  coord_sf(xlim = c(NA, -35))
-```
-
-## Encontrando os pontos dentro dos polígonos
-
-```{r}
-area_ponderacao <- geobr::read_weighting_area(3550308, showProgress = FALSE)
-
-cem2010 <- filter(cem, ano_lanc == 2010)
-
-cem2010 <- st_as_sf(cem2010, coords = c("lon", "lat"), crs = 4674)
-
-joined <- cem2010 |> 
-  st_join(area_ponderacao) |> 
-  filter(!is.na(code_weighting))
-```
-
-```{r}
-ggplot() +
-  geom_sf(data = area_ponderacao) + 
-  geom_sf(data = cem2010, size = 0.1)
-
-ggplot() +
-  geom_sf(data = area_ponderacao) + 
-  geom_sf(data = joined, size = 0.1)
-```
-
-```{r}
-tab_price_m2 <- joined |> 
-  st_drop_geometry() |> 
-  summarise(
-    avg_m2 = weighted.mean(pc_m2_au, emp_unid),
-    .by = "code_weighting"
-    )
-
-price_areas <- left_join(area_ponderacao, tab_price_m2, by = 'code_weighting')
-```
-
-```{r}
-ggplot(price_areas) + 
-  geom_sf(aes(fill = avg_m2)) +
-  scale_fill_viridis_c(option = "inferno")
-```
-
-```{r}
-bbox <- st_bbox(
-  c(ymin = -23.612637, ymax = -23.520459, xmin = -46.714894, xmax = -46.525062)
+#> Importa o shapefile dos setores censitários de Porto Alegre
+tracts <- geobr::read_census_tract(
+  code_tract = 4314902,
+  year = 2010,
+  simplified = FALSE,
+  showProgress = FALSE
   )
 
-bbox <- st_as_sfc(bbox)
-bbox <- st_as_sf(bbox, crs = 4674)
-```
-
-```{r}
-grid <- bbox |> 
-  st_transform(crs = 32722) |> 
-  st_make_grid(cellsize = 500) |> 
-  st_as_sf()
-
-ggplot(grid) + geom_sf()
-```
-
-```{r}
-grid$gid <- 1:nrow(grid)
-grid <- st_transform(grid, crs = 4674)
-
-points_grid <- cem2010 |> 
-  st_join(grid) |> 
-  filter(!is.na(gid))
-
-tab_count = points_grid |> 
-  st_drop_geometry() |> 
-  summarise(count = sum(emp_unid), .by = "gid")
-
-grid_count = left_join(grid, tab_count, by = "gid")
-
-ggplot(grid_count) + 
-  geom_sf(aes(fill = count)) +
-  coord_sf()
-```
-
-# Mapas com elementos de mapas
-
-Para introduzir os mapas com "elementos de mapas"
-
-```{r}
-library(osmdata)
-
-## osmdata -----------------------------------------------------------------
-
-# Define bbox
-bbox <- getbb("Liberdade, São Paulo, Brazil")
-# Base query
-qr <- opq(bbox)
-
-# Add feature requests to query
-
-# All roads
-qr_roads <- add_osm_feature(qr, key = "highway")
-# Only big roads
-qr_big_streets <- add_osm_feature(
-  qr,
-  key = "highway",
-  value = c("motorway", "primary", "motorway_link", "primary_link")
-)
-# Only medium roads
-qr_med_streets <- add_osm_feature(
-  qr,
-  key = "highway",
-  value = c("secondary", "tertiary", "secondary_link", "tertiary_link")
-)
-# Only small roads
-qr_small_streets <- add_osm_feature(
-  qr,
-  key = "highway",
-  value = c("residential", "living_street", "unclassified", "service",
-            "footway")
-)
-# Download
-roads <- osmdata_sf(q = qr_roads)
-big_streets <- osmdata_sf(q = qr_big_streets)
-med_streets <- osmdata_sf(q = qr_med_streets)
-small_streets <- osmdata_sf(q = qr_small_streets)
-
-s1 <- big_streets$osm_lines %>%
-  st_transform(crs = 4674)
-
-s2 <- med_streets$osm_lines %>%
-  st_transform(crs = 4674)
-
-s3 <- small_streets$osm_lines %>%
-  st_transform(crs = 4674)
-
-```
-
-```{r}
-ggplot() +
-  geom_sf(
-    data = s1,
-    key_glyph = draw_key_rect,
-    size = 2
-  ) +
-  geom_sf(
-    data = s2,
-    key_glyph = draw_key_rect,
-    size = 0.6,
-    color = "gray40"
-  ) +
-  geom_sf(
-    data = s3,
-    key_glyph = draw_key_rect,
-    size = 0.45,
-    color = "gray50"
+#> Importa a tabela Basico do Censo (2010)
+tract_basico <- read_tracts(
+  year = 2010,
+  dataset = "Basico", 
+  showProgress = FALSE
   )
-```
-
-```{r}
-ggplot() +
-  geom_sf(data = s1, key_glyph = draw_key_rect, size = 2) +
-  geom_sf(data = s2, key_glyph = draw_key_rect, size = 0.6) +
-  geom_sf(data = s3, key_glyph = draw_key_rect, size = 0.45) +
-  geom_point(
-    data = rent,
-    aes(x = house_lng, y = house_lat),
-    size = 0.4,
-    color = "#023047"
-  ) +
-  geom_density_2d(
-    data = rent,
-    aes(x = house_lng, y = house_lat)
-  ) +
-  labs(x = NULL, y = NULL) +
-  scale_x_continuous(expand = c(0,0)) +
-  scale_y_continuous(expand = c(0,0)) +
-  cowplot::theme_nothing()
-
-```
-
-## Elevação em São Paulo
-
-```{r}
-#> Importa o shape file do limite do município de São Paulo
-border <- geobr::read_municipality(3550308, showProgress = FALSE)
-
-#> Importa dados com a elevação da cidade
-elevation <- elevatr::get_elev_raster(border, z = 7)
-#> Transforma os dados em polígonos e converte para sf
-elevation <- raster::rasterToPolygons(elevation)
-elevation <- st_as_sf(elevation)
-names(elevation)[1] <- "elevation"
-
-#> Converte CRS e junta o shape de altitude com o shape da cidade
-spo_alti <- elevation %>%
-  st_transform(crs = 4674) %>%
-  st_intersection(border) %>%
-  filter(st_is_valid(.))
-```
-
-```{r}
-ggplot() +
-  geom_sf(data = spo_alti, aes(color = elevation, fill = elevation)) +
-  scale_color_viridis_c(name = "", option = "inferno", direction = -1) +
-  scale_fill_viridis_c(name = "", option = "inferno", direction = -1) +
-  coord_sf() +
-  theme(legend.position = "top")
-```
-
-```{r}
-jbreaks <- BAMMtools::getJenksBreaks(spo_alti$elevation, k = 8)
-jbreaks <- round(jbreaks, -1)
-jlabels <- paste(jbreaks, jbreaks[-1], sep = "--")
-jlabels[length(jlabels)] <- paste0(max(jbreaks), "+")
-
-spo_alti <- mutate(spo_alti, jenks_group = factor(findInterval(elevation, jbreaks)))
-
-ggplot() +
-  geom_sf(data = spo_alti, aes(color = jenks_group, fill = jenks_group)) +
-  scale_color_viridis_d(name = "", labels = jlabels, option = "inferno") +
-  scale_fill_viridis_d(name = "", labels = jlabels, option = "inferno") +
-  coord_sf() +
-  theme(legend.position = "top")
-```
-
-## Elevação das ruas
-
-```{r}
-border = geobr::read_municipality(3548807, showProgress = FALSE)
-
-bbox <- opq(bbox = "São Caetano do Sul, São Paulo, Brazil")
-
-roads <- add_osm_feature(
-  bbox,
-  key = "highway",
-  value = c("primary", "secondary", "tertiary", "residential")
+#> Importa a tabela DomicilioRenda do Censo (2010)
+tract_income <- read_tracts(
+  year = 2010,
+  dataset = "DomicilioRenda", 
+  showProgress = FALSE
   )
 
-roads_sf <- osmdata_sf(roads)
-roads_sf <- roads_sf$osm_lines
-roads_sf <- st_transform(roads_sf, crs = 4674)
-roads_border <- st_intersection(roads_sf, border)
+#> Seleciona as colunas relevantes
+tract_basico <- tract_basico |>
+  dplyr::filter(code_muni == "4314902") |> 
+  dplyr::select('code_tract','V002')
 
-altitude <- elevatr::get_elev_raster(border, z = 9, clip = "bbox")
-spo_alti <- raster::rasterToPolygons(altitude)
-spo_alti <- sf::st_as_sf(spo_alti)
-names(spo_alti)[1] <- "elevation"
+tract_income <- tract_income |> 
+  dplyr::filter(code_muni == "4314902") |> 
+  dplyr::select('code_tract','V003')
 
-spo_alti <- spo_alti %>%
-  st_transform(crs = 4674) %>%
-  st_intersection(border) %>%
-  filter(st_is_valid(.))
+#> Juntas as bases e importa os dados
+tracts_df <- dplyr::left_join(tract_basico, tract_income)
+tracts_df <- dplyr::collect(tracts_df)
+#> Calcula a renda per capita
+tracts_df <- dplyr::mutate(tracts_df, income_pc = V003 / V002)
+#> Junta os dados com o shapefile
+poa_tracts <- left_join(tracts, tracts_df, by = "code_tract")
+```
 
-jbreaks <- BAMMtools::getJenksBreaks(spo_alti$elevation, k = 5)
+O mapa abaixo mostra o renda domiciliar per capita na zona central de Porto Alegre em cada setor censitário. Pode-se ver, de maneira geral, uma concentração de alta renda na região central em torno dos bairros Moinhos de Vento e Auxiliadora. Já as regiões periféricas da cidade tem renda mais baixa, com exceção de uma parte da Zona Sul da cidade.
 
-spo_alti <- spo_alti %>%
+```{r}
+ggplot(poa_tracts) +
+  geom_sf(aes(fill = income_pc), color = "white", lwd = 0.01) +
+  scale_fill_distiller(name = "", palette = "Greens") +
+  coord_sf(xlim = c(-51.32, -51.1), ylim = c(-30.15, -30)) +
+  ggthemes::theme_map()
+```
+
+### Quintis e decis
+
+É relativamente simples classificar os dados em percentis usando a função `dplyr::ntile`.
+
+```{r}
+# Quintis e decis
+poa_tracts <- poa_tracts |> 
   mutate(
-    jenks_group = factor(findInterval(elevation, jbreaks))
-  )
+    quintil = factor(ntile(income_pc, 5)),
+    decil = factor(ntile(income_pc, 10))
+    )
+```
+
+O mapa abaixo mostra a distribuição espacial do rendimento domiciliar per capita em Porto Alegre por quintis. Nesta visualização, é bastante imediato perceber os grupos de renda da cidade. Note que a legenda do mapa, infelizmente, não mostra o intervalo de renda de cada grupo. Para montar uma legenda mais instrutiva é preciso um pouco de criatividade. A solução mais imediata, que consome menos linhas de código, é usar a função `cut` em conjunto com a função `quantile`. Na minha experiência, os resultados desta combinação costumam ser pouco satisfatórios; o trabalho adicional de se construir a legenda costuma compensar.
+
+```{r}
+ggplot(poa_tracts) +
+  geom_sf(aes(fill = quintil), color = "white", lwd = 0.1) +
+  scale_fill_brewer(name = "", palette = "Greens") +
+  ggtitle("Mapa de quintis") +
+  coord_sf(xlim = c(-51.32, -51.1), ylim = c(-30.15, -30)) +
+  ggthemes::theme_map()
+```
+
+O código abaixo calcula os quantis e monta uma legenda. O código pode parecer um pouco grande, mas é fácil criar uma função que reproduz este funcionamento.
+
+```{r}
+q <- quantile(poa_tracts$income_pc, seq(0.2, 0.8, 0.2), na.rm = TRUE)
+q <- format(round(q), big.mark = ".", trim = TRUE)
+
+l <- paste(q, q[-1], sep = "-")
+l <- c(paste("<", q[1]), l)
+l[length(l)] <- paste(">", q[length(q)])
+
+l
 ```
 
 ```{r}
-get_streets_altitude <- function(altitude, streets) {
+get_legend_discrete <- function(x) {
   
-  stopifnot(any(colnames(altitude) %in% "jenks_group"))
+  y <- suppressWarnings(format(round(x), big.mark = ".", trim = TRUE))
   
-  #> Get all groups
-  groups = levels(altitude$jenks_group)
+  l <- paste(y, y[-1], sep = "-")
+  l <- c(paste("<", y[1]), l)
+  l[length(l)] <- paste(">", y[length(y)])
   
-  #> For each group get the full polygon and join with streets
-  join_streets = function(group) {
-    
-    poly = altitude %>%
-      filter(jenks_group == group) %>%
-      st_union(.) %>%
-      st_as_sf()
-    
-    joined = suppressWarnings(st_intersection(streets, poly))
-    
-    return(joined)
-    
-  }
-  #> Apply the function to all groups
-  street_levels = parallel::mclapply(groups, join_streets)
-  #> Bind all results together
-  names(street_levels) = groups
-  out = bind_rows(street_levels, .id = "level")
-  
-  return(out)
+  return(l)
   
 }
-
-streets_alti <- get_streets_altitude(spo_alti, roads_border)
 ```
+
+O mapa abaixo mostra a renda per capita em decis. Agora usamos a escala de cores `viridis` que costuma funcionar bem com mapas.
 
 ```{r}
-ggplot() +
-  geom_sf(data = streets_alti, aes(color = level, fill = level)) +
-  scale_fill_viridis_d(option = "inferno") +
-  scale_color_viridis_d(option = "inferno") +
-  coord_sf() +
-  cowplot::theme_nothing() +
-  theme(
-    legend.position = "right"
-  )
+
+
+decis <- quantile(poa_tracts$income_pc, seq(0.1, 0.9, 0.1), na.rm = TRUE)
+label_decil <- get_legend_discrete(decis)
+
+ggplot(poa_tracts) +
+  geom_sf(aes(fill = decil), color = "white", lwd = 0.1) +
+  scale_fill_viridis_d(name = "", label = label_decil) +
+  ggtitle("Mapa de Decis") +
+  coord_sf(xlim = c(-51.32, -51.1), ylim = c(-30.15, -30)) +
+  ggthemes::theme_map()
 ```
+
+### Algoritmo de Jenks
+
+O [algoritmo de Jenks](https://en.wikipedia.org/wiki/Jenks_natural_breaks_optimization), também conhecido como algoritmo de quebras naturais, serve para classificar dados em grupos. Essencialmente, o algoritmo tenta encontrar $k$ grupos que sejam o mais homogêneos possíveis. Este método foi desenvolvido pelo cartógrafo [George Jenks](https://en.wikipedia.org/wiki/George_F._Jenks) e costuma funcionar muito bem para a construção de mapas. A implementação mais eficiente do algoritmo no `R` é feita via `BAMMtools::getJenksBreaks`.
+
+Note que é preciso escolher manualmente o número de grupos $k$. Em geral, vale experimentar com alguns valores entre 3-9. Para melhor entender o funcionamento do algoritmo, o gráfico abaixo mostra o histograma da variável de renda per capita, onde as linhas retas indicam as quebras entre os grupos.
+
+```{r}
+jenks <- BAMMtools::getJenksBreaks(poa_tracts$income_pc, k = 7)
+
+ggplot(poa_tracts, aes(x = income_pc)) +
+  geom_histogram(bins = 50) +
+  geom_vline(xintercept = jenks)
+```
+
+O mapa final é feito abaixo.
+
+```{r}
+poa_tracts <- poa_tracts |> 
+  mutate(
+    jenks_groups = factor(findInterval(income_pc, jenks))
+    )
+
+#> Construir a legenda
+label_jenks <- get_legend_discrete(jenks)
+label_jenks[length(label_jenks)] <- NA
+
+ggplot(poa_tracts) +
+  geom_sf(aes(fill = jenks_groups), color = NA) +
+  scale_fill_brewer(
+    name = "",
+    palette = "Greens",
+    labels = label_jenks,
+    na.value = "gray70") +
+  ggtitle("Mapa de Quebras Naturais (Jenks)") +
+  coord_sf(xlim = c(-51.32, -51.1), ylim = c(-30.15, -30)) +
+  ggthemes::theme_map() +
+  theme(plot.background = element_rect(fill = "white"))
+```
+
+### Mapa de desvio-padrão
+
+Também é possível construir mapas usando medidas de dispersão estatísticas tradicionais, como a distância interquartílica ou desvio-padrão. Neste exemplo, vamos classificar os dados como desvios-padrão em relação à média. Para melhorar a visualização, vamos primeiro usar uma transformação log nos dados de renda para que a distribuição fique mais próxima de uma normal.
+
+Este tipo de gráfico funciona bem com escalas de cores divergentes. Note como este mapa destaca as regiões de renda muito alta e também as regiões vulneráveis de renda muito baixa.
+
+```{r}
+poa_tracts <- poa_tracts |> 
+  mutate(
+    lincome_pc = log(income_pc),
+    scale_income = as.numeric(scale(lincome_pc)),
+    sd_groups = factor(findInterval(scale_income, c(-2, -1, 0, 1, 2)))
+  )
+
+l <- c("< -2", "-2 a -1", "-1 a 0", "0 a 1", "1 a 2", "> 2")
+l <- paste(l, "SD")
+
+ggplot(poa_tracts) +
+  geom_sf(aes(fill = sd_groups), color = NA) +
+  scale_fill_brewer(
+    name = "",
+    palette = "RdBu",
+    labels = l,
+    na.value = "gray70") +
+  ggtitle("Mapa de Desvio Padrão") +
+  coord_sf(xlim = c(-51.32, -51.1), ylim = c(-30.15, -30)) +
+  ggthemes::theme_map()
+```
+
+# Posts relacionados
+
+-   [You need a map - Parte 1](https://restateinsight.com/posts/ggplot2-tutorial/12-1-mapas)
+
+-   [Indo além: mapas de calor](https://restateinsight.com/posts/ggplot2-tutorial/11-grafico-calor)
+
+-   [Estético: Escalas e Cores](https://restateinsight.com/posts/ggplot2-tutorial/6-scales-labels)
+
+-   [Altitude das Ruas nas Cidades do Brasil](https://restateinsight.com/posts/general-posts/2023-10-mapas-altitude/)
+
+-   [Taxa de veículos em São Paulo](https://restateinsight.com/posts/general-posts/2023-11-wz-cars/)
+
+-   [Taxa de envelhecimento nos municípios do Brasil](https://restateinsight.com/posts/general-posts/2023-11-wz-census-ages/)
+
+-   [Taxa de crescimento geométrico nos municípios do Brasil](https://restateinsight.com/posts/general-posts/2023-10-wz-census/)
