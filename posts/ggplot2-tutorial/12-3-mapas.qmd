@@ -1,0 +1,260 @@
+---
+title: 'You need a map - Parte 3'
+date: '2024-01-07'
+categories: ['data visualization', 'ggplot2', 'turorial-R']
+description: ""
+draft: true
+---
+
+```{r}
+#| echo: false
+#| results: 'hide'
+renv::use(lockfile = "renv.lock")
+```
+
+# Mapas com elementos de mapas
+
+```{r}
+library(ggplot2)
+library(ggthemes)
+library(dplyr)
+library(sf)
+library(geobr)
+library(osmdata)
+library(raster)
+library(elevatr)
+library(BAMMtools)
+```
+
+
+## OpenStreetMap
+
+Por "elementos de mapas" nos referimos aqui a ruas, avenidas, rios, etc. Isto é, elementos que costumam aparecer em mapas que não . O código abaixo acessa a API do [OpenStreetMap](https://www.openstreetmap.org/#map=4/-15.13/-53.19) para baixar todas as principais ruas do bairro Liberdade em São Paulo. Note que o processo para converter estes objetos para `sf` é um pouco trabalhoso.
+
+```{r}
+#| code-fold: true
+library(osmdata)
+
+## osmdata -----------------------------------------------------------------
+
+# Define bbox
+bbox <- getbb("Liberdade, São Paulo, Brazil")
+# Base query
+qr <- opq(bbox)
+
+# Add feature requests to query
+
+# All roads
+qr_roads <- add_osm_feature(qr, key = "highway")
+# Only big roads
+qr_big_streets <- add_osm_feature(
+  qr,
+  key = "highway",
+  value = c("motorway", "primary", "motorway_link", "primary_link")
+)
+# Only medium roads
+qr_med_streets <- add_osm_feature(
+  qr,
+  key = "highway",
+  value = c("secondary", "tertiary", "secondary_link", "tertiary_link")
+)
+# Only small roads
+qr_small_streets <- add_osm_feature(
+  qr,
+  key = "highway",
+  value = c("residential", "living_street", "unclassified", "service",
+            "footway")
+)
+# Download
+roads <- osmdata_sf(q = qr_roads)
+big_streets <- osmdata_sf(q = qr_big_streets)
+med_streets <- osmdata_sf(q = qr_med_streets)
+small_streets <- osmdata_sf(q = qr_small_streets)
+
+s1 <- big_streets$osm_lines %>%
+  st_transform(crs = 4674)
+
+s2 <- med_streets$osm_lines %>%
+  st_transform(crs = 4674)
+
+s3 <- small_streets$osm_lines %>%
+  st_transform(crs = 4674)
+
+```
+
+O código abaixo monta o mapa.
+
+```{r}
+ggplot() +
+  geom_sf(
+    data = s1,
+    key_glyph = draw_key_rect,
+    lwd = 2
+  ) +
+  geom_sf(
+    data = s2,
+    key_glyph = draw_key_rect,
+    lwd = 0.6,
+    color = "gray40"
+  ) +
+  geom_sf(
+    data = s3,
+    key_glyph = draw_key_rect,
+    lwd = 0.45,
+    color = "gray50"
+  )
+```
+
+## Elevação em São Paulo
+
+Por fim, vale mostrar um exemplo de um objeto espacial em formato raster. Vamos montar um mapa que monta um grid retangular com a altura de cada ponto na cidade de São Paulo. Os dados são importados pelo pacote `elevatr`.
+
+```{r}
+#> Importa o shape file do limite do município de São Paulo
+border <- read_municipality(3550308, showProgress = FALSE)
+
+#> Importa dados com a elevação da cidade
+elevation <- elevatr::get_elev_raster(border, z = 7)
+#> Transforma os dados em polígonos e converte para sf
+elevation <- raster::rasterToPolygons(elevation)
+elevation <- st_as_sf(elevation)
+names(elevation)[1] <- "elevation"
+
+#> Converte CRS e junta o shape de altitude com o shape da cidade
+spo_alti <- elevation %>%
+  st_transform(crs = 4674) %>%
+  st_intersection(border) %>%
+  filter(st_is_valid(.))
+```
+
+O código abaixo gera o mapa. Note que usamos uma escala de cores contínua.
+
+```{r}
+ggplot() +
+  geom_sf(data = spo_alti, aes(color = elevation, fill = elevation)) +
+  scale_color_viridis_c(name = "", option = "inferno", direction = -1) +
+  scale_fill_viridis_c(name = "", option = "inferno", direction = -1) +
+  coord_sf() +
+  theme(legend.position = "top")
+```
+
+Novamente, é possível discretizar os dados para melhorar a visualização.
+
+```{r}
+jbreaks <- BAMMtools::getJenksBreaks(spo_alti$elevation, k = 8)
+jbreaks <- round(jbreaks, -1)
+jlabels <- paste(jbreaks, jbreaks[-1], sep = "--")
+jlabels[length(jlabels)] <- paste0(max(jbreaks), "+")
+
+spo_alti <- mutate(spo_alti, jenks_group = factor(findInterval(elevation, jbreaks)))
+
+ggplot() +
+  geom_sf(data = spo_alti, aes(color = jenks_group, fill = jenks_group)) +
+  scale_color_viridis_d(name = "", labels = jlabels, option = "inferno") +
+  scale_fill_viridis_d(name = "", labels = jlabels, option = "inferno") +
+  coord_sf() +
+  theme_map() +
+  theme(legend.position = "top")
+```
+
+## Elevação das ruas
+
+Como último exemplo, vamos combinar os dados de altitude/elevação com os dados de ruas e avenidas. Para tornar o exemplo mais simples vamos escolher a cidade de São Caetano do Sul, que é uma cidade relativamente pequena em extensão. O código abaixo é adaptado [deste post](https://restateinsight.com/posts/general-posts/2023-10-mapas-altitude/), em que mostro em detalhes como fazer este tipo de mapa para qualquer cidade do Brasil.
+
+```{r}
+#| code-fold: true
+border <- geobr::read_municipality(3548807, showProgress = FALSE)
+
+bbox <- opq(bbox = "São Caetano do Sul, São Paulo, Brazil")
+
+roads <- add_osm_feature(
+  bbox,
+  key = "highway",
+  value = c("primary", "secondary", "tertiary", "residential", "motorway_link",
+            "primary_link", "secondary_link", "tertiary_link", "living_street")
+  )
+
+roads_sf <- osmdata_sf(roads)
+roads_sf <- roads_sf$osm_lines
+roads_sf <- st_transform(roads_sf, crs = 4674)
+roads_border <- st_intersection(roads_sf, border)
+
+altitude <- elevatr::get_elev_raster(border, z = 9, clip = "bbox")
+spo_alti <- raster::rasterToPolygons(altitude)
+spo_alti <- sf::st_as_sf(spo_alti)
+names(spo_alti)[1] <- "elevation"
+
+spo_alti <- spo_alti %>%
+  st_transform(crs = 4674) %>%
+  st_intersection(border) %>%
+  filter(st_is_valid(.))
+
+jbreaks <- BAMMtools::getJenksBreaks(spo_alti$elevation, k = 5)
+
+spo_alti <- spo_alti %>%
+  mutate(
+    jenks_group = factor(findInterval(elevation, jbreaks))
+  )
+
+jbreaks <- round(jbreaks, -1)
+jlabels <- paste(jbreaks, jbreaks[-1], sep = "--")
+jlabels[length(jlabels)] <- paste0(max(jbreaks), "+")
+
+get_streets_altitude <- function(altitude, streets) {
+  
+  stopifnot(any(colnames(altitude) %in% "jenks_group"))
+  
+  #> Get all groups
+  groups = levels(altitude$jenks_group)
+  
+  #> For each group get the full polygon and join with streets
+  join_streets = function(group) {
+    
+    poly = altitude %>%
+      filter(jenks_group == group) %>%
+      st_union(.) %>%
+      st_as_sf()
+    
+    joined = suppressWarnings(st_intersection(streets, poly))
+    
+    return(joined)
+    
+  }
+  #> Apply the function to all groups
+  street_levels = parallel::mclapply(groups, join_streets)
+  #> Bind all results together
+  names(street_levels) = groups
+  out = bind_rows(street_levels, .id = "level")
+  
+  return(out)
+  
+}
+
+streets_alti <- get_streets_altitude(spo_alti, roads_border)
+```
+
+```{r}
+ggplot() +
+  geom_sf(data = streets_alti, aes(color = level, fill = level)) +
+  scale_fill_viridis_d(option = "inferno", labels = jlabels) +
+  scale_color_viridis_d(option = "inferno", labels = jlabels) +
+  coord_sf() +
+  theme_map() +
+  theme(
+    legend.position = "right"
+  )
+```
+
+# Posts relacionados
+
+-   [You need a map - Parte 1](https://restateinsight.com/posts/ggplot2-tutorial/12-1-mapas)
+
+-   [You need a map - Parte 2](https://restateinsight.com/posts/ggplot2-tutorial/12-2-mapas)
+
+-   [Indo além: mapas de calor](https://restateinsight.com/posts/ggplot2-tutorial/11-grafico-calor)
+
+-   [Estético: Escalas e Cores](https://restateinsight.com/posts/ggplot2-tutorial/6-scales-labels)
+
+-   [Altitude das Ruas nas Cidades do Brasil](https://restateinsight.com/posts/general-posts/2023-10-mapas-altitude/)
+
+-   [Taxa de veículos em São Paulo](https://restateinsight.com/posts/general-posts/2023-11-wz-cars/)
