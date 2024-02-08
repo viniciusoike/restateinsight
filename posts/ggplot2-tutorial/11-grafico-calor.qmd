@@ -16,6 +16,12 @@ format:
 freeze: true
 ---
 
+```{r renv}
+#| echo: false
+#| results: 'hide'
+renv::use(lockfile = "renv.lock")
+```
+
 ```{r setup, include = FALSE}
 knitr::opts_chunk$set(
   warning = FALSE,
@@ -469,7 +475,7 @@ Mapas de calor também podem servir para construir visualizações no formato de
 #> Importa a série do IPCA a partir da API do Banco Central
 ipca <- GetBCBData::gbcbd_get_series(
   id = 433,
-  first.date = as.Date("1998-01-01")
+  first.date = as.Date("2009-01-01")
   )
 
 #> Limpeza de dados
@@ -483,7 +489,11 @@ ipca <- ipca |>
     acum12m = RcppRoll::roll_prodr(1 + value / 100, n = 12) - 1,
     acum12m = acum12m * 100
     ) |> 
-  filter(ref.date >= as.Date("2010-01-01"))
+  filter(
+    ref.date >= as.Date("2010-01-01"),
+    ref.date <= as.Date("2023-12-01")
+    )
+
 ```
 
 ```{r}
@@ -562,16 +572,16 @@ Não há uma escolha certa ou errada com este tipo de visualização. É preciso
 
 ### Aquecimento Global
 
-O exemplo abaixo usa a base `globtemp` que mensura as "anomalias de temperatura" nos últimos anos. Por anomalia de temperatura, entende-se, o desvio da temperatura média anual em relação à média histórica (1951-1980). Esta visualização é adaptada do meu post [Aquecimento Global](https://restateinsight.com/posts/general-posts/repost-aquecimento-global/).
+O exemplo abaixo usa a base `gtemp_ocean` que mensura as "anomalias de temperatura" nos últimos anos. Por anomalia de temperatura, entende-se, o desvio da temperatura média anual em relação à média histórica (1951-1980). Esta visualização é adaptada do meu post [Aquecimento Global](https://restateinsight.com/posts/general-posts/repost-aquecimento-global/).
 
 Na visualização, fica evidente que os anos recentes concentram um grande número de "anomalias positivas", isto é, anos em que a temperatura média esteve acima da média histórica. Este exemplo é bastante simples pois existe apenas um "grupo", logo, os valores estão representados como desvios em relação à média na "linha".
 
 ```{r}
-# Carrega a base de dados 'globtemp'
-data("globtemp")
+# Carrega a base de dados 'gtemp_ocean'
+data("gtemp_ocean")
 # Converte o objeto para data.frame
-df <- data.frame(ano = as.numeric(time(globtemp)),
- temp = as.numeric(globtemp))
+df <- data.frame(ano = as.numeric(time(gtemp_ocean)),
+ temp = as.numeric(gtemp_ocean))
 
 # Monta o gráfico
 ggplot(data = df, aes(x = ano, y = 0, fill = temp)) +

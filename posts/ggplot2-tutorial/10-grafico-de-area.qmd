@@ -15,6 +15,12 @@ format:
     code-tools: true
 ---
 
+```{r renv}
+#| echo: false
+#| results: 'hide'
+renv::use(lockfile = "renv.lock")
+```
+
 ```{r setup, include = FALSE}
 library(tidyr)
 library(dplyr)
@@ -174,7 +180,7 @@ Para definir a ordem dos lojass é preciso criar uma variável do tipo `factor` 
 
 ```{r}
 long_reordenado <- long |> 
-  dplyr::mutate(
+  mutate(
     loja = factor(loja, levels = c("venda_3", "venda_1", "venda_2"))
   )
 
@@ -354,8 +360,8 @@ series <- gbcbd_get_series(codigos, first.date = as.Date("01-03-2011"))
 
 #> Cria uma coluna chamada linha_credito indicando qual a linha de crédito
 series <- series |> 
-  dplyr::mutate(
-    linha_credito = dplyr::case_when(
+  mutate(
+    linha_credito = case_when(
       id.num == 20701 ~ "Rural",
       id.num == 20704 ~ "Imobiliário",
       id.num == 20708 ~ "BNDES",
@@ -381,7 +387,7 @@ Pelo gráfico, vemos que o crédito rural e o crédito imobiliário são as linh
 
 ```{r}
 series <- series |> 
-  dplyr::mutate(
+  mutate(
     linha_credito = factor(
       linha_credito,
       levels = c("Imobiliário", "Rural", "BNDES", "Microcrédito", "Outro"))
@@ -500,9 +506,9 @@ Uma alternativa bastante simples é somar as últimas doze observações e criar
 
 ```{r}
 series <- series |> 
-  dplyr::group_by(linha_credito) |> 
-  dplyr::mutate(soma_12 = RcppRoll::roll_sumr(value, n = 12) / 1000) |> 
-  dplyr::ungroup()
+  group_by(linha_credito) |> 
+  mutate(soma_12 = RcppRoll::roll_sumr(value, n = 12) / 1000) |> 
+  ungroup()
 
 ggplot(data = series) +
   geom_area(aes(x = ref.date, y = soma_12, fill = linha_credito)) +
@@ -544,7 +550,7 @@ O código abaixo faz a manipulação de dados necessária para montar os gráfic
 [^3]: Para uma revisão sobre manipulação de dados consulte o [post da série sobre o asssunto](https://restateinsight.com/posts/ggplot2-tutorial/apendix-manipular-enxergar#manipulando-dados).
 
 ```{r, include = FALSE}
-wpp <- readr::read_csv(here::here("posts/ggplot2-tutorial/wpp_brazil.csv"))
+wpp <- readr::read_csv(here::here("wpp_brazil.csv"))
 
 #> Seleciona apenas dados sobre o Brasil entre os anos de 2000 e 2050.
 brazil <- wpp |> 
@@ -572,11 +578,13 @@ pop_adult <- filter(brazil, age_group == "25-64")
 
 ```{r, eval = FALSE}
 #> Importa a base de dados
-wpp <- read_csv("data/...")
+wpp <- read_csv(
+  "https://github.com/viniciusoike/restateinsight/raw/main/posts/ggplot2-tutorial/wpp_brazil.csv"
+  )
 
 #> Seleciona apenas dados sobre o Brasil entre os anos de 2000 e 2050.
 brazil <- wpp |> 
-  dplyr::filter(
+  filter(
     location == "Brazil",
     year >= 2000,
     year <= 2050
@@ -584,18 +592,18 @@ brazil <- wpp |>
 
 #> Soma o total da população a cada ano
 pop <- brazil |> 
-  dplyr::group_by(year) |> 
-  dplyr::summarise(population = sum(pop_total)) |> 
-  dplyr::ungroup()
+  group_by(year) |> 
+  summarise(population = sum(pop_total)) |> 
+  ungroup()
 
 #> Soma o total da população por grupos de idade a cada ano
 pop_group <- brazil |> 
-  dplyr::group_by(year, age_group) |> 
-  dplyr::summarise(population = sum(pop_total)) |> 
-  dplyr::ungroup()
+  group_by(year, age_group) |> 
+  summarise(population = sum(pop_total)) |> 
+  ungroup()
 
 #> Seleciona somente o grupo de adultos
-pop_adult <- dplyr::filter(brazil, age_group == "25-64")
+pop_adult <- filter(brazil, age_group == "25-64")
 ```
 
 Além disso, vamos definir um tema padrão para nossos gráficos.
