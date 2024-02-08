@@ -7,6 +7,12 @@ draft: true
 ---
 
 ```{r}
+#| echo: false
+#| results: 'hide'
+renv::use(lockfile = "renv.lock")
+```
+
+```{r}
 #| include: false
 knitr::opts_chunk$set(
   warning = FALSE,
@@ -20,7 +26,8 @@ knitr::opts_chunk$set(
   dpi = 72
   )
 
-library(tidyverse)
+library(dplyr)
+library(tidyr)
 library(pwt10)
 library(patchwork)
 
@@ -112,19 +119,15 @@ ggplot(quadrado) +
   geom_sf()
 ```
 
-Esta coluna não pode ser dropada pelas maneiras usuais.
-
-```{r}
-
-```
-
-Vamos começar importando um shapefile dos estados do Brasil, usando o excelente {geobr}.
+Vamos começar importando um shapefile dos estados do Brasil, usando o excelente {geobr}. Note que este objeto possui uma coluna `geom` que guarda um objeto do tipo `MULTIPOLYGON`. Este é um tipo de polígono.
 
 ```{r}
 ufs <- geobr::read_state(showProgress = FALSE)
 
 ufs
 ```
+
+O código abaixo monta o mapa.
 
 ```{r}
 ggplot(ufs) +
@@ -241,10 +244,6 @@ ggplot(ufs_rent) +
   geom_sf_label(aes(label = share_rented), size = 2) +
   scale_fill_distiller(direction = 1) +
   coord_sf(xlim = c(NA, -35))
-```
-
-```{r}
-zones <- st_read(here::here("static/data/districts.gpkg"))
 ```
 
 ## Encontrando os pontos dentro dos polígonos
