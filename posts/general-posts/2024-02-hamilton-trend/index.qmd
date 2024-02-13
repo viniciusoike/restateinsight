@@ -1,12 +1,20 @@
 ---
-title: "Filtro de Hamilton"
-categories: ['econometria', 'time-series']
-description: "Escalas, legendas e cores são elementos essenciais numa boa visualização. Este post apresenta a lógica das funções que controlam as escalas do gráfico e as suas cores com diversos exemplos."
+title: "Filtro HP e Filtro de Hamilton"
+date: "2024-02-14"
+categories: ['econometria', 'time-series', 'tutorial-R', 'economia']
+description: "A teoria de ciclos de negócios trabalha com a noção de ciclos subjacentes
+nas séries temporais macroeconômicas. Estes ciclos variam de periodicidade e há várias
+abordagens para decompor uma série de tempo, separando a tendência do ruído. Neste post,
+discuto brevemente sobre os tipos de tendências e, talvez, a metodologia mais comum para
+encontrar o ciclo de uma série: o filtro HP. Também discuto um recente paper de Hamilton (2017)
+que critica o uso do filtro HP e propõe um novo filtro baseado numa regressão linear simples."
+format:
+  html:
+    code-fold: true
 execute: 
   echo: false
   warning: false
   message: false
-draft: true
 ---
 
 ```{r}
@@ -20,7 +28,7 @@ library(mFilter)
 knitr::opts_chunk$set(
   fig.align = "center",
   fig.asp = 0.618,
-  fig.width = 8,
+  fig.width = 9,
   out.width = "80%",
   fig.dev = "svg"
   )
@@ -51,11 +59,25 @@ subcarros <- subcarros |>
 
 # Tendências em séries econômicas
 
-Uma tarefa rotineira em pesquisa econômica é de encontrar tendências e ciclos em séries de tempo macroeconômicas. Dada uma série de tempo $y_t$, tenta-se encontrar alguma decomposição que resulte em $y_t = \text{cycle}_t + \text{trend}_t + \text{remainder}_t$. Diferentes teorias e abordagens foram levantadas para extair as tendências de curto e longo prazo de séries.
+Uma tarefa rotineira em pesquisa econômica é de encontrar tendências e ciclos em séries de tempo macroeconômicas. Dada uma série de tempo $y_t$, tenta-se encontrar alguma decomposição que resulte em:
 
-De maneira geral, há dois tipos de tendências: (1) tendências determinísticas e (2) tendências estocásticas. A forma mais simples de tendência determinística é de uma tendência temporal linear. Algo na forma $$
+$$
+y_t = \text{cycle}_t + \text{trend}_t + \text{remainder}_t
+$$
+
+Diferentes teorias e abordagens foram levantadas para extair as tendências de curto e longo prazo de séries.
+
+De maneira geral, há dois tipos de tendências: (1) **tendências determinísticas** e (2) **tendências estocásticas**. A forma mais simples de tendência determinística é de uma tendência temporal linear. Algo na forma
+
+$$
 y_t = \alpha_{0} + \alpha_{1}t + u_{t}
-$$.
+$$
+
+Naturalmente, também é possível propor polinômios de ordem mais elevada para modelar a tendência acima. Contudo, não é usual usar polinômios maiores do que de grau 3, isto é,
+
+$$
+y_t = \alpha_{0} + \alpha_{1}t + \alpha_{2}t^2 + \alpha_{3}t^3 + u_{t}
+$$
 
 Já o exemplo mais simples de série com tendência estocástica é um random-walk
 
@@ -63,9 +85,18 @@ $$
 y_t = y_{t-1} + u_{t}
 $$
 
+A depender do tipo de série que se considera, pode fazer sentido remover diferenças em ordens específicas. Na modelagem SARIMA, por exemplo, tira-se "diferenças sazonais". No caso de uma série trimestral, por exemplo, pode fazer sentido tirar uma diferença trimestral
+
+$$
+z_{t} = y_{t} - y_{t-4}
+$$
+
+## Produção de automóveis
+
 O gráfico abaixo mostra a produção de automóveis no Brasil entre 1993 e 2007. Os dados são da Anfavea e baixados no R via API do Banco Central. A série não foi ajustada sazonalmente.
 
 ```{r}
+#| echo: true
 ggplot(subcarros, aes(x = date, y = lcar)) +
   geom_line(lwd = 0.8, color = "steelblue") +
   labs(
@@ -79,6 +110,7 @@ ggplot(subcarros, aes(x = date, y = lcar)) +
 O painel abaixo mostra as séries sem tendência e o gráfico de autocorrelação parcial do resíduo do ajuste. Note que é possível perceber visualmente a presença de uma componente sazonal que permanece na série. Os resíduos do ajuste com polinômio de terceiro grau ainda apresentam bastante autocorrelação, sugerindo que a série não é tendência-estacionária. O ajuste na primeira diferença parece ser mais adequado neste caso.
 
 ```{r}
+#| echo: true
 p1 <- ggplot(subcarros, aes(x = date, y = resid_tt)) +
   geom_line(lwd = 0.8, color = "steelblue") +
   geom_hline(yintercept = 0) +
@@ -106,11 +138,9 @@ p4 <- ggAcf(ts(subcarros$resid_sto, frequency = 12), lag.max = 84) +
 (p1 + p2) / (p3 + p4)
 ```
 
-Uma abordagem bastante comum para encontrar a tendência/ciclo em séries macroeconômicas é o filtro Hodrick-Prescott (HP). O filtro HP separa uma série em suas componentes de tendência e ciclo. Sua formulação matemática baseia-se na minimização de uma função objetivo que busca encontrar uma estimativa suave da tendência subjacente, ao mesmo tempo em que penaliza variações abruptas.
-
 ## Filtro HP
 
-O filtro HP separa uma série em suas componentes de tendência e ciclo. Sua formulação matemática baseia-se na minimização de uma função objetivo que busca encontrar uma estimativa suave da tendência subjacente, ao mesmo tempo em que penaliza variações abruptas.
+Uma abordagem bastante comum para encontrar a tendência/ciclo em séries macroeconômicas é o filtro Hodrick-Prescott (HP). O filtro HP separa uma série em suas componentes de tendência e ciclo. Sua formulação matemática baseia-se na minimização de uma função objetivo que busca encontrar uma estimativa suave da tendência subjacente, ao mesmo tempo em que penaliza variações abruptas.
 
 ### Formulação do Problema de Minimização
 
@@ -129,6 +159,7 @@ Note que se $\lambda = 0$ o valor ótimo de $g_{t}$ é simplesmente $y_{t}$. Qua
 Apesar de ter sido desenvolvida para séries macroeconômicas, não há problema, em princípio, em aplicar o filtro HP a qualquer tipo de série. O gráfico abaixo mostra o resultado da aplicação do filtro HP à série de produção de veículos.
 
 ```{r}
+#| echo: true
 y <- ts(log(subcarros$value), frequency = 12)
 hpy <- hpfilter(y, freq = 14400, type = "lambda")
 
@@ -145,7 +176,7 @@ ggplot(tbl_hp, aes(x = date)) +
   theme_bw()
 ```
 
-### Random-walk
+### Críticas: Random-walk
 
 O passeio aleatório é um processo estocástico comum em economia. Variáveis importantes como preços futuros, preços de ações, preços de petróleo, conusmo, inflação, e a taxa de crescimento do estoque de moeda podem ser modeladas como passeios aleatórios.
 
@@ -270,6 +301,7 @@ p1 + p2
 A análise das autocorrelações mostra que há bastante autocorrelação cruzada entre as séries.
 
 ```{r}
+#| echo: true
 macro_detrend <- macro_hp |> 
   mutate(detrend = value - trend) |> 
   pivot_wider(id_cols = "date", names_from = "name_series", values_from = "detrend") |> 
@@ -282,9 +314,8 @@ ggAcf(ts(macro_detrend, frequency = 4), lag.max = 28) +
 
 Se tivéssemos assumido, contudo, que as séries são I(1), não haveria muita correlação cruzada entre as séries.
 
-The HP cyclical components of stock prices and consumption are both extremely predictable from their own lagged values as well as each other. The rich dynamics in these series are purely an artifact of the filter itself and tell us nothing about the underlying data- generating process.
-
 ```{r}
+#| echo: true
 macro_d1 <- macro |> 
   select(gdp, consumption, invest, m1) |> 
   mutate(across(everything(), ~c(NA, diff(.x))))
@@ -317,10 +348,28 @@ $$
 
 De modo geral, Hamilton argumenta que este filtro garante a estacionaridade de séries, sendo elas tendência-estacionárias ou diferença-estacionárias. Mais detalhes sobre o filtro podem ser verificados no Working Paper.
 
+### Preparando os dados
+
+O primeiro passo necessário é preparar os dados. Novamente, vamos trabalhar com as séries num padrão retangular, usando um `tibble`. A base de dados utilizada é a `USMacroG`, descrita acima; neste caso, vamos adicionar as séries de gasto do governo e inflação. Isto é, temos agora seis séries: PIB, consumo, investimento, gasto do governo, inflação e M1. Todas as variáveis, exceto pela taxa de inflação, serão transformadas usando log, seguindo o paper de Hamilton.
+
+O código abaixo tem um trecho interessante onde se usa uma combinação de `map` e `partial` para criar várias colunas com os valores defasados das variáveis.
+
 ```{r}
-macro_lags <- macro |> 
-  select(date, gdp, consumption, invest, m1) |> 
-  pivot_longer(-date, names_to = "name_series") |> 
+#| echo: true
+#| code-fold: false
+data(USMacroG)
+
+macro <- tibble(
+  date = zoo::as.Date.ts(USMacroG),
+  as.data.frame(USMacroG)
+)
+
+macro_long <- macro |> 
+  select(date, gdp, consumption, invest, m1, government, inflation) |> 
+  mutate(across(gdp:government, ~log10(.x) * 100)) |> 
+  pivot_longer(-date, names_to = "name_series")
+
+macro_lags <- macro_long |> 
   group_by(name_series) |> 
   mutate(
     across(value,
@@ -328,77 +377,178 @@ macro_lags <- macro |>
            .names = "l{.fn}")
   )
 
-macro_trend <- macro_lags |> 
+```
+
+### Estimando os modelos
+
+Hamilton sugere duas maneiras de tirar a tendência dos dados: usando uma regressão linear e tirando uma diferença simples. No caso de séries trimestrais, o autor sugere $p=4$ e $h=8$. Assim, temos de estimar um modelo linear da forma:
+
+$$
+y_{t} = \beta_0 + \beta_{1} y_{t-8} + \beta_{2} y_{t-9} + \beta_{3} y_{t-10} + \beta_{4} y_{t-11} + u_{t+h}
+$$
+
+E a série livre de tendência, $z_t$ será dada por:
+
+$$
+z_{t} = y_{t} - \hat{\beta_0} - \hat{\beta_1}y_{t-8} - \hat{\beta_2}y_{t-9} - \hat{\beta_3}y_{t-10} - \hat{\beta_4}y_{t-11}
+$$
+
+No segundo "modelo", vamos simplesmente tirar uma diferença na forma:
+
+$$
+z_{t} = y_{t} - y_{t-8}
+$$
+
+O primeiro modelo será chamado de "regression", enquanto o segundo modelo será chamado de "Random Walk". O código abaixo faz a regressão em todas as séries e grava os resultados do fit e os resíduos de todos os modelos.
+
+```{r}
+#| echo: true
+#| code-fold: false
+macro_models <- macro_lags |> 
+  mutate(resid_rw = value - l8) |> 
   nest() |> 
   mutate(
     model_reg = map(data, \(d) lm(value ~ l8 + l9 + l10 + l11, data = d)),
-    model_rw  = map(data, \(d) lm(value ~ l8, data = d)),
     trend = map(model_reg, fitted),
-    resid = map(model_reg, residuals),
-    trend_rw = map(model_rw, fitted),
-    resid_rw = map(model_rw, residuals)
+    resid = map(model_reg, residuals)
   )
-
-# macro_decomp <- macro_trend |> 
-#   unnest(c(trend, resid, trend_rw), keep_empty = TRUE) |> 
-#   select(name_series, trend, resid) |> 
-#   mutate(
-#     date = seq(as.Date("1953-10-01"), as.Date("2001-10-01"), by = "quarter")
-#     )
-# 
-# macro_decomp <- macro_trend |> 
-#   unnest(c(trend_rw, resid_rw)) |> 
-# 
-# macro_decomp <- macro_decomp |> 
-#   ungroup() |> 
-#   left_join(select(macro_lags, -starts_with("l")), by = c("name_series", "date")) |> 
-#   select(name_series, date, value, trend, resid)
-# 
-# ggplot(macro_decomp, aes(x = date)) +
-#   geom_line(aes(y = trend)) +
-#   facet_wrap(vars(name_series), scales = "free_y")
-# 
-# ggplot(macro_decomp, aes(x = date)) +
-#   geom_line(aes(y = resid)) +
-#   facet_wrap(vars(name_series))
-
 ```
 
+### Verificando os resíduos
+
+Idealmente, deve-se verificar o comportamento dos resíduos do modelo de regressão. Neste caso, estes resíduos são considerados o componente cíclico da série original. O painel abaixo mostra os resíduos da primeira série, do PIB. O gráfico de cima é simplesmente o gráfico do resíduo. No gráfico inferior-esquerdo temos o gráfico de autocorrelação da série e no gráfico inferior-direito temos o historgrama dos resíduos com a densidade da distribuição normal superimposta.
+
+Vale lembrar que não estamos buscando limpar a série totalmente de autocorrelação, como na modelagem ARIMA.
+
 ```{r}
-macro_trend |> 
+checkresiduals(macro_models$resid[[1]]) + theme_bw()
+```
+
+Evidentemente, não é fácil inspecionar os resíduos de todos os modelos, especialmente quando o número de séries é muito grande. O painel abaixo mostra o gráfico de autocorrelação entre as seis séries consideradas. Na diagonal principal temos o gráfico do resíduo da própria série; nos demais gráficos, mostra-se a autocorrelação cruzada entre os resíduos.
+
+```{r}
+#| out-width: 100%
+tbl_resid <- macro_models |> 
+  select(name_series, resid) |> 
+  unnest(cols = resid) |> 
+  mutate(sd_resid = as.numeric(scale(resid))) |> 
+  ungroup() |> 
+  mutate(id = as.numeric(names(resid)))
+
+resid_wide <- tbl_resid |> 
+  pivot_wider(id_cols = "id", names_from = "name_series", values_from = "resid") |> 
+  select(-id)
+
+ggAcf(ts(resid_wide, frequency = 4), lag.max = 28) +
+  ggtitle("ACF: primeira diferença das séries") +
+  theme_bw()
+```
+
+### Resultados do filtro
+
+O código abaixo junta todas as séries para facilitar a sua visualização. Como há várias séries e muita repetição, crio uma função `plot_series` para facilitar a construção dos painéis.
+
+```{r}
+#| code-fold: true
+#| echo: true
+m1 <- macro_models |> 
   ungroup() |> 
   select(name_series, trend, resid) |> 
   unnest(cols = c("trend", "resid")) |> 
   mutate(id = as.numeric(names(trend)), .before = everything())
 
-macro_trend |> 
-  ungroup() |> 
-  select(name_series, trend_rw, resid_rw) |> 
-  unnest(cols = c("trend_rw", "resid_rw")) |> 
-  mutate(id = as.numeric(names(trend_rw)), .before = everything())
+macro_trend <- macro_models |> 
+  select(name_series, data) |> 
+  unnest(cols = c(data)) |> 
+  mutate(id = vctrs::vec_group_id(date), .before = everything()) |> 
+  ungroup()
+
+macro_trend <- macro_trend |> 
+  left_join(m1, by = c("id", "name_series"))
+
+series_trend <- macro_trend |> 
+  select(date, name_series, trend, resid, resid_rw) |> 
+  pivot_longer(cols = -c(date, name_series), names_to = "name_decomp") |>
+  mutate(decomp = if_else(str_detect(name_decomp, "trend"), "trend", "resid")) |> 
+  filter(!is.na(value))
+
+plot_series <- function(x, ylim = c(NA, NA)) {
+  
+  p1 <- ggplot() +
+  geom_line(
+    data = dplyr::filter(series_trend, name_series == x, decomp == "trend"),
+    aes(x = date, y = value),
+    lwd = 0.8,
+    color = "steelblue"
+    ) +
+  labs(x = NULL, y = NULL) +
+  ggtitle(glue::glue("Series: {x}")) +
+  theme_bw() +
+  theme(plot.title = element_text(size = 10))
+
+p2 <- ggplot() +
+  geom_hline(yintercept = 0) +
+  geom_line(
+    data = dplyr::filter(series_trend, name_series == x, decomp == "resid"),
+    aes(x = date, y = value, color = name_decomp),
+    lwd = 0.8
+    ) +
+  scale_x_date(
+    breaks = seq(as.Date("1950-01-01"), as.Date("2000-01-01"), by = "10 year"),
+    date_labels = "%Y"
+    ) +
+  scale_y_continuous(limits = ylim) +
+  scale_color_manual(
+    name = "",
+    values = c("#003049", "#d62828"),
+    labels = c("Regression", "Random Walk")) +
+  labs(x = NULL, y = NULL) +
+  ggtitle(glue::glue("Cyclical Component: {x}")) +
+  theme_bw() +
+  theme(legend.position = "top", plot.title = element_text(size = 10))
+
+  return(list(trend = p1, cycle = p2))
+  
+}
 ```
 
-```{r}
-# grid <- expand_grid(id = 1:nrow(macro_trend$data[[1]]))
-# 
-# data.frame(id = as.numeric(names(macro_trend$trend[[1]]), value = macro_trend$trend[[1]])
-# 
-# macro_trend |> 
-#   ungroup() |> 
-#   mutate(across(trend:resid_rw, ~map(.x, \(y) tibble(id = as.numeric(names(y)), value = y)))) |> 
-#   mutate(across(trend:resid_rw, ~map()))
-#   mutate(across(trend:resid_rw, ~map(.x, full_join, grid, by = "id"))) |> 
-#   unnest(cols = c(data, trend:resid_rw), names_repair = "unique")
-#   mutate(resid = map(resid, \(x) tibble(id = names(x), value = x)))
-# 
-# 
-# replace(NA * v1, seq(to = length(v1), length = length(v2)), v2)
-```
+O gráfico abaixo mostra o ajuste do filtro de Hamilton nas séries de PIB e de consumo.
 
 ```{r}
-# macro_trend |> 
-#   ungroup() |> 
-#   mutate(across(trend:resid_rw, ~map(.x, \(d) tibble(id = as.numeric(names(d)), value = d)))) |> 
-#   mutate(across(trend:resid_rw, ~map(.x, full_join, grid, by = "id"))) |> 
-#   unnest(cols = c(data))
+library(patchwork)
+
+pgdp <- plot_series("gdp", ylim = c(-4, 6))
+pcons <- plot_series("consumption", ylim = c(-4, 6))
+
+( pgdp[[1]] + pcons[[1]] ) / ( pgdp[[2]] + pcons[[2]] )
 ```
+
+O gráfico abaixo mostra o ajuste do filtro de Hamilton nas séries de investimento e gasto do governo.
+
+```{r}
+pinv <- plot_series("invest", ylim = c(-20, 20))
+pgvt <- plot_series("government", ylim = c(-20, 20))
+
+( pinv[[1]] + pgvt[[1]] ) / ( pinv[[2]] + pgvt[[2]] )
+```
+
+Finalmente, o gráfico abaixo mostra o ajuste do filtro de Hamilton nas séries de M1 e de inflação.
+
+```{r}
+pm1 <- plot_series("m1")
+pinf <- plot_series("inflation")
+
+( pm1[[1]] + pinf[[1]] ) / ( pm1[[2]] + pinf[[2]] )
+```
+
+O filtro proposto por Hamilton tem diversas características interessantes. A simplicidade e intuição do filtro, em especial, são pontos atrativos. Um paper recente, de Viv Hall e Peter Thompson (2021), contudo, não encontrou grandes vantagens deste filtro em relação aos tradicionais filtro HP e filtro Baxter-King. Os autores testam os filtros usando um amplo conjunto de séries macroeconômicas da Nova Zelândia. De maneira geral, o filtro de Hamilton gerou séries com maior volatilidade e pior capacidade preditiva. Considerando a literatura de filtros, parece improvável, de fato, que um filtro tão simples possa ter uma melhor performance do que filtros no domínio da frequência.
+
+# Referências
+
+-   [Guay, Alain, and Pierre St.-Amant. "Do the Hodrick-Prescott and Baxter-King filters provide a good approximation of business cycles?." Annales d'Economie et de Statistique (2005): 133-155.](https://www.jstor.org/stable/20079119)
+
+-   [Hall, Viv B., and Peter Thomson. "Does Hamilton’s OLS regression provide a “better alternative” to the Hodrick-Prescott filter? A New Zealand Business Cycle Perspective." Journal of Business Cycle Research 17 (2021): 151-183.](https://link.springer.com/article/10.1007/s41549-021-00059-1)
+
+-   [Hamilton, James D. "Why you should never use the Hodrick-Prescott filter." Review of Economics and Statistics 100, no. 5 (2018): 831-843.](https://direct.mit.edu/rest/article-abstract/100/5/831/58479/Why-You-Should-Never-Use-the-Hodrick-Prescott?redirectedFrom=fulltext)
+
+-   [Ravn, Morten O., and Harald Uhlig. "On adjusting the Hodrick-Prescott filter for the frequency of observations." *Review of economics and statistics* 84, no. 2 (2002): 371-376.](https://direct.mit.edu/rest/article-abstract/84/2/371/57338/On-Adjusting-the-Hodrick-Prescott-Filter-for-the)

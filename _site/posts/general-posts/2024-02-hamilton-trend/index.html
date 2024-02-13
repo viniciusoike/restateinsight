@@ -7,9 +7,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
 <meta name="author" content="Vinicius Oike">
-<meta name="description" content="Escalas, legendas e cores são elementos essenciais numa boa visualização. Este post apresenta a lógica das funções que controlam as escalas do gráfico e as suas cores com diversos exemplos.">
+<meta name="dcterms.date" content="2024-02-14">
+<meta name="description" content="A teoria de ciclos de negócios trabalha com a noção de ciclos subjacentes nas séries temporais macroeconômicas. Estes ciclos variam de periodicidade e há várias abordagens para decompor uma série de tempo, separando a tendência do ruído. Neste post, discuto brevemente sobre os tipos de tendências e, talvez, a metodologia mais comum para encontrar o ciclo de uma série: o filtro HP. Também discuto um recente paper de Hamilton (2017) que critica o uso do filtro HP e propõe um novo filtro baseado numa regressão linear simples.">
 
-<title>Vinicius Oike - Filtro de Hamilton</title>
+<title>Vinicius Oike - Filtro HP e Filtro de Hamilton</title>
 <style>
 code{white-space: pre-wrap;}
 span.smallcaps{font-variant: small-caps;}
@@ -165,15 +166,17 @@ gtag('config', 'G-EJF8PGT67H', { 'anonymize_ip': true});
 <header id="title-block-header" class="quarto-title-block default page-columns page-full">
   <div class="quarto-title-banner page-columns page-full">
     <div class="quarto-title column-body">
-      <h1 class="title">Filtro de Hamilton</h1>
+      <h1 class="title">Filtro HP e Filtro de Hamilton</h1>
                   <div>
         <div class="description">
-          Escalas, legendas e cores são elementos essenciais numa boa visualização. Este post apresenta a lógica das funções que controlam as escalas do gráfico e as suas cores com diversos exemplos.
+          A teoria de ciclos de negócios trabalha com a noção de ciclos subjacentes nas séries temporais macroeconômicas. Estes ciclos variam de periodicidade e há várias abordagens para decompor uma série de tempo, separando a tendência do ruído. Neste post, discuto brevemente sobre os tipos de tendências e, talvez, a metodologia mais comum para encontrar o ciclo de uma série: o filtro HP. Também discuto um recente paper de Hamilton (2017) que critica o uso do filtro HP e propõe um novo filtro baseado numa regressão linear simples.
         </div>
       </div>
                           <div class="quarto-categories">
                 <div class="quarto-category">econometria</div>
                 <div class="quarto-category">time-series</div>
+                <div class="quarto-category">tutorial-R</div>
+                <div class="quarto-category">economia</div>
               </div>
                   </div>
   </div>
@@ -188,6 +191,12 @@ gtag('config', 'G-EJF8PGT67H', { 'anonymize_ip': true});
             </div>
     </div>
       
+      <div>
+      <div class="quarto-title-meta-heading">Published</div>
+      <div class="quarto-title-meta-contents">
+        <p class="date">February 14, 2024</p>
+      </div>
+    </div>
     
       
     </div>
@@ -203,14 +212,22 @@ gtag('config', 'G-EJF8PGT67H', { 'anonymize_ip': true});
   <ul>
   <li><a href="#tendências-em-séries-econômicas" id="toc-tendências-em-séries-econômicas" class="nav-link active" data-scroll-target="#tendências-em-séries-econômicas">Tendências em séries econômicas</a>
   <ul class="collapse">
+  <li><a href="#produção-de-automóveis" id="toc-produção-de-automóveis" class="nav-link" data-scroll-target="#produção-de-automóveis">Produção de automóveis</a></li>
   <li><a href="#filtro-hp" id="toc-filtro-hp" class="nav-link" data-scroll-target="#filtro-hp">Filtro HP</a>
   <ul class="collapse">
   <li><a href="#formulação-do-problema-de-minimização" id="toc-formulação-do-problema-de-minimização" class="nav-link" data-scroll-target="#formulação-do-problema-de-minimização">Formulação do Problema de Minimização</a></li>
-  <li><a href="#random-walk" id="toc-random-walk" class="nav-link" data-scroll-target="#random-walk">Random-walk</a></li>
+  <li><a href="#críticas-random-walk" id="toc-críticas-random-walk" class="nav-link" data-scroll-target="#críticas-random-walk">Críticas: Random-walk</a></li>
   <li><a href="#séries-macroeconômicas" id="toc-séries-macroeconômicas" class="nav-link" data-scroll-target="#séries-macroeconômicas">Séries macroeconômicas</a></li>
   </ul></li>
-  <li><a href="#hamilton" id="toc-hamilton" class="nav-link" data-scroll-target="#hamilton">Hamilton</a></li>
+  <li><a href="#hamilton" id="toc-hamilton" class="nav-link" data-scroll-target="#hamilton">Hamilton</a>
+  <ul class="collapse">
+  <li><a href="#preparando-os-dados" id="toc-preparando-os-dados" class="nav-link" data-scroll-target="#preparando-os-dados">Preparando os dados</a></li>
+  <li><a href="#estimando-os-modelos" id="toc-estimando-os-modelos" class="nav-link" data-scroll-target="#estimando-os-modelos">Estimando os modelos</a></li>
+  <li><a href="#verificando-os-resíduos" id="toc-verificando-os-resíduos" class="nav-link" data-scroll-target="#verificando-os-resíduos">Verificando os resíduos</a></li>
+  <li><a href="#resultados-do-filtro" id="toc-resultados-do-filtro" class="nav-link" data-scroll-target="#resultados-do-filtro">Resultados do filtro</a></li>
   </ul></li>
+  </ul></li>
+  <li><a href="#referências" id="toc-referências" class="nav-link" data-scroll-target="#referências">Referências</a></li>
   </ul>
 </nav>
     </div>
@@ -222,16 +239,42 @@ gtag('config', 'G-EJF8PGT67H', { 'anonymize_ip': true});
 
 <section id="tendências-em-séries-econômicas" class="level1">
 <h1>Tendências em séries econômicas</h1>
-<p>Uma tarefa rotineira em pesquisa econômica é de encontrar tendências e ciclos em séries de tempo macroeconômicas. Dada uma série de tempo <span class="math inline">\(y_t\)</span>, tenta-se encontrar alguma decomposição que resulte em <span class="math inline">\(y_t = \text{cycle}_t + \text{trend}_t + \text{remainder}_t\)</span>. Diferentes teorias e abordagens foram levantadas para extair as tendências de curto e longo prazo de séries.</p>
-<p>De maneira geral, há dois tipos de tendências: (1) tendências determinísticas e (2) tendências estocásticas. A forma mais simples de tendência determinística é de uma tendência temporal linear. Algo na forma <span class="math display">\[
+<p>Uma tarefa rotineira em pesquisa econômica é de encontrar tendências e ciclos em séries de tempo macroeconômicas. Dada uma série de tempo <span class="math inline">\(y_t\)</span>, tenta-se encontrar alguma decomposição que resulte em:</p>
+<p><span class="math display">\[
+y_t = \text{cycle}_t + \text{trend}_t + \text{remainder}_t
+\]</span></p>
+<p>Diferentes teorias e abordagens foram levantadas para extair as tendências de curto e longo prazo de séries.</p>
+<p>De maneira geral, há dois tipos de tendências: (1) <strong>tendências determinísticas</strong> e (2) <strong>tendências estocásticas</strong>. A forma mais simples de tendência determinística é de uma tendência temporal linear. Algo na forma</p>
+<p><span class="math display">\[
 y_t = \alpha_{0} + \alpha_{1}t + u_{t}
-\]</span>.</p>
+\]</span></p>
+<p>Naturalmente, também é possível propor polinômios de ordem mais elevada para modelar a tendência acima. Contudo, não é usual usar polinômios maiores do que de grau 3, isto é,</p>
+<p><span class="math display">\[
+y_t = \alpha_{0} + \alpha_{1}t + \alpha_{2}t^2 + \alpha_{3}t^3 + u_{t}
+\]</span></p>
 <p>Já o exemplo mais simples de série com tendência estocástica é um random-walk</p>
 <p><span class="math display">\[
 y_t = y_{t-1} + u_{t}
 \]</span></p>
+<p>A depender do tipo de série que se considera, pode fazer sentido remover diferenças em ordens específicas. Na modelagem SARIMA, por exemplo, tira-se “diferenças sazonais”. No caso de uma série trimestral, por exemplo, pode fazer sentido tirar uma diferença trimestral</p>
+<p><span class="math display">\[
+z_{t} = y_{t} - y_{t-4}
+\]</span></p>
+<section id="produção-de-automóveis" class="level2">
+<h2 class="anchored" data-anchor-id="produção-de-automóveis">Produção de automóveis</h2>
 <p>O gráfico abaixo mostra a produção de automóveis no Brasil entre 1993 e 2007. Os dados são da Anfavea e baixados no R via API do Banco Central. A série não foi ajustada sazonalmente.</p>
 <div class="cell" data-layout-align="center">
+<details>
+<summary>Code</summary>
+<div class="sourceCode cell-code" id="cb1"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>(subcarros, <span class="fu">aes</span>(<span class="at">x =</span> date, <span class="at">y =</span> lcar)) <span class="sc">+</span></span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_line</span>(<span class="at">lwd =</span> <span class="fl">0.8</span>, <span class="at">color =</span> <span class="st">"steelblue"</span>) <span class="sc">+</span></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>    <span class="at">subtitle =</span> <span class="st">"Produção de automóveis e comerciais leves"</span>,</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>    <span class="at">x =</span> <span class="cn">NULL</span>,</span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>    <span class="at">y =</span> <span class="st">"Unidades (log)"</span>,</span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>    <span class="at">caption =</span> <span class="st">"Fonte: BCB"</span>) <span class="sc">+</span></span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_bw</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</details>
 <div class="cell-output-display">
 <div class="quarto-figure quarto-figure-center">
 <figure class="figure">
@@ -242,6 +285,34 @@ y_t = y_{t-1} + u_{t}
 </div>
 <p>O painel abaixo mostra as séries sem tendência e o gráfico de autocorrelação parcial do resíduo do ajuste. Note que é possível perceber visualmente a presença de uma componente sazonal que permanece na série. Os resíduos do ajuste com polinômio de terceiro grau ainda apresentam bastante autocorrelação, sugerindo que a série não é tendência-estacionária. O ajuste na primeira diferença parece ser mais adequado neste caso.</p>
 <div class="cell" data-layout-align="center">
+<details>
+<summary>Code</summary>
+<div class="sourceCode cell-code" id="cb2"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>p1 <span class="ot">&lt;-</span> <span class="fu">ggplot</span>(subcarros, <span class="fu">aes</span>(<span class="at">x =</span> date, <span class="at">y =</span> resid_tt)) <span class="sc">+</span></span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_line</span>(<span class="at">lwd =</span> <span class="fl">0.8</span>, <span class="at">color =</span> <span class="st">"steelblue"</span>) <span class="sc">+</span></span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_hline</span>(<span class="at">yintercept =</span> <span class="dv">0</span>) <span class="sc">+</span></span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="cn">NULL</span>, <span class="at">title =</span> <span class="st">"Tendência cúbica"</span>) <span class="sc">+</span></span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_y_continuous</span>(<span class="at">limits =</span> <span class="fu">c</span>(<span class="sc">-</span><span class="fl">0.5</span>, <span class="fl">0.5</span>)) <span class="sc">+</span></span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_bw</span>()</span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a>p2 <span class="ot">&lt;-</span> <span class="fu">ggplot</span>(subcarros, <span class="fu">aes</span>(<span class="at">x =</span> date, <span class="at">y =</span> resid_sto)) <span class="sc">+</span></span>
+<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_line</span>(<span class="at">lwd =</span> <span class="fl">0.8</span>, <span class="at">color =</span> <span class="st">"steelblue"</span>) <span class="sc">+</span></span>
+<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_hline</span>(<span class="at">yintercept =</span> <span class="dv">0</span>) <span class="sc">+</span></span>
+<span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_y_continuous</span>(<span class="at">limits =</span> <span class="fu">c</span>(<span class="sc">-</span><span class="fl">0.5</span>, <span class="fl">0.5</span>)) <span class="sc">+</span></span>
+<span id="cb2-12"><a href="#cb2-12" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="cn">NULL</span>, <span class="at">title =</span> <span class="st">"Tendência estocástica I(1)"</span>) <span class="sc">+</span></span>
+<span id="cb2-13"><a href="#cb2-13" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_bw</span>()</span>
+<span id="cb2-14"><a href="#cb2-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-15"><a href="#cb2-15" aria-hidden="true" tabindex="-1"></a>p3 <span class="ot">&lt;-</span> <span class="fu">ggAcf</span>(<span class="fu">ts</span>(subcarros<span class="sc">$</span>resid_tt, <span class="at">frequency =</span> <span class="dv">12</span>), <span class="at">lag.max =</span> <span class="dv">84</span>) <span class="sc">+</span></span>
+<span id="cb2-16"><a href="#cb2-16" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ggtitle</span>(<span class="st">"ACF: resíduos tendência cúbica"</span>) <span class="sc">+</span></span>
+<span id="cb2-17"><a href="#cb2-17" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_y_continuous</span>(<span class="at">limits =</span> <span class="fu">c</span>(<span class="sc">-</span><span class="fl">0.5</span>, <span class="fl">0.5</span>)) <span class="sc">+</span></span>
+<span id="cb2-18"><a href="#cb2-18" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_bw</span>()</span>
+<span id="cb2-19"><a href="#cb2-19" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-20"><a href="#cb2-20" aria-hidden="true" tabindex="-1"></a>p4 <span class="ot">&lt;-</span> <span class="fu">ggAcf</span>(<span class="fu">ts</span>(subcarros<span class="sc">$</span>resid_sto, <span class="at">frequency =</span> <span class="dv">12</span>), <span class="at">lag.max =</span> <span class="dv">84</span>) <span class="sc">+</span></span>
+<span id="cb2-21"><a href="#cb2-21" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ggtitle</span>(<span class="st">"ACF: resíduos tendência I(1)"</span>) <span class="sc">+</span></span>
+<span id="cb2-22"><a href="#cb2-22" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_y_continuous</span>(<span class="at">limits =</span> <span class="fu">c</span>(<span class="sc">-</span><span class="fl">0.5</span>, <span class="fl">0.5</span>)) <span class="sc">+</span></span>
+<span id="cb2-23"><a href="#cb2-23" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_bw</span>()</span>
+<span id="cb2-24"><a href="#cb2-24" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-25"><a href="#cb2-25" aria-hidden="true" tabindex="-1"></a>(p1 <span class="sc">+</span> p2) <span class="sc">/</span> (p3 <span class="sc">+</span> p4)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</details>
 <div class="cell-output-display">
 <div class="quarto-figure quarto-figure-center">
 <figure class="figure">
@@ -250,10 +321,10 @@ y_t = y_{t-1} + u_{t}
 </div>
 </div>
 </div>
-<p>Uma abordagem bastante comum para encontrar a tendência/ciclo em séries macroeconômicas é o filtro Hodrick-Prescott (HP). O filtro HP separa uma série em suas componentes de tendência e ciclo. Sua formulação matemática baseia-se na minimização de uma função objetivo que busca encontrar uma estimativa suave da tendência subjacente, ao mesmo tempo em que penaliza variações abruptas.</p>
+</section>
 <section id="filtro-hp" class="level2">
 <h2 class="anchored" data-anchor-id="filtro-hp">Filtro HP</h2>
-<p>O filtro HP separa uma série em suas componentes de tendência e ciclo. Sua formulação matemática baseia-se na minimização de uma função objetivo que busca encontrar uma estimativa suave da tendência subjacente, ao mesmo tempo em que penaliza variações abruptas.</p>
+<p>Uma abordagem bastante comum para encontrar a tendência/ciclo em séries macroeconômicas é o filtro Hodrick-Prescott (HP). O filtro HP separa uma série em suas componentes de tendência e ciclo. Sua formulação matemática baseia-se na minimização de uma função objetivo que busca encontrar uma estimativa suave da tendência subjacente, ao mesmo tempo em que penaliza variações abruptas.</p>
 <section id="formulação-do-problema-de-minimização" class="level3">
 <h3 class="anchored" data-anchor-id="formulação-do-problema-de-minimização">Formulação do Problema de Minimização</h3>
 <p>Dada uma série temporal <span class="math inline">\(y_t\)</span>, o objetivo é encontrar uma tendência <span class="math inline">\(g_t\)</span> que minimize a seguinte função objetivo:</p>
@@ -264,6 +335,23 @@ y_t = y_{t-1} + u_{t}
 <p>Note que se <span class="math inline">\(\lambda = 0\)</span> o valor ótimo de <span class="math inline">\(g_{t}\)</span> é simplesmente <span class="math inline">\(y_{t}\)</span>. Quando <span class="math inline">\(\lambda \to \infty\)</span> o componente <span class="math inline">\(g_{t}\)</span> se aproxima de uma tendência temporal linear. A escolha de <span class="math inline">\(\lambda\)</span> não é simples e é usual amparar-se em regras de bolso. Para séries trimestrais, costuma-se usar <span class="math inline">\(\lambda = 1600\)</span>; para séries mensais <span class="math inline">\(\lambda = 14400\)</span><a href="#fn1" class="footnote-ref" id="fnref1" role="doc-noteref"><sup>1</sup></a>.</p>
 <p>Apesar de ter sido desenvolvida para séries macroeconômicas, não há problema, em princípio, em aplicar o filtro HP a qualquer tipo de série. O gráfico abaixo mostra o resultado da aplicação do filtro HP à série de produção de veículos.</p>
 <div class="cell" data-layout-align="center">
+<details>
+<summary>Code</summary>
+<div class="sourceCode cell-code" id="cb3"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>y <span class="ot">&lt;-</span> <span class="fu">ts</span>(<span class="fu">log</span>(subcarros<span class="sc">$</span>value), <span class="at">frequency =</span> <span class="dv">12</span>)</span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>hpy <span class="ot">&lt;-</span> <span class="fu">hpfilter</span>(y, <span class="at">freq =</span> <span class="dv">14400</span>, <span class="at">type =</span> <span class="st">"lambda"</span>)</span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>tbl_hp <span class="ot">&lt;-</span> <span class="fu">tibble</span>(</span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">date =</span> <span class="fu">as.numeric</span>(<span class="fu">time</span>(y)),</span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a>  <span class="at">trend =</span> <span class="fu">as.numeric</span>(hpy<span class="sc">$</span>trend),</span>
+<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a>  <span class="at">series =</span> <span class="fu">as.numeric</span>(y)</span>
+<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>(tbl_hp, <span class="fu">aes</span>(<span class="at">x =</span> date)) <span class="sc">+</span></span>
+<span id="cb3-11"><a href="#cb3-11" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_line</span>(<span class="fu">aes</span>(<span class="at">y =</span> series), <span class="at">lwd =</span> <span class="fl">0.8</span>, <span class="at">color =</span> <span class="st">"#023047"</span>) <span class="sc">+</span></span>
+<span id="cb3-12"><a href="#cb3-12" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_line</span>(<span class="fu">aes</span>(<span class="at">y =</span> trend), <span class="at">lwd =</span> <span class="fl">0.8</span>, <span class="at">color =</span> <span class="st">"#ffb703"</span>) <span class="sc">+</span></span>
+<span id="cb3-13"><a href="#cb3-13" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">subtitle =</span> <span class="st">"Filtro HP: Série e Tendência"</span>, <span class="at">x =</span> <span class="cn">NULL</span>, <span class="at">y =</span> <span class="cn">NULL</span>) <span class="sc">+</span></span>
+<span id="cb3-14"><a href="#cb3-14" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_bw</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</details>
 <div class="cell-output-display">
 <div class="quarto-figure quarto-figure-center">
 <figure class="figure">
@@ -273,8 +361,8 @@ y_t = y_{t-1} + u_{t}
 </div>
 </div>
 </section>
-<section id="random-walk" class="level3">
-<h3 class="anchored" data-anchor-id="random-walk">Random-walk</h3>
+<section id="críticas-random-walk" class="level3">
+<h3 class="anchored" data-anchor-id="críticas-random-walk">Críticas: Random-walk</h3>
 <p>O passeio aleatório é um processo estocástico comum em economia. Variáveis importantes como preços futuros, preços de ações, preços de petróleo, conusmo, inflação, e a taxa de crescimento do estoque de moeda podem ser modeladas como passeios aleatórios.</p>
 <p>Seja um passeio aleatório <span class="math inline">\((1-L)y_{t} = u_{t}\)</span> com <span class="math inline">\(T\)</span> observações e frequência trimestral, onde <span class="math inline">\(L\)</span> é o operador defasagem usual: <span class="math inline">\(Lx_{t} = x_{t-1}\)</span>. Segundo Hamilton (2017), Quando se aplica o filtro HP sobre <span class="math inline">\(y_{t}\)</span> encontra-se o seguinte termo de ciclo, <span class="math inline">\(c_t\)</span></p>
 <p><span class="math display">\[
@@ -302,30 +390,30 @@ y_{t} &amp; = \sum_{i = 0}^{\infty}e_{i}
 <div class="cell" data-layout-align="center">
 <details>
 <summary>Code</summary>
-<div class="sourceCode cell-code" id="cb1"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">1984</span>)</span>
-<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>y <span class="ot">&lt;-</span> <span class="fu">ts</span>(<span class="fu">cumsum</span>(<span class="fu">rnorm</span>(<span class="dv">100</span>)), <span class="at">frequency =</span> <span class="dv">4</span>)</span>
-<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>hpy <span class="ot">&lt;-</span> <span class="fu">hpfilter</span>(y, <span class="at">freq =</span> <span class="dv">1600</span>, <span class="at">type =</span> <span class="st">"lambda"</span>)</span>
-<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>tbl_hp <span class="ot">&lt;-</span> <span class="fu">tibble</span>(</span>
-<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>  <span class="at">date =</span> <span class="fu">as.numeric</span>(<span class="fu">time</span>(y)),</span>
-<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a>  <span class="at">cycle =</span> <span class="fu">as.numeric</span>(hpy<span class="sc">$</span>cycle),</span>
-<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a>  <span class="at">trend =</span> <span class="fu">as.numeric</span>(hpy<span class="sc">$</span>trend),</span>
-<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a>  <span class="at">series =</span> <span class="fu">as.numeric</span>(y)</span>
-<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a>p1 <span class="ot">&lt;-</span> <span class="fu">ggplot</span>(tbl_hp, <span class="fu">aes</span>(<span class="at">x =</span> date)) <span class="sc">+</span></span>
-<span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_line</span>(<span class="fu">aes</span>(<span class="at">y =</span> series), <span class="at">lwd =</span> <span class="fl">0.8</span>, <span class="at">color =</span> <span class="st">"#023047"</span>) <span class="sc">+</span></span>
-<span id="cb1-15"><a href="#cb1-15" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_line</span>(<span class="fu">aes</span>(<span class="at">y =</span> trend), <span class="at">lwd =</span> <span class="fl">0.8</span>, <span class="at">color =</span> <span class="st">"#ffb703"</span>) <span class="sc">+</span></span>
-<span id="cb1-16"><a href="#cb1-16" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="st">"Filtro HP aplicado no Random Walk"</span>, <span class="at">subtitle =</span> <span class="st">"Série e Tendência"</span>, <span class="at">x =</span> <span class="cn">NULL</span>, <span class="at">y =</span> <span class="cn">NULL</span>) <span class="sc">+</span></span>
-<span id="cb1-17"><a href="#cb1-17" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_bw</span>()</span>
-<span id="cb1-18"><a href="#cb1-18" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-19"><a href="#cb1-19" aria-hidden="true" tabindex="-1"></a>p2 <span class="ot">&lt;-</span> <span class="fu">ggplot</span>(tbl_hp, <span class="fu">aes</span>(<span class="at">x =</span> date)) <span class="sc">+</span></span>
-<span id="cb1-20"><a href="#cb1-20" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_line</span>(<span class="fu">aes</span>(<span class="at">y =</span> cycle), <span class="at">lwd =</span> <span class="fl">0.8</span>, <span class="at">color =</span> <span class="st">"#023047"</span>) <span class="sc">+</span></span>
-<span id="cb1-21"><a href="#cb1-21" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="cn">NULL</span>, <span class="at">y =</span> <span class="cn">NULL</span>, <span class="at">subtitle =</span> <span class="st">"Ciclo"</span>) <span class="sc">+</span></span>
-<span id="cb1-22"><a href="#cb1-22" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_bw</span>()</span>
-<span id="cb1-23"><a href="#cb1-23" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-24"><a href="#cb1-24" aria-hidden="true" tabindex="-1"></a>p1 <span class="sc">/</span> p2</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb4"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">1984</span>)</span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>y <span class="ot">&lt;-</span> <span class="fu">ts</span>(<span class="fu">cumsum</span>(<span class="fu">rnorm</span>(<span class="dv">100</span>)), <span class="at">frequency =</span> <span class="dv">4</span>)</span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a>hpy <span class="ot">&lt;-</span> <span class="fu">hpfilter</span>(y, <span class="at">freq =</span> <span class="dv">1600</span>, <span class="at">type =</span> <span class="st">"lambda"</span>)</span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a>tbl_hp <span class="ot">&lt;-</span> <span class="fu">tibble</span>(</span>
+<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a>  <span class="at">date =</span> <span class="fu">as.numeric</span>(<span class="fu">time</span>(y)),</span>
+<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a>  <span class="at">cycle =</span> <span class="fu">as.numeric</span>(hpy<span class="sc">$</span>cycle),</span>
+<span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a>  <span class="at">trend =</span> <span class="fu">as.numeric</span>(hpy<span class="sc">$</span>trend),</span>
+<span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a>  <span class="at">series =</span> <span class="fu">as.numeric</span>(y)</span>
+<span id="cb4-11"><a href="#cb4-11" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb4-12"><a href="#cb4-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-13"><a href="#cb4-13" aria-hidden="true" tabindex="-1"></a>p1 <span class="ot">&lt;-</span> <span class="fu">ggplot</span>(tbl_hp, <span class="fu">aes</span>(<span class="at">x =</span> date)) <span class="sc">+</span></span>
+<span id="cb4-14"><a href="#cb4-14" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_line</span>(<span class="fu">aes</span>(<span class="at">y =</span> series), <span class="at">lwd =</span> <span class="fl">0.8</span>, <span class="at">color =</span> <span class="st">"#023047"</span>) <span class="sc">+</span></span>
+<span id="cb4-15"><a href="#cb4-15" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_line</span>(<span class="fu">aes</span>(<span class="at">y =</span> trend), <span class="at">lwd =</span> <span class="fl">0.8</span>, <span class="at">color =</span> <span class="st">"#ffb703"</span>) <span class="sc">+</span></span>
+<span id="cb4-16"><a href="#cb4-16" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="st">"Filtro HP aplicado no Random Walk"</span>, <span class="at">subtitle =</span> <span class="st">"Série e Tendência"</span>, <span class="at">x =</span> <span class="cn">NULL</span>, <span class="at">y =</span> <span class="cn">NULL</span>) <span class="sc">+</span></span>
+<span id="cb4-17"><a href="#cb4-17" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_bw</span>()</span>
+<span id="cb4-18"><a href="#cb4-18" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-19"><a href="#cb4-19" aria-hidden="true" tabindex="-1"></a>p2 <span class="ot">&lt;-</span> <span class="fu">ggplot</span>(tbl_hp, <span class="fu">aes</span>(<span class="at">x =</span> date)) <span class="sc">+</span></span>
+<span id="cb4-20"><a href="#cb4-20" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_line</span>(<span class="fu">aes</span>(<span class="at">y =</span> cycle), <span class="at">lwd =</span> <span class="fl">0.8</span>, <span class="at">color =</span> <span class="st">"#023047"</span>) <span class="sc">+</span></span>
+<span id="cb4-21"><a href="#cb4-21" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="cn">NULL</span>, <span class="at">y =</span> <span class="cn">NULL</span>, <span class="at">subtitle =</span> <span class="st">"Ciclo"</span>) <span class="sc">+</span></span>
+<span id="cb4-22"><a href="#cb4-22" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_bw</span>()</span>
+<span id="cb4-23"><a href="#cb4-23" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-24"><a href="#cb4-24" aria-hidden="true" tabindex="-1"></a>p1 <span class="sc">/</span> p2</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details>
 <div class="cell-output-display">
 <div class="quarto-figure quarto-figure-center">
@@ -343,51 +431,51 @@ y_{t} &amp; = \sum_{i = 0}^{\infty}e_{i}
 <div class="cell" data-layout-align="center">
 <details>
 <summary>Code</summary>
-<div class="sourceCode cell-code" id="cb2"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(AER)</span>
-<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="fu">data</span>(<span class="st">"USMacroG"</span>)</span>
-<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>macro <span class="ot">&lt;-</span> <span class="fu">tibble</span>(</span>
-<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">date =</span> zoo<span class="sc">::</span><span class="fu">as.Date.ts</span>(USMacroG),</span>
-<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">as.data.frame</span>(USMacroG)</span>
-<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a>macro <span class="ot">&lt;-</span> macro <span class="sc">|&gt;</span> </span>
-<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="fu">across</span>(gdp<span class="sc">:</span>m1, log))</span>
-<span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-12"><a href="#cb2-12" aria-hidden="true" tabindex="-1"></a>nest_macro <span class="ot">&lt;-</span> macro <span class="sc">|&gt;</span> </span>
-<span id="cb2-13"><a href="#cb2-13" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(date, gdp, consumption, invest, m1) <span class="sc">|&gt;</span> </span>
-<span id="cb2-14"><a href="#cb2-14" aria-hidden="true" tabindex="-1"></a>  <span class="fu">pivot_longer</span>(<span class="at">col =</span> <span class="sc">-</span>date, <span class="at">names_to =</span> <span class="st">"name_series"</span>) <span class="sc">|&gt;</span> </span>
-<span id="cb2-15"><a href="#cb2-15" aria-hidden="true" tabindex="-1"></a>  <span class="fu">group_by</span>(name_series) <span class="sc">|&gt;</span> </span>
-<span id="cb2-16"><a href="#cb2-16" aria-hidden="true" tabindex="-1"></a>  <span class="fu">nest</span>()</span>
-<span id="cb2-17"><a href="#cb2-17" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-18"><a href="#cb2-18" aria-hidden="true" tabindex="-1"></a>macro_hp <span class="ot">&lt;-</span> nest_macro <span class="sc">|&gt;</span> </span>
-<span id="cb2-19"><a href="#cb2-19" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">hpy =</span> <span class="fu">map</span>(data, \(x) {</span>
-<span id="cb2-20"><a href="#cb2-20" aria-hidden="true" tabindex="-1"></a>    y <span class="ot">&lt;-</span> <span class="fu">ts</span>(x<span class="sc">$</span>value, <span class="at">frequency =</span> <span class="dv">4</span>, <span class="at">start =</span> <span class="fu">c</span>(<span class="dv">1950</span>, <span class="dv">1</span>))</span>
-<span id="cb2-21"><a href="#cb2-21" aria-hidden="true" tabindex="-1"></a>    hp <span class="ot">&lt;-</span> <span class="fu">hpfilter</span>(y, <span class="at">freq =</span> <span class="dv">1600</span>, <span class="at">type =</span> <span class="st">"lambda"</span>)</span>
-<span id="cb2-22"><a href="#cb2-22" aria-hidden="true" tabindex="-1"></a>    </span>
-<span id="cb2-23"><a href="#cb2-23" aria-hidden="true" tabindex="-1"></a>    <span class="fu">tibble</span>(</span>
-<span id="cb2-24"><a href="#cb2-24" aria-hidden="true" tabindex="-1"></a>      <span class="at">cycle =</span> <span class="fu">as.numeric</span>(hp<span class="sc">$</span>cycle),</span>
-<span id="cb2-25"><a href="#cb2-25" aria-hidden="true" tabindex="-1"></a>      <span class="at">trend =</span> <span class="fu">as.numeric</span>(hp<span class="sc">$</span>trend)</span>
-<span id="cb2-26"><a href="#cb2-26" aria-hidden="true" tabindex="-1"></a>    )</span>
-<span id="cb2-27"><a href="#cb2-27" aria-hidden="true" tabindex="-1"></a>  })) <span class="sc">|&gt;</span> </span>
-<span id="cb2-28"><a href="#cb2-28" aria-hidden="true" tabindex="-1"></a>  <span class="fu">unnest</span>(<span class="fu">c</span>(data, hpy)) <span class="sc">|&gt;</span> </span>
-<span id="cb2-29"><a href="#cb2-29" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ungroup</span>()</span>
-<span id="cb2-30"><a href="#cb2-30" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-31"><a href="#cb2-31" aria-hidden="true" tabindex="-1"></a>p1 <span class="ot">&lt;-</span> <span class="fu">ggplot</span>(macro_hp, <span class="fu">aes</span>(<span class="at">x =</span> date, <span class="at">y =</span> value)) <span class="sc">+</span></span>
-<span id="cb2-32"><a href="#cb2-32" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_line</span>(<span class="fu">aes</span>(<span class="at">y =</span> value), <span class="at">lwd =</span> <span class="fl">0.8</span>, <span class="at">color =</span> <span class="st">"#023047"</span>) <span class="sc">+</span></span>
-<span id="cb2-33"><a href="#cb2-33" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_line</span>(<span class="fu">aes</span>(<span class="at">y =</span> trend), <span class="at">lwd =</span> <span class="fl">0.8</span>, <span class="at">color =</span> <span class="st">"#ffb703"</span>) <span class="sc">+</span></span>
-<span id="cb2-34"><a href="#cb2-34" aria-hidden="true" tabindex="-1"></a>  <span class="fu">facet_wrap</span>(<span class="sc">~</span>name_series, <span class="at">scales =</span> <span class="st">"free_y"</span>, <span class="at">ncol =</span> <span class="dv">1</span>) <span class="sc">+</span></span>
-<span id="cb2-35"><a href="#cb2-35" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="cn">NULL</span>, <span class="at">y =</span> <span class="cn">NULL</span>)<span class="sc">+</span></span>
-<span id="cb2-36"><a href="#cb2-36" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_bw</span>()</span>
-<span id="cb2-37"><a href="#cb2-37" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-38"><a href="#cb2-38" aria-hidden="true" tabindex="-1"></a>p2 <span class="ot">&lt;-</span> <span class="fu">ggplot</span>(macro_hp, <span class="fu">aes</span>(<span class="at">x =</span> date, <span class="at">y =</span> cycle)) <span class="sc">+</span></span>
-<span id="cb2-39"><a href="#cb2-39" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_line</span>(<span class="at">lwd =</span> <span class="fl">0.8</span>, <span class="at">color =</span> <span class="st">"#023047"</span>) <span class="sc">+</span></span>
-<span id="cb2-40"><a href="#cb2-40" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_hline</span>(<span class="at">yintercept =</span> <span class="dv">0</span>) <span class="sc">+</span></span>
-<span id="cb2-41"><a href="#cb2-41" aria-hidden="true" tabindex="-1"></a>  <span class="fu">facet_wrap</span>(<span class="sc">~</span>name_series, <span class="at">ncol =</span> <span class="dv">1</span>) <span class="sc">+</span></span>
-<span id="cb2-42"><a href="#cb2-42" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="cn">NULL</span>, <span class="at">y =</span> <span class="cn">NULL</span>) <span class="sc">+</span></span>
-<span id="cb2-43"><a href="#cb2-43" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_bw</span>()</span>
-<span id="cb2-44"><a href="#cb2-44" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-45"><a href="#cb2-45" aria-hidden="true" tabindex="-1"></a>p1 <span class="sc">+</span> p2</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb5"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(AER)</span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a><span class="fu">data</span>(<span class="st">"USMacroG"</span>)</span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>macro <span class="ot">&lt;-</span> <span class="fu">tibble</span>(</span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">date =</span> zoo<span class="sc">::</span><span class="fu">as.Date.ts</span>(USMacroG),</span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">as.data.frame</span>(USMacroG)</span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a>macro <span class="ot">&lt;-</span> macro <span class="sc">|&gt;</span> </span>
+<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="fu">across</span>(gdp<span class="sc">:</span>m1, log))</span>
+<span id="cb5-11"><a href="#cb5-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-12"><a href="#cb5-12" aria-hidden="true" tabindex="-1"></a>nest_macro <span class="ot">&lt;-</span> macro <span class="sc">|&gt;</span> </span>
+<span id="cb5-13"><a href="#cb5-13" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(date, gdp, consumption, invest, m1) <span class="sc">|&gt;</span> </span>
+<span id="cb5-14"><a href="#cb5-14" aria-hidden="true" tabindex="-1"></a>  <span class="fu">pivot_longer</span>(<span class="at">col =</span> <span class="sc">-</span>date, <span class="at">names_to =</span> <span class="st">"name_series"</span>) <span class="sc">|&gt;</span> </span>
+<span id="cb5-15"><a href="#cb5-15" aria-hidden="true" tabindex="-1"></a>  <span class="fu">group_by</span>(name_series) <span class="sc">|&gt;</span> </span>
+<span id="cb5-16"><a href="#cb5-16" aria-hidden="true" tabindex="-1"></a>  <span class="fu">nest</span>()</span>
+<span id="cb5-17"><a href="#cb5-17" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-18"><a href="#cb5-18" aria-hidden="true" tabindex="-1"></a>macro_hp <span class="ot">&lt;-</span> nest_macro <span class="sc">|&gt;</span> </span>
+<span id="cb5-19"><a href="#cb5-19" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">hpy =</span> <span class="fu">map</span>(data, \(x) {</span>
+<span id="cb5-20"><a href="#cb5-20" aria-hidden="true" tabindex="-1"></a>    y <span class="ot">&lt;-</span> <span class="fu">ts</span>(x<span class="sc">$</span>value, <span class="at">frequency =</span> <span class="dv">4</span>, <span class="at">start =</span> <span class="fu">c</span>(<span class="dv">1950</span>, <span class="dv">1</span>))</span>
+<span id="cb5-21"><a href="#cb5-21" aria-hidden="true" tabindex="-1"></a>    hp <span class="ot">&lt;-</span> <span class="fu">hpfilter</span>(y, <span class="at">freq =</span> <span class="dv">1600</span>, <span class="at">type =</span> <span class="st">"lambda"</span>)</span>
+<span id="cb5-22"><a href="#cb5-22" aria-hidden="true" tabindex="-1"></a>    </span>
+<span id="cb5-23"><a href="#cb5-23" aria-hidden="true" tabindex="-1"></a>    <span class="fu">tibble</span>(</span>
+<span id="cb5-24"><a href="#cb5-24" aria-hidden="true" tabindex="-1"></a>      <span class="at">cycle =</span> <span class="fu">as.numeric</span>(hp<span class="sc">$</span>cycle),</span>
+<span id="cb5-25"><a href="#cb5-25" aria-hidden="true" tabindex="-1"></a>      <span class="at">trend =</span> <span class="fu">as.numeric</span>(hp<span class="sc">$</span>trend)</span>
+<span id="cb5-26"><a href="#cb5-26" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb5-27"><a href="#cb5-27" aria-hidden="true" tabindex="-1"></a>  })) <span class="sc">|&gt;</span> </span>
+<span id="cb5-28"><a href="#cb5-28" aria-hidden="true" tabindex="-1"></a>  <span class="fu">unnest</span>(<span class="fu">c</span>(data, hpy)) <span class="sc">|&gt;</span> </span>
+<span id="cb5-29"><a href="#cb5-29" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ungroup</span>()</span>
+<span id="cb5-30"><a href="#cb5-30" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-31"><a href="#cb5-31" aria-hidden="true" tabindex="-1"></a>p1 <span class="ot">&lt;-</span> <span class="fu">ggplot</span>(macro_hp, <span class="fu">aes</span>(<span class="at">x =</span> date, <span class="at">y =</span> value)) <span class="sc">+</span></span>
+<span id="cb5-32"><a href="#cb5-32" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_line</span>(<span class="fu">aes</span>(<span class="at">y =</span> value), <span class="at">lwd =</span> <span class="fl">0.8</span>, <span class="at">color =</span> <span class="st">"#023047"</span>) <span class="sc">+</span></span>
+<span id="cb5-33"><a href="#cb5-33" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_line</span>(<span class="fu">aes</span>(<span class="at">y =</span> trend), <span class="at">lwd =</span> <span class="fl">0.8</span>, <span class="at">color =</span> <span class="st">"#ffb703"</span>) <span class="sc">+</span></span>
+<span id="cb5-34"><a href="#cb5-34" aria-hidden="true" tabindex="-1"></a>  <span class="fu">facet_wrap</span>(<span class="sc">~</span>name_series, <span class="at">scales =</span> <span class="st">"free_y"</span>, <span class="at">ncol =</span> <span class="dv">1</span>) <span class="sc">+</span></span>
+<span id="cb5-35"><a href="#cb5-35" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="cn">NULL</span>, <span class="at">y =</span> <span class="cn">NULL</span>)<span class="sc">+</span></span>
+<span id="cb5-36"><a href="#cb5-36" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_bw</span>()</span>
+<span id="cb5-37"><a href="#cb5-37" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-38"><a href="#cb5-38" aria-hidden="true" tabindex="-1"></a>p2 <span class="ot">&lt;-</span> <span class="fu">ggplot</span>(macro_hp, <span class="fu">aes</span>(<span class="at">x =</span> date, <span class="at">y =</span> cycle)) <span class="sc">+</span></span>
+<span id="cb5-39"><a href="#cb5-39" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_line</span>(<span class="at">lwd =</span> <span class="fl">0.8</span>, <span class="at">color =</span> <span class="st">"#023047"</span>) <span class="sc">+</span></span>
+<span id="cb5-40"><a href="#cb5-40" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_hline</span>(<span class="at">yintercept =</span> <span class="dv">0</span>) <span class="sc">+</span></span>
+<span id="cb5-41"><a href="#cb5-41" aria-hidden="true" tabindex="-1"></a>  <span class="fu">facet_wrap</span>(<span class="sc">~</span>name_series, <span class="at">ncol =</span> <span class="dv">1</span>) <span class="sc">+</span></span>
+<span id="cb5-42"><a href="#cb5-42" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="cn">NULL</span>, <span class="at">y =</span> <span class="cn">NULL</span>) <span class="sc">+</span></span>
+<span id="cb5-43"><a href="#cb5-43" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_bw</span>()</span>
+<span id="cb5-44"><a href="#cb5-44" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-45"><a href="#cb5-45" aria-hidden="true" tabindex="-1"></a>p1 <span class="sc">+</span> p2</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details>
 <div class="cell-output-display">
 <div class="quarto-figure quarto-figure-center">
@@ -399,6 +487,17 @@ y_{t} &amp; = \sum_{i = 0}^{\infty}e_{i}
 </div>
 <p>A análise das autocorrelações mostra que há bastante autocorrelação cruzada entre as séries.</p>
 <div class="cell" data-layout-align="center">
+<details>
+<summary>Code</summary>
+<div class="sourceCode cell-code" id="cb6"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>macro_detrend <span class="ot">&lt;-</span> macro_hp <span class="sc">|&gt;</span> </span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">detrend =</span> value <span class="sc">-</span> trend) <span class="sc">|&gt;</span> </span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">pivot_wider</span>(<span class="at">id_cols =</span> <span class="st">"date"</span>, <span class="at">names_from =</span> <span class="st">"name_series"</span>, <span class="at">values_from =</span> <span class="st">"detrend"</span>) <span class="sc">|&gt;</span> </span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(<span class="sc">-</span>date)</span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a><span class="fu">ggAcf</span>(<span class="fu">ts</span>(macro_detrend, <span class="at">frequency =</span> <span class="dv">4</span>), <span class="at">lag.max =</span> <span class="dv">28</span>) <span class="sc">+</span></span>
+<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ggtitle</span>(<span class="st">"ACF: séries com filtro HP"</span>) <span class="sc">+</span></span>
+<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_bw</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</details>
 <div class="cell-output-display">
 <div class="quarto-figure quarto-figure-center">
 <figure class="figure">
@@ -408,8 +507,18 @@ y_{t} &amp; = \sum_{i = 0}^{\infty}e_{i}
 </div>
 </div>
 <p>Se tivéssemos assumido, contudo, que as séries são I(1), não haveria muita correlação cruzada entre as séries.</p>
-<p>The HP cyclical components of stock prices and consumption are both extremely predictable from their own lagged values as well as each other. The rich dynamics in these series are purely an artifact of the filter itself and tell us nothing about the underlying data- generating process.</p>
 <div class="cell" data-layout-align="center">
+<details>
+<summary>Code</summary>
+<div class="sourceCode cell-code" id="cb7"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>macro_d1 <span class="ot">&lt;-</span> macro <span class="sc">|&gt;</span> </span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(gdp, consumption, invest, m1) <span class="sc">|&gt;</span> </span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="fu">across</span>(<span class="fu">everything</span>(), <span class="sc">~</span><span class="fu">c</span>(<span class="cn">NA</span>, <span class="fu">diff</span>(.x))))</span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a><span class="fu">ggAcf</span>(<span class="fu">ts</span>(macro_d1, <span class="at">frequency =</span> <span class="dv">4</span>), <span class="at">lag.max =</span> <span class="dv">28</span>) <span class="sc">+</span></span>
+<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ggtitle</span>(<span class="st">"ACF: primeira diferença das séries"</span>) <span class="sc">+</span></span>
+<span id="cb7-8"><a href="#cb7-8" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_bw</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</details>
 <div class="cell-output-display">
 <div class="quarto-figure quarto-figure-center">
 <figure class="figure">
@@ -435,43 +544,205 @@ y_{t} = \beta_0 + \beta_{1} y_{t-8} + \beta_{2} y_{t-9} + \beta_{3} y_{t-10} + \
 y_{t} = \beta_0 + \beta_{1} y_{t-8} + u_{t+h}
 \]</span></p>
 <p>De modo geral, Hamilton argumenta que este filtro garante a estacionaridade de séries, sendo elas tendência-estacionárias ou diferença-estacionárias. Mais detalhes sobre o filtro podem ser verificados no Working Paper.</p>
+<section id="preparando-os-dados" class="level3">
+<h3 class="anchored" data-anchor-id="preparando-os-dados">Preparando os dados</h3>
+<p>O primeiro passo necessário é preparar os dados. Novamente, vamos trabalhar com as séries num padrão retangular, usando um <code>tibble</code>. A base de dados utilizada é a <code>USMacroG</code>, descrita acima; neste caso, vamos adicionar as séries de gasto do governo e inflação. Isto é, temos agora seis séries: PIB, consumo, investimento, gasto do governo, inflação e M1. Todas as variáveis, exceto pela taxa de inflação, serão transformadas usando log, seguindo o paper de Hamilton.</p>
+<p>O código abaixo tem um trecho interessante onde se usa uma combinação de <code>map</code> e <code>partial</code> para criar várias colunas com os valores defasados das variáveis.</p>
 <div class="cell" data-layout-align="center">
-<div class="cell-output cell-output-stdout">
-<pre><code># A tibble: 772 × 4
-      id name_series trend    resid
-   &lt;dbl&gt; &lt;chr&gt;       &lt;dbl&gt;    &lt;dbl&gt;
- 1    12 gdp          7.53  0.0375 
- 2    13 gdp          7.54  0.0440 
- 3    14 gdp          7.57  0.0282 
- 4    15 gdp          7.59  0.00113
- 5    16 gdp          7.59 -0.0127 
- 6    17 gdp          7.60 -0.0329 
- 7    18 gdp          7.60 -0.0337 
- 8    19 gdp          7.61 -0.0294 
- 9    20 gdp          7.65 -0.0470 
-10    21 gdp          7.66 -0.0289 
-# ℹ 762 more rows</code></pre>
+<div class="sourceCode cell-code" id="cb8"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="fu">data</span>(USMacroG)</span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a>macro <span class="ot">&lt;-</span> <span class="fu">tibble</span>(</span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">date =</span> zoo<span class="sc">::</span><span class="fu">as.Date.ts</span>(USMacroG),</span>
+<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">as.data.frame</span>(USMacroG)</span>
+<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb8-7"><a href="#cb8-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-8"><a href="#cb8-8" aria-hidden="true" tabindex="-1"></a>macro_long <span class="ot">&lt;-</span> macro <span class="sc">|&gt;</span> </span>
+<span id="cb8-9"><a href="#cb8-9" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(date, gdp, consumption, invest, m1, government, inflation) <span class="sc">|&gt;</span> </span>
+<span id="cb8-10"><a href="#cb8-10" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="fu">across</span>(gdp<span class="sc">:</span>government, <span class="sc">~</span><span class="fu">log10</span>(.x) <span class="sc">*</span> <span class="dv">100</span>)) <span class="sc">|&gt;</span> </span>
+<span id="cb8-11"><a href="#cb8-11" aria-hidden="true" tabindex="-1"></a>  <span class="fu">pivot_longer</span>(<span class="sc">-</span>date, <span class="at">names_to =</span> <span class="st">"name_series"</span>)</span>
+<span id="cb8-12"><a href="#cb8-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-13"><a href="#cb8-13" aria-hidden="true" tabindex="-1"></a>macro_lags <span class="ot">&lt;-</span> macro_long <span class="sc">|&gt;</span> </span>
+<span id="cb8-14"><a href="#cb8-14" aria-hidden="true" tabindex="-1"></a>  <span class="fu">group_by</span>(name_series) <span class="sc">|&gt;</span> </span>
+<span id="cb8-15"><a href="#cb8-15" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(</span>
+<span id="cb8-16"><a href="#cb8-16" aria-hidden="true" tabindex="-1"></a>    <span class="fu">across</span>(value,</span>
+<span id="cb8-17"><a href="#cb8-17" aria-hidden="true" tabindex="-1"></a>           <span class="fu">map</span>(<span class="dv">1</span><span class="sc">:</span><span class="dv">12</span>, <span class="sc">~</span><span class="fu">partial</span>(dplyr<span class="sc">::</span>lag, <span class="at">n =</span> .x)),</span>
+<span id="cb8-18"><a href="#cb8-18" aria-hidden="true" tabindex="-1"></a>           <span class="at">.names =</span> <span class="st">"l{.fn}"</span>)</span>
+<span id="cb8-19"><a href="#cb8-19" aria-hidden="true" tabindex="-1"></a>  )</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
-<div class="cell-output cell-output-stdout">
-<pre><code># A tibble: 784 × 4
-      id name_series trend_rw resid_rw
-   &lt;dbl&gt; &lt;chr&gt;          &lt;dbl&gt;    &lt;dbl&gt;
- 1     9 gdp             7.46  0.0701 
- 2    10 gdp             7.49  0.0416 
- 3    11 gdp             7.53  0.0104 
- 4    12 gdp             7.55  0.0254 
- 5    13 gdp             7.56  0.0326 
- 6    14 gdp             7.57  0.0241 
- 7    15 gdp             7.59 -0.00190
- 8    16 gdp             7.59 -0.0199 
- 9    17 gdp             7.61 -0.0363 
-10    18 gdp             7.61 -0.0356 
-# ℹ 774 more rows</code></pre>
-</div>
-</div>
-
-
 </section>
+<section id="estimando-os-modelos" class="level3">
+<h3 class="anchored" data-anchor-id="estimando-os-modelos">Estimando os modelos</h3>
+<p>Hamilton sugere duas maneiras de tirar a tendência dos dados: usando uma regressão linear e tirando uma diferença simples. No caso de séries trimestrais, o autor sugere <span class="math inline">\(p=4\)</span> e <span class="math inline">\(h=8\)</span>. Assim, temos de estimar um modelo linear da forma:</p>
+<p><span class="math display">\[
+y_{t} = \beta_0 + \beta_{1} y_{t-8} + \beta_{2} y_{t-9} + \beta_{3} y_{t-10} + \beta_{4} y_{t-11} + u_{t+h}
+\]</span></p>
+<p>E a série livre de tendência, <span class="math inline">\(z_t\)</span> será dada por:</p>
+<p><span class="math display">\[
+z_{t} = y_{t} - \hat{\beta_0} - \hat{\beta_1}y_{t-8} - \hat{\beta_2}y_{t-9} - \hat{\beta_3}y_{t-10} - \hat{\beta_4}y_{t-11}
+\]</span></p>
+<p>No segundo “modelo”, vamos simplesmente tirar uma diferença na forma:</p>
+<p><span class="math display">\[
+z_{t} = y_{t} - y_{t-8}
+\]</span></p>
+<p>O primeiro modelo será chamado de “regression”, enquanto o segundo modelo será chamado de “Random Walk”. O código abaixo faz a regressão em todas as séries e grava os resultados do fit e os resíduos de todos os modelos.</p>
+<div class="cell" data-layout-align="center">
+<div class="sourceCode cell-code" id="cb9"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>macro_models <span class="ot">&lt;-</span> macro_lags <span class="sc">|&gt;</span> </span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">resid_rw =</span> value <span class="sc">-</span> l8) <span class="sc">|&gt;</span> </span>
+<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">nest</span>() <span class="sc">|&gt;</span> </span>
+<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(</span>
+<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a>    <span class="at">model_reg =</span> <span class="fu">map</span>(data, \(d) <span class="fu">lm</span>(value <span class="sc">~</span> l8 <span class="sc">+</span> l9 <span class="sc">+</span> l10 <span class="sc">+</span> l11, <span class="at">data =</span> d)),</span>
+<span id="cb9-6"><a href="#cb9-6" aria-hidden="true" tabindex="-1"></a>    <span class="at">trend =</span> <span class="fu">map</span>(model_reg, fitted),</span>
+<span id="cb9-7"><a href="#cb9-7" aria-hidden="true" tabindex="-1"></a>    <span class="at">resid =</span> <span class="fu">map</span>(model_reg, residuals)</span>
+<span id="cb9-8"><a href="#cb9-8" aria-hidden="true" tabindex="-1"></a>  )</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+</section>
+<section id="verificando-os-resíduos" class="level3">
+<h3 class="anchored" data-anchor-id="verificando-os-resíduos">Verificando os resíduos</h3>
+<p>Idealmente, deve-se verificar o comportamento dos resíduos do modelo de regressão. Neste caso, estes resíduos são considerados o componente cíclico da série original. O painel abaixo mostra os resíduos da primeira série, do PIB. O gráfico de cima é simplesmente o gráfico do resíduo. No gráfico inferior-esquerdo temos o gráfico de autocorrelação da série e no gráfico inferior-direito temos o historgrama dos resíduos com a densidade da distribuição normal superimposta.</p>
+<p>Vale lembrar que não estamos buscando limpar a série totalmente de autocorrelação, como na modelagem ARIMA.</p>
+<div class="cell" data-layout-align="center">
+<div class="cell-output-display">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="index_files/figure-html/unnamed-chunk-11-1.png" class="img-fluid figure-img" style="width:80.0%"></p>
+</figure>
+</div>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>
+    Ljung-Box test
+
+data:  Residuals
+Q* = 417.09, df = 10, p-value &lt; 2.2e-16
+
+Model df: 0.   Total lags used: 10</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>NULL</code></pre>
+</div>
+</div>
+<p>Evidentemente, não é fácil inspecionar os resíduos de todos os modelos, especialmente quando o número de séries é muito grande. O painel abaixo mostra o gráfico de autocorrelação entre as seis séries consideradas. Na diagonal principal temos o gráfico do resíduo da própria série; nos demais gráficos, mostra-se a autocorrelação cruzada entre os resíduos.</p>
+<div class="cell" data-layout-align="center">
+<div class="cell-output-display">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="index_files/figure-html/unnamed-chunk-12-1.png" class="img-fluid figure-img" style="width:100.0%"></p>
+</figure>
+</div>
+</div>
+</div>
+</section>
+<section id="resultados-do-filtro" class="level3">
+<h3 class="anchored" data-anchor-id="resultados-do-filtro">Resultados do filtro</h3>
+<p>O código abaixo junta todas as séries para facilitar a sua visualização. Como há várias séries e muita repetição, crio uma função <code>plot_series</code> para facilitar a construção dos painéis.</p>
+<div class="cell" data-layout-align="center">
+<details>
+<summary>Code</summary>
+<div class="sourceCode cell-code" id="cb12"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a>m1 <span class="ot">&lt;-</span> macro_models <span class="sc">|&gt;</span> </span>
+<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ungroup</span>() <span class="sc">|&gt;</span> </span>
+<span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(name_series, trend, resid) <span class="sc">|&gt;</span> </span>
+<span id="cb12-4"><a href="#cb12-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">unnest</span>(<span class="at">cols =</span> <span class="fu">c</span>(<span class="st">"trend"</span>, <span class="st">"resid"</span>)) <span class="sc">|&gt;</span> </span>
+<span id="cb12-5"><a href="#cb12-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">id =</span> <span class="fu">as.numeric</span>(<span class="fu">names</span>(trend)), <span class="at">.before =</span> <span class="fu">everything</span>())</span>
+<span id="cb12-6"><a href="#cb12-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-7"><a href="#cb12-7" aria-hidden="true" tabindex="-1"></a>macro_trend <span class="ot">&lt;-</span> macro_models <span class="sc">|&gt;</span> </span>
+<span id="cb12-8"><a href="#cb12-8" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(name_series, data) <span class="sc">|&gt;</span> </span>
+<span id="cb12-9"><a href="#cb12-9" aria-hidden="true" tabindex="-1"></a>  <span class="fu">unnest</span>(<span class="at">cols =</span> <span class="fu">c</span>(data)) <span class="sc">|&gt;</span> </span>
+<span id="cb12-10"><a href="#cb12-10" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">id =</span> vctrs<span class="sc">::</span><span class="fu">vec_group_id</span>(date), <span class="at">.before =</span> <span class="fu">everything</span>()) <span class="sc">|&gt;</span> </span>
+<span id="cb12-11"><a href="#cb12-11" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ungroup</span>()</span>
+<span id="cb12-12"><a href="#cb12-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-13"><a href="#cb12-13" aria-hidden="true" tabindex="-1"></a>macro_trend <span class="ot">&lt;-</span> macro_trend <span class="sc">|&gt;</span> </span>
+<span id="cb12-14"><a href="#cb12-14" aria-hidden="true" tabindex="-1"></a>  <span class="fu">left_join</span>(m1, <span class="at">by =</span> <span class="fu">c</span>(<span class="st">"id"</span>, <span class="st">"name_series"</span>))</span>
+<span id="cb12-15"><a href="#cb12-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-16"><a href="#cb12-16" aria-hidden="true" tabindex="-1"></a>series_trend <span class="ot">&lt;-</span> macro_trend <span class="sc">|&gt;</span> </span>
+<span id="cb12-17"><a href="#cb12-17" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(date, name_series, trend, resid, resid_rw) <span class="sc">|&gt;</span> </span>
+<span id="cb12-18"><a href="#cb12-18" aria-hidden="true" tabindex="-1"></a>  <span class="fu">pivot_longer</span>(<span class="at">cols =</span> <span class="sc">-</span><span class="fu">c</span>(date, name_series), <span class="at">names_to =</span> <span class="st">"name_decomp"</span>) <span class="sc">|&gt;</span></span>
+<span id="cb12-19"><a href="#cb12-19" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">decomp =</span> <span class="fu">if_else</span>(<span class="fu">str_detect</span>(name_decomp, <span class="st">"trend"</span>), <span class="st">"trend"</span>, <span class="st">"resid"</span>)) <span class="sc">|&gt;</span> </span>
+<span id="cb12-20"><a href="#cb12-20" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(<span class="sc">!</span><span class="fu">is.na</span>(value))</span>
+<span id="cb12-21"><a href="#cb12-21" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-22"><a href="#cb12-22" aria-hidden="true" tabindex="-1"></a>plot_series <span class="ot">&lt;-</span> <span class="cf">function</span>(x, <span class="at">ylim =</span> <span class="fu">c</span>(<span class="cn">NA</span>, <span class="cn">NA</span>)) {</span>
+<span id="cb12-23"><a href="#cb12-23" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb12-24"><a href="#cb12-24" aria-hidden="true" tabindex="-1"></a>  p1 <span class="ot">&lt;-</span> <span class="fu">ggplot</span>() <span class="sc">+</span></span>
+<span id="cb12-25"><a href="#cb12-25" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_line</span>(</span>
+<span id="cb12-26"><a href="#cb12-26" aria-hidden="true" tabindex="-1"></a>    <span class="at">data =</span> dplyr<span class="sc">::</span><span class="fu">filter</span>(series_trend, name_series <span class="sc">==</span> x, decomp <span class="sc">==</span> <span class="st">"trend"</span>),</span>
+<span id="cb12-27"><a href="#cb12-27" aria-hidden="true" tabindex="-1"></a>    <span class="fu">aes</span>(<span class="at">x =</span> date, <span class="at">y =</span> value),</span>
+<span id="cb12-28"><a href="#cb12-28" aria-hidden="true" tabindex="-1"></a>    <span class="at">lwd =</span> <span class="fl">0.8</span>,</span>
+<span id="cb12-29"><a href="#cb12-29" aria-hidden="true" tabindex="-1"></a>    <span class="at">color =</span> <span class="st">"steelblue"</span></span>
+<span id="cb12-30"><a href="#cb12-30" aria-hidden="true" tabindex="-1"></a>    ) <span class="sc">+</span></span>
+<span id="cb12-31"><a href="#cb12-31" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="cn">NULL</span>, <span class="at">y =</span> <span class="cn">NULL</span>) <span class="sc">+</span></span>
+<span id="cb12-32"><a href="#cb12-32" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ggtitle</span>(glue<span class="sc">::</span><span class="fu">glue</span>(<span class="st">"Series: {x}"</span>)) <span class="sc">+</span></span>
+<span id="cb12-33"><a href="#cb12-33" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_bw</span>() <span class="sc">+</span></span>
+<span id="cb12-34"><a href="#cb12-34" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme</span>(<span class="at">plot.title =</span> <span class="fu">element_text</span>(<span class="at">size =</span> <span class="dv">10</span>))</span>
+<span id="cb12-35"><a href="#cb12-35" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-36"><a href="#cb12-36" aria-hidden="true" tabindex="-1"></a>p2 <span class="ot">&lt;-</span> <span class="fu">ggplot</span>() <span class="sc">+</span></span>
+<span id="cb12-37"><a href="#cb12-37" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_hline</span>(<span class="at">yintercept =</span> <span class="dv">0</span>) <span class="sc">+</span></span>
+<span id="cb12-38"><a href="#cb12-38" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_line</span>(</span>
+<span id="cb12-39"><a href="#cb12-39" aria-hidden="true" tabindex="-1"></a>    <span class="at">data =</span> dplyr<span class="sc">::</span><span class="fu">filter</span>(series_trend, name_series <span class="sc">==</span> x, decomp <span class="sc">==</span> <span class="st">"resid"</span>),</span>
+<span id="cb12-40"><a href="#cb12-40" aria-hidden="true" tabindex="-1"></a>    <span class="fu">aes</span>(<span class="at">x =</span> date, <span class="at">y =</span> value, <span class="at">color =</span> name_decomp),</span>
+<span id="cb12-41"><a href="#cb12-41" aria-hidden="true" tabindex="-1"></a>    <span class="at">lwd =</span> <span class="fl">0.8</span></span>
+<span id="cb12-42"><a href="#cb12-42" aria-hidden="true" tabindex="-1"></a>    ) <span class="sc">+</span></span>
+<span id="cb12-43"><a href="#cb12-43" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_x_date</span>(</span>
+<span id="cb12-44"><a href="#cb12-44" aria-hidden="true" tabindex="-1"></a>    <span class="at">breaks =</span> <span class="fu">seq</span>(<span class="fu">as.Date</span>(<span class="st">"1950-01-01"</span>), <span class="fu">as.Date</span>(<span class="st">"2000-01-01"</span>), <span class="at">by =</span> <span class="st">"10 year"</span>),</span>
+<span id="cb12-45"><a href="#cb12-45" aria-hidden="true" tabindex="-1"></a>    <span class="at">date_labels =</span> <span class="st">"%Y"</span></span>
+<span id="cb12-46"><a href="#cb12-46" aria-hidden="true" tabindex="-1"></a>    ) <span class="sc">+</span></span>
+<span id="cb12-47"><a href="#cb12-47" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_y_continuous</span>(<span class="at">limits =</span> ylim) <span class="sc">+</span></span>
+<span id="cb12-48"><a href="#cb12-48" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_color_manual</span>(</span>
+<span id="cb12-49"><a href="#cb12-49" aria-hidden="true" tabindex="-1"></a>    <span class="at">name =</span> <span class="st">""</span>,</span>
+<span id="cb12-50"><a href="#cb12-50" aria-hidden="true" tabindex="-1"></a>    <span class="at">values =</span> <span class="fu">c</span>(<span class="st">"#003049"</span>, <span class="st">"#d62828"</span>),</span>
+<span id="cb12-51"><a href="#cb12-51" aria-hidden="true" tabindex="-1"></a>    <span class="at">labels =</span> <span class="fu">c</span>(<span class="st">"Regression"</span>, <span class="st">"Random Walk"</span>)) <span class="sc">+</span></span>
+<span id="cb12-52"><a href="#cb12-52" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="cn">NULL</span>, <span class="at">y =</span> <span class="cn">NULL</span>) <span class="sc">+</span></span>
+<span id="cb12-53"><a href="#cb12-53" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ggtitle</span>(glue<span class="sc">::</span><span class="fu">glue</span>(<span class="st">"Cyclical Component: {x}"</span>)) <span class="sc">+</span></span>
+<span id="cb12-54"><a href="#cb12-54" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_bw</span>() <span class="sc">+</span></span>
+<span id="cb12-55"><a href="#cb12-55" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme</span>(<span class="at">legend.position =</span> <span class="st">"top"</span>, <span class="at">plot.title =</span> <span class="fu">element_text</span>(<span class="at">size =</span> <span class="dv">10</span>))</span>
+<span id="cb12-56"><a href="#cb12-56" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-57"><a href="#cb12-57" aria-hidden="true" tabindex="-1"></a>  <span class="fu">return</span>(<span class="fu">list</span>(<span class="at">trend =</span> p1, <span class="at">cycle =</span> p2))</span>
+<span id="cb12-58"><a href="#cb12-58" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb12-59"><a href="#cb12-59" aria-hidden="true" tabindex="-1"></a>}</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</details>
+</div>
+<p>O gráfico abaixo mostra o ajuste do filtro de Hamilton nas séries de PIB e de consumo.</p>
+<div class="cell" data-layout-align="center">
+<div class="cell-output-display">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="index_files/figure-html/unnamed-chunk-14-1.png" class="img-fluid figure-img" style="width:80.0%"></p>
+</figure>
+</div>
+</div>
+</div>
+<p>O gráfico abaixo mostra o ajuste do filtro de Hamilton nas séries de investimento e gasto do governo.</p>
+<div class="cell" data-layout-align="center">
+<div class="cell-output-display">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="index_files/figure-html/unnamed-chunk-15-1.png" class="img-fluid figure-img" style="width:80.0%"></p>
+</figure>
+</div>
+</div>
+</div>
+<p>Finalmente, o gráfico abaixo mostra o ajuste do filtro de Hamilton nas séries de M1 e de inflação.</p>
+<div class="cell" data-layout-align="center">
+<div class="cell-output-display">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="index_files/figure-html/unnamed-chunk-16-1.png" class="img-fluid figure-img" style="width:80.0%"></p>
+</figure>
+</div>
+</div>
+</div>
+<p>O filtro proposto por Hamilton tem diversas características interessantes. A simplicidade e intuição do filtro, em especial, são pontos atrativos. Um paper recente, de Viv Hall e Peter Thompson (2021), contudo, não encontrou grandes vantagens deste filtro em relação aos tradicionais filtro HP e filtro Baxter-King. Os autores testam os filtros usando um amplo conjunto de séries macroeconômicas da Nova Zelândia. De maneira geral, o filtro de Hamilton gerou séries com maior volatilidade e pior capacidade preditiva. Considerando a literatura de filtros, parece improvável, de fato, que um filtro tão simples possa ter uma melhor performance do que filtros no domínio da frequência.</p>
+</section>
+</section>
+</section>
+<section id="referências" class="level1">
+<h1>Referências</h1>
+<ul>
+<li><p><a href="https://www.jstor.org/stable/20079119">Guay, Alain, and Pierre St.-Amant. “Do the Hodrick-Prescott and Baxter-King filters provide a good approximation of business cycles?.” Annales d’Economie et de Statistique (2005): 133-155.</a></p></li>
+<li><p><a href="https://link.springer.com/article/10.1007/s41549-021-00059-1">Hall, Viv B., and Peter Thomson. “Does Hamilton’s OLS regression provide a “better alternative” to the Hodrick-Prescott filter? A New Zealand Business Cycle Perspective.” Journal of Business Cycle Research 17 (2021): 151-183.</a></p></li>
+<li><p><a href="https://direct.mit.edu/rest/article-abstract/100/5/831/58479/Why-You-Should-Never-Use-the-Hodrick-Prescott?redirectedFrom=fulltext">Hamilton, James D. “Why you should never use the Hodrick-Prescott filter.” Review of Economics and Statistics 100, no. 5 (2018): 831-843.</a></p></li>
+<li><p><a href="https://direct.mit.edu/rest/article-abstract/84/2/371/57338/On-Adjusting-the-Hodrick-Prescott-Filter-for-the">Ravn, Morten O., and Harald Uhlig. “On adjusting the Hodrick-Prescott filter for the frequency of observations.”&nbsp;<em>Review of economics and statistics</em>&nbsp;84, no. 2 (2002): 371-376.</a></p></li>
+</ul>
+
+
 </section>
 
 
