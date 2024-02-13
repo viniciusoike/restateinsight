@@ -1,0 +1,1421 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.3.450">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+<meta name="author" content="Vinicius Oike">
+<meta name="dcterms.date" content="2024-02-20">
+<meta name="description" content="O filtro de médias móveis serve para suavizar séries de tempo e encontrar tendências nos dados. Este filtro é bastante simples e pode ser escalado com facilidade para lidar com múltiplas séries de tempo.">
+
+<title>Vinicius Oike - Médias móveis</title>
+<style>
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+</style>
+
+
+<script src="../../../site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="../../../site_libs/quarto-nav/headroom.min.js"></script>
+<script src="../../../site_libs/clipboard/clipboard.min.js"></script>
+<script src="../../../site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="../../../site_libs/quarto-search/fuse.min.js"></script>
+<script src="../../../site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="../../../">
+<script src="../../../site_libs/quarto-html/quarto.js"></script>
+<script src="../../../site_libs/quarto-html/popper.min.js"></script>
+<script src="../../../site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="../../../site_libs/quarto-html/anchor.min.js"></script>
+<link href="../../../site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="../../../site_libs/quarto-html/quarto-syntax-highlighting.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="../../../site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="../../../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="../../../site_libs/bootstrap/bootstrap.min.css" rel="stylesheet" id="quarto-bootstrap" data-mode="light">
+<script id="quarto-search-options" type="application/json">{
+  "location": "navbar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "end",
+  "type": "overlay",
+  "limit": 20,
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit",
+    "search-label": "Search"
+  }
+}</script>
+<script async="" src="https://www.googletagmanager.com/gtag/js?id=G-EJF8PGT67H"></script>
+
+<script type="text/javascript">
+
+window.dataLayer = window.dataLayer || [];
+function gtag(){dataLayer.push(arguments);}
+gtag('js', new Date());
+gtag('config', 'G-EJF8PGT67H', { 'anonymize_ip': true});
+</script>
+
+  <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script>
+
+<link rel="stylesheet" href="../../../styles.css">
+</head>
+
+<body class="nav-fixed">
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top">
+    <nav class="navbar navbar-expand-lg navbar-dark ">
+      <div class="navbar-container container-fluid">
+      <div class="navbar-brand-container">
+    <a class="navbar-brand" href="../../../index.html">
+    <span class="navbar-title">Vinicius Oike</span>
+    </a>
+  </div>
+            <div id="quarto-search" class="" title="Search"></div>
+          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" aria-expanded="false" aria-label="Toggle navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+  <span class="navbar-toggler-icon"></span>
+</button>
+          <div class="collapse navbar-collapse" id="navbarCollapse">
+            <ul class="navbar-nav navbar-nav-scroll ms-auto">
+  <li class="nav-item">
+    <a class="nav-link" href="../../../blog.html" rel="" target="">
+ <span class="menu-text">Blog</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../../../aboutme.html" rel="" target="">
+ <span class="menu-text">Sobre</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../../../my_apps.html" rel="" target="">
+ <span class="menu-text">Apps</span></a>
+  </li>  
+  <li class="nav-item compact">
+    <a class="nav-link" href="https://github.com/viniciusoike" rel="" target=""><i class="bi bi-github" role="img">
+</i> 
+ <span class="menu-text"></span></a>
+  </li>  
+  <li class="nav-item compact">
+    <a class="nav-link" href="https://twitter.com/viniciusoike" rel="" target=""><i class="bi bi-twitter" role="img">
+</i> 
+ <span class="menu-text"></span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../../../archive.html" rel="" target="">
+ <span class="menu-text">Archive</span></a>
+  </li>  
+</ul>
+            <div class="quarto-navbar-tools">
+</div>
+          </div> <!-- /navcollapse -->
+      </div> <!-- /container-fluid -->
+    </nav>
+</header>
+<!-- content -->
+<header id="title-block-header" class="quarto-title-block default page-columns page-full">
+  <div class="quarto-title-banner page-columns page-full">
+    <div class="quarto-title column-body">
+      <h1 class="title">Médias móveis</h1>
+                  <div>
+        <div class="description">
+          O filtro de médias móveis serve para suavizar séries de tempo e encontrar tendências nos dados. Este filtro é bastante simples e pode ser escalado com facilidade para lidar com múltiplas séries de tempo.
+        </div>
+      </div>
+                          <div class="quarto-categories">
+                <div class="quarto-category">data-science</div>
+                <div class="quarto-category">economia</div>
+                <div class="quarto-category">tutorial-R</div>
+                <div class="quarto-category">econometria</div>
+                <div class="quarto-category">time-series</div>
+              </div>
+                  </div>
+  </div>
+    
+  
+  <div class="quarto-title-meta">
+
+      <div>
+      <div class="quarto-title-meta-heading">Author</div>
+      <div class="quarto-title-meta-contents">
+               <p>Vinicius Oike </p>
+            </div>
+    </div>
+      
+      <div>
+      <div class="quarto-title-meta-heading">Published</div>
+      <div class="quarto-title-meta-contents">
+        <p class="date">February 20, 2024</p>
+      </div>
+    </div>
+    
+      
+    </div>
+    
+  
+  </header><div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article page-navbar">
+<!-- sidebar -->
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">On this page</h2>
+   
+  <ul>
+  <li><a href="#médias-móveis" id="toc-médias-móveis" class="nav-link active" data-scroll-target="#médias-móveis">Médias móveis</a>
+  <ul class="collapse">
+  <li><a href="#exemplo-simples" id="toc-exemplo-simples" class="nav-link" data-scroll-target="#exemplo-simples">Exemplo simples</a></li>
+  <li><a href="#maior-eficiência" id="toc-maior-eficiência" class="nav-link" data-scroll-target="#maior-eficiência">Maior eficiência</a></li>
+  <li><a href="#extraindo-tendência" id="toc-extraindo-tendência" class="nav-link" data-scroll-target="#extraindo-tendência">Extraindo tendência</a></li>
+  <li><a href="#filtros-complexos" id="toc-filtros-complexos" class="nav-link" data-scroll-target="#filtros-complexos">Filtros complexos</a></li>
+  <li><a href="#médias-móveis-exponenciais" id="toc-médias-móveis-exponenciais" class="nav-link" data-scroll-target="#médias-móveis-exponenciais">Médias móveis exponenciais</a></li>
+  </ul></li>
+  </ul>
+</nav>
+    </div>
+<!-- main -->
+<main class="content quarto-banner-title-block" id="quarto-document-content">
+
+
+
+
+<section id="médias-móveis" class="level1">
+<h1>Médias móveis</h1>
+<p>Uma média móvel, como o nome sugere, calcula a média de uma série temporal em janelas móveis. Tipicamente, a média móvel serve como uma estimativa da tendência da série; também é bastante comum usar a média móvel para identificar ciclos ou padrões numa série. Aplicar uma média móvel numa série de tempo <span class="math inline">\(y_t\)</span> produz uma nova série <span class="math inline">\(z_t\)</span>:</p>
+<p><span class="math display">\[
+z_t = \sum_{j = -k}^{k}a_{j}y_{t+j}
+\]</span> No caso mais simples, k = 1, temos:</p>
+<p><span class="math display">\[
+z_{t} = a_1y_{t-1} + a_2 y_{t} + a_3 y_{t+1}
+\]</span></p>
+<p>Supondo que os pesos devem ser todos iguais e somar um temos a média móvel simples abaixo:</p>
+<p><span class="math display">\[
+z_{t} = \frac{1}{3}y_{t-1} +\frac{1}{3} y_{t} + \frac{1}{3} y_{t+1}
+\]</span></p>
+<p>O exemplo acima, mostra uma média móvel simétrica de ordem 3, onde todos os pesos são iguais. Cada ponto na nova série <span class="math inline">\(z_t\)</span> é uma média entre os valores vizinhos da série original. Tipicamente, valores próximos uns aos outros no tempo costumam ser similares; na prática, isto torna o filtro de médias móveis bastante suave.</p>
+<p>Evidentemente, não é possível calcular este filtro no início e no final da série <span class="math inline">\(y_t\)</span>. Isto implica que a série <span class="math inline">\(z_t\)</span> tem menos observações do que a série original <span class="math inline">\(y_t\)</span>. Isto, de fato, é um ponto negativo quando se usa filtros de médias móveis.</p>
+<p>Médias móveis simétricas sempre tem um número ímpar de termos: no exemplo acima, <span class="math inline">\(k=1\)</span> resultou num filtro com três termos; se tivéssemos usado <span class="math inline">\(k=2\)</span> teríamos cinco termos e assim por diante. É possível fazer médias móveis não-simétricas variando a janela temporal. A equação abaixo mostra um filtro que soma as últimas duas observações e tira a média junto com a observação atual e a próxima observação.</p>
+<p><span class="math display">\[
+z_{t} = \frac{1}{4} y_{t-2} + \frac{1}{4} y_{t-1} + \frac{1}{4} y_{t} + \frac{1}{4} y_{t+1}
+\]</span></p>
+<p>Não existe forte “contraindicação” sobre o uso de médias móveis não-simétricas. Vale notar, contudo, que é relativamente fácil transformar uma média móvel não-simétrica em uma média móvel simétrica. Vamos tirar uma média móvel sobre a média móvel acima:</p>
+<p><span class="math display">\[
+\begin{align}
+x_{t} &amp; = \frac{1}{2}z_{t} + \frac{1}{2}z_{t+1} \\
+x_{t} &amp; = \frac{1}{2}(\frac{1}{4}(y_{t-2} + y_{t-1} + y_{t} + y_{t+1}) + \frac{1}{4}(y_{t-1} + y_{t} + y_{t+1} + y_{t+2})) \\
+x_{t} &amp; = \frac{1}{8} y_{t-2} + \frac{1}{4} y_{t-1} + \frac{1}{4} y_{t} + \frac{1}{4} y_{t+1} + \frac{1}{8} y_{t+2}
+\end{align}
+\]</span></p>
+<p>A série final é uma média móvel simétrica com menor peso nas pontas. Esta é uma média móvel de ordem 2x4. Este tipo de filtro também é conhecido como média móvel ponderada.</p>
+<p>Na primeira demonstração acima, definimos que todos <span class="math inline">\(a_j\)</span> teriam o mesmo valor. Isto não é necessário. Imagine que queremos um filtro que olha somente para o passado e atribui pesos decrescentes à medida que a observação se afasta no tempo. No caso de uma janela com apenas dois períodos teríamos algo da forma:</p>
+<p><span class="math display">\[
+z_{t} = \frac{1}{2}y_{t} + \frac{1}{3}y_{t-1} + \frac{1}{6}y_{t-2}
+\]</span></p>
+<p>Note que os pesos somam 1 e vão decaindo no tempo. De forma mais geral,</p>
+<p><span class="math display">\[
+\text{WMA}_M = \frac{ny_{t} + (n-1)y_{t-1} + \dots + y_{M-n+1}}{\frac{n(n+1)}{2}}
+\]</span></p>
+<p>Pode-se definir uma média móvel ponderada com pesos que apresentam algum tipo de decaimento. O filtro acima também é conhecido como média móvel linearmente ponderada, pois os pesos decaem linearmente. Outra opção seria usar pesos que apresentam decaimento exponencial como</p>
+<p><span class="math display">\[
+z_{t} = \alpha y_{t} + \alpha(1-\alpha) y_{t-1} + \alpha(1-\alpha)^2 y_{t-2}
+\]</span></p>
+<p>Tomando o valor <span class="math inline">\(\alpha = \frac{1}{2}\)</span> temos que:</p>
+<p><span class="math display">\[
+z_{t} = \frac{1}{2}y_t + \frac{1}{4}y_{t-1} + \frac{1}{8} y_{t-2}
+\]</span></p>
+<p>Comparando os termos da expressão acima com a média móvel ponderada anterior, vemos que os termos do passado agora tem menor peso. De maneira mais geral, o filtro de médias móveis exponencial é dado por</p>
+<p><span class="math display">\[
+z_t = \alpha \sum_{j = 0}^{\infty}(1-\alpha)^j y_{t-j}
+\]</span></p>
+<section id="exemplo-simples" class="level2">
+<h2 class="anchored" data-anchor-id="exemplo-simples">Exemplo simples</h2>
+<p>Para montar um exemplo de médias móveis vamos importar uma das rubricas da balança de pagamentos do Brasil. O gráfico abaixo mostra a série anual da rubrica “passe de atletas”<a href="#fn1" class="footnote-ref" id="fnref1" role="doc-noteref"><sup>1</sup></a>.</p>
+<div class="cell" data-layout-align="center">
+<div class="sourceCode cell-code" id="cb1"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(rbcb)</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(ggplot2)</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(forecast)</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>theme_series <span class="ot">=</span> <span class="fu">theme_bw</span>(<span class="at">base_size =</span> <span class="dv">10</span>, <span class="at">base_family =</span> <span class="st">"sans"</span>) <span class="sc">+</span></span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>    <span class="fu">theme</span>(</span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>      <span class="at">legend.position =</span> <span class="st">"top"</span>,</span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a>      <span class="at">panel.grid.minor =</span> <span class="fu">element_blank</span>(),</span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a>      <span class="at">axis.text.x =</span> <span class="fu">element_text</span>(<span class="at">angle =</span> <span class="dv">90</span>),</span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a>      <span class="at">axis.title.x =</span> <span class="fu">element_blank</span>()</span>
+<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a>      )</span>
+<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a>atletas <span class="ot">=</span> rbcb<span class="sc">::</span><span class="fu">get_series</span>(<span class="dv">23617</span>, <span class="at">as =</span> <span class="st">"ts"</span>)</span>
+<span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-15"><a href="#cb1-15" aria-hidden="true" tabindex="-1"></a><span class="fu">autoplot</span>(atletas) <span class="sc">+</span> theme_series</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output-display">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="index_files/figure-html/unnamed-chunk-2-1.png" class="img-fluid figure-img" style="width:90.0%"></p>
+</figure>
+</div>
+</div>
+</div>
+<p>A tabela abaixo mostra o cálculo de três filtros de médias móveis aplicados na série.</p>
+<div class="cell" data-layout-align="center">
+<div class="sourceCode cell-code" id="cb2"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>ma3 <span class="ot">=</span> stats<span class="sc">::</span><span class="fu">filter</span>(atletas, <span class="at">filter =</span> <span class="fu">rep</span>(<span class="dv">1</span><span class="sc">/</span><span class="dv">3</span>, <span class="dv">3</span>), <span class="at">method =</span> <span class="st">"convolution"</span>)</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>ma5 <span class="ot">=</span> stats<span class="sc">::</span><span class="fu">filter</span>(atletas, <span class="at">filter =</span> <span class="fu">rep</span>(<span class="dv">1</span><span class="sc">/</span><span class="dv">5</span>, <span class="dv">5</span>), <span class="at">method =</span> <span class="st">"convolution"</span>)</span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>ma11 <span class="ot">=</span> stats<span class="sc">::</span><span class="fu">filter</span>(atletas, <span class="at">filter =</span> <span class="fu">rep</span>(<span class="dv">1</span><span class="sc">/</span><span class="dv">11</span>, <span class="dv">11</span>), <span class="at">method =</span> <span class="st">"convolution"</span>)</span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>mts <span class="ot">=</span> <span class="fu">ts.intersect</span>(atletas, ma3, ma5, ma11)</span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a>tbl_ma <span class="ot">=</span> <span class="fu">data.frame</span>(</span>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a>  <span class="at">ano =</span> <span class="fu">as.numeric</span>(<span class="fu">time</span>(mts)),</span>
+<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a>  zoo<span class="sc">::</span><span class="fu">coredata</span>(mts)</span>
+<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<div class="cell" data-layout-align="center">
+<div class="cell-output-display">
+
+<div id="ekxhwqrepp" style="padding-left:0px;padding-right:0px;padding-top:10px;padding-bottom:10px;overflow-x:auto;overflow-y:auto;width:auto;height:auto;">
+<style>@import url("https://fonts.googleapis.com/css2?family=Chivo:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Chivo:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Chivo:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Cairo:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&display=swap");
+#ekxhwqrepp table {
+  font-family: Cairo, system-ui, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+#ekxhwqrepp thead, #ekxhwqrepp tbody, #ekxhwqrepp tfoot, #ekxhwqrepp tr, #ekxhwqrepp td, #ekxhwqrepp th {
+  border-style: none;
+}
+
+#ekxhwqrepp p {
+  margin: 0;
+  padding: 0;
+}
+
+#ekxhwqrepp .gt_table {
+  display: table;
+  border-collapse: collapse;
+  line-height: normal;
+  margin-left: auto;
+  margin-right: auto;
+  color: #333333;
+  font-size: 16px;
+  font-weight: 400;
+  font-style: normal;
+  background-color: #FFFFFF;
+  width: auto;
+  border-top-style: none;
+  border-top-width: 3px;
+  border-top-color: #A8A8A8;
+  border-right-style: none;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+  border-bottom-style: none;
+  border-bottom-width: 2px;
+  border-bottom-color: #A8A8A8;
+  border-left-style: none;
+  border-left-width: 2px;
+  border-left-color: #D3D3D3;
+}
+
+#ekxhwqrepp .gt_caption {
+  padding-top: 4px;
+  padding-bottom: 4px;
+}
+
+#ekxhwqrepp .gt_title {
+  color: #333333;
+  font-size: 125%;
+  font-weight: initial;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-bottom-color: #FFFFFF;
+  border-bottom-width: 0;
+}
+
+#ekxhwqrepp .gt_subtitle {
+  color: #333333;
+  font-size: 85%;
+  font-weight: initial;
+  padding-top: 3px;
+  padding-bottom: 5px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-top-color: #FFFFFF;
+  border-top-width: 0;
+}
+
+#ekxhwqrepp .gt_heading {
+  background-color: #FFFFFF;
+  text-align: left;
+  border-bottom-color: #FFFFFF;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+}
+
+#ekxhwqrepp .gt_bottom_border {
+  border-bottom-style: none;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+}
+
+#ekxhwqrepp .gt_col_headings {
+  border-top-style: none;
+  border-top-width: 2px;
+  border-top-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #000000;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+}
+
+#ekxhwqrepp .gt_col_heading {
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: normal;
+  text-transform: inherit;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+  vertical-align: bottom;
+  padding-top: 5px;
+  padding-bottom: 6px;
+  padding-left: 5px;
+  padding-right: 5px;
+  overflow-x: hidden;
+}
+
+#ekxhwqrepp .gt_column_spanner_outer {
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: normal;
+  text-transform: inherit;
+  padding-top: 0;
+  padding-bottom: 0;
+  padding-left: 4px;
+  padding-right: 4px;
+}
+
+#ekxhwqrepp .gt_column_spanner_outer:first-child {
+  padding-left: 0;
+}
+
+#ekxhwqrepp .gt_column_spanner_outer:last-child {
+  padding-right: 0;
+}
+
+#ekxhwqrepp .gt_column_spanner {
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #000000;
+  vertical-align: bottom;
+  padding-top: 5px;
+  padding-bottom: 5px;
+  overflow-x: hidden;
+  display: inline-block;
+  width: 100%;
+}
+
+#ekxhwqrepp .gt_spanner_row {
+  border-bottom-style: hidden;
+}
+
+#ekxhwqrepp .gt_group_heading {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  text-transform: inherit;
+  border-top-style: none;
+  border-top-width: 2px;
+  border-top-color: #000000;
+  border-bottom-style: solid;
+  border-bottom-width: 1px;
+  border-bottom-color: #FFFFFF;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+  vertical-align: middle;
+  text-align: left;
+}
+
+#ekxhwqrepp .gt_empty_group_heading {
+  padding: 0.5px;
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  border-top-style: none;
+  border-top-width: 2px;
+  border-top-color: #000000;
+  border-bottom-style: solid;
+  border-bottom-width: 1px;
+  border-bottom-color: #FFFFFF;
+  vertical-align: middle;
+}
+
+#ekxhwqrepp .gt_from_md > :first-child {
+  margin-top: 0;
+}
+
+#ekxhwqrepp .gt_from_md > :last-child {
+  margin-bottom: 0;
+}
+
+#ekxhwqrepp .gt_row {
+  padding-top: 3px;
+  padding-bottom: 3px;
+  padding-left: 5px;
+  padding-right: 5px;
+  margin: 10px;
+  border-top-style: solid;
+  border-top-width: 1px;
+  border-top-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+  vertical-align: middle;
+  overflow-x: hidden;
+}
+
+#ekxhwqrepp .gt_stub {
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  text-transform: inherit;
+  border-right-style: solid;
+  border-right-width: 0px;
+  border-right-color: #FFFFFF;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#ekxhwqrepp .gt_stub_row_group {
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  text-transform: inherit;
+  border-right-style: solid;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+  padding-left: 5px;
+  padding-right: 5px;
+  vertical-align: top;
+}
+
+#ekxhwqrepp .gt_row_group_first td {
+  border-top-width: 2px;
+}
+
+#ekxhwqrepp .gt_row_group_first th {
+  border-top-width: 2px;
+}
+
+#ekxhwqrepp .gt_summary_row {
+  color: #333333;
+  background-color: #FFFFFF;
+  text-transform: inherit;
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#ekxhwqrepp .gt_first_summary_row {
+  border-top-style: solid;
+  border-top-color: #D3D3D3;
+}
+
+#ekxhwqrepp .gt_first_summary_row.thick {
+  border-top-width: 2px;
+}
+
+#ekxhwqrepp .gt_last_summary_row {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+}
+
+#ekxhwqrepp .gt_grand_summary_row {
+  color: #333333;
+  background-color: #FFFFFF;
+  text-transform: inherit;
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#ekxhwqrepp .gt_first_grand_summary_row {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-top-style: double;
+  border-top-width: 6px;
+  border-top-color: #D3D3D3;
+}
+
+#ekxhwqrepp .gt_last_grand_summary_row_top {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-bottom-style: double;
+  border-bottom-width: 6px;
+  border-bottom-color: #D3D3D3;
+}
+
+#ekxhwqrepp .gt_striped {
+  background-color: rgba(128, 128, 128, 0.05);
+}
+
+#ekxhwqrepp .gt_table_body {
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+}
+
+#ekxhwqrepp .gt_footnotes {
+  color: #333333;
+  background-color: #FFFFFF;
+  border-bottom-style: none;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 2px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+}
+
+#ekxhwqrepp .gt_footnote {
+  margin: 0px;
+  font-size: 90%;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#ekxhwqrepp .gt_sourcenotes {
+  color: #333333;
+  background-color: #FFFFFF;
+  border-bottom-style: none;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 2px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+}
+
+#ekxhwqrepp .gt_sourcenote {
+  font-size: 12px;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#ekxhwqrepp .gt_left {
+  text-align: left;
+}
+
+#ekxhwqrepp .gt_center {
+  text-align: center;
+}
+
+#ekxhwqrepp .gt_right {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+#ekxhwqrepp .gt_font_normal {
+  font-weight: normal;
+}
+
+#ekxhwqrepp .gt_font_bold {
+  font-weight: bold;
+}
+
+#ekxhwqrepp .gt_font_italic {
+  font-style: italic;
+}
+
+#ekxhwqrepp .gt_super {
+  font-size: 65%;
+}
+
+#ekxhwqrepp .gt_footnote_marks {
+  font-size: 75%;
+  vertical-align: 0.4em;
+  position: initial;
+}
+
+#ekxhwqrepp .gt_asterisk {
+  font-size: 100%;
+  vertical-align: 0;
+}
+
+#ekxhwqrepp .gt_indent_1 {
+  text-indent: 5px;
+}
+
+#ekxhwqrepp .gt_indent_2 {
+  text-indent: 10px;
+}
+
+#ekxhwqrepp .gt_indent_3 {
+  text-indent: 15px;
+}
+
+#ekxhwqrepp .gt_indent_4 {
+  text-indent: 20px;
+}
+
+#ekxhwqrepp .gt_indent_5 {
+  text-indent: 25px;
+}
+
+tbody tr:last-child {
+  border-bottom: 2px solid #ffffff00;
+}
+</style>
+<table class="gt_table" data-quarto-disable-processing="false" data-quarto-bootstrap="false">
+  <thead>
+    <tr class="gt_col_headings">
+      <th class="gt_col_heading gt_columns_bottom_border gt_right" rowspan="1" colspan="1" style="border-top-width: 0px; border-top-style: solid; border-top-color: black; font-family: Chivo; font-size: 14px; vertical-align: bottom; font-weight: 200; text-transform: uppercase;" scope="col" id="ano">ano</th>
+      <th class="gt_col_heading gt_columns_bottom_border gt_right" rowspan="1" colspan="1" style="border-top-width: 0px; border-top-style: solid; border-top-color: black; font-family: Chivo; font-size: 14px; vertical-align: bottom; font-weight: 200; text-transform: uppercase;" scope="col" id="atletas">atletas</th>
+      <th class="gt_col_heading gt_columns_bottom_border gt_right" rowspan="1" colspan="1" style="border-top-width: 0px; border-top-style: solid; border-top-color: black; font-family: Chivo; font-size: 14px; vertical-align: bottom; font-weight: 200; text-transform: uppercase;" scope="col" id="ma3">ma3</th>
+      <th class="gt_col_heading gt_columns_bottom_border gt_right" rowspan="1" colspan="1" style="border-top-width: 0px; border-top-style: solid; border-top-color: black; font-family: Chivo; font-size: 14px; vertical-align: bottom; font-weight: 200; text-transform: uppercase;" scope="col" id="ma5">ma5</th>
+      <th class="gt_col_heading gt_columns_bottom_border gt_right" rowspan="1" colspan="1" style="border-top-width: 0px; border-top-style: solid; border-top-color: black; font-family: Chivo; font-size: 14px; vertical-align: bottom; font-weight: 200; text-transform: uppercase;" scope="col" id="ma11">ma11</th>
+    </tr>
+  </thead>
+  <tbody class="gt_table_body">
+    <tr><td headers="ano" class="gt_row gt_right">1995</td>
+<td headers="atletas" class="gt_row gt_right">18.0</td>
+<td headers="ma3" class="gt_row gt_right">—</td>
+<td headers="ma5" class="gt_row gt_right">—</td>
+<td headers="ma11" class="gt_row gt_right">—</td></tr>
+    <tr><td headers="ano" class="gt_row gt_right">1996</td>
+<td headers="atletas" class="gt_row gt_right">46.6</td>
+<td headers="ma3" class="gt_row gt_right">49.5</td>
+<td headers="ma5" class="gt_row gt_right">—</td>
+<td headers="ma11" class="gt_row gt_right">—</td></tr>
+    <tr><td headers="ano" class="gt_row gt_right">1997</td>
+<td headers="atletas" class="gt_row gt_right">84.0</td>
+<td headers="ma3" class="gt_row gt_right">60.3</td>
+<td headers="ma5" class="gt_row gt_right">51.9</td>
+<td headers="ma11" class="gt_row gt_right">—</td></tr>
+    <tr><td headers="ano" class="gt_row gt_right">1998</td>
+<td headers="atletas" class="gt_row gt_right">50.4</td>
+<td headers="ma3" class="gt_row gt_right">65.0</td>
+<td headers="ma5" class="gt_row gt_right">73.6</td>
+<td headers="ma11" class="gt_row gt_right">—</td></tr>
+    <tr><td headers="ano" class="gt_row gt_right">1999</td>
+<td headers="atletas" class="gt_row gt_right">60.7</td>
+<td headers="ma3" class="gt_row gt_right">79.2</td>
+<td headers="ma5" class="gt_row gt_right">85.0</td>
+<td headers="ma11" class="gt_row gt_right">—</td></tr>
+    <tr><td headers="ano" class="gt_row gt_right">2000</td>
+<td headers="atletas" class="gt_row gt_right">126.4</td>
+<td headers="ma3" class="gt_row gt_right">96.8</td>
+<td headers="ma5" class="gt_row gt_right">80.2</td>
+<td headers="ma11" class="gt_row gt_right">80.4</td></tr>
+    <tr><td headers="ano" class="gt_row gt_right">2001</td>
+<td headers="atletas" class="gt_row gt_right">103.4</td>
+<td headers="ma3" class="gt_row gt_right">96.6</td>
+<td headers="ma5" class="gt_row gt_right">86.5</td>
+<td headers="ma11" class="gt_row gt_right">89.2</td></tr>
+    <tr><td headers="ano" class="gt_row gt_right">2002</td>
+<td headers="atletas" class="gt_row gt_right">60.0</td>
+<td headers="ma3" class="gt_row gt_right">81.8</td>
+<td headers="ma5" class="gt_row gt_right">97.8</td>
+<td headers="ma11" class="gt_row gt_right">106.5</td></tr>
+    <tr><td headers="ano" class="gt_row gt_right">2003</td>
+<td headers="atletas" class="gt_row gt_right">82.1</td>
+<td headers="ma3" class="gt_row gt_right">86.4</td>
+<td headers="ma5" class="gt_row gt_right">99.6</td>
+<td headers="ma11" class="gt_row gt_right">113.9</td></tr>
+    <tr><td headers="ano" class="gt_row gt_right">2004</td>
+<td headers="atletas" class="gt_row gt_right">117.0</td>
+<td headers="ma3" class="gt_row gt_right">111.5</td>
+<td headers="ma5" class="gt_row gt_right">101.9</td>
+<td headers="ma11" class="gt_row gt_right">125.8</td></tr>
+    <tr><td headers="ano" class="gt_row gt_right">2005</td>
+<td headers="atletas" class="gt_row gt_right">135.4</td>
+<td headers="ma3" class="gt_row gt_right">122.4</td>
+<td headers="ma5" class="gt_row gt_right">137.3</td>
+<td headers="ma11" class="gt_row gt_right">138.4</td></tr>
+    <tr><td headers="ano" class="gt_row gt_right">2006</td>
+<td headers="atletas" class="gt_row gt_right">114.9</td>
+<td headers="ma3" class="gt_row gt_right">162.5</td>
+<td headers="ma5" class="gt_row gt_right">154.0</td>
+<td headers="ma11" class="gt_row gt_right">143.8</td></tr>
+    <tr><td headers="ano" class="gt_row gt_right">2007</td>
+<td headers="atletas" class="gt_row gt_right">237.1</td>
+<td headers="ma3" class="gt_row gt_right">172.5</td>
+<td headers="ma5" class="gt_row gt_right">166.9</td>
+<td headers="ma11" class="gt_row gt_right">145.1</td></tr>
+    <tr><td headers="ano" class="gt_row gt_right">2008</td>
+<td headers="atletas" class="gt_row gt_right">165.5</td>
+<td headers="ma3" class="gt_row gt_right">194.8</td>
+<td headers="ma5" class="gt_row gt_right">179.7</td>
+<td headers="ma11" class="gt_row gt_right">162.4</td></tr>
+    <tr><td headers="ano" class="gt_row gt_right">2009</td>
+<td headers="atletas" class="gt_row gt_right">181.7</td>
+<td headers="ma3" class="gt_row gt_right">182.1</td>
+<td headers="ma5" class="gt_row gt_right">193.7</td>
+<td headers="ma11" class="gt_row gt_right">170.2</td></tr>
+    <tr><td headers="ano" class="gt_row gt_right">2010</td>
+<td headers="atletas" class="gt_row gt_right">199.1</td>
+<td headers="ma3" class="gt_row gt_right">188.7</td>
+<td headers="ma5" class="gt_row gt_right">170.0</td>
+<td headers="ma11" class="gt_row gt_right">179.2</td></tr>
+    <tr><td headers="ano" class="gt_row gt_right">2011</td>
+<td headers="atletas" class="gt_row gt_right">185.2</td>
+<td headers="ma3" class="gt_row gt_right">167.5</td>
+<td headers="ma5" class="gt_row gt_right">186.9</td>
+<td headers="ma11" class="gt_row gt_right">183.4</td></tr>
+    <tr><td headers="ano" class="gt_row gt_right">2012</td>
+<td headers="atletas" class="gt_row gt_right">118.3</td>
+<td headers="ma3" class="gt_row gt_right">184.5</td>
+<td headers="ma5" class="gt_row gt_right">184.1</td>
+<td headers="ma11" class="gt_row gt_right">193.9</td></tr>
+    <tr><td headers="ano" class="gt_row gt_right">2013</td>
+<td headers="atletas" class="gt_row gt_right">250.0</td>
+<td headers="ma3" class="gt_row gt_right">178.8</td>
+<td headers="ma5" class="gt_row gt_right">187.6</td>
+<td headers="ma11" class="gt_row gt_right">201.5</td></tr>
+    <tr><td headers="ano" class="gt_row gt_right">2014</td>
+<td headers="atletas" class="gt_row gt_right">168.0</td>
+<td headers="ma3" class="gt_row gt_right">211.4</td>
+<td headers="ma5" class="gt_row gt_right">186.8</td>
+<td headers="ma11" class="gt_row gt_right">210.9</td></tr>
+    <tr><td headers="ano" class="gt_row gt_right">2015</td>
+<td headers="atletas" class="gt_row gt_right">216.3</td>
+<td headers="ma3" class="gt_row gt_right">188.5</td>
+<td headers="ma5" class="gt_row gt_right">209.3</td>
+<td headers="ma11" class="gt_row gt_right">214.3</td></tr>
+    <tr><td headers="ano" class="gt_row gt_right">2016</td>
+<td headers="atletas" class="gt_row gt_right">181.3</td>
+<td headers="ma3" class="gt_row gt_right">209.5</td>
+<td headers="ma5" class="gt_row gt_right">223.2</td>
+<td headers="ma11" class="gt_row gt_right">210.2</td></tr>
+    <tr><td headers="ano" class="gt_row gt_right">2017</td>
+<td headers="atletas" class="gt_row gt_right">230.8</td>
+<td headers="ma3" class="gt_row gt_right">244.0</td>
+<td headers="ma5" class="gt_row gt_right">243.6</td>
+<td headers="ma11" class="gt_row gt_right">208.6</td></tr>
+    <tr><td headers="ano" class="gt_row gt_right">2018</td>
+<td headers="atletas" class="gt_row gt_right">319.8</td>
+<td headers="ma3" class="gt_row gt_right">273.5</td>
+<td headers="ma5" class="gt_row gt_right">244.1</td>
+<td headers="ma11" class="gt_row gt_right">218.9</td></tr>
+    <tr><td headers="ano" class="gt_row gt_right">2019</td>
+<td headers="atletas" class="gt_row gt_right">269.8</td>
+<td headers="ma3" class="gt_row gt_right">269.5</td>
+<td headers="ma5" class="gt_row gt_right">238.6</td>
+<td headers="ma11" class="gt_row gt_right">—</td></tr>
+    <tr><td headers="ano" class="gt_row gt_right">2020</td>
+<td headers="atletas" class="gt_row gt_right">218.9</td>
+<td headers="ma3" class="gt_row gt_right">214.2</td>
+<td headers="ma5" class="gt_row gt_right">226.0</td>
+<td headers="ma11" class="gt_row gt_right">—</td></tr>
+    <tr><td headers="ano" class="gt_row gt_right">2021</td>
+<td headers="atletas" class="gt_row gt_right">153.9</td>
+<td headers="ma3" class="gt_row gt_right">180.1</td>
+<td headers="ma5" class="gt_row gt_right">208.4</td>
+<td headers="ma11" class="gt_row gt_right">—</td></tr>
+    <tr><td headers="ano" class="gt_row gt_right">2022</td>
+<td headers="atletas" class="gt_row gt_right">167.6</td>
+<td headers="ma3" class="gt_row gt_right">184.4</td>
+<td headers="ma5" class="gt_row gt_right">—</td>
+<td headers="ma11" class="gt_row gt_right">—</td></tr>
+    <tr><td headers="ano" class="gt_row gt_right">2023</td>
+<td headers="atletas" class="gt_row gt_right">231.8</td>
+<td headers="ma3" class="gt_row gt_right">—</td>
+<td headers="ma5" class="gt_row gt_right">—</td>
+<td headers="ma11" class="gt_row gt_right">—</td></tr>
+  </tbody>
+  
+  
+</table>
+</div>
+</div>
+</div>
+<p>O gráfico abaixo mostra o ajuste de cada um dos filtros.</p>
+<div class="cell" data-layout-align="center">
+<div class="sourceCode cell-code" id="cb3"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="fu">autoplot</span>(mts) <span class="sc">+</span> </span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_color_manual</span>(</span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>    <span class="at">name =</span> <span class="st">""</span>,</span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>    <span class="at">values =</span> <span class="fu">c</span>(<span class="st">"#073B4C"</span>, <span class="st">"#FFD166"</span>, <span class="st">"#0CB0A9"</span>, <span class="st">"#F4592A"</span>),</span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a>    <span class="at">labels =</span> <span class="fu">c</span>(<span class="st">"Original"</span>, <span class="st">"MA3"</span>, <span class="st">"MA5"</span>, <span class="st">"MA11"</span>)) <span class="sc">+</span></span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a>  theme_series</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output-display">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="index_files/figure-html/unnamed-chunk-5-1.png" class="img-fluid figure-img" style="width:90.0%"></p>
+</figure>
+</div>
+</div>
+</div>
+</section>
+<section id="maior-eficiência" class="level2">
+<h2 class="anchored" data-anchor-id="maior-eficiência">Maior eficiência</h2>
+<p>Num caso aplicado, seria interessante ter uma maneira simples de escalar o processo acima para múltiplas séries de tempo. Para calcular médias móveis com grande velocidade, vamos usar o pacote <code>RcppRoll</code>, onde <code>cpp</code> significa C++, a linguagem subjacente do pacote. A função <code>roll_mean()</code> aplica uma média móvel sobre uma série.</p>
+<div class="cell" data-layout-align="center">
+<div class="sourceCode cell-code" id="cb4"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(RcppRoll)</span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a><span class="fu">roll_mean</span>(atletas, <span class="at">n =</span> <span class="dv">3</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code> [1]  49.53333  60.33333  65.03333  79.16667  96.83333  96.60000  81.83333
+ [8]  86.36667 111.50000 122.43333 162.46667 172.50000 194.76667 182.10000
+[15] 188.66667 167.53333 184.50000 178.76667 211.43333 188.53333 209.46667
+[22] 243.96667 273.46667 269.50000 214.20000 180.13333 184.43333</code></pre>
+</div>
+</div>
+<p>Objetos <code>ts</code> foram criados especificamente para armazenar séries de tempo, têm muitas praticidades, e são pré-carregados no <code>R</code>. A vasta maioria dos dados, e análises de dados, segue o paradigma de bases retangulares, de <code>data.frame</code> s por assim dizer. Neste sentido, o <code>ts</code> ou <code>mts</code> acaba sendo pouco prático<a href="#fn2" class="footnote-ref" id="fnref2" role="doc-noteref"><sup>2</sup></a> quando se trabalha com múltiplas séries de tempo ou até mesmo com séries de tempo com altas frequências.</p>
+<p>No exemplo abaixo vamos importar 9 séries do Índice de Produção Industrial (IPI) e aplicar uma média móvel 12x2 em cada uma delas. O código abaixo mostra como importar as séries e empilhá-las num único <code>tibble</code>. Para manipular os dados vamos utilizar o popular pacote <code>dplyr</code><a href="#fn3" class="footnote-ref" id="fnref3" role="doc-noteref"><sup>3</sup></a>.</p>
+<div class="cell" data-layout-align="center">
+<div class="sourceCode cell-code" id="cb6"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(dplyr)</span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>code <span class="ot">=</span> <span class="dv">28503</span><span class="sc">:</span><span class="dv">28511</span></span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a>series <span class="ot">=</span> <span class="fu">get_series</span>(code)</span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a>series <span class="ot">=</span> <span class="fu">lapply</span>(series, setNames, <span class="fu">c</span>(<span class="st">"date"</span>, <span class="st">"value"</span>))</span>
+<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a><span class="fu">names</span>(series) <span class="ot">=</span> code</span>
+<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a>series <span class="ot">=</span> <span class="fu">bind_rows</span>(series, <span class="at">.id =</span> <span class="st">"series_id"</span>)</span>
+<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>(series, <span class="fu">aes</span>(date, value)) <span class="sc">+</span> </span>
+<span id="cb6-10"><a href="#cb6-10" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_line</span>() <span class="sc">+</span> </span>
+<span id="cb6-11"><a href="#cb6-11" aria-hidden="true" tabindex="-1"></a>  <span class="fu">facet_wrap</span>(<span class="fu">vars</span>(series_id)) <span class="sc">+</span></span>
+<span id="cb6-12"><a href="#cb6-12" aria-hidden="true" tabindex="-1"></a>  theme_series</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output-display">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="index_files/figure-html/unnamed-chunk-7-1.png" class="img-fluid figure-img" style="width:90.0%"></p>
+</figure>
+</div>
+</div>
+</div>
+<p>É relativamente simples aplicar o filtro sobre cada uma das séries. O gráfico mostra o resultado final.</p>
+<div class="cell" data-layout-align="center">
+<div class="sourceCode cell-code" id="cb7"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>series <span class="ot">=</span> series <span class="sc">|&gt;</span> </span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">group_by</span>(series_id) <span class="sc">|&gt;</span> </span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(</span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a>    <span class="at">trend =</span> <span class="fu">roll_mean</span>(value, <span class="at">n =</span> <span class="dv">12</span>, <span class="at">fill =</span> <span class="cn">NA</span>),</span>
+<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a>    <span class="at">trend =</span> <span class="fu">roll_mean</span>(trend, <span class="at">n =</span> <span class="dv">2</span>, <span class="at">fill =</span> <span class="cn">NA</span>)</span>
+<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-8"><a href="#cb7-8" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>(series, <span class="fu">aes</span>(date)) <span class="sc">+</span> </span>
+<span id="cb7-9"><a href="#cb7-9" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_line</span>(<span class="fu">aes</span>(<span class="at">y =</span> value), <span class="at">alpha =</span> <span class="fl">0.8</span>, <span class="at">color =</span> <span class="st">"#126782"</span>) <span class="sc">+</span> </span>
+<span id="cb7-10"><a href="#cb7-10" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_line</span>(<span class="fu">aes</span>(<span class="at">y =</span> trend), <span class="at">lwd =</span> <span class="fl">0.8</span>, <span class="at">color =</span> <span class="st">"#023047"</span>) <span class="sc">+</span></span>
+<span id="cb7-11"><a href="#cb7-11" aria-hidden="true" tabindex="-1"></a>  <span class="fu">facet_wrap</span>(<span class="fu">vars</span>(series_id)) <span class="sc">+</span></span>
+<span id="cb7-12"><a href="#cb7-12" aria-hidden="true" tabindex="-1"></a>  theme_series</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output-display">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="index_files/figure-html/unnamed-chunk-8-1.png" class="img-fluid figure-img" style="width:90.0%"></p>
+</figure>
+</div>
+</div>
+</div>
+</section>
+<section id="extraindo-tendência" class="level2">
+<h2 class="anchored" data-anchor-id="extraindo-tendência">Extraindo tendência</h2>
+<p>Médias móveis fornecem uma estimativa simples da tendência de uma série. Neste sentido, é comum utilizar o filtro de médias móveis <a href="https://restateinsight.com/posts/general-posts/2024-01-sazonalidade/#decomposição-clássica">para decompor uma série</a>. O código abaixo usa a base <code>USMacroG</code> para importar algumas séries macroeconômicas trimestrais dos EUA no período 1947-1997<a href="#fn4" class="footnote-ref" id="fnref4" role="doc-noteref"><sup>4</sup></a>. Vamos modelar a tendência das séries usando uma janela de quatro anos (dois anos para trás e dois anos para frente), ou seja, uma média móvel de ordem 25.</p>
+<div class="cell" data-layout-align="center">
+<details>
+<summary>Code</summary>
+<div class="sourceCode cell-code" id="cb8"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(AER)</span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(tidyr)</span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a><span class="fu">data</span>(<span class="st">"USMacroG"</span>)</span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a>macro <span class="ot">=</span> <span class="fu">tibble</span>(</span>
+<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a>  <span class="at">date =</span> zoo<span class="sc">::</span><span class="fu">as.Date.ts</span>(USMacroG),</span>
+<span id="cb8-7"><a href="#cb8-7" aria-hidden="true" tabindex="-1"></a>  <span class="fu">as.data.frame</span>(USMacroG)</span>
+<span id="cb8-8"><a href="#cb8-8" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb8-9"><a href="#cb8-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-10"><a href="#cb8-10" aria-hidden="true" tabindex="-1"></a>submacro <span class="ot">=</span> macro <span class="sc">|&gt;</span> </span>
+<span id="cb8-11"><a href="#cb8-11" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(date <span class="sc">&gt;=</span> <span class="fu">as.Date</span>(<span class="st">"1947-01-01"</span>), date <span class="sc">&lt;=</span> <span class="fu">as.Date</span>(<span class="st">"1997-01-01"</span>)) <span class="sc">|&gt;</span> </span>
+<span id="cb8-12"><a href="#cb8-12" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="fu">across</span>(gdp<span class="sc">:</span>m1, log))</span>
+<span id="cb8-13"><a href="#cb8-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-14"><a href="#cb8-14" aria-hidden="true" tabindex="-1"></a>macro_trend <span class="ot">=</span> submacro <span class="sc">|&gt;</span> </span>
+<span id="cb8-15"><a href="#cb8-15" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(date, gdp, consumption, invest, m1, inflation, unemp) <span class="sc">|&gt;</span> </span>
+<span id="cb8-16"><a href="#cb8-16" aria-hidden="true" tabindex="-1"></a>  <span class="fu">pivot_longer</span>(<span class="at">col =</span> <span class="sc">-</span>date, <span class="at">names_to =</span> <span class="st">"name_series"</span>) <span class="sc">|&gt;</span> </span>
+<span id="cb8-17"><a href="#cb8-17" aria-hidden="true" tabindex="-1"></a>  <span class="fu">group_by</span>(name_series) <span class="sc">|&gt;</span> </span>
+<span id="cb8-18"><a href="#cb8-18" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(</span>
+<span id="cb8-19"><a href="#cb8-19" aria-hidden="true" tabindex="-1"></a>    <span class="at">trend =</span> <span class="fu">roll_mean</span>(value, <span class="at">n =</span> <span class="dv">25</span>, <span class="at">fill =</span> <span class="cn">NA</span>),</span>
+<span id="cb8-20"><a href="#cb8-20" aria-hidden="true" tabindex="-1"></a>    <span class="at">detrend =</span> value <span class="sc">-</span> trend) <span class="sc">|&gt;</span> </span>
+<span id="cb8-21"><a href="#cb8-21" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ungroup</span>()</span>
+<span id="cb8-22"><a href="#cb8-22" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-23"><a href="#cb8-23" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>(macro_trend, <span class="fu">aes</span>(date)) <span class="sc">+</span></span>
+<span id="cb8-24"><a href="#cb8-24" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_line</span>(<span class="fu">aes</span>(<span class="at">y =</span> value), <span class="at">alpha =</span> <span class="fl">0.5</span>) <span class="sc">+</span></span>
+<span id="cb8-25"><a href="#cb8-25" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_line</span>(<span class="fu">aes</span>(<span class="at">y =</span> trend), <span class="at">lwd =</span> <span class="fl">0.8</span>) <span class="sc">+</span></span>
+<span id="cb8-26"><a href="#cb8-26" aria-hidden="true" tabindex="-1"></a>  <span class="fu">facet_wrap</span>(<span class="fu">vars</span>(name_series), <span class="at">scales =</span> <span class="st">"free_y"</span>) <span class="sc">+</span></span>
+<span id="cb8-27"><a href="#cb8-27" aria-hidden="true" tabindex="-1"></a>  theme_series</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</details>
+<div class="cell-output-display">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="index_files/figure-html/unnamed-chunk-9-1.png" class="img-fluid figure-img" style="width:90.0%"></p>
+</figure>
+</div>
+</div>
+</div>
+<p>O gráfico das séries livres de tendência é apresentado abaixo. Note que as séries não foram dessazonalisadas, portanto, elas ainda apresentam oscilação sazonal.</p>
+<div class="cell" data-layout-align="center">
+<div class="sourceCode cell-code" id="cb9"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>(macro_trend, <span class="fu">aes</span>(date, detrend)) <span class="sc">+</span></span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_line</span>(<span class="at">lwd =</span> <span class="fl">0.8</span>) <span class="sc">+</span></span>
+<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">facet_wrap</span>(<span class="fu">vars</span>(name_series), <span class="at">scales =</span> <span class="st">"free_y"</span>) <span class="sc">+</span></span>
+<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a>  theme_series</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output-display">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="index_files/figure-html/unnamed-chunk-10-1.png" class="img-fluid figure-img" style="width:90.0%"></p>
+</figure>
+</div>
+</div>
+</div>
+</section>
+<section id="filtros-complexos" class="level2">
+<h2 class="anchored" data-anchor-id="filtros-complexos">Filtros complexos</h2>
+<p>Apesar de simples, o filtro de médias móveis é bastante utilizado e tem boas propriedades estatísticas. O gráfico abaixo compara o ajuste de um filtro de médias móveis com o filtro Baxter-King<a href="#fn5" class="footnote-ref" id="fnref5" role="doc-noteref"><sup>5</sup></a>, que é bastante mais sofisticado. Como se vê, ambos os filtros chegam em resultados muito similares.</p>
+<div class="cell" data-layout-align="center">
+<details>
+<summary>Code</summary>
+<div class="sourceCode cell-code" id="cb10"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(mFilter)</span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a>tbl_unemp <span class="ot">=</span> <span class="fu">select</span>(macro, date, unemp)</span>
+<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a>bk <span class="ot">=</span> mFilter<span class="sc">::</span><span class="fu">bkfilter</span>(tbl_unemp<span class="sc">$</span>unemp, <span class="dv">6</span>, <span class="dv">32</span>, <span class="at">nfix =</span> <span class="dv">12</span>)</span>
+<span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-6"><a href="#cb10-6" aria-hidden="true" tabindex="-1"></a>tbl_unemp <span class="ot">=</span> tbl_unemp <span class="sc">|&gt;</span> </span>
+<span id="cb10-7"><a href="#cb10-7" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(</span>
+<span id="cb10-8"><a href="#cb10-8" aria-hidden="true" tabindex="-1"></a>    <span class="at">ma =</span> <span class="fu">roll_mean</span>(unemp, <span class="at">n =</span> <span class="dv">25</span>, <span class="at">fill =</span> <span class="cn">NA</span>, <span class="at">align =</span> <span class="st">"center"</span>),</span>
+<span id="cb10-9"><a href="#cb10-9" aria-hidden="true" tabindex="-1"></a>    <span class="at">bk =</span> mFilter<span class="sc">::</span><span class="fu">bkfilter</span>(unemp, <span class="dv">6</span>, <span class="dv">32</span>, <span class="at">nfix =</span> <span class="dv">12</span>)<span class="sc">$</span>trend</span>
+<span id="cb10-10"><a href="#cb10-10" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">|&gt;</span> </span>
+<span id="cb10-11"><a href="#cb10-11" aria-hidden="true" tabindex="-1"></a>  <span class="fu">pivot_longer</span>(<span class="at">cols =</span> <span class="sc">-</span>date, <span class="at">names_to =</span> <span class="st">"series"</span>)</span>
+<span id="cb10-12"><a href="#cb10-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-13"><a href="#cb10-13" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>(tbl_unemp, <span class="fu">aes</span>(date, value, <span class="at">color =</span> series)) <span class="sc">+</span></span>
+<span id="cb10-14"><a href="#cb10-14" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_line</span>(<span class="at">data =</span> <span class="fu">filter</span>(tbl_unemp, series <span class="sc">==</span> <span class="st">"unemp"</span>)) <span class="sc">+</span></span>
+<span id="cb10-15"><a href="#cb10-15" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_line</span>(<span class="at">data =</span> <span class="fu">filter</span>(tbl_unemp, series <span class="sc">!=</span> <span class="st">"unemp"</span>), <span class="at">lwd =</span> <span class="fl">0.9</span>) <span class="sc">+</span></span>
+<span id="cb10-16"><a href="#cb10-16" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_color_manual</span>(</span>
+<span id="cb10-17"><a href="#cb10-17" aria-hidden="true" tabindex="-1"></a>    <span class="at">name =</span> <span class="st">""</span>,</span>
+<span id="cb10-18"><a href="#cb10-18" aria-hidden="true" tabindex="-1"></a>    <span class="at">values =</span> <span class="fu">c</span>(<span class="st">"#FFD166"</span>, <span class="st">"#0CB0A9"</span>, <span class="st">"#073B4C"</span>),</span>
+<span id="cb10-19"><a href="#cb10-19" aria-hidden="true" tabindex="-1"></a>    <span class="at">labels =</span> <span class="fu">c</span>(<span class="st">"Baxter-King"</span>, <span class="st">"MA25"</span>, <span class="st">"Original"</span>)</span>
+<span id="cb10-20"><a href="#cb10-20" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">+</span></span>
+<span id="cb10-21"><a href="#cb10-21" aria-hidden="true" tabindex="-1"></a>  theme_series</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</details>
+<div class="cell-output-display">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="index_files/figure-html/unnamed-chunk-11-1.png" class="img-fluid figure-img" style="width:90.0%"></p>
+</figure>
+</div>
+</div>
+</div>
+</section>
+<section id="médias-móveis-exponenciais" class="level2">
+<h2 class="anchored" data-anchor-id="médias-móveis-exponenciais">Médias móveis exponenciais</h2>
+<p>O filtro de médias móveis exponenciais ou EWMA (exponentially weighted moving average) é bastante popular em finanças. Na prática, ele é um caso específico de suvização exponencial<a href="#fn6" class="footnote-ref" id="fnref6" role="doc-noteref"><sup>6</sup></a>. Tecnicamente, seria possível implementá-lo usando <code>stats::filter</code> fornecendo os pesos adequados. O código abaixo replica o primeiro exemplo, da série “passe de atletas”.</p>
+<div class="cell" data-layout-align="center">
+<div class="sourceCode cell-code" id="cb11"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a>ewma_wgt <span class="ot">=</span> <span class="cf">function</span>(<span class="at">alpha =</span> <span class="fl">0.5</span>, <span class="at">order =</span> <span class="dv">3</span>) { <span class="fu">rev</span>((<span class="dv">1</span> <span class="sc">-</span> alpha)<span class="sc">^</span>(<span class="fu">seq</span>(<span class="dv">1</span>, order))) }</span>
+<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a>ewma3 <span class="ot">=</span> stats<span class="sc">::</span><span class="fu">filter</span>(atletas, <span class="at">filter =</span> <span class="fu">c</span>(<span class="dv">1</span><span class="sc">/</span><span class="dv">8</span>, <span class="dv">1</span><span class="sc">/</span><span class="dv">4</span>, <span class="dv">1</span><span class="sc">/</span><span class="dv">2</span>), <span class="at">sides =</span> 1L)</span>
+<span id="cb11-4"><a href="#cb11-4" aria-hidden="true" tabindex="-1"></a>ewma5 <span class="ot">=</span> stats<span class="sc">::</span><span class="fu">filter</span>(atletas, <span class="at">filter =</span> <span class="fu">ewma_wgt</span>(<span class="at">order =</span> <span class="dv">5</span>), <span class="at">sides =</span> 1L)</span>
+<span id="cb11-5"><a href="#cb11-5" aria-hidden="true" tabindex="-1"></a>ewma11 <span class="ot">=</span> stats<span class="sc">::</span><span class="fu">filter</span>(atletas, <span class="at">filter =</span> <span class="fu">ewma_wgt</span>(<span class="at">order =</span> <span class="dv">11</span>), <span class="at">sides =</span> 1L)</span>
+<span id="cb11-6"><a href="#cb11-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-7"><a href="#cb11-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-8"><a href="#cb11-8" aria-hidden="true" tabindex="-1"></a>mts <span class="ot">=</span> <span class="fu">ts.intersect</span>(atletas, ewma3, ewma5, ewma11)</span>
+<span id="cb11-9"><a href="#cb11-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-10"><a href="#cb11-10" aria-hidden="true" tabindex="-1"></a><span class="fu">autoplot</span>(mts) <span class="sc">+</span> </span>
+<span id="cb11-11"><a href="#cb11-11" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_color_manual</span>(</span>
+<span id="cb11-12"><a href="#cb11-12" aria-hidden="true" tabindex="-1"></a>    <span class="at">name =</span> <span class="st">""</span>,</span>
+<span id="cb11-13"><a href="#cb11-13" aria-hidden="true" tabindex="-1"></a>    <span class="at">values =</span> <span class="fu">c</span>(<span class="st">"#073B4C"</span>, <span class="st">"#FFD166"</span>, <span class="st">"#0CB0A9"</span>, <span class="st">"#F4592A"</span>),</span>
+<span id="cb11-14"><a href="#cb11-14" aria-hidden="true" tabindex="-1"></a>    <span class="at">labels =</span> <span class="fu">c</span>(<span class="st">"Original"</span>, <span class="st">"MA3"</span>, <span class="st">"MA5"</span>, <span class="st">"MA11"</span>)) <span class="sc">+</span></span>
+<span id="cb11-15"><a href="#cb11-15" aria-hidden="true" tabindex="-1"></a>  theme_series</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output-display">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="index_files/figure-html/unnamed-chunk-12-1.png" class="img-fluid figure-img" style="width:90.0%"></p>
+</figure>
+</div>
+</div>
+</div>
+<p>O exemplo acima é um tanto quanto artificial. Tipicamente, o filtro EWMA é utilizado em séries financeiras de alta frequência. O código abaixo usa o pacote TTR (Technical Trading Rules), especializado em funções para finanças, para computar o EWMA de uma série de preço. Para tornar o exemplo mais simples vamos aproveitar a base <code>ttrc</code> do próprio pacote.</p>
+<div class="cell" data-layout-align="center">
+<details>
+<summary>Code</summary>
+<div class="sourceCode cell-code" id="cb12"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(TTR)</span>
+<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a><span class="fu">data</span>(ttrc)</span>
+<span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-4"><a href="#cb12-4" aria-hidden="true" tabindex="-1"></a>ttrc <span class="ot">=</span> ttrc <span class="sc">|&gt;</span> </span>
+<span id="cb12-5"><a href="#cb12-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">rename_with</span>(tolower) <span class="sc">|&gt;</span> </span>
+<span id="cb12-6"><a href="#cb12-6" aria-hidden="true" tabindex="-1"></a>  dplyr<span class="sc">::</span><span class="fu">filter</span>(date <span class="sc">&gt;=</span> <span class="fu">as.Date</span>(<span class="st">"2004-01-01"</span>)) <span class="sc">|&gt;</span> </span>
+<span id="cb12-7"><a href="#cb12-7" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(</span>
+<span id="cb12-8"><a href="#cb12-8" aria-hidden="true" tabindex="-1"></a>    <span class="at">trend07 =</span> <span class="fu">EMA</span>(close, <span class="at">n =</span> <span class="dv">7</span>),</span>
+<span id="cb12-9"><a href="#cb12-9" aria-hidden="true" tabindex="-1"></a>    <span class="at">trend30 =</span> <span class="fu">EMA</span>(close, <span class="at">n =</span> <span class="dv">30</span>),</span>
+<span id="cb12-10"><a href="#cb12-10" aria-hidden="true" tabindex="-1"></a>    <span class="at">trend50 =</span> <span class="fu">EMA</span>(close, <span class="at">n =</span> <span class="dv">50</span>)</span>
+<span id="cb12-11"><a href="#cb12-11" aria-hidden="true" tabindex="-1"></a>    ) <span class="sc">|&gt;</span> </span>
+<span id="cb12-12"><a href="#cb12-12" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(date, close, <span class="fu">starts_with</span>(<span class="st">"trend"</span>)) <span class="sc">|&gt;</span> </span>
+<span id="cb12-13"><a href="#cb12-13" aria-hidden="true" tabindex="-1"></a>  <span class="fu">pivot_longer</span>(<span class="at">cols =</span> <span class="sc">-</span>date, <span class="at">names_to =</span> <span class="st">"series"</span>)</span>
+<span id="cb12-14"><a href="#cb12-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-15"><a href="#cb12-15" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>(ttrc, <span class="fu">aes</span>(<span class="at">x =</span> date, <span class="at">y =</span> value, <span class="at">color =</span> series)) <span class="sc">+</span></span>
+<span id="cb12-16"><a href="#cb12-16" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_line</span>(<span class="at">data =</span> dplyr<span class="sc">::</span><span class="fu">filter</span>(ttrc, series <span class="sc">==</span> <span class="st">"close"</span>), <span class="at">alpha =</span> <span class="fl">0.8</span>) <span class="sc">+</span></span>
+<span id="cb12-17"><a href="#cb12-17" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_line</span>(<span class="at">data =</span> dplyr<span class="sc">::</span><span class="fu">filter</span>(ttrc, series <span class="sc">!=</span> <span class="st">"close"</span>), <span class="at">lwd =</span> <span class="fl">0.9</span>) <span class="sc">+</span></span>
+<span id="cb12-18"><a href="#cb12-18" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_color_manual</span>(</span>
+<span id="cb12-19"><a href="#cb12-19" aria-hidden="true" tabindex="-1"></a>    <span class="at">name =</span> <span class="st">""</span>,</span>
+<span id="cb12-20"><a href="#cb12-20" aria-hidden="true" tabindex="-1"></a>    <span class="at">values =</span> <span class="fu">c</span>(<span class="st">"#073B4C"</span>, <span class="st">"#FFD166"</span>, <span class="st">"#0CB0A9"</span>, <span class="st">"#F4592A"</span>),</span>
+<span id="cb12-21"><a href="#cb12-21" aria-hidden="true" tabindex="-1"></a>    <span class="at">labels =</span> <span class="fu">c</span>(<span class="st">"Original"</span>, <span class="st">"EWMA7"</span>, <span class="st">"EWMA25"</span>, <span class="st">"EWMA50"</span>)) <span class="sc">+</span></span>
+<span id="cb12-22"><a href="#cb12-22" aria-hidden="true" tabindex="-1"></a>  theme_series</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</details>
+<div class="cell-output-display">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="index_files/figure-html/unnamed-chunk-13-1.png" class="img-fluid figure-img" style="width:90.0%"></p>
+</figure>
+</div>
+</div>
+</div>
+
+
+</section>
+</section>
+
+
+<div id="quarto-appendix" class="default"><section id="footnotes" class="footnotes footnotes-end-of-document" role="doc-endnotes"><h2 class="anchored quarto-appendix-heading">Footnotes</h2>
+
+<ol>
+<li id="fn1"><p>Nome completo: “Transfer rights on sporting club players - annual - net”.<a href="#fnref1" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+<li id="fn2"><p>Existem, na verdade, uma infinitude de classes de objetos para lidar com séries temporais no <code>R</code>. Para uma referência veja o pacote <a href="https://docs.ropensci.org/tsbox/">tsbox</a> que funciona como uma pedra de Rosetta entre esses diferentes tipos de objetos.<a href="#fnref2" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+<li id="fn3"><p>Apesar de muito bom, o <code>dplyr</code> tem um problema chato quando se trabalha com séries de tempo. Há um conflito entre as funções <code>dplyr::filter</code> e <code>stats::filter</code>, que se utiliza para calcular uma média móvel. É muito comum carregar o pacote e esquecer deste detalhe. Para resolver os conflitos basta sempre declarar a função usando o operador “quatro pontos”, <code>::</code>.<a href="#fnref3" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+<li id="fn4"><p>Para a definição das variáveis, consulte <code>?USMacroG</code><a href="#fnref4" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+<li id="fn5"><p>M. Baxter and R.G. King. Measuring business cycles: Approximate bandpass filters. The Review of Economics and Statistics, 81(4):575-93, 1999.<a href="#fnref5" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+<li id="fn6"><p>Para uma boa introdução a suvização exponencial usando o pacote <code>forecast</code> consulte <a href="https://otexts.com/fpp2/expsmooth.html">Forecasting: Principles and Practice (2ed)</a>.<a href="#fnref6" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+</ol>
+</section></div></main> <!-- /main -->
+<script id="quarto-html-after-body" type="application/javascript">
+window.document.addEventListener("DOMContentLoaded", function (event) {
+  const toggleBodyColorMode = (bsSheetEl) => {
+    const mode = bsSheetEl.getAttribute("data-mode");
+    const bodyEl = window.document.querySelector("body");
+    if (mode === "dark") {
+      bodyEl.classList.add("quarto-dark");
+      bodyEl.classList.remove("quarto-light");
+    } else {
+      bodyEl.classList.add("quarto-light");
+      bodyEl.classList.remove("quarto-dark");
+    }
+  }
+  const toggleBodyColorPrimary = () => {
+    const bsSheetEl = window.document.querySelector("link#quarto-bootstrap");
+    if (bsSheetEl) {
+      toggleBodyColorMode(bsSheetEl);
+    }
+  }
+  toggleBodyColorPrimary();  
+  const icon = "";
+  const anchorJS = new window.AnchorJS();
+  anchorJS.options = {
+    placement: 'right',
+    icon: icon
+  };
+  anchorJS.add('.anchored');
+  const isCodeAnnotation = (el) => {
+    for (const clz of el.classList) {
+      if (clz.startsWith('code-annotation-')) {                     
+        return true;
+      }
+    }
+    return false;
+  }
+  const clipboard = new window.ClipboardJS('.code-copy-button', {
+    text: function(trigger) {
+      const codeEl = trigger.previousElementSibling.cloneNode(true);
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+  });
+  clipboard.on('success', function(e) {
+    // button target
+    const button = e.trigger;
+    // don't keep focus
+    button.blur();
+    // flash "checked"
+    button.classList.add('code-copy-button-checked');
+    var currentTitle = button.getAttribute("title");
+    button.setAttribute("title", "Copied!");
+    let tooltip;
+    if (window.bootstrap) {
+      button.setAttribute("data-bs-toggle", "tooltip");
+      button.setAttribute("data-bs-placement", "left");
+      button.setAttribute("data-bs-title", "Copied!");
+      tooltip = new bootstrap.Tooltip(button, 
+        { trigger: "manual", 
+          customClass: "code-copy-button-tooltip",
+          offset: [0, -8]});
+      tooltip.show();    
+    }
+    setTimeout(function() {
+      if (tooltip) {
+        tooltip.hide();
+        button.removeAttribute("data-bs-title");
+        button.removeAttribute("data-bs-toggle");
+        button.removeAttribute("data-bs-placement");
+      }
+      button.setAttribute("title", currentTitle);
+      button.classList.remove('code-copy-button-checked');
+    }, 1000);
+    // clear code selection
+    e.clearSelection();
+  });
+  function tippyHover(el, contentFn) {
+    const config = {
+      allowHTML: true,
+      content: contentFn,
+      maxWidth: 500,
+      delay: 100,
+      arrow: false,
+      appendTo: function(el) {
+          return el.parentElement;
+      },
+      interactive: true,
+      interactiveBorder: 10,
+      theme: 'quarto',
+      placement: 'bottom-start'
+    };
+    window.tippy(el, config); 
+  }
+  const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+  for (var i=0; i<noterefs.length; i++) {
+    const ref = noterefs[i];
+    tippyHover(ref, function() {
+      // use id or data attribute instead here
+      let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+      try { href = new URL(href).hash; } catch {}
+      const id = href.replace(/^#\/?/, "");
+      const note = window.document.getElementById(id);
+      return note.innerHTML;
+    });
+  }
+      let selectedAnnoteEl;
+      const selectorForAnnotation = ( cell, annotation) => {
+        let cellAttr = 'data-code-cell="' + cell + '"';
+        let lineAttr = 'data-code-annotation="' +  annotation + '"';
+        const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+        return selector;
+      }
+      const selectCodeLines = (annoteEl) => {
+        const doc = window.document;
+        const targetCell = annoteEl.getAttribute("data-target-cell");
+        const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+        const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+        const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+        const lineIds = lines.map((line) => {
+          return targetCell + "-" + line;
+        })
+        let top = null;
+        let height = null;
+        let parent = null;
+        if (lineIds.length > 0) {
+            //compute the position of the single el (top and bottom and make a div)
+            const el = window.document.getElementById(lineIds[0]);
+            top = el.offsetTop;
+            height = el.offsetHeight;
+            parent = el.parentElement.parentElement;
+          if (lineIds.length > 1) {
+            const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+            const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+            height = bottom - top;
+          }
+          if (top !== null && height !== null && parent !== null) {
+            // cook up a div (if necessary) and position it 
+            let div = window.document.getElementById("code-annotation-line-highlight");
+            if (div === null) {
+              div = window.document.createElement("div");
+              div.setAttribute("id", "code-annotation-line-highlight");
+              div.style.position = 'absolute';
+              parent.appendChild(div);
+            }
+            div.style.top = top - 2 + "px";
+            div.style.height = height + 4 + "px";
+            let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+            if (gutterDiv === null) {
+              gutterDiv = window.document.createElement("div");
+              gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+              gutterDiv.style.position = 'absolute';
+              const codeCell = window.document.getElementById(targetCell);
+              const gutter = codeCell.querySelector('.code-annotation-gutter');
+              gutter.appendChild(gutterDiv);
+            }
+            gutterDiv.style.top = top - 2 + "px";
+            gutterDiv.style.height = height + 4 + "px";
+          }
+          selectedAnnoteEl = annoteEl;
+        }
+      };
+      const unselectCodeLines = () => {
+        const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+        elementsIds.forEach((elId) => {
+          const div = window.document.getElementById(elId);
+          if (div) {
+            div.remove();
+          }
+        });
+        selectedAnnoteEl = undefined;
+      };
+      // Attach click handler to the DT
+      const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+      for (const annoteDlNode of annoteDls) {
+        annoteDlNode.addEventListener('click', (event) => {
+          const clickedEl = event.target;
+          if (clickedEl !== selectedAnnoteEl) {
+            unselectCodeLines();
+            const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+            if (activeEl) {
+              activeEl.classList.remove('code-annotation-active');
+            }
+            selectCodeLines(clickedEl);
+            clickedEl.classList.add('code-annotation-active');
+          } else {
+            // Unselect the line
+            unselectCodeLines();
+            clickedEl.classList.remove('code-annotation-active');
+          }
+        });
+      }
+  const findCites = (el) => {
+    const parentEl = el.parentElement;
+    if (parentEl) {
+      const cites = parentEl.dataset.cites;
+      if (cites) {
+        return {
+          el,
+          cites: cites.split(' ')
+        };
+      } else {
+        return findCites(el.parentElement)
+      }
+    } else {
+      return undefined;
+    }
+  };
+  var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+  for (var i=0; i<bibliorefs.length; i++) {
+    const ref = bibliorefs[i];
+    const citeInfo = findCites(ref);
+    if (citeInfo) {
+      tippyHover(citeInfo.el, function() {
+        var popup = window.document.createElement('div');
+        citeInfo.cites.forEach(function(cite) {
+          var citeDiv = window.document.createElement('div');
+          citeDiv.classList.add('hanging-indent');
+          citeDiv.classList.add('csl-entry');
+          var biblioDiv = window.document.getElementById('ref-' + cite);
+          if (biblioDiv) {
+            citeDiv.innerHTML = biblioDiv.innerHTML;
+          }
+          popup.appendChild(citeDiv);
+        });
+        return popup.innerHTML;
+      });
+    }
+  }
+});
+</script>
+<script src="https://giscus.app/client.js" data-repo="viniciusoike/restateinsight" data-repo-id="R_kgDOJ9Lnfw" data-category="General" data-category-id="" data-mapping="title" data-reactions-enabled="1" data-emit-metadata="0" data-input-position="top" data-theme="light" data-lang="en" crossorigin="anonymous" async="">
+</script>
+</div> <!-- /content -->
+
+
+
+</body></html>
