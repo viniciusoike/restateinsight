@@ -1,0 +1,592 @@
+---
+title: "Tendência e Sazonalidade"
+date: '2024-01-23'
+categories: ['data-science', 'economia', 'tutorial-R', 'econometria', 'time-series']
+description: 'Séries de tempo apresentam diversos padrões sazonais. Em econometria, o interesse nem sempre está na sazonalidade, em si, mas na sua eliminação para chegar na tendência de uma série. Este post apresenta algumas maneiras para visualizar e modelar a sazonalidade de uma série.'
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(
+  warning = FALSE,
+  message = FALSE,
+  fig.align = "center",
+  fig.showtext = TRUE,
+  fig.width = 7,
+  fig.asp = 0.618,
+  out.width = "90%")
+
+library(forecast)
+library(seasonal)
+library(ggplot2)
+library(readr)
+# library(zoo)
+library(gtsummary)
+```
+
+```{r}
+#| include: false
+#> Temperatura Porto Alegre
+temp = readr::read_rds(here::here("static/data/temperatura_poa_2023.rds"))
+gasolina = readr::read_csv(here::here("static/data/br_anp_gasolina.csv"))
+```
+
+# Tendência e Sazonalidade
+
+Séries de tempo costumam exibir alguns padrões similares. Uma abordagem particularmente útil é de decompor uma série de tempo em componentes, que representam características específicas. Pode-se pensar numa série de tempo como uma conjunção de três componentes:
+
+1.  Tendência
+2.  Sazonalidade
+3.  Resíduo (resto, ruído, etc.)
+
+Em geral, a tendência varia pouco no tempo, segue algum ciclo longo, como a **tendência de crescimento do PIB** de um país. O movimento sazonal de uma série reflete algum tipo de **variação períodica**. Muitas séries possuem sazonalidade, como nfa demanda por energia elétrica ao longo dos trimestres, o [número de nascimentos a cada mês](https://restateinsight.com/posts/general-posts/2023-10-nascimentos-brasil/), o número diário de acidentes de trânsito a cada semana, a temperatura média ao longo do dia, etc.
+
+Entender a sazonalidade de um fenômeno é essencial para a sua modelagem estatística. Vale notar que, usualmente, o interesse de economistas e econometristas não está na sazonalidade em si, mas sim na *série dessazonalizada*, isto é, livre de qualquer sazonalidade. Esta abordagem enfatiza mais a busca pela tendência "limpa" da série do que pelo efeito sazonal.
+
+A sazonalidade se expressa em várias frequências, mas a ênfase deste post será em sazonalidades mensais e trimestrais. Sazonalidades complexas (mistas, por exemplo) ou de alta frequência (intradiária, diária, semanal), em geral, exigem um pouco mais de esforço no setup e pacotes específicos[^1].
+
+[^1]: Para uma referência para séries com sazonalidade complexa no R veja [Hyndman e Athansopoulos (2021) Forecasting: Principles and Practice](https://otexts.com/fpp3/complexseasonality.html).
+
+# Setup
+
+Primeiro, vamos carregar os pacotes necessários para seguir este post.
+
+```{r}
+#> Séries de tempo em geral
+library(forecast)
+#> X-13-ARIMA-SEATS
+library(seasonal)
+#> Ler e converter objetos ts
+library(zoo)
+#> Gráficos
+library(ggplot2)
+#> Testes de sazonalidade
+library(seastests)
+
+
+#> Auxiliares
+library(rvest)
+library(readr)
+library(dplyr)
+#> https://github.com/wilsonfreitas/rbcb
+library(rbcb)
+```
+
+Vou também definir um tema para os gráficos. Este passo é opcional.
+
+```{r}
+theme_series = theme_bw(base_size = 10, base_family = "sans") +
+    theme(
+      panel.grid.minor = element_blank(),
+      axis.text.x = element_text(angle = 90)
+      )
+```
+
+# Visualizando sazonalidade
+
+Há alguns recursos simples para melhor visualizar o padrão sazonal de uma série. Primeiro vamos importar a série de Custos de Construção do IPI (Índice de Produção Industrial). O código abaixo importa a série e converte o data.frame para um objeto `ts`. Para facilitar a visualização dos gráficos uso um tema customizado, definido acima `theme_series`.
+
+Note que esta série possui sazonalidade e também uma tendência. Inicialmente, há uma tendência de queda, no período 2014-2016; depois, há uma tendência de estabilidade, que é quebrada momentaneamente no início da pandemia do Covid-19.
+
+```{r}
+#> Série do Índice de Produção Industrial - Insumos da Construção Civil
+ipi = rbcb::get_series(21868, as = "ts")
+
+autoplot(ipi) + theme_series
+```
+
+A segunda série que vamos importar é a da demanda residencial por energia elétrica no Brasil. Esta série possui uma clara tendência de crescimento e, também, uma tendência sazonal.
+
+```{r}
+#> Série de demanda por energia elétrica residencial (Brasil)
+energ = rbcb::get_series(1403, as = "ts", start_date = as.Date("2002-01-01"))
+
+autoplot(energ) + theme_series
+```
+
+A maneira mais simples de visualizar o efeito sazonal é comparando o valor de cada período dentro do seu ciclo. No caso de uma série mensal, temos (potencialmente) um ciclo que se repete a cada ano. O gráfico abaixo mostra os valores da série do IPI-CC mês a mês em cada ano. Visualmente, parece haver um pico em outubro seguido por um queda nos meses seguintes.
+
+```{r}
+ggseasonplot(ipi) +
+  scale_color_viridis_d() +
+  theme_series
+```
+
+A função `ggsubseriesplot` cria pequenos gráficos ordenando as observações dentro de cada mês. As linhas representam as observações de cada mês, ano a ano. Neste caso, é um pouco difícil enxergar a tendência sazonal já que há uma forte tendência de queda no período 2012-2014.
+
+```{r}
+ggsubseriesplot(ipi) +
+  theme_series
+```
+
+Acaba sendo mais fácil visualizar a sazonalidade quando se olha para a série a partir de 2016, quando a tendência fica mais estável. Os meses de julho a outubro parecem ser um período de alta. Já o mês de dezembro parece ser um mês de baixa.
+
+```{r}
+ggsubseriesplot(window(ipi, start = c(2016, 1))) +
+  theme_series
+```
+
+Também é possível fazer um lag plot convencional.
+
+```{r}
+#| out-width: 100%
+gglagplot(ipi, seasonal = TRUE, do.lines = FALSE, lags = 12) +
+  scale_color_viridis_d() +
+  theme_series
+```
+
+Como comentado, a série de energia elétrica também possui padrão sazonal. Em geral, parece haver um consumo maior de energia em dezembro e um consumo menor em junho.
+
+```{r}
+ggseasonplot(energ) + theme_series
+```
+
+Alternativamente, pode-se fazer um boxplot mês a mês da série. No caso abaixo, remove-se primeiro a tendência da série da energia elétrica usando um polinômio de terceiro grau. No gráfico, vê-se como a tendência sazonal aponta para menor consumo de energia nos meses de inverno, de junho a agosto, e de maior consumo nos meses de calor, de novembro a janeiro.
+
+```{r}
+#| code-fold: true
+#| out-width: 100%
+#> Série de demanda por energia elétrica residencial (Brasil)
+energ = rbcb::get_series(1403, as = "tibble", start_date = as.Date("2002-01-01"))
+
+#> Regressão com tendência polinomial
+names(energ) = c("date", "consumo")
+energ$consumo = ts(log(energ$consumo), start = c(2002, 1), frequency = 12)
+energ$trend = time(energ$consumo)
+reg_lm = lm(consumo ~ poly(trend, 3, raw = TRUE), data = energ)
+energ$detrend = residuals(reg_lm)
+energ$mes = lubridate::month(energ$date, label = TRUE)
+
+p1 <- ggplot(energ, aes(x = date, y = detrend)) +
+  geom_line() +
+  xlab(NULL) +
+  theme_series
+
+p2 <- ggplot(energ, aes(x = mes, y = detrend)) +
+  geom_boxplot() +
+  geom_point(position = position_jitter(0.25), alpha = 0.5) +
+  xlab(NULL) +
+  theme_series
+
+library(patchwork)
+
+p1 / p2 + plot_layout(heights = c(1/3, 2/3))
+```
+
+Por fim, vale comentar que também é possível visualizar o padrão sazonal de série com frequência mais alta. O painel abaixo mostra a temperatura média (hora a hora) na estação Jardim Botânico de Porto Alegre (RS) nos primeiros três meses de 2023. Como comentei anteriormente, este tipo de série exige alguns pacotes específicos como `xts` para ser melhor processado pelo `R`.
+
+```{r}
+#| eval: false
+temp = readr::read_rds(
+  "https://github.com/viniciusoike/restateinsight/raw/main/static/data/temperatura_poa_2023.rds"
+)
+```
+
+```{r}
+#| out-width: 100%
+#| code-fold: true
+temp = subset(temp, mes <= 3)
+temp$mes = factor(temp$mes, labels = c("Jan", "Fev", "Mar"))
+temp$ins_c = zoo::na.spline(temp$temp_ins_c)
+
+ggplot(temp, aes(x = hora, y = temp_ins_c, color = mes, group = date_ymd)) +
+  geom_line(alpha = 0.8) +
+  facet_wrap(vars(mes), ncol = 1) +
+  scale_x_continuous(breaks = 0:23) +
+  guides(color = "none") +
+  labs(title = "Temperatura média Porto Alegre", x = "Hora do dia", y = "Celsius") +
+  theme_series
+```
+
+# Decomposição Clássica
+
+A forma "clássica" de se modelar sazonalidade numa série é decompondo ela em três componentes: tendência, sazonalidade, e ruído. Assim, temos:
+
+$$
+y_{t} = T_{t} + S_{t} + u_{t}
+$$
+
+Em geral, a tendência $T_{t}$ é um polinômio, de primeiro ou segundo grau[^2], que depende do tempo ou uma média móvel simples. Já a sazonalidade, $S_{t}$ entra linearmente no modelo: coloca-se uma variável binária (*dummy*) para cada período sazonal. No caso de uma série com sazonalidade mensal, isto significa incluir onze variáveris binárias[^3]. O caso de uma tendência linear com sazonalidade "determinística"[^4] é expresso na equação abaixo.
+
+[^2]: Pode-se usar um polinômio de qualquer grau, mas polinômios de ordens muito elevadas costumam se ajustar "perfeitamente" aos dados e vão absorver toda a sazonalidade da série.
+
+[^3]: Sempre coloca-se uma variável binária a menos do que períodos sazonais pela questão do posto da matriz de regressores. Na prática, se houvesse uma dummy para cada período sazonal a matriz de regressão seria uma matriz identidade.
+
+[^4]: É comum ver esta expressão nos textos de séries de tempo; em geral o termo é utilizado em contraste com modelos SARIMA onde a sazonalidade é estocástica, mas o termo "determinístico" não tem implicação causal. Na prática, quer dizer que a sazonalidade não varia no tempo e é sempre a mesma o que pode gerar previsões ruins a depender do caso.
+
+$$
+y_{t} = \alpha_{0} + \alpha_{1}t + \sum_{i = 1}^{11}\beta_{i}\delta_{i} + u_{t}
+$$
+
+Neste tipo de regressão o "período-base" fica incorporado no termo de constante. Isto é, imaginando que temos uma série mensal e que janeiro seja o mês-base, o efeito de janeiro ficaria estimado junto com $\alpha_{0}$ e os demais parâmetros. O código abaixo estima esta regressão na série de Custos de Construção do IPI e mostra os resultados.
+
+Relativamente ao mês base (janeiro), os meses de julho a agosto exibem valores positivos de maior magnitude. Isto corrobora a inspeção visual, que apontava que estes meses eram um "período de alta". Além disso, o modelo estima uma tendência linear e negativa, sinalizando a queda dos valores da série ao longo do tempo.
+
+```{r}
+model_lm <- tslm(ipi ~ trend + season)
+```
+
+```{r}
+#| echo: false
+tbl_regression(
+  model_lm,
+  estimate_fun = ~style_number(.x, digits = 4)
+  )
+```
+
+O gráfico abaixo mostra o ajuste "interno" da série. Note como a série vermelha, dos valores previstos, exibe uma tendência linear simples e um padrão sazonal fixo e recorrente. O padrão sazonal é relativamente resiliente a outliers como no caso do início da pandemia.
+
+```{r}
+autoplot(ipi) +
+  autolayer(fitted(model_lm)) +
+  guides(color = "none") +
+  theme_series
+```
+
+A decomposição clássica é bastante simples. Note que a regressão acima estima o efeito mês a mês da sazonalidade (relativamente ao mês-base), o que pode ser bastante interessante por permitir uma interpretação simples dos dados. Além disso, é bastante fácil de gerar previsões a partir deste modelo. O exemplo abaixo mostra a previsão 18 meses à frente do nosso modelo linear.
+
+```{r}
+fcast = forecast(model_lm, h = 18)
+
+autoplot(fcast, include = 72) +
+  theme_series
+```
+
+Pode-se também modelar a tendência de maneiras um pouco mais sofisticadas. Uma opção simples é usar uma média móvel. No exemplo abaixo uso uma média móvel de 12x2 meses. O resultado é apresentado na linha azul junto com a série original.
+
+```{r}
+ma_trend = stats::filter(
+  ipi,
+  filter = c(1/24, rep(1/12, 10), 1/24),
+  method = "convolution"
+  )
+
+autoplot(ipi) +
+  autolayer(ma_trend, color = "blue") +
+  guides(color = "none") +
+  theme_series
+```
+
+Para remover a tendência subtrai-se a média móvel, calculada acima, da série original. Assim, tem-se somente o componente sazonal e o ruído.
+
+```{r}
+ipi_detrend = ipi - ma_trend
+
+autoplot(ipi_detrend) + theme_series
+```
+
+Novamente, usando um modelo linear simples, temos a modelagem apenas do padrão sazonal.
+
+```{r}
+model_lm2 = tslm(ipi_detrend ~ season)
+
+autoplot(ipi_detrend) +
+  autolayer(fitted(model_lm2)) +
+  guides(color = "none") +
+  theme_series
+```
+
+Comparando os modelos, vê-se que as estimativas dos efeitos sazonais são diferentes.
+
+```{r}
+#| echo: false
+tbl1 <- tbl_regression(
+  model_lm,
+  conf.int = FALSE,
+  estimate_fun = ~style_number(.x, digits = 4)
+  )
+
+tbl2 <- tbl_regression(
+  model_lm2,
+  conf.int = FALSE,
+  estimate_fun = ~style_number(.x, digits = 4)
+  )
+
+tbl_merge(
+  list(tbl1, tbl2),
+  tab_spanner = c("Tendência linear", "Média Móvel")
+  )
+```
+
+# Testando sazonalidade
+
+Existem testes estatísticos formais para verificar a presença de sazonalidade em uma série. Pessoalmente, foram raras as ocasiões em que vi alguém testando a presença de sazonalidade; em geral, a inspeção visual é suficiente. Um teste bastante simples é verificar se coeficientes das dummies sazonais, dos modelos de regressão acima, são conjuntamente iguais a zero, isto é:
+
+$$
+H_{o} = \beta_{1} = \beta_{2} = \dots = \beta_{11} = 0
+$$
+
+No caso em que a hipótese nula é rejeitada, tem-se evidência de sazonalidade na série. Ou seja, essencialmente, faz-se um teste F para verificar a significância dos parâmetros relacionados aos termos de sazonalidade.
+
+Há também dois possíveis testes não-paramétricos: (1) Teste de Kruskal-Wallis; e (2) Teste de Friedman.
+
+### Krukal-Wallis
+
+O [teste de Kruskal-Wallis](https://en.wikipedia.org/wiki/Kruskal–Wallis_one-way_analysis_of_variance) (KW) verifica se amostras distintas foram geradas pela mesma distribuição. No caso de séries de tempo, pode-se adaptar este teste. Supondo uma série mensal, cada ano fornece 12 observações e queremos verificar se existe uma diferença entre os anos. Assim temos k amostras (k anos) de 12 observações.
+
+Vale notar que o teste tem de ser feito sobre a série sem tendência. Aqui, aproveito a série livre de tendência utilizando o filtro MA 12x2, feito anteriormente.
+
+```{r}
+# model_arima = Arima(ipi, order = c(0, 1, 1))
+# ipi_detrend = residuals(model_arima)
+
+df = data.frame(
+  date = as.Date.ts(ipi_detrend),
+  value = as.numeric(ipi_detrend)
+)
+
+tab = df |> 
+  dplyr::filter(!is.na(value)) |> 
+  dplyr::mutate(
+    rank = rank(value, ties.method = "average"),
+    mes = lubridate::month(date),
+    ano = lubridate::year(date)
+    )
+
+tab |> 
+  tidyr::pivot_wider(
+    id_cols = "ano",
+    names_from = "mes",
+    values_from = "rank",
+    names_sort = TRUE
+  )
+```
+
+A hipótese nula do teste é de que as diferentes amostras foram geradas pela mesma distribuição. Como se vê abaixo, o teste é rejeitado, implicando que há presença de sazonalidade.
+
+Vale notar que o teste tem duas hipóteses bastante frágeis no contexto de séries de tempo. Primeiro, o teste supõe que as observações dentro de cada grupo são independentes, isto é, de que as observações de cada mês (janeiro, fevereiro, etc.) são indepedentes. Segundo, o teste supõe que as amostras (anos) são independentes entre si.
+
+```{r}
+kruskal.test(tab$rank, tab$mes)
+```
+
+### Friedman
+
+O teste de Friedman é muito similar ao teste KW, mas não exige independência das observações dentro de cada grupo (mês). O código abaixo executa o teste. Note que é preciso remover os anos incompletos, pois o teste somente funciona quando as amostras tem tamanho igual. Novamente, rejeita-se a hipótese nula, sugerindo que existe um padrão sazonal na série.
+
+```{r}
+tab = df |> 
+  dplyr::mutate(
+    mes = lubridate::month(date),
+    ano = lubridate::year(date)
+    ) |> 
+  dplyr::filter(!is.na(value), ano > 2012, ano < 2023) |> 
+  dplyr::mutate(rank = rank(value), .by = "ano")
+
+friedman.test(tab$rank, tab$mes, tab$ano)
+```
+
+### seastests
+
+Por fim, vale notar o pacote `seastests`, que fornece alguns testes adicionais para verificar a presença de sazonalidade em uma série. O código abaixo executa os mesmos testes. Note que o valor da estatística de teste é diferente (ainda que a interpretação final continue a mesma). Isto acontece pois a função remove a tendência usando um modelo ARIMA (selecionado via a função `auto.arima`). Por fim, a função `isSeasonal` combina cinco testes de sazonalidade distintos e retorna um valor lógico, indicando se há sazonalidade na série.
+
+```{r}
+library(seastests)
+
+kw(ipi, 12, diff = FALSE, residuals = TRUE)
+
+fried(ipi, 12, diff = FALSE, residuals = TRUE)
+
+isSeasonal(ipi, freq = 12)
+```
+
+# Abordagens comuns de sazonalidade
+
+## STL
+
+A decomposição STL é mais sofisticada do que a decomposição clássica. A metodologia STL foi apresentada no influente artigo [STL: A Seasonal-Trend Decomposition Procedure Based on Loess](https://www.wessa.net/download/stl.pdf) dos autores Robert Cleveland, William Cleveland, Jean McRae e Irma Terpenning. Assim como a decomposição clássica, a decomposição STL divide uma série em três componentes: um componente de tendência (**trend**), uma componente sazonal (**seasonal**) e um componente aleatório (**remainder**).
+
+O STL foi feito para ser um método versátil, resistente a outliers e eficiente (do ponto de vista computacional). Tipicamente, a decomposição STL funciona com qualquer série (mesmo quando há observações ausentes) independentemente da sua frequência. Para modelar a tendência e sazonalidade da série, o STL usa uma regressão LOESS. Além de ser mais flexível do que a média móvel, que vimos acima, a regressão LOESS não perde observações da série.
+
+O código abaixo mostra como calcular a decomposição STL e apresenta os resultados visualmente usando a série `co2` que vem pré-carregada no R. Esta série é similar a uma das utilizadas no artigo original.
+
+```{r}
+stl_13 <- stl(co2, s.window = 13)
+
+autoplot(stl_13) + theme_series
+```
+
+A função `stl` tem diversos parâmetros de "suaviazação", que servem para escolher o tamanho e intensidade dos ciclos de tendência e sazonalidade. Via de regra quanto maiores os valores dos argumentos `x.window` mais suave será o ajuste final. Outro argumento potencialmente útil é definir `robust = TRUE` quando a série possui outliers.
+
+No presente contexto, o argumento mais relevante do comando `stl` é o `s.window` ou $n_{(s)}$ na nomenclatura do artigo original. Este parâmetro, em linhas gerais, define o grau de suaviazação da tendência sazonal. Ele deve ser um número ímpar e pelo menos igual a 7. O artigo original sugere uma ferramenta visual para escolher o parâmetro, mas concede que a escolha final é arbitrária e depende da sensibilidade do usuário.
+
+O gráfico apresentado é o *seasonal-diagnostic plot*. As linhas mostram a "intensidade" do efeito sazonal e os pontos indicam como este efeito sazonal varia com o ruído aleatório. Note como as variações da curva coincidem com as variações dos pontos, sugerindo que as oscilações sazonais estão sendo afetadas pelo ruído da série.
+
+```{r}
+#| code-fold: true
+components <- stl_13$time.series
+
+dat = data.frame(
+  date = as.Date.ts(components),
+  coredata(components)
+)
+
+dat$month = lubridate::month(dat$date, label = TRUE, locale = "pt_BR")
+dat$year = lubridate::year(dat$date)
+
+dat <- dat |> 
+  mutate(s_avg = mean(seasonal), .by = "month") |> 
+  mutate(s1 = seasonal - s_avg, s2 = seasonal - s_avg + remainder)
+
+ggplot(dat) +
+  geom_line(aes(x = year, y = s1), lwd = 0.8) +
+  geom_point(aes(x = year, y = s2), size = 0.8, shape = 21) +
+  facet_wrap(vars(month)) +
+  theme_series
+```
+
+O gráfico abaixo repete o mesmo exercício mas utilizando `s.window = 35` para suavizar a série original. Note como as curvas estão mais suaves.
+
+```{r}
+#| code-fold: true
+stl_35 <- stl(co2, s.window = 35)
+components <- stl_35$time.series
+
+dat = data.frame(
+  date = as.Date.ts(components),
+  coredata(components)
+)
+
+dat$month = lubridate::month(dat$date, label = TRUE, locale = "pt_BR")
+dat$year = lubridate::year(dat$date)
+
+dat <- dat |> 
+  mutate(s_avg = mean(seasonal), .by = "month") |> 
+  mutate(s1 = seasonal - s_avg, s2 = seasonal - s_avg + remainder)
+
+ggplot(dat) +
+  geom_line(aes(x = year, y = s1), lwd = 0.8) +
+  geom_point(aes(x = year, y = s2), size = 0.8, shape = 21) +
+  facet_wrap(vars(month)) +
+  theme_series
+```
+
+A função `forecast::mstl` oferece uma opção menos manual do ajuste STL. Esta função executa seis janelas distintas para `s.window` iterativamente. Os resultados costumam ser satisfatórios, mas como de costume, é necessário revisar o ajuste final.
+
+```{r}
+stl_auto = mstl(co2, lambda = "auto")
+autoplot(stl_auto)
+```
+
+## SARIMA
+
+Os modelos SARIMA incluem um componente de "sazonalidade estocástica" nos modelos ARIMA. Já escrevi um [post](https://restateinsight.com/posts/general-posts/repost-sarima-no-r/) onde detalho melhor alguns aspectos teóricos deste tipo de modelo. Vale notar o modelo SARIMA *não realiza uma decomposição de tendência e sazonalidade* com visto acima. Quando se aplica um SARIMA, implicitamente, supõe-se que a série possui uma tendência sazonal estocástica (i.e. raiz unitária sazonal) e não uma tendência sazonal determinística[^5].
+
+[^5]: Para uma boa apresentação sobre raiz unitária e sobre tendências determinísticas veja Enders (2009) Applied Econometric Time Series.
+
+Como último exemplo vamos analisar a demanda mensal por gasolina. A série é da [ANP](https://www.gov.br/anp/pt-br/centrais-de-conteudo/dados-estatisticos) e registra o total de vendas de gasolina C no Brasil em metros cúbicos.
+
+```{r}
+#| eval: false
+gasolina = read_csv("...")
+```
+
+```{r}
+gas = ts(na.omit(gasolina$demand), start = c(2012, 1), frequency = 12)
+autoplot(gas) + theme_series
+```
+
+A série parece exibir algum componente de sazonalidade. Parece haver um pico de consumo todo mês de dezembro e uma queda todo mês de fevereiro.
+
+```{r}
+ggseasonplot(gas) +
+  scale_color_viridis_d() +
+  theme_series
+```
+
+A escolha da ordem do modelo SARIMA exige a inspeção visual do correlograma da série. Para mais detalhes consulte meu [post mais detalhado sobre o assunto](https://restateinsight.com/posts/general-posts/repost-sarima-no-r/). Aqui, por simplicidade, uso um modelo simples, que costuma funcionar bem para série em geral.
+
+```{r}
+sarima_model = Arima(log(gas), order = c(0, 1, 1), seasonal = c(0, 1, 1))
+
+sarima_model
+```
+
+Um dos pontos fortes dos modelos SARIMA é de gerar boas previsões de curto prazo com grande facilidade. Como comentei anteriormente, não há uma interpretação simples para a sazonalidade neste tipo de abordagem.
+
+```{r}
+autoplot(forecast(sarima_model), include = 48) +
+  theme_series
+```
+
+## X13-ARIMA
+
+O X13-ARIMA ou X13-ARIMA-SEATS é a versão mais recente do X11-ARIMA, uma metodologia desenvolvida pelo [US Census Bureau](https://www.census.gov/data/software/x13as.html) para lidar com a sazonalidade de séries de tempo. Este método foi pensado para lidar com o tipo de sazonalidade comumemente encontrada em séries econômicas. Os métodos de ajuste são implementados no R via o pacote `seasonal`.
+
+A função principal do pacote `seas` realiza um ajuste sazonal automático. Para verificar os principais resultados do ajuste usa-se a função `summary`. O ajuste automático costuma ser bom, mas é sempre necessário revisar o ajuste.
+
+```{r}
+#> Consumo mensal de energia elétrica - Residencial
+energ = rbcb::get_series(1403, as = "ts", start_date = as.Date("2002-01-01"))
+#> Executa a rotina do X13-ARIMA
+senerg = seas(energ)
+#> Resumo dos resultados
+summary(senerg)
+```
+
+O gráfico abaixo mostra a série original e a série sazonalmente ajustada em vermelho. Para extrair a série ajustada usa-se a função `final()`.
+
+```{r}
+autoplot(energ) +
+  autolayer(final(senerg)) +
+  guides(color = "none") +
+  theme_series
+```
+
+O pacote `seasonal` é muito bem documentado e inclui um artigo [de apresentação](http://www.seasonal.website/seasonal.html) com exemplos, um texto mostrando como [rodar os exemplos oficiais do X13 dentro do R](http://www.seasonal.website/examples.html) e até uma [ferramenta interativa](http://www.seasonal.website). Neste post não vou explorar todas as nuances do pacote.
+
+Para conseguir um ajuste mais adequado é preciso explorar os argumentos adicionais da função `seas` além de adaptar as variáveis de calendário. Na sua configuração padrão, a função `seas` não considera o efeito do carnaval, por exemplo. É possível criar eventos de calendário usando a função `genhol` (de "**gen**erate **hol**iday").
+
+Um recurso bastante útil para conseguir as datas das festividades brasileiras é o site do [prof. Roberto Cabral de Mello Borges](https://www.inf.ufrgs.br/~cabral/tabela_pascoa.html). O código abaixo extrai a tabela com as datas da Páscoa, Carnaval e Corpus Christi de 1951-2078.
+
+```{r}
+#| code-fold: true
+library(rvest)
+url = "https://www.inf.ufrgs.br/~cabral/tabela_pascoa.html"
+tabela = url |> 
+  read_html() |> 
+  html_table()
+tab = tabela[[1]]
+
+feriados_bra = data.frame(tab[-1, ])
+names(feriados_bra) = as.character(tab[1, ])
+
+head(feriados_bra)
+```
+
+Para utilizar este dado no X13-ARIMA é necessário converter a coluna `Carnaval` num tipo Date e então utilizar a função `genhol`. Para facilitar a leitura das datas uso o pacote `readr`.
+
+```{r}
+library(readr)
+
+feriados_bra$date_carnaval = parse_date(
+  feriados_bra$Carnaval,
+  format = "%d/%b/%Y",
+  locale = locale("pt")
+  )
+
+carnaval = genhol(feriados_bra$date_carnaval, start = -3, end = 1, frequency = 12)
+```
+
+As datas de carnaval são inseridas dentro do X13-ARIMA via o argumento `xreg`.
+
+```{r}
+senerg = seas(
+  energ,
+  xreg = carnaval,
+  regression.variables = "td1coef",
+  arima.model = c(0, 1, 1, 0, 1, 1)
+)
+
+summary(senerg)
+```
+
+O gráfico abaixo mostra o resulado do ajuste com as datas de feriado modificadas.
+
+```{r}
+autoplot(energ) +
+  autolayer(final(senerg)) +
+  guides(color = "none") +
+  theme_series
+```
+
+
