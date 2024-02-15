@@ -1,0 +1,280 @@
+---
+title: "Preços de Imóveis no Brasil"
+date: "2024-02-21"
+categories: ["data-visualization", "brasil", "ggplot2", "real-estate"]
+description: "Existe uma impressão generalizada de que o preço dos imóveis no Brasil cresceu muito nos últimos anos. Neste post mostro como, em termos reais, o preço médio dos imóveis no Brasil andou de lado; na prática, os preços atuais estão abaixo dos valores observados em 2010."
+execute: 
+  message: false
+  warning: false
+  echo: false
+draft: true
+---
+
+```{r}
+knitr::opts_chunk$set(
+  fig.align = "center",
+  fig.asp = 0.618,
+  out.width = "100%",
+  fig.dev = "svg"
+)
+
+library(realestatebr)
+library(dplyr)
+library(ggplot2)
+library(showtext)
+library(stringr)
+library(rbcb)
+font_add_google("Lato", "Lato")
+showtext_auto()
+```
+
+```{r}
+colors <- c("#287271", "#2A9D8F", "#8AB17D", "#F4A261", "#E76F51")
+
+theme_vini <- theme_minimal(base_family = "Lato", base_size = 10) +
+  theme(
+    panel.grid.minor = element_blank(),
+    panel.background = element_rect(fill = "#FBFBF8", color = "#FBFBF8"),
+    plot.background = element_rect(fill = "#FBFBF8", color = "#FBFBF8"),
+    legend.position = "bottom",
+    plot.subtitle = element_text(size = 8, color = "gray30")
+  )
+```
+
+```{r}
+sale <- get_rppi(category = "sale", stack = TRUE)
+bis <- get_bis_rppi()
+
+bis <- bis %>%
+  mutate(
+    name_country = case_when(
+      reference_area == "Emerging market economies (aggregate)" ~ "Emergentes",
+      reference_area == "Advanced economies (aggregate)" ~ "Avançados",
+      reference_area == "World" ~ "Média Mundo",
+      reference_area == "Brazil" ~ "Brasil",
+      TRUE ~ reference_area
+    )
+  )
+
+rppi <- bis %>%
+  filter(
+    date >= as.Date("2000-01-01"),
+    unit == "Index, 2010 = 100",
+    is_nominal == FALSE
+    )
+```
+
+```{r}
+sel_agg <- c("Brasil", "Avançados", "Emergentes", "Média Mundo")
+
+rppi_comp <- rppi %>%
+  filter(
+    name_country %in% sel_agg,
+    date >= as.Date("2010-01-01"),
+    date < as.Date("2023-01-01")) %>%
+  mutate(
+    name_country = factor(name_country, levels = sel_agg)
+    )
+
+p_bis_geral <- ggplot(rppi_comp, aes(x = date, y = value)) + 
+  geom_line(aes(color = name_country), linewidth = 1) +
+  geom_hline(yintercept = 100) +
+  scale_x_date(date_breaks = "1 year", date_labels = "%Y") +
+  scale_color_manual(name = "", values = colors) +
+  labs(
+    x = NULL,
+    y = "Índice (2010 = 100)",
+    title = "Preços no Brasil seguem abaixo de 2010",
+    subtitle = str_wrap("Índices de preços imobiliários reais (ajustados pela inflação local) indexados nos valores médios de 2010. Definições de Avançados e Emergentes seguem convenções do BIS.", 111),
+    caption = "Fonte: BIS. @viniciusoike"
+  ) +
+  theme_vini
+```
+
+```{r}
+country_sel <- c("Brasil", "Chile", "Mexico", "Peru", "Colombia")
+
+rppi_latam <- rppi %>%
+  filter(name_country %in% country_sel) %>%
+  na.omit()
+
+p_bis_latam <- 
+  ggplot(rppi_latam, aes(x = date, y = value, color = name_country)) +
+  geom_hline(yintercept = 100) +
+  geom_line(linewidth = 1) +
+  scale_x_date(date_breaks = "1 year", date_labels = "%Y") +
+  scale_color_manual(name = "", values = colors) +
+  labs(
+    x = NULL,
+    y = "Índice (2010 = 100)",
+    title = "Preços no Brasil ",
+    subtitle = "Índice de preços imobiliário real com base em 2010."
+  ) +
+  theme_vini +
+  theme(axis.text.x = element_text(angle = 90))
+```
+
+```{r}
+sel_rich <- c("Canada", "United States", "Philippines", "Israel", "Brazil")
+
+rppi_rich <- rppi %>%
+  filter(name_country %in% sel_rich) %>%
+  na.omit()
+
+p_bis_rich <- 
+  ggplot(rppi_rich, aes(x = date, y = value, color = name_country)) +
+  geom_hline(yintercept = 100) +
+  geom_line(linewidth = 1) +
+  scale_x_date(date_breaks = "1 year", date_labels = "%Y") +
+  scale_color_manual(name = "", values = colors) +
+  labs(
+    x = NULL,
+    y = "Índice (2010 = 100)",
+    title = "Preços no Brasil seguem abaixo",
+    subtitle = "Índice de preços imobiliário real com base em 2010."
+  ) +
+  theme_vini +
+  theme(axis.text.x = element_text(angle = 90))
+```
+
+```{r}
+sale <- get_rppi(stack = TRUE)
+
+rppi_sale <- sale |> 
+  filter(name_muni %in% c("Brazil", "Índice Fipezap"))
+
+ipca <- rbcb::get_series(433, start_date = as.Date("2000-01-01"))
+
+ipca_index <- ipca |> 
+  rename(value = `433`) |> 
+  filter(date >= as.Date("2014-01-01")) |> 
+  mutate(
+    cumprod = (cumprod(1 + value / 100) - 1) * 100,
+    new_index = if_else(date == first(date), 100, 100 + cumprod),
+    source = "IPCA"
+    )
+```
+
+```{r}
+rppi_recent <- rppi_sale |> 
+  filter(date >= as.Date("2014-01-01")) |> 
+  mutate(new_index = index / first(index) * 100, .by = "source") |> 
+  bind_rows(ipca_index) |> 
+  mutate(
+    source = forcats::fct_relevel(source, "IPCA", after = Inf)
+  )
+
+p_rppi_brasil <- 
+  ggplot(rppi_recent, aes(x = date, y = new_index, color = source)) +
+  geom_hline(yintercept = 100) +
+  geom_line(lwd = 0.8) +
+  scale_x_date(date_breaks = "1 year", date_labels = "%Y") +
+  scale_color_manual(
+    name = "",
+    values = colors[c(1:3, 5)]
+  ) +
+  labs(
+    title = "Inflação supera valorização imobiliária nos últimos dez anos",
+    subtitle = str_wrap("Comaparação de índices de preços imobiliários e inflação geral. Todos índices normalizados para jan/2014.", 111),
+    x = NULL,
+    y = "Índice (jan/14 = 100)",
+    caption = "Fonte: IVG-R (BCB), IPCA (IBGE), FipeZap (Fipe), IGMI-R (Abecip)") +
+  theme_vini
+```
+
+```{r}
+igp = get_series(190)
+
+ipca_chg <- ipca |> 
+  rename(chg = `433`) |> 
+  mutate(chg = chg / 100, source = "IPCA")
+
+igp_chg <- igp |> 
+  rename(chg = `190`) |> 
+  mutate(chg = chg / 100, source = "IGP-DI")
+
+rppi_chg <- rppi_sale |> 
+  select(source, date, chg) |> 
+  bind_rows(list(ipca_chg, igp_chg))
+
+tab_rppi <- rppi_chg |> 
+  mutate(year = lubridate::year(date)) |> 
+  summarise(acum_year = (prod(1 + chg, na.rm = TRUE) - 1) * 100, .by = c("source", "year")) |> 
+  tidyr::pivot_wider(id_cols = "year", names_from = "source", values_from = "acum_year") |> 
+  arrange(year) |> 
+  filter(year >= 2003, year < 2024)
+
+library(gt)
+library(gtExtras)
+
+gt(tab_rppi) |> 
+  gt::cols_label(year = "Ano") |> 
+  fmt_number(2:6, decimals = 2) |> 
+  sub_missing() |> 
+  gt_theme_538()
+```
+
+```{r}
+ipca = get_series(433, start_date = as.Date("2000-01-01"), as = "ts")
+incc = get_series(192, start_date = as.Date("2000-12-01"), as = "ts")
+ivgr = get_series(21340, as = "ts")
+
+(cumprod(1 + ipca / 100) - 1) * 100
+
+mts <- ts.intersect(ipca, incc, ivgr, dframe = TRUE)
+
+tbl_series <- tibble(date = zoo::as.Date.ts(ivgr), mts)
+
+tbl_index <- tbl_series |> 
+  rename(c("index_ivgr" = "ivgr")) |> 
+  mutate(
+    acum_ipca = c(NA, (cumprod(1 + ipca[-1] / 100) - 1) * 100),
+    index_ipca = if_else(date == first(date), 100, 100 + acum_ipca),
+    acum_incc = c(NA, (cumprod(1 + incc[-1] / 100) - 1) * 100),
+    index_incc = if_else(date == first(date), 100, 100 + acum_incc)
+  ) |> 
+  select(date, starts_with("index"))
+
+tbl_index <- tbl_index |> 
+  tidyr::pivot_longer(
+    cols = -date,
+    names_to = "name_series",
+    values_to = "index"
+    )
+```
+
+```{r}
+ggplot(tbl_index, aes(date, index, color = name_series)) +
+  geom_line()
+```
+
+```{r}
+rppi_chg |> 
+  arrange(date) |> 
+  filter(date >= as.Date("2008-02-01"), date <= as.Date("2023-12-01")) |>
+  mutate(acum = (cumprod(1 + chg) - 1) * 100, .by = "source") |>
+  tidyr::pivot_wider(
+    id_cols = "date",
+    names_from = "source",
+    values_from = "acum"
+  )
+```
+
+# Preços de Imóveis no Brasil
+
+Existe uma percepção generalizada na população de que os preços dos imóveis no Brasil são muito caros. Isto pode ser resultado tanto de uma ignorância sobre a dinâmica do mercado como do [excesso de notícias sobre recordes de preços que se vê na imprensa](https://g1.globo.com/economia/noticia/2024/01/16/preco-do-aluguel-residencial-sobe-16percent-em-2023-tres-vezes-mais-que-a-inflacao-mostra-fipezap.ghtml). Também não faltam casos de regiões ou mesmo de ruas que, após significativo processo de revitalização, [apresentaram aumentos de preços muito acima da inflação](https://extra.globo.com/economia-e-financas/imoveis-usados-no-rio-precos-explodiram-em-2009-mostra-pesquisa-do-secovi-89071.html). De maneira geral, contudo, os dados apontam que [os preços dos imóveis no Brasil andaram de lado](https://einvestidor.estadao.com.br/investimentos/investir-em-imoveis-vale-a-pena/): em termos reais, isto é, descontando a inflação, o nível atual do preço dos imóveis está praticamente idêntico ao que se observava em 2010.
+
+A percepção de que os imóveis são caros no Brasil não é totalmente desprovida de embasamento. Como comentei em outro post, para o consumidor o preço da parcela do financiamento acaba sendo mais relevante do que o próprio preço do imóvel. Ou seja, a falta de manutenção do programa CVA durante seus últimos anos e o aumento das taxas de juros certamente [piorou a acessibilidade geral aos imóveis no Brasil](https://restateinsight.com/posts/general-posts/2023-08-juros-affordability/#acessibilidade-à-moradia).
+
+Em termos de preços, houve um aumento significativa dos preços dos imóveis no período da pandemia, alimentado pela baixa taxa de juros da época. Contudo, também houve um aumento significativo do preço dos insumos da construção civil assim como dos preços em geral da economia.
+
+Por fim, vale notar que boa parte do mundo desenvolvido enfrenta, há alguns anos, uma crise habitacional generalizada <https://www.oecd.org/housing/no-home-for-the-young.pdf>. O preço dos imóveis nos Estados Unidos recentemente superou, em termos reais, o nível mais alto que se observou no auge da Bolha Imobiliária. O país enfrenta um [nível recorde de moradores de rua](https://www.jchs.harvard.edu/blog/record-homelessness-amid-ongoing-affordability-crisis) e os indicadores de acessibilidade à moradia estão em mínimos históricos. Este mesmo cenário se repete em outros países como [Canadá](https://theconcordian.com/2024/02/housing-crisis-deepens-in-canada/), [Nova Zelândia](https://www.theguardian.com/world/2023/jul/08/new-zealand-housing-crisis-couch-surfing), [Reino Unido](https://www.ft.com/content/f21642d8-da2d-4e75-886e-2b7c1645f063), [Chile](https://www.globalpropertyguide.com/latin-america/chile/price-history) e muitos outros países.
+
+1.  **Evidência anedótica**. Quando se discute preços de imóveis é certo que aparecem casos específicos de regiões, bairros, ou ruas onde os preços dos imóveis aumentaram muito acima da inflação. Estes casos são reais, como foi, por exemplo,
+2.  **Ignorância sobre a dinâmica de preços**. Dificilmente se observa uma queda nominal do preço dos imóveis; mesmo em períodos de fraca demanda ou de crise, os proprietários de imóveis tendem a
+3.  Aumento dos juros e recency bias.
+4.  **A narrativa da Housing Crisis**. Narrativa parcialmente importada dos Estados Unidos e de boa parte do mundo desenvolvido
+
+```{=html}
+<script type="text/javascript" src="https://ssl.gstatic.com/trends_nrtr/3620_RC01/embed_loader.js"></script> <script type="text/javascript"> trends.embed.renderExploreWidget("TIMESERIES", {"comparisonItem":[{"keyword":"housing crisis","geo":"","time":"today 5-y"},{"keyword":"fair housing","geo":"","time":"today 5-y"},{"keyword":"housing affordability","geo":"","time":"today 5-y"}],"category":0,"property":""}, {"exploreQuery":"date=today%205-y&q=housing%20crisis,fair%20housing,housing%20affordability&hl=pt","guestPath":"https://trends.google.com:443/trends/embed/"}); </script>
+```
