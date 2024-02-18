@@ -1,0 +1,84 @@
+---
+title: "Ensino Superior em São Paulo"
+date: "2023-11-10"
+categories: ['data-visualization', 'mapas', 'sao-paulo', 'ggplot2']
+description: "Um mapa coroplético que apresenta o percentual de adultos com ensino superior."
+format:
+  html:
+    code-tools: true
+execute: 
+  echo: false
+  warning: false
+  message: false
+---
+
+```{r}
+#| echo: true
+#| code-fold: true
+library(ggplot2)
+library(tidypod)
+library(dplyr)
+library(showtext)
+library(sf)
+library(stringr)
+
+font_add_google("Playfair Display", "Playfair Display")
+showtext_opts(dpi = 72)
+showtext_auto()
+
+# Import POD data
+pod <- tidypod::import_pod_tables(geo = TRUE)
+pod <- filter(pod, code_muni == 36)
+
+
+# Ensino Superior ---------------------------------------------------------
+
+jenks <- BAMMtools::getJenksBreaks(pod$share_educ_superior, 7)
+
+map_ensino_superior <- ggplot(pod) +
+  geom_sf(aes(fill = share_educ_superior), lwd = 0.1, color = "white") +
+  scale_fill_fermenter(
+    name = "",
+    palette = "BrBG",
+    direction = 1,
+    breaks = jenks,
+    labels = round(jenks, 1)) +
+  coord_sf(ylim = c(-24, -23.38), xlim = c(-46.81, -46.38)) +
+  ggtitle("Percentual com Ensino Superior (%)") +
+  labs(
+    subtitle = "Percentual da população adulta com diploma de ensino superior por Zona OD.",
+    caption = "Fonte: Pesquisa Origem e Destino (2017). @viniciusoike.") +
+  ggthemes::theme_map(base_family = "Playfair Display") +
+  theme(
+    legend.position = "top",
+    legend.justification = 0.5,
+    legend.key.size = unit(1, "cm"),
+    legend.key.width = unit(1.75, "cm"),
+    legend.text = element_text(size = 16),
+    legend.margin = margin(),
+    plot.margin = margin(10, 5, 5, 10),
+    plot.title = element_text(size = 28, hjust = 0.5),
+    plot.subtitle = element_text(size = 14, hjust = 0.5)
+  )
+```
+
+# Ensino Superior
+
+O acesso ao ensino superior no Brasil historicamente apresenta grandes desigualdades. Na cidade de São Paulo não é diferente. No mapa abaixo, apresenta-se o percentual da população adulta com ensino superior por Zona OD. Vê-se nos dados o conhecido padrão da cidade: indicadores de ensino superior altos dentro do Centro Expandido da cidade, que vão decaindo gradativamente à medida que se aproxima da periferia.
+
+```{r}
+#| out-width: "100%"
+#| out-height: 900px
+#| fig-width: 9
+#| fig-height: 12
+#| fig-format: svg
+#| fig-showtext: true
+#| fig-dpi: 72
+map_ensino_superior
+```
+
+-   Dados: Metrô ([Pesquisa Origem e Destino, 2017](https://transparencia.metrosp.com.br/dataset/pesquisa-origem-e-destino))
+
+-   Tipografia: [Playfair Display](https://fonts.google.com/specimen/Playfair+Display)
+
+-   Paleta: `BrBG` ([ColorBrewer](https://colorbrewer2.org/#type=diverging&scheme=BrBG&n=3))
