@@ -1,0 +1,135 @@
+---
+title: "IDH por região em São Paulo"
+date: "2024-02-21"
+categories: ['data-visualization', 'mapas', 'sao-paulo', 'ggplot2']
+description: "Um mapa coroplético que apresenta a distribuição do IDH por regiões em São Paulo. Os dados são importados do projeto Atlas Brasil e estão a nível de UDH (Unidade de Desenvolvimento Humano)."
+format:
+  html:
+    code-tools: true
+execute: 
+  echo: false
+  warning: false
+  message: false
+---
+
+```{r}
+library(ggplot2)
+library(qs)
+library(patchwork)
+library(showtext)
+library(dplyr)
+library(sf)
+
+font_add_google("Raleway", "Raleway")
+showtext_auto()
+
+atlas <- qs::qread(
+  "/Users/viniciusoike/Documents/GitHub/shiny-atlas-brasil/data/atlas_brasil.qs"
+  )
+
+atlas_sp <- atlas |> 
+  filter(code_muni == 3550308)
+```
+
+```{r}
+pmap <- ggplot(atlas_sp) +
+  geom_sf(aes(fill = idhm), lwd = 0.05, color = "white") +
+  scale_fill_fermenter(
+    name = "",
+    palette = "YlGnBu",
+    direction = 1,
+    breaks = seq(0.6, 0.95, 0.05)
+    ) +
+  labs(
+    title = "IDH em São Paulo",
+    subtitle = "IDH das regiões em São Paulo",
+    caption = "Fonte: Atlas Brasil (2023). @viniciusoike"
+    ) +
+  ggthemes::theme_map(base_family = "Raleway") +
+  theme(
+    legend.position = "top",
+    legend.justification = 0.5,
+    legend.key.size = unit(0.75, "cm"),
+    legend.key.width = unit(1.75, "cm"),
+    legend.text = element_text(size = 12),
+    legend.margin = margin(),
+    plot.margin = margin(10, 5, 5, 10),
+    plot.title = element_text(size = 24, hjust = 0.5),
+    plot.subtitle = element_text(size = 12, hjust = 0.5)
+  )
+
+pop_idh <- atlas_sp |> 
+  st_drop_geometry() |> 
+  mutate(group_idh = findInterval(idhm, seq(0.6, 0.95, 0.05))) |> 
+  summarise(score = sum(pop, na.rm = TRUE), .by = "group_idh") |> 
+  arrange(group_idh) |> 
+  mutate(share = score / sum(score) * 100)
+
+pop_idh <- pop_idh |> 
+  mutate(
+    y_text = if_else(group_idh == 8, share + 1, share - 1.5)
+  )
+
+x <- seq(0.600, 0.950, 0.05)
+x <- formatC(x, digits = 3, format = "f")
+xx <- paste(format(x, digits = 4), x[-1], sep = " a ")
+
+xx[length(xx)] <- "0.950 ou mais"
+xx <- c("Até 0.600", xx)
+
+pcol <- ggplot(pop_idh, aes(group_idh, share, fill = as.factor(group_idh))) +
+  geom_col() +
+  geom_hline(yintercept = 0) +
+  geom_text(
+    aes(y = y_text, label = round(share, 1), color = as.factor(group_idh)),
+    family = "Raleway",
+    size = 4
+    ) +
+  coord_flip() +
+  scale_x_continuous(breaks = 0:8, labels = xx) +
+  scale_y_continuous(labels = scales::label_percent(scale = 1)) +
+  scale_fill_brewer(palette = "YlGnBu") +
+  scale_color_manual(
+    name = "",
+    values = c(rep("black", 5), rep("white", 3), "black")
+    ) +
+  guides(fill = "none", color = "none") +
+  labs(
+    title = "Share da população por grupo de IDH",
+    x = NULL,
+    y = NULL
+    ) +
+  theme_minimal(base_family = "Raleway") +
+  theme(
+    plot.margin = margin(),
+    panel.grid = element_blank(),
+    axis.text.y = element_text(size = 6),
+    plot.title = element_text(size = 10)
+  )
+
+p_idh_atlas <- 
+  pmap + inset_element(pcol, left = 0.50, bottom = 0.05, right = 1, top = 0.5)
+```
+
+# IDH em São Paulo
+
+O mapa abaixo mostra o [Índice de Desenvolvimento Humano (IDH)](https://pt.wikipedia.org/wiki/Índice_de_Desenvolvimento_Humano) das regiões de São Paulo. As estimativas provêm do [projeto Atlas Brasil](http://www.atlasbrasil.org.br), que computa o IDH a nível submunicipal nas chamadas Unidades de Desenvolvimento Humano (UDHs). Como se vê no desenho do mapa, as UDHs tem formatos bastante flexíveis. De forma geral, as UDHs seguem divisões administrativas pré-existentes mas também ressaltam áreas de vulnerabilidade social que estão imersas dentro de outras regiões.
+
+O gráfico de colunas mostra o percentual da população que vive em cada grupo de IDH. Este gráfico ajuda a reduzir a distorção visual causada pelo mapa. Visualmente, tende-se a associar o tamanho das áreas com a sua representatividade. Isto acontece tanto no extremo sul da cidade, que é esparsamente povoado, como também no Centro Expandido. De maneira geral, a maior parte da população vive na faixa entre 0,650 a 0,800 um IDH médio. Cerca de um terço da população vive em regiões com IDH acima de 0,800, um IDH alto ou altíssimo.
+
+```{r}
+#| out-width: "100%"
+#| out-height: 900px
+#| fig-width: 9
+#| fig-height: 12
+#| fig-format: svg
+#| fig-showtext: true
+#| fig-dpi: 72
+p_idh_atlas
+```
+
+-   Dados: [Atlas Brasil](http://www.atlasbrasil.org.br/acervo/biblioteca)
+
+-   Tipografia: [Raleway](https://fonts.google.com/specimen/Raleway)
+
+-   Paleta: `YlGnBu` ([ColorBrewer](https://colorbrewer2.org/#type=sequential&scheme=YlGnBu&n=8))
