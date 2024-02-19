@@ -1,0 +1,300 @@
+---
+title: "O novo tidyverse: filter"
+date: "2024-01-10"
+categories: ['data-science', 'tutorial-R', 'tidyverse']
+description: "Neste post ensino abordagens diferentes para filtrar linhas de uma tabela de maneira eficiente. Apresento também algumas das inovações que o pacote `dplyr` lançou nos últimos anos como as funções auxiliares `if_any` e `if_all`."
+image: "/static/images/dplyr_logo.png" 
+image-alt: "/static/images/dplyr_logo.png"
+execute: 
+  eval: false
+  message: false
+  warning: false
+---
+
+# Tidyverse
+
+O tidyverse é uma coleção poderosa de pacotes, voltados para a manipulação e limpeza de dados. Num outro post, discuti alguns [aspectos gerais da filosofia](https://restateinsight.com/posts/general-posts/2023-09-tidyverse/) destes pacotes que incluem a sua consistência sintática e o uso de [pipes](https://restateinsight.com/posts/general-posts/2023-09-pipes-in-r/). A filosofia geral do tidyverse toma muito emprestado da gramática. As funções têm nomes de verbos que costumam ser intuitivos e são encadeados via "pipes" que funcionam como conectivos numa frase. Em tese, isto torna o código mais legível e até mais didático.
+
+O tidyverse está em constante expansão, novas funcionalidades são criadas para melhorar a performance e capabilidade de suas funções. Assim, é importante atualizar nosso conhecimento destes pacotes periodicamente. Nesta série de posts vou focar nas funções principais dos pacotes `dplyr` e `tidyr`, voltados para a limpeza de dados.
+
+# Alguns verbos
+
+Essencialmente, o `dplyr` gira em torno de quatro grandes funções: `filter`, `select`, `mutate` e `summarise`. Estas funções fazem o grosso do trabalho de limpeza de dados: filtram linhas, selecionam colunas e transformam os dados. A tabela abaixo resume as principais funções do pacote.
+
+| Nome da Função | Tradução          | O que faz                                                         |
+|----------------|----------------|----------------------------------------|
+| `rename`       | Renomear          | Modifica o nome das colunas.                                      |
+| `select`       | Selecionar        | Seleciona as colunas.                                             |
+| `filter`       | Filtrar           | Filtra/seleciona as linhas segundo alguma condição.               |
+| `arrange`      | Arranjar/ordenar  | Ordena as linhas (crescente/decrescente) segundo alguma variável. |
+| `mutate`       | Mutar/transformar | Cria uma nova coluna a partir de outras colunas ou dados.         |
+| `summarise`    | Sumarizar/resumir | Aplica alguma função sobre as linhas. Cria uma tabela "resumo".   |
+| `group_by`     | Agrupar           | Agrupa as linhas segundo alguma variável.                         |
+
+# filter
+
+## O básico
+
+Os pacotes utilizados neste tutorial são listados abaixo.
+
+```{r}
+#| eval: true
+#| include: false
+
+library(kableExtra)
+
+print_table <- function(x) {
+  
+  x |> 
+    knitr::kable(
+      align = "c",
+      digits = 0,
+      format.args = list(big.mark = '.', decimal.mark = ",")
+      ) |> 
+    kableExtra::kable_styling(
+      full_width = FALSE,
+      bootstrap_options = c("condensed", "responsive", "hover", "striped")
+    )
+  }
+```
+
+
+```{r}
+#| eval: true
+library(dplyr)
+library(readr)
+```
+
+Para praticar as funções vamos utilizar uma tabela que traz informações sobre as cidades do Brasil.
+
+```{r}
+#| include: false
+#| eval: true
+dat <- readr::read_csv(here::here("static/data/cities_brazil.csv"))
+```
+
+```{r}
+dat <- readr::read_csv(
+  "https://github.com/viniciusoike/restateinsight/raw/main/static/data/cities_brazil.csv"
+  )
+
+# dat <- select(dat, 1:7, population, population_growth, pib)
+```
+
+A função `filter` é talvez uma das que menos mudou ao longo do desenvolvimento do pacote `dplyr`. A função serve para filtrar as linhas de um `data.frame` segundo alguma condição lógica.
+
+```{r}
+#| eval: true
+filtered_dat <- filter(dat, population_growth < 0)
+
+nrow(filtered_dat)
+```
+
+Os principais operadores lógicos no R:
+
+-   "Maior que", "Menor que": `>`, `<`, `>=`, `<=`
+
+-   E/ou: `&`, `|`
+
+-   "Negação": `!`
+
+-   "Igual a": `==`
+
+-   "Dentro de": `%in%`
+
+As funções `is_*` também são bastante importantes; em particular a função `is.na()` é útil para encontrar ou remover observações ausentes.
+
+O exemplo abaixo mostra como filtrar linhas baseado num string. Note que quando se usa múltiplos strings é preciso usar o `%in%`.
+
+```{r}
+#| eval: false
+filter(dat, name_muni == "São Paulo")
+filter(dat, name_muni %in% c("São Paulo", "Rio de Janeiro"))
+
+cities <- c("São Paulo", "Rio de Janeiro")
+filter(dat, name_muni %in% cities)
+```
+
+```{r}
+filter(dat, name_muni %in% c("São Paulo", "Rio de Janeiro")) |> 
+  print_table()
+```
+
+
+
+Para negar a igualdade, basta usar o operador `!`. No caso do operador `%in%` há duas maneiras válidas de negá-lo: pode-se colocar o ! no começo da expressão ou colocar a expressão inteira dentro de um parêntesis. Eu tendo a preferir a segunda sintaxe.
+
+```{r}
+#| eval: false
+#> Remove todas as cidades da região Sudeste
+filter(dat, name_region != "Sudeste")
+#> Remove todas as cidades das regiões Sudeste e Norte
+filter(dat, !name_region %in% c("Sudeste", "Norte"))
+#> Remove todas as cidades das regiões Sudeste e Norte
+filter(dat, !(name_region %in% c("Sudeste", "Norte")))
+```
+
+Em geral, pode-se omitir o operador E (`&`), já que se pode concatenar várias condições lógicas dentro uma mesma chamada para a função `filter`, separando as condições por vírgulas. Esta sintaxe costuma ser preferida pois ela é mais eficiente do que chamar a função a função `filter` múltiplas vezes. Além disso, a escrita do código fica mais limpa, pois é fácil separar as condições em linhas distintas. As três versões do código abaixo geram o mesmo resultado.
+
+```{r}
+#| eval: false
+# Mais eficiente e mais fácil de ler
+d1 <- dat |> 
+  filter(
+    name_region == "Nordeste",
+    !(name_state %in% c("Pernambuco", "Piauí")),
+    !(name_muni %in% c("Natal", "Fortaleza", "Maceió"))
+  )
+# Igualmente eficiente, leitura fica um pouco pior
+d2 <- dat |> 
+  filter(
+    name_region == "Nordeste" & 
+      !(name_state %in% c("Pernambuco", "Piauí")) & 
+      !(name_muni %in% c("Natal", "Fortaleza", "Maceió"))
+    )
+
+# Menos eficiente
+d3 <- dat |> 
+  filter(name_region == "Nordeste") |> 
+  filter(!(name_state %in% c("Pernambuco", "Piauí"))) |> 
+  filter(!(name_muni %in% c("Natal", "Fortaleza", "Maceió")))
+
+all.equal(d1, d2)
+all.equal(d2, d3)
+all.equal(d3, d1)
+```
+
+Relações de grandeza funcionam naturalmente com números. A tabela abaixo mostra todos os municípios com mais do que um milhão de habitantes.
+
+```{r}
+filter(dat, population > 1e6) 
+```
+
+```{r}
+#| eval: true
+#| echo: false
+filter(dat, population >= 1e6) |> 
+  select(name_muni, abbrev_state, population, population_density) |> 
+  arrange(desc(population)) |> 
+  print_table() |> 
+  kableExtra::scroll_box(width = "100%", height = "300px")
+```
+
+
+Também pode-se usar alguma função que retorne um valor numérico. Nos exemplos abaixo filtra-se apenas os municípios com PIB acima da média e os municípios no top 1% da distribuição do PIB.
+
+```{r}
+filter(dat, pib > mean(pib))
+filter(dat, pib > quantile(pib, probs = 0.99))
+```
+
+```{r}
+#| eval: true
+#| echo: false
+filter(dat, pib > quantile(pib, probs = 0.99)) |>
+  select(name_muni, abbrev_state, pib, pib_share_uf) |> 
+  arrange(desc(pib)) |> 
+  print_table() |>
+  kableExtra::scroll_box(width = "100%", height = "300px")
+```
+
+## Grupos
+
+A função de filtro segue uma regra lógica que é aplicada sobre a tabela como um todo. É possível filtrar dentro de grupos usando o argumento `.by = "nome_do_grupo"`.
+
+No código abaixo, novamente filtra-se os municípios com PIB acima da média. No segundo exemplo, contudo, este filtro é aplicado dentro de cada região, segundo a coluna/grupo `name_region`. A regra lógica `pib > mean(pib)` é aplicada dentro de cada região, isto é, filtra-se todos os municípios que têm PIB superior à média do PIB da sua região.
+
+```{r}
+dat |> filter(pib > mean(pib)) 
+dat |> filter(pib > mean(pib), .by = "name_region")
+```
+
+Vale notar que a a sintaxe `.by = "grupo"` ainda está em fase experimental. Ela oferece um substituto mais sucinto à antiga sintaxe que usava a função `group_by()` com a vantagem de sempre aplicar a função `ungroup()` ao final do processo, isto é, o resultado final da função acima será uma tabela sem grupos. O código acima é equivalente ao código abaixo.
+
+```{r}
+dat |> 
+  group_by(name_region) |> 
+  filter(pib > mean(pib)) |> 
+  ungroup()
+```
+
+Este outro exemplo enfatiza como o resultado da função `filter` muda quando é aplicada em diferentes grupos.
+
+```{r}
+dat |> filter(pib == max(pib))
+dat |> filter(pib == max(pib), .by = "name_state")
+```
+
+```{r}
+#| eval: true
+#| echo: false
+dat |>
+  filter(pib == max(pib), .by = "name_state") |>
+  select(name_muni, abbrev_state, pib, pib_share_uf) |> 
+  print_table() |> 
+  kableExtra::scroll_box(width = "100%", height = "300px")
+```
+
+## `if_any` e `if_all`
+
+A função `filter` não funciona em conjunção com a função `across()`. Esta função foi desenvolvida para funcionar apenas com `mutate` e `summarise` e aplica uma mesma regra/função sobre múltiplas colunas.
+
+Já a função `filter` recebeu duas funções auxiliares: `if_any` e `if_all`. Elas seguem o mesmo padrão das funções base `any` e `all`. Estas funções servem para agregar condições lógicas. A função `any`, por exemplo, testa múltiplas condições lógicas e retorna um único `TRUE` se houver ao menos um `TRUE` entre as condições lógicas. Já a função `all` retorna um único `TRUE` se absolutamente todas as condições lógicas testadas também retornaram `TRUE`.
+
+A função `if_any` aplica uma mesma regra em múltiplas colunas e retorna todas as linhas que atendem esta regra. No exemplo abaixo
+
+```{r}
+dat |> filter(if_any(starts_with("pib"), ~ . > 100000))
+```
+
+O exemplo seguinte é mais interessante. Neste caso, todas as variáveis numéricas da tabela são normalizadas (por região) e retorna-se apenas os municípios onde o valor de cada coluna é superior a 1. Como as variáveis estão normalizadas isto é equivalente a retornar os municípios que estão 1 desvio-padrão acima da média da sua região em todos os atributos numéricos considerados.
+
+```{r}
+#| eval: true
+dat |> 
+  select(-contains("code")) |> 
+  select(where(~all(.x > 0))) |> 
+  mutate(across(where(is.numeric), ~as.numeric(scale(log(.x)))), .by = "name_region") |> 
+  filter(if_all(everything(), ~ . > 1))
+```
+
+O último exemplo é similar ao anterior. As variáveis numéricas novamente são normalizadas mas desta vez busca-se somente os municípios que estão 3 desvios-padrão, acima da média do seu estado, ou na população ou no PIB.
+
+```{r}
+dat |> 
+  select(-contains("code")) |> 
+  select(where(~all(.x > 0))) |> 
+  mutate(across(where(is.numeric), ~as.numeric(scale(log(.x)))), .by = "name_state") |> 
+  filter(if_any(c(population, pib), ~ . > 3))
+```
+
+```{r}
+#| eval: true
+#| echo: false
+
+dat |> 
+  select(-contains("code")) |> 
+  select(where(~all(.x > 0))) |> 
+  mutate(across(where(is.numeric), ~as.numeric(scale(log(.x)))), .by = "name_state") |> 
+  filter(if_any(c(population, pib), ~ . > 3)) |> 
+  select(name_muni, abbrev_state, population, pib, population_density, pib_services,
+         city_area) |> 
+  knitr::kable(
+    align = "c",
+    digits = 3,
+    format.args = list(big.mark = '.', decimal.mark = ",")
+    ) |> 
+  kableExtra::kable_styling(
+    full_width = FALSE,
+    bootstrap_options = c("condensed", "responsive", "hover", "striped")
+  ) |> 
+  kableExtra::scroll_box(width = "100%", height = "300px", fixed_thead = TRUE)
+```
+
+# Outros posts da série
+
+* select
+* [mutate](https://restateinsight.com/posts/general-posts/2024-01-tidyverse-mutate/)
+* [rename](https://restateinsight.com/posts/general-posts/2024-01-tidyverse-rename/)
+
+
