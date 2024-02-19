@@ -1,0 +1,99 @@
+---
+title: "Carros em São Paulo"
+date: "2023-11-17"
+categories: ['data-visualization', 'mapas', 'sao-paulo', 'ggplot2']
+description: "Um mapa coroplético que apresenta o número de carros por domicílios em São Paulo. Enquanto o Centro Antigo tem algumas das taxas mais baixas, bairros centrais como Pacembu e Jardim Europa tem as taxas mais elevadas."
+format:
+  html:
+    code-tools: true
+execute: 
+  echo: false
+  warning: false
+  message: false
+---
+
+```{r}
+library(ggplot2)
+library(showtext)
+library(sf)
+library(tidypod)
+library(patchwork)
+
+# Import POD data
+pod <- tidypod::import_pod_tables(geo = TRUE)
+pod <- dplyr::filter(pod, code_muni == 36)
+
+font_add("HelveticaNeue", "HelveticaNeue.ttc")
+
+showtext_auto()
+```
+
+```{r}
+pmap <- ggplot(pod) +
+  geom_sf(aes(fill = car_rate), color = "white", lwd = 0.15) +
+  scale_fill_distiller(
+    name = "",
+    breaks = c(0.4, 0.6, 0.8, 1, 1.2, 1.4, 1.6),
+    palette = "PuBuGn",
+    direction = 1) +
+  labs(
+    title = "Posse de Automóveis em São Paulo",
+    subtitle = "Número de automóveis por família em cada Zona OD.",
+    caption = "Fonte: Metrô (Pesquisa Origem e Destino, 2017). @viniciusoike."
+  ) +
+  ggthemes::theme_map(base_family = "HelveticaNeue") +
+  theme(
+    legend.position = "top",
+    legend.justification = 0.5,
+    legend.key.size = unit(0.75, "cm"),
+    legend.key.width = unit(1.75, "cm"),
+    legend.text = element_text(size = 12),
+    legend.margin = margin(),
+    plot.margin = margin(10, 5, 5, 10),
+    plot.title = element_text(size = 38, hjust = 0.5),
+    plot.subtitle = element_text(size = 18, hjust = 0.5)
+  )
+
+phist <- ggplot(pod, aes(x = car_rate)) +
+  geom_histogram(fill = "#67a9cf", color = "white", bins = 16) +
+  geom_hline(yintercept = 0) +
+  scale_x_continuous(breaks = seq(0, 1.6, 0.2)) +
+  scale_y_continuous(expand = c(0, 0)) +
+  labs(
+    x = NULL,
+    y = NULL
+  ) +
+  theme_minimal(base_family = "HelveticaNeue") +
+  theme(
+    plot.title = element_text(size = 8, hjust = 0),
+    panel.background = element_rect(color = "gray30"),
+    panel.grid = element_blank(),
+    axis.text = element_text(size = 8),
+    axis.text.x = element_text(angle = 90)
+    )
+
+map_carros <- 
+  pmap + inset_element(phist, left = 0.55, bottom = 0.05, right = 1, top = 0.4)
+
+```
+
+# Posse de carros em São Paulo
+
+A posse de automóveis em São Paulo, grosso modo, é positivamente correlacionada com a renda familiar. O mapa abaixo mostra as zonas da cidade com maiores e menores taxas de automóveis (número de carros por domicílio). Bairros centrais como Pacaembu, Alto de Pinheiros, Morumbi e Jardim Europa têm as taxas mais elevadas. Bairros periféricos como Morro do Índio, Cocaia e Bororé têm as taxas mais baixas. Vale notar que o Centro Antigo da cidade (República, Santa Ifigênia, etc.) também têm bairros com taxas bastante baixas. Na maior parte da cidade, as Zonas têm entre 0,4 e 0,8 carros por domicílio.
+
+```{r}
+#| out-width: "100%"
+#| out-height: 900px
+#| fig-width: 9
+#| fig-height: 12
+#| fig-format: svg
+#| fig-showtext: true
+#| fig-dpi: 72
+map_carros
+```
+
+-   Dados: Metrô ([Pesquisa Origem e Destino, 2017](https://transparencia.metrosp.com.br/dataset/pesquisa-origem-e-destino))
+
+-   Tipografia: Helvetica Neue
+
+-   Paleta: `PuBuGn` ([ColorBrewer](https://colorbrewer2.org/#type=sequential&scheme=PuBuGn&n=9))
