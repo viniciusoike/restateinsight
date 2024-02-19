@@ -1,0 +1,85 @@
+---
+title: "Distribuição de Renda em São Paulo"
+date: "2024-02-07"
+categories: ['data-visualization', 'mapas', 'sao-paulo', 'ggplot2']
+description: "Um mapa coroplético que apresenta a distribuição de renda em São Paulo. Os dados são importados do projeto Acesso a Oportunidades do IPEA e apresentados no padrão H3 da Uber."
+format:
+  html:
+    code-tools: true
+execute: 
+  echo: false
+  warning: false
+  message: false
+---
+
+```{r}
+library(aopdata)
+library(ggplot2)
+library(showtext)
+font_add_google("Lato", "Lato")
+showtext_auto()
+
+aop_censo <- aopdata::read_population(city = "spo", geometry = TRUE, showProgress = FALSE)
+```
+
+```{r}
+map_renda_decil <- ggplot(aop_censo) +
+  geom_sf(aes(fill = R003, color = R003)) +
+  scale_fill_fermenter(
+    name = "",
+    palette = "Spectral",
+    direction = 1,
+    breaks = 1:10,
+    labels = c("1", "2\n(Mais Pobre)", 3:8, "9\n(Mais Rico)", "10"),
+    na.value = "gray75"
+    ) +
+  scale_color_fermenter(
+    name = "",
+    palette = "Spectral",
+    direction = 1,
+    breaks = 1:10,
+    labels = c("1", "2\n(Mais Pobre)", 3:8, "9\n(Mais Rico)", "10"),
+    na.value = "gray75") +
+  labs(
+    title = "Distribuição de Renda",
+    subtitle = "Rendimento médio por grupos de decil de renda em São Paulo.",
+    caption = "Fonte: IPEA (Acesso a Oportunidades, 2023), aopdata. @viniciusoike."
+  ) +
+  ggthemes::theme_map(base_family = "Lato") +
+  theme(
+    legend.position = "top",
+    legend.justification = 0.5,
+    legend.key.size = unit(1, "cm"),
+    legend.key.width = unit(1.5, "cm"),
+    legend.text = element_text(size = 12),
+    legend.margin = margin(),
+    plot.margin = margin(10, 5, 5, 10),
+    plot.title = element_text(size = 38, hjust = 0.5),
+    plot.subtitle = element_text(size = 14, hjust = 0.5)
+  )
+```
+
+# Renda Familiar em São Paulo
+
+O mapa abaixo mostra o rendimento domiciliar em grupos de decis em São Paulo. Divide-se toda a população, do mais pobre ao mais rico, em dez grupos de igual tamanho; assim, os hexágonos em azul estão no top 10% da distribuição de renda (10% mais ricos); já os hexágonos em vermelho estão no bottom 10% da distribuição (10% mais pobres).
+
+O grid hexagonal segue o padrão H3, em resolução 9. Os dados de renda provém do Censo Demográfico do IBGE a nível setor censitário. Usa-se uma técnica de interpolação espacial para converter os dados para o padrão hexagonal.
+
+Apesar dos dados brutos do Censo estarem defasados, é improvável que a sua distribuição espacial tenha se alterado significativamente na última década. Grosso modo, as maiores rendas se concentram no Centro Expandido e no Quadrante Sudoeste da cidade. As duas exceções são a região de Santana-Tucuruvi e o eixo Tatuapé - Jardim Anália Franco.
+
+```{r}
+#| out-width: "100%"
+#| out-height: 900px
+#| fig-width: 9
+#| fig-height: 12
+#| fig-format: svg
+#| fig-showtext: true
+#| fig-dpi: 72
+map_renda_decil
+```
+
+-   Dados: IPEA ([Acesso a Oportunidades](https://www.ipea.gov.br/acessooportunidades/)) acessado via [`aopdata`](https://github.com/ipeaGIT/aopdata)
+
+-   Tipografia: [Lato](https://fonts.google.com/specimen/Lato)
+
+-   Paleta: `Spectral` ([ColorBrewer](https://colorbrewer2.org/#type=diverging&scheme=Spectral&n=10))
