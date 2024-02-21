@@ -1,13 +1,325 @@
 ---
-title: "Distribuição de Renda em São Paulo"
-date: "2024-02-07"
-categories: ['data-visualization', 'mapas', 'sao-paulo', 'ggplot2']
-description: "Um mapa coroplético que apresenta a distribuição de renda em São Paulo. Os dados são importados do projeto Acesso a Oportunidades do IPEA e apresentados no padrão H3 da Uber."
+title: "Acesso a Hospitais e Leitos em São Paulo"
+date: "2024-01-20"
+categories: ['data-science', 'data-visualization', 'mapas', 'sao-paulo', 'ggplot2', 'transporte']
+description: "Neste post, vou mapear a acessibilidade a hospitais e leitos em São Paulo. Para avaliar quantitativamente o nível de acessibilidade vou montar uma métrica bastante simples: o tempo mínimo necessário que se leva para chegar no hospital/leito mais próximo, considerando um deslocamento de bicicleta."
 format:
   html:
     code-tools: true
 execute: 
-  echo: false
   warning: false
   message: false
 ---
+
+# Acessibilidade à Saúde
+
+Neste post, vou mapear a acessibilidade a hospitais e leitos em São Paulo. Para avaliar quantitativamente o nível de acessibilidade vou montar uma métrica bastante simples: o tempo mínimo necessário que se leva para chegar no hospital/leito mais próximo, considerando um deslocamento de bicicleta[^1].
+
+[^1]: Seria possível também fazer o deslocamento de carro, mas, na minha experiência, o deslocamento de bicicleta aproxima bem o deslocamento de carro com trânsito. As isócronas de deslocamento de carro em São Paulo - sem ajustes - costumam ser bastante "otimistas" com relação às possibilidades de deslocamento.
+
+Para tornar o problema tratável, divido a cidade em hexágonos, no padrão H3, em resolução 9. Esta resolução tem um tamanho aproximado de 1km2 e estratifica a cidade em cerca de 15 mil subáreas. Seria possível reduzir o número de hexágonos cruzando este grid com dados de população do Censo. Contudo, como os dados do Censo a nível de setor censitário estão consideravelmente defasados, utilizo o grid inteiro.
+
+Para cada hospital/leito, contruo isócronas de 10, 15, 20, 25 e 30 minutos, considerando um deslocamento de bicicleta. A partir desta métrica simples, pode-se construir refinamentos como ponderar o número de leitos acessíveis em relação a população que reside em cada região. Evidentemente, pode-se considerar também outros modos de transporte e intervalos de tempo.
+
+# Setup
+
+Como os dados são relativamente grandes vou usar o `data.table` para a manipulação dos dados. O pacote `tidygeocoder` é utilizado para georeferenciar alguns dos endereços que estão com lat/long ausente.
+
+```{r}
+library(data.table)
+library(tidygeocoder)
+library(sf)
+library(stringr)
+library(osrm)
+library(mapview)
+library(ggplot2)
+library(aopdata)
+```
+
+## Dados
+
+As bases de dados são de livre acesso no site [dados.gov.br](https://dados.gov.br/). Especificamente, vamos usar a base de [Cadastros de CNES](https://dados.gov.br/dados/conjuntos-dados/cnes-cadastro-nacional-de-estabelecimentos-de-saude) e de [Hospitais e Leitos](https://dados.gov.br/dados/conjuntos-dados/hospitais-e-leitos). Normalmente, eu importaria estes dados usando webscrapping, mas neste caso acho mais simples baixar os arquivos manualmente. Como são apenas duas tabelas que precisam ser baixadas, acho que seria um exagero fazer um rotina para importar os dados via scraping. Além disso, olhando o código-fonte da página, o download é feito via uma URL dinâmica, o que exigiria o uso do `RSublime`, ou, alternativamente, o uso do `BeautifulSoup` em Python[^2].
+
+[^2]: Caso fosse necessário seria possível combinar a rotina de importação em `Python` com a rotina de análise em `R` usando `reticulate`.
+
+```{r}
+#| include: false
+cnes = data.table::fread("/Users/viniciusoike/Downloads/cnes_estabelecimentos.csv")
+leitos = data.table::fread("/Users/viniciusoike/Downloads/Leitos_2024.csv", encoding = "Latin-1")
+```
+
+```{r}
+#| eval: false
+cnes = fread("cnes_estabelecimentos.csv")
+leitos = fread("Leitos_2024.csv", encoding = "Latin-1")
+```
+
+## Limpeza
+
+Os códigos abaixo mostram a rotina de limpeza necessária. Como os dados brutos são relativamente bem estruturados não é necessário muito esforço neste passo. O primeiro código abaixo seleciona apenas as colunas necessárias da base de Cadastro de CNES para São Paulo.
+
+```{r}
+# Simplifica e limpa o nome das colunas
+cnes = janitor::clean_names(cnes)
+# Vetor para renomear e selecionar as colunas
+sel_cols <- c("code_cnes", "lng", "lat")
+# Altera o nome das colunas
+setnames(cnes, c("co_cnes", "nu_longitude", "nu_latitude"), sel_cols)
+# Seleciona as colunas apenas para Sao Paulo
+cnes <- cnes[co_ibge == 355030, ..sel_cols]
+```
+
+O segundo código abaixo mostra os passos para limpar a base de hospitais e leitos. Por fim, as duas bases são combinadas via o identificador `code_cnes`.
+
+```{r}
+# Vetor para renomear as colunas
+
+# Remove o prefixo do nome das colunas
+new_names <- str_remove_all(names(leitos), "^[A-Z]{2}_")
+# Cria novos nomes paras as colunas
+new_names <- janitor::make_clean_names(new_names)
+setnames(leitos, names(leitos), new_names)
+setnames(leitos, c("cnes", "endereco"), c("code_cnes", "numero"))
+
+# Vetor para selecionar colunas
+sel_cols <- c(
+  "code_cnes", "nome_estabelecimento", "logradouro", "numero", "bairro", "cep",
+  "leitos_existentes"
+  )
+
+leitos <- leitos[uf == "SP" & municipio == "SAO PAULO", ..sel_cols]
+
+dat <- merge(leitos, cnes, by = "code_cnes")
+```
+
+### Geocoding
+
+Há poucos casos que não foram identificados no cruzamento dos dados. Especificamente, apenas três hospitais não foram identificados. Note que a função `unique` remove as linhas duplicadas pois a base de leitos não unicamente identificada por estabelecimento.
+
+```{r}
+missing_leitos <- dat[is.na(lng) | is.na(lat)]
+missing_leitos <- unique(missing_leitos[, .(code_cnes, logradouro, numero, bairro)])
+
+print(missing_leitos)
+```
+
+Para georeferenciar estas observações uso o `tidygeocoder`.
+
+```{r}
+missing_leitos[,
+  endereco := glue::glue_data(.SD, "{numero}, {logradouro}, {bairro}, São Paulo, SP")
+  ]
+
+geo_leitos <- geocode(missing_leitos, address = endereco)
+```
+
+Pelo mapa abaixo, fica claro que o processo teve sucesso.
+
+```{r}
+test = st_as_sf(geo_leitos, coords = c("long", "lat"), crs = 4326)
+mapview(test)
+```
+
+Por fim, o código abaixo remove as linhas da base original, que tinham lat/long ausente, e substitui elas pelas novas linhas encontradas acima. Algum cuidado é necessário já que a base original não é identificada por estabelecimento. Por fim, faço um teste simples para verificar que todas as observações tem lat/lng.
+
+```{r}
+setnames(geo_leitos, "long", "lng")
+setDT(geo_leitos)
+geo_leitos <- geo_leitos[, .(code_cnes, lng, lat)]
+
+fix_dat <- dat[is.na(lng) | is.na(lat)]
+set(fix_dat, j = c("lng", "lat"), value = NULL)
+fix_dat <- merge(fix_dat, geo_leitos, all.x = TRUE, by = "code_cnes")
+
+dat <- dat[!(is.na(lng) | is.na(lat))]
+dat <- rbind(dat, fix_dat)
+
+# Verifica se há lat/lngs faltando
+nrow(dat[is.na(lng) | is.na(lat)])
+```
+
+## Isócronas
+
+Isócronas são polígonos que representam áreas de alcance dentro de um período de tempo pré-determinado. Isto é, para um determinado ponto no espaço $s_{i}$ a isócrona $I(s_{i}, m, t)$ representa todos os pontos que se pode chegar, partindo de $s_{i}$, usando o modo de transporte $m$ em $t$ minutos. Para este exemplo considero apenas deslocamentos de bicicleta em intervalos de 10, 15, 20, 25, e 30 minutos.
+
+O código abaixo exemplifica a construção de uma isócrona em torno de um hospital.
+
+```{r}
+iso_test = osrmIsochrone(
+  dat[1, .(lng, lat)],
+  breaks = seq(from = 10, to = 30, by = 5),
+  osrm.profile = "bike"
+  )
+
+mapview(iso_test, zcol = "isomax")
+```
+
+Ao todo, temos 224 pontos que representam um estabelecimento único. Ao todo, calcula-se 1140 isócronas.
+
+```{r}
+locations <- unique(dat[, .(code_cnes, lng, lat)])
+nrow(locations)
+```
+
+```{r}
+geo_locations <- st_as_sf(
+  locations[, .(lng, lat)],
+  coords = c("lng", "lat"),
+  crs = 4326
+  )
+
+mapview(geo_locations)
+```
+
+O código abaixo importa as isócronas para todos os pontos. Note que este código leva um tempo considerável para rodar.
+
+```{r}
+#| eval: false
+get_isochrone = function(dat) {
+  
+  iso = osrm::osrmIsochrone(
+    dat[, .(lng, lat)],
+    breaks = seq(from = 10, to = 30, by = 5),
+    osrm.profile = "bike"
+  )
+  
+  return(iso)
+  
+}
+
+locations <- split(locations, by = "code_cnes")
+
+geo_locations <- lapply(locations, get_isochrone)
+```
+
+```{r}
+#| include: false
+# qs::qsave(geo_locations, here::here("static/data/isocronas_geo_locations_sp.qs"))
+geo_locations <- qs::qread(here::here("static/data/isocronas_geo_locations_sp.qs"))
+```
+
+## Grid
+
+Para montar o grid, uso o pacote `h3jsr` que implementa as funções da biblioteca H3 da Uber dentro do R (via JavaScript). Importo o shapefile da cidade de São Paulo do IBGE via pacote `geobr`.
+
+Vale notar que é possível conseguir um grid H3 em resolução 9 diretamente do pacote `aopdata::read_grid()`, que oferece os dados do projeto de Acesso a Oportunidades do IPEA. Este atalho, contudo, está disponível apenas para as cidades que entraram no estudo. Assim, o código abaixo é mais geral, pois funciona para qualquer cidade do Brasil.
+
+```{r}
+library(h3jsr)
+library(geobr)
+
+spo = read_municipality(3550308, simplified = FALSE, showProgress = FALSE)
+grid = polygon_to_cells(spo, res = 9, simple = FALSE)
+
+polyfill = polygon_to_cells(spo, res = 9, simple = FALSE)
+index_h3 = unlist(str_split(unlist(polyfill$h3_addresses), ", "))
+
+grid = data.frame(
+  id_hex = index_h3
+)
+
+h3grid = cell_to_polygon(grid)
+h3grid = st_as_sf(h3grid, crs = 4326)
+h3grid$id_hex = index_h3
+```
+
+Fazendo a interseção espacial entre o grid H3 e as isócronas, calcula-se para cada hexágono o tempo mínimo necessário para chegar no hospital/leito mais próximo.
+
+```{r}
+isocronas <- dplyr::bind_rows(geo_locations, .id = "code_cnes")
+```
+
+```{r}
+match_h3_destination = function(dest) {
+  
+  iso = isocronas |> 
+    dplyr::filter(code_cnes == dest)
+
+  hex_codes = lapply(1:5, \(i) {
+    
+    idhex = dplyr::filter(iso, id == i) |> 
+      h3jsr::polygon_to_cells(res = 9) |> 
+      unlist()
+    
+    return(data.frame(id_hex = idhex))
+    
+  })
+  
+  names(hex_codes) = as.character(c(10, 15, 20, 25, 30))
+  
+  h3iso = rbindlist(hex_codes, idcol = "isomax")
+  
+}
+
+cnes_codes <- unique(isocronas$code_cnes)
+
+od_table <- parallel::mclapply(cnes_codes, match_h3_destination)
+```
+
+Agora, para cada hexágono, encontra-se o leito/hospital mais próximo
+
+```{r}
+# Consolida tabela que faz o match das origens e destinos (hospitais)
+names(od_table) <- cnes_codes
+od <- rbindlist(od_table, idcol = "code_cnes")
+# Encontra o hospital mais próximo para cada ponto
+od[, isomax := as.numeric(isomax)]
+min_table <- od[, .SD[which.min(isomax)], by = "id_hex"]
+
+# Grid H3
+dtgrid <- setDT(st_drop_geometry(h3grid))
+timetable <- merge(dtgrid, min_table, by = "id_hex", all.x = TRUE)
+
+# Junta os dados com o grid
+acesso_saude <- dplyr::left_join(h3grid, timetable, by = "id_hex")
+# Troca NAs por > 30
+acesso_saude <- acesso_saude |> 
+  dplyr::mutate(
+    isomax = ifelse(is.na(isomax), 30, isomax)
+  )
+```
+
+## Resultado
+
+O mapa abaixo mostra o resultado final. De maneira geral, a área central da cidade, o Centro Expandido, está relativamente bem atendido de hospitais numa distância de 10 a 15 minutos até o hospital mais próximo. As áreas periféricas da cidade tem indicadores bastante piores, contudo, vale notar que estas áreas potencialmente podem ser atendidas por hospitais em municípios vizinhos, que fazem conurbação com São Paulo.
+
+Como comentado inicialmente, esta métrica é bastante rudimentar. Uma melhoria interessante seria ponderar o número total de leitos disponíveis em relação a população atendida em cada região.
+
+```{r}
+#| code-fold: true
+#| out-width: "100%"
+#| out-height: 900px
+#| fig-width: 9
+#| fig-height: 12
+#| fig-format: svg
+#| fig-showtext: true
+#| fig-dpi: 72
+
+ggplot(acesso_saude) +
+  geom_sf(aes(fill = isomax, color = isomax)) +
+  scale_fill_distiller(
+    name = "",
+    palette = "RdBu",
+    labels = c("Até 10 min.", "15 min.", "20 min", "25 min", "30 min. ou mais")) +
+  scale_color_distiller(
+    name = "",
+    palette = "RdBu",
+    labels = c("Até 10 min.", "15 min.", "20 min", "25 min", "30 min. ou mais")) +
+  labs(
+    title = "Acesso a Hospitais",
+    subtitle = "Tempo mínimo necessário para chegar ao hospital/leito mais próximo.",
+    caption = "Fonte: Open Source Routing Machine (osrm), Dados Abertos (Ministério da Saúde)."
+    ) +
+  ggthemes::theme_map() +
+  theme(
+    legend.position = "top",
+    legend.justification = 0.5,
+    legend.key.size = unit(1, "cm"),
+    legend.key.width = unit(1.75, "cm"),
+    legend.text = element_text(size = 12),
+    legend.margin = margin(),
+    plot.margin = margin(10, 5, 5, 10),
+    plot.title = element_text(size = 18, hjust = 0.5),
+    plot.subtitle = element_text(size = 10, hjust = 0.5)
+  )
+```
