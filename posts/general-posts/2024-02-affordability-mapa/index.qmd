@@ -1,0 +1,261 @@
+---
+title: "Acessibilidade financeira à moradia em São Paulo"
+date: "2024-02-10"
+categories: ['data-science', 'data-visualization', 'sao-paulo', 'real-estate']
+description: "Neste post exploro em maiores detalhes indicadores de acessibilidade financeira à moradia. Apresento uma análise histórica a nível nacional e o retrato da desigualdade do acesso à moradia em São Paulo."
+execute:
+  message: false
+  warning: false
+  echo: false
+---
+
+```{r}
+#| include: false
+library(ggplot2)
+library(tmap)
+library(tmaptools)
+library(dplyr)
+library(tidyr)
+library(sf)
+library(showtext)
+
+# Fonts
+font_add_google("Playfair Display", "Playfair Display")
+font_add_google("Roboto Condensed", "Roboto Condensed")
+showtext_auto()
+
+affordability <- st_read(
+  "/Users/viniciusoike/Documents/GitHub/maps/data/affordability_relatorio_local.geojson",
+  quiet = TRUE
+)
+
+affordability <- affordability |> 
+  mutate(
+    inc_med_label = round(inc_med_total, -2),
+    pc_m2_med_label = round(pc_m2_med, -2)
+  )
+```
+
+# Housing Affordability
+
+O tópico de **housing affordability** entrou em pauta nos últimos anos à medida que o preço dos imóveis cresceu rapidamente na última década em boa parte do mundo desenvolvido. Como mostrei num [post anterior](https://restateinsight.com/posts/general-posts/2024-01-wz-house-prices/), este não é o caso do Brasil: os preços dos imóveis em termos reais "andaram de lado" nos últimos 13 anos. Em termos reais, os preços dos imóveis no final de 2023 estão um pouco abaixo do que estavam em 2010.
+
+Diversos fatores impactam o preço de imóveis no longo prazo. Num [post anterior discuti o fator demográfico](https://restateinsight.com/posts/general-posts/repost-precos-imoveis-demografia/), e como o crescimento populacional é pouco correlacionado com os aumentos de preços observados nos últimos anos. O aumento de preços é provavelmente mais relacionado com a manutenção prolongada de uma baixa taxa de juros na década de 2010 e durante o período da pandemia em conjunção com a baixa construção de novas unidades de moradia.
+
+![](images/unnamed-chunk-9-1.svg){fig-align="center"}
+
+Mesmo com preços reais sob controle, a acessibilidade à moradia é bastante ruim. A Fundação João Pinheiro reporta aumento do déficit habitacional, ano a ano. Em São Paulo, um [levantamento recente registrou mais de 50 mil pessoas sem moradia](https://g1.globo.com/sp/sao-paulo/noticia/2023/04/05/cidade-de-sp-contabiliza-mais-de-52-mil-moradores-de-rua-alta-de-82percent-em-2023-afirma-pesquisa.ghtml#). Em 2022, o [Censo da População em Situação de Rua indicou que havia mais de 30 mil pessoas morando nas ruas da cidade](https://www.capital.sp.gov.br/noticia/censo-antecipado-pela-prefeitura-de-sao-paulo-revela-que-populacao-em-situacao-de-rua-cresceu-31-nos-ultimos-dois-anos).
+
+A acessibilidade à moradia é função de três fatores centrais:
+
+1.  Preços dos imóveis.
+2.  Renda das famílias.
+3.  Condições de financiamento.
+
+O preço dos imóveis variou pouco nos últimos anos. A renda real das famílias aumentou pouco, mas teve um crescimento considerável na faixa de 20-25% em termos reais, segundo dados da PNADC de 2012 a 2023.
+
+## Quadro Geral
+
+O gráfico abaixo mostra a evolução do preço dos imóveis (IVG-R) e da renda média das famílias em comparação com a inflação (nível geral de preços). As três séries mostram a evolução nominal das variáveis e os valores estão indexados em 2010 para facilitar a comparação. Os valore de renda interpolam as séries de PNAD, PNADC e Censo para chegar numa estimativa suavizada da renda familiar habitual mensal.
+
+Em linhas gerais, o preço dos imóveis para de crescer em 2014-15 com a Crise Econômica e fica estagnado - em termos nominais - nos próximos anos. Isto é, a partir de 2015 o preço dos imóveis começa a cair em termos reais. A renda média, em contrapartida, tem uma tendência de crescimento estável e consistentemente consegue acompanhar a inflação no período observado. Assim, pode-se concluir - ainda que superficialmente - que o affordability deve ter melhorado, visto que os preços dos imóveis cresceram menos do que renda média.
+
+![](images/Screenshot%202024-02-26%20at%2018.39.43.png){fig-align="center"}
+
+## Quantificando
+
+Há dois indicadores básicos, que mensuram a acessibilidade financeira à moradia: (1) o price-income ratio (PIR); e (2) o Housing Affordability Index (HAI).
+
+### PIR
+
+O PIR é uma razão simples entre o preço médio/mediano dos imóveis e a renda média/mediana anual das famílias:
+
+$$
+\text{PIR} = \frac{\text{Precos}}{\text{Renda Anual}}
+$$
+
+O PIR indica, grosso modo, a quantidade de "anos de trabalho" que uma família típica precisa investir de renda para comprar um imóvel típico. A principal vantagem do PIR é a sua simplicidade de cálculo, o que facilita comparações entre regiões. A principal desvantagem do PIR é de ignorar as condições de financiamento disponíveis para a população.
+
+### HAI
+
+O HAI é um indicador que possui diversas definições. Uma definição simples é a razão abaixo:
+
+$$
+\text{HAI} = \frac{\text{Parcela Máxima}}{\text{Parcela Típica}}\times100
+$$
+
+onde a "parcela máxima de financiamento" é o valor teórico máximo que uma família típica estaria elegível num financiamento típico. Em outras palavras, suponha que a renda média familiar seja de $R\$4000$. Considerando um financiamento a uma taxa de juros $r$ num prazo de financiamento de $\tau$ períodos e um comprometimento máximo de renda $\gamma$ chega-se num valor $p_{max}$ que representa o imóvel mais caro que o banco estaria disposto a financiar para esta família. Associado a este $p_{max}$ existe um $\text{pmt}_{max}$ que é a parcela mais cara que a família poderia "aguentar".
+
+O HAI mensura o valor da parcela de financiamento do imóvel típico em relação à renda mensal típica. Em outras palavras, este indicador verifica se o financiamento do imóvel típico de uma região "cabe no bolso" da família típica.
+
+# Histórico
+
+Pode-se calcular os indicadores de affordability a nível nacional, mensalmente, nos últimos anos usando dados do Banco Central. O painel abaixo mostra as principais variáveis utilizadas. O preço mediano indica o preço mediano dentre todos os financiamentos habitacionais em reais correntes; a taxa de juros indica a taxa média do financiamento habitacional; o Loan-to-Value indica o LTV médio dos contratos de financiamento habitacional; e, por fim, o Prazo Médio indica o prazo médio em meses dos contratos de financiamento habitacional. Em todos os casos, considerou-se os valores de financiamentos via SFH. O gráfico mostra a média móvel das séries para remover o ruído de curto prazo.
+
+```{r}
+#| include: false
+afford <- qs::qread(
+  here::here("static/data/affordability_params.qs")
+  )
+```
+
+```{r}
+#| fig-align: 'center'
+#| out-width: 90%
+dat_params <- afford |> 
+  select(date, p, i, ltv, n) |> 
+  mutate(ltv = ltv * 100) |> 
+  tidyr::pivot_longer(cols = -date, names_to = "name_series") |> 
+  mutate(
+    name_label = factor(
+      name_series,
+      levels = c("p", "i", "ltv", "n"),
+      labels = c("Preço Mediano (R$)", "Taxa de Juros (%)", "Loan-to-value (LTV)",
+                 "Prazo Médio (meses)"))
+  ) |> 
+  mutate(
+    trend = RcppRoll::roll_mean(value, n = 5, fill = NA), .by = "name_series"
+  )
+
+ggplot(dat_params, aes(date, trend)) +
+  geom_line(lwd = 0.7, color = "#264653") +
+  facet_wrap(vars(name_label), scales = "free_y") +
+  labs(
+    title = "Parâmetros do Financiamento Habitacional",
+    subtitle = stringr::str_wrap("Preço mediano, taxa de financiamento, LTV e prazo médio de financiamentos via SFH a nível Brasil (2014-2024).", 111),
+    x = NULL,
+    y = NULL,
+    caption = "Fonte: Banco Central do Brasil") +
+  theme_bw(base_family = 'Roboto Condensed')
+```
+
+Usando as séries acima, junto com o rendimento médio habitual da PNAD/C pode-se calcular tanto o HAI como o PIR. O gráfico abaixo mostra o comportamento de ambos os indicadores.
+
+Vale lembrar a interpretação dos indicadores: o **HAI** é um indicador do tipo **"quanto maior, melhor"**, com base 100, onde 100 indica equilíbrio entre a renda das famílias e as condições de affordability; já o **PIR** é um indicador do tipo **"quanto menor, melhor"**.
+
+Como é de se esperar, os indicadores costumam apresentar comportamentos opostos. O HAI cresce de 45 até 60, indicando a melhoria na acessibilidade financeira no périodo 2016-2020. O mesmo movimento aparece numa queda do PIR de 7.4 para 6.4.
+
+É interessante notar, contudo, que a queda do HAI foi muito mais impactante do que a subida do PIR no período pós-pandemia. Olhando somente os preços e a renda, houve um aumento discreto de 6.4 para 6.6 no PIR. Já o HAI praticamente retorna para os níveis da Crise Econômica 2015-16. Isto acontece porque o HAI é muito mais sensível à taxa de juros.
+
+```{r}
+#| fig-align: 'center'
+#| out-width: 90%
+afford_metrics <- afford |> 
+  select(date, hai, pir) |> 
+  pivot_longer(cols = -date, names_to = "name_series") |> 
+  mutate(name_label = factor(name_series, labels = c("HAI", "PIR"))) |>  
+  mutate(
+    trend = RcppRoll::roll_mean(value, n = 5, fill = NA),
+    .by = "name_series"
+  )
+
+ggplot(afford_metrics, aes(date, trend)) +
+  geom_line(lwd = 0.8, color = "#264653") +
+  facet_wrap(vars(name_label), scales = "free_y", ncol = 1) +
+  labs(
+    x = NULL,
+    y = NULL,
+    title = "Métricas de Affordability",
+    subtitle = "Housing Affordability Index (HAI) e Price-Income-Ratio (PIR) no Brasil (2014-2024)."
+  ) +
+  theme_bw(base_family = 'Roboto Condensed')
+```
+
+# São Paulo
+
+Desde que haja informação georreferenciada de preços também é possível criar um indicador regional de PIR e HAI. Nas próximas duas seções mostro os dados a nível de bairro para a cidade de São Paulo. Os números refletem os valores encontrados no artigo *Acesso à moradia em São Paulo*.
+
+Vale notar que os dados de preços se referem ao preço de apartamentos anunciados em portais online no período 2019-2021.
+
+## PIR
+
+Na literatura internacional, valores de PIR na faixa de 5-10 indicam baixa acessibilidade financeira. Estudos feitos em países em desenvolvimento e subdesenvolvidos, contudo, apontam valores de PIR muito mais elevados, devido tanto à baixa renda média da população como também às condições limitadas de acesso ao crédito. Neste sentido, talvez uma comparação mais justa seja com as megacidades chinesas que tem PIR na faixa de 10-20.
+
+```{r}
+#| out-width: "100%"
+#| out-height: 900px
+#| fig-width: 9
+#| fig-height: 12
+#| fig-format: svg
+#| fig-showtext: true
+#| fig-dpi: 72
+
+jenks = BAMMtools::getJenksBreaks(affordability$pir_med_total, k = 8)
+
+ggplot(affordability) +
+  geom_sf(aes(fill = pir_med_total), lwd = 0.15, color = "white") +
+  scale_fill_fermenter(
+    name = "",
+    palette = "Reds",
+    direction = 1,
+    breaks = jenks,
+    labels = round(jenks),
+    na.value = "gray90") +
+  labs(
+    title = "Housing Affordability",
+    subtitle = "Distribuição do Price-Income Ratio em São Paulo"
+  ) +
+  ggthemes::theme_map(base_family = "Playfair Display") +
+  theme(
+    legend.position = "top",
+    legend.justification = 0.5,
+    legend.key.size = unit(0.5, "cm"),
+    legend.key.width = unit(1.25, "cm"),
+    legend.text = element_text(size = 12),
+    legend.margin = margin(),
+    plot.margin = margin(10, 5, 5, 10),
+    plot.title = element_text(size = 32, hjust = 0.5),
+    plot.subtitle = element_text(size = 10, hjust = 0.5)
+  )
+```
+
+O Jardim Europa foi a região menos acessível de São Paulo, nesta análise. O preço mediano do metro quadrado na região está em torno de 14 mil. Considerando um imóvel de 100 m2 temos um preço mediano na faixa 1,4 milhão. A renda mínima necessária para estar elegível a um financiamento deste imóvel seria em torno de 35 mil, considerando um comprometimento de 30% num sistema SAC e uma taxa de 10%. Evidentemente, este exemplo é bastante artificial quando se considera que esta região possui imóveis com metragem consideravelmente mais elevadas do que esta.
+
+Pode-se calcular indiretamente qual seria um valor do PIR máximo para cada região. Suponha que a renda mensal típica considerada seja em torno de 4500. Então para um típico financiamento no sistema SAC a 10% de juros e 360 meses, o imóvel mais caro que esta família pode financiar teria preço próximo a 180 mil. Este valor resulta num PIR próximo de 3[^1].
+
+[^1]: A multiplicação por 12 é uma aproximação. Pode-se também considerar a multiplicação por 13, considerando valor do décimo-terceiro. Idealmente, usa-se a renda familiar anual bruta.
+
+$$
+\text{PIR}_{max} = \frac{180000}{12\times 4500} = 3.33
+$$
+
+Grosso modo, isto significa que qualquer imóvel que tenha preço 3 vezes superior à renda anual bruta familiar é inacessível. Para São Paulo, isto indica que a cidade inteira é inacessível para uma família que recebe em torno de 54 mil por ano. Para exemplificar o impacto do crédito sobre a acessibilidade, vale notar que uma redução dos juros para 5% e uma extensão do prazo para 35 anos (420 meses) aumentaria o preço máximo do imóvel para 300 mil. Isto aumentaria o PIR máximo para 5.5, valor próximo ao threshold de países desenvolvidos.
+
+## HAI
+
+O HAI é um indicador mais interessante do que o PIR pois ele incorpora as condições de financiamento diretamente à métrica de acessibilidade. Assim como o PIR, o HAI aponta um grave problema de acessibilidade à moradia em São Paulo.
+
+```{r}
+library(tmap)
+library(tmaptools)
+tmap_mode("view")
+
+m <- tm_shape(affordability) +
+  tm_borders() +
+  tm_fill(
+    col = "hai_med_total",
+    palette = "-Reds",
+    style = "jenks",
+    n = 7,
+    id = "name_zone",
+    title = "Housing-Affordability Index",
+    popup.vars = c("hai_med_total", "pc_m2_med_label"),
+    popup.format = list(
+      "hai_med_total" = list(digits = 1, decimal.mark = ","),
+      "pc_m2_med_label" = list(digits = 0, big.mark = ".")
+    )
+  ) +
+  tm_basemap(server = "CartoDB.Positron")
+
+tmap_leaflet(m)
+```
+
+# Como solucionar o problema
+
+Resolver o problema da moradia não é tarefa simples. Este post não tem a intenção de propor uma solução ao problema da falta de moradia mas sim apontar algumas das suas complexidades. Não é verdade que a dinâmica do preço dos imóveis esteja fora de controle no Brasil. Mais preocupante é o fato de que a renda média da família brasileira continue muito baixa. Além disso, para as famílias que não estão elegíveis ao programa MCMV as condições de acesso ao crédito são bastante restritivas.
+
+# Posts Relacionados
+
+-   [O impacto dos juros na demanda imobiliária](https://restateinsight.com/posts/general-posts/2023-08-juros-affordability/)
+
+-   [Preços de imóveis no Brasil](https://restateinsight.com/posts/general-posts/2024-01-wz-house-prices/)
