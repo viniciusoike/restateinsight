@@ -1,0 +1,362 @@
+---
+title: "Preços de Aluguel e de Venda de Imóveis"
+date: "2024-02-21"
+categories: ["data-visualization", "ggplot2", "weekly-viz", "brasil", "real-estate"]
+description: "Os mercados de aluguel e de venda de imóveis são interligados e deve existir algum tipo de equilíbrio entre eles. Neste post exploro macrotendências destes mercados usando a série do FipeZap. Os resultados indicam a possibilidade um novo ciclo de aluguel, uma quebra na tendência histórica entre os mercados."
+image: "/static/images/scatter-bp-1.png"
+format:
+  html:
+    code-tools: true
+execute: 
+  message: false
+  warning: false
+  echo: false
+---
+
+```{r setup}
+knitr::opts_chunk$set(
+  fig.align = "center",
+  fig.asp = 0.618,
+  fig.width = 8,
+  out.width = "90%",
+  fig.dev = "svg"
+)
+
+library(realestatebr)
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(showtext)
+library(stringr)
+library(patchwork)
+font_add_google("IBM Plex Sans", "IBM Plex Sans")
+showtext_auto()
+
+theme_series = theme_minimal(base_family = "IBM Plex Sans", base_size = 12) +
+  theme(
+    panel.grid.minor = element_blank(),
+    legend.position = "bottom"
+  )
+```
+
+```{r import-data}
+fipezap = get_rppi_fipezap()
+
+fipezap = fipezap |> 
+  filter(
+    name_muni == "Índice Fipezap",
+    market == "residential",
+    variable == "index",
+    rooms == "total"
+  ) |> 
+  select(date, rent_sale, value)
+  
+base = fipezap |> 
+  mutate(ano = lubridate::year(date)) |> 
+  summarise(base_index = mean(value), .by = c("ano", "rent_sale")) |> 
+  filter(ano == 2019) |> 
+  select(-ano)
+
+fipezap = fipezap |> 
+  left_join(base, by = c("rent_sale")) |> 
+  mutate(new_index = value / base_index * 100)
+```
+
+```{r data-and-viz}
+dbreaks = as.character(c(2008, 2010, 2015, 2020, 2024))
+dbreaks = readr::parse_date(dbreaks, format = "%Y")
+
+p1 = ggplot(fipezap, aes(x = date, y = new_index, color = rent_sale)) +
+  geom_line(lwd = 1) +
+  geom_hline(yintercept = 100) +
+  scale_x_date(breaks = dbreaks, date_labels = "%Y") +
+  scale_color_manual(
+    name = "",
+    values = c("#83c5be", "#006d77"),
+    labels = c("Aluguel", "Venda")
+  ) +
+  labs(
+    title = "Descompasso entre Preços de Venda e de Aluguel",
+    subtitle = "Variação dos índices de preços residenciais de aluguel e de venda (anúncios).",
+    x = NULL,
+    y = "Índice (100 = 2019)",
+    caption = "Fonte: FipeZap"
+    ) +
+  theme_series
+
+fipezap = fipezap |> 
+  mutate(acum = value / first(value) * 100, .by = "rent_sale")
+
+p2 = ggplot(fipezap, aes(date, acum, color = rent_sale)) +
+  geom_line(lwd = 1) +
+  geom_hline(yintercept = 100) +
+  scale_x_date(breaks = dbreaks, date_labels = "%Y") +
+  scale_color_manual(
+    name = "",
+    values = c("#83c5be", "#006d77"),
+    labels = c("Aluguel", "Venda")
+  ) +
+  labs(
+    x = NULL,
+    y = "Variação Acumulada (100 = jan/2008)",
+    title = "Valorização Acumulada Aluguel/Venda",
+    subtitle = "Variação acumulada ") +
+  theme_series
+
+fipe_changes = fipezap |> 
+  group_by(rent_sale) |> 
+  mutate(
+    chg = new_index / lag(new_index) - 1,
+    acum12m = RcppRoll::roll_prodr(1 + chg, n = 12) - 1) |>
+  pivot_wider(
+    id_cols = "date",
+    names_from = "rent_sale",
+    values_from = c("chg", "acum12m"),
+    values_fn = ~.x * 100
+  ) |> 
+  mutate(
+    cycle = factor(case_when(
+      date >= as.Date("2008-01-01") & date <= as.Date("2012-06-01") ~ "Commodity Cycle",
+      date >= as.Date("2014-06-01") & date <= as.Date("2017-12-01") ~ "Dilma Recession",
+      date >= as.Date("2020-05-01") ~ "Covid",
+      TRUE ~ "Normal"
+    ))
+  )
+
+p3 = ggplot(
+  fipe_changes,
+  aes(x = chg_sale, y = chg_rent)) +
+  geom_point(aes( color = cycle)) +
+  geom_smooth(method = "gam", se = FALSE) +
+  geom_hline(yintercept = 0) +
+  geom_vline(xintercept = 0) +
+  labs(
+    x = "Venda (var. %)",
+    y = "Aluguel (var. %)",
+    title = "Variação entre Aluguel e Preço de Venda",
+    subtitle = "Cores dos círculos ressaltam ciclos econômicos. "
+  ) +
+  scale_color_manual(
+    name = "Ciclo Economico",
+    values = c("#2FB1A2", "#e9c46a", "#264653", "#e76f51")
+  ) +
+  theme_series
+
+p4 = ggplot(
+  fipe_changes,
+  aes(x = chg_sale, y = chg_rent, color = cycle)) +
+  geom_point(alpha = 0.8) +
+  geom_smooth(method = "lm", se = FALSE) +
+  geom_hline(yintercept = 0) +
+  geom_vline(xintercept = 0) +
+  labs(
+    x = "Venda (var. %)",
+    y = "Aluguel (var. %)",
+    title = "Variação entre Aluguel e Preço de Venda",
+    subtitle = "Cores dos círculos ressaltam ciclos econômicos. "
+  ) +
+  scale_color_manual(
+    name = "Ciclo Economico",
+    values = c("#2FB1A2", "#e9c46a", "#264653", "#e76f51")
+  ) +
+  theme_series
+
+tbl_fipe = fipezap |> 
+  pivot_wider(
+    id_cols = "date",
+    names_from = "rent_sale",
+    values_from = "new_index"
+    )
+
+p_rent_bp = ggplot(tbl_fipe, aes(date, rent)) +
+  geom_line(lwd = 1, color = "#264653") +
+  geom_vline(xintercept = as.Date("2020-10-01"), linetype = 2) +
+  labs(
+    title = "Preços de Aluguel",
+    subtitle = "Linha tracejada indica quebra estrutural na série",
+    x = NULL,
+    y = "Índice (100 = 2019)") +
+  theme_series
+
+p_sale_bp = ggplot(tbl_fipe, aes(date, sale)) +
+  geom_line(lwd = 1, color = "#264653") +
+  geom_vline(
+    xintercept = c(
+      as.Date("2010-07-01"), as.Date("2012-11-01"), as.Date("2018-12-01")
+      ),
+    linetype = 2) +
+  labs(
+    title = "Preços de Venda",
+    subtitle = "Linha tracejada indica quebra estrutural na série",
+    x = NULL,
+    y = "Índice (100 = 2019)") +
+  theme_series
+
+fipe_changes = fipe_changes |> 
+  mutate(
+    bp = factor(if_else(date >= as.Date("2020-10-01"), 1L, 0L))
+  )
+
+p_changes = ggplot(fipe_changes, aes(chg_rent, chg_sale, color = bp)) +
+  geom_point() +
+  geom_smooth(method = "lm", se = FALSE) +
+  scale_x_continuous() +
+  scale_y_continuous() +
+  geom_hline(yintercept = 0) +
+  geom_vline(xintercept = 0) +
+  scale_color_manual(
+    name = "Ciclos",
+    values = c("#264653", "#F4A261"),
+    labels = c("Normal", "Pós-Covid")
+  ) +
+  labs(
+    x = "Venda (var. %)",
+    y = "Aluguel (var. %)",
+    title = "Variação entre Aluguel e Preço de Venda",
+    subtitle = "Cores dos círculos ressaltam ciclos econômicos. "
+  ) +
+  theme_series
+
+ivar = get_rppi_ivar(cached = TRUE)
+
+ivar = ivar |> 
+  filter(name_muni == "Brazil") |> 
+  dplyr::select(date, ivar = index) 
+
+fipe = fipezap |> 
+  filter(rent_sale == "rent") |> 
+  dplyr::select(date, fipezap = value)
+
+indexes = left_join(ivar, fipe, by = "date")
+
+indexes = indexes |> 
+  pivot_longer(cols = -date, names_to = "name_series", values_to = "index") |> 
+  mutate(index = index / first(index) * 100, .by = "name_series")
+
+p_fipe_ivar = ggplot(indexes, aes(date, index, color = name_series)) +
+  geom_line(lwd = 1) +
+  geom_hline(yintercept = 100) +
+  scale_x_date(date_breaks = "1 year", date_labels = "%Y") +
+  scale_y_continuous(breaks = seq(90, 160, 10)) +
+  scale_color_manual(
+    name = "Índices",
+    values = c("#264653", "#F4A261"),
+    labels = c("FipeZap", "IVAR (FGV)")
+  ) +
+  labs(
+    x = NULL,
+    y = "Índice (100 = jan/2019)",
+    title = "Índices de Aluguel divergem durante Pandemia",
+    subtitle = "Variação mensal do FipeZap (aluguel residencial) e IVAR (FGV) desde janeiro de 2019.",
+    caption = "Fonte: FipeZap, FGV"
+  ) +
+  theme_series
+```
+
+# Aluguel e Venda
+
+## Os mercados
+
+Os mercados de aluguel e de venda de imóveis são interligados. Em tese, a decisão de comprar ou alugar um imóvel passa pelo preço. Se o aluguel estiver suficientemente "barato", mais pessoas vão optar pelo aluguel, reduzindo a taxa de vacância e aumentando o preço do aluguel. O preço do aluguel sobe a tal ponto que se torna mais interessante comprar um imóvel do que alugar, incentivando pessoas que alugam a migrar para um apartamento próprio.
+
+Vale notar que o mercado de aluguel é bastante lento. A "migração" do aluguel para um imóvel proprietário não é rápida nem simples. Além do custo monetário há diversos custos de transação envolvidos no processo. De fato, em muitos casos, não é possível fazer uma migração entre um e outro por motivos contratuais.
+
+Por fim, a literatura empírica do tema não é unânime sobre a relação entre os mercados de venda e de aluguel. Um estudo sobre o [mercado de Cingapura encontrou evidência de cointegração apenas em regiões específicas](https://www.sciencedirect.com/science/article/abs/pii/S0166046215000800) e não conseguiu estabelecer a presença de cointegração a nível nacional.
+
+## Os dados
+
+As fontes de dados para verificar a dinâmica destes mercados é limitada no Brasil. O FipeZap oferece a série de aluguel e de venda mais extensa. Este índice coleta todos os anúncios online de imóveis publicados no sistema ZapImóveis e constroi um índice de mediana. Os dados são estratificados por número de dormitórios e territorialmente, usando regiões que se baseam nas áreas de ponderação do IBGE.
+
+O gráfico abaixo mostra as séries de aluguel e de venda (residenciais) a nível nacional, agregadas por tipologia. Como se vê, o comportamento das séries é muito similar no périodo 2008-2015. Durante a Crise Econômica, o mercado de aluguel parece sofrer mais do que o mercado de venda. Durante e após a pandemia do Covid-19 ambos os mercados se recuperam com força, mas o mercado de aluguel parece crescer mais.
+
+```{r plot-rent-sale}
+p1
+```
+
+Na variação acumulada do período, vê-se que o mercado de venda acumulou uma alta significativamente maior do que do mercado de aluguel. A divergência parece ter começado em 2009. A diferença entre as séries fica estável durante a Crise Econômica e o mercado de aluguel parece começar a reduzir esta distância no período da pandemia.
+
+```{r plot-rent-sale-acum}
+p2
+```
+
+### Correlação e cointegração
+
+Olhando a variação contemporânea nos dois mercados, vê-se que parece existir uma correlação entre as variáveis. O gráfico abaixo mostra o ajuste da equação de um modelo aditivo generalizado e as cores dos pontos indicam ciclos econômicos. Grosso modo, define-se que o ciclo de commodities vai até a metade de 2012; a recessão Dilma começa na metade de 2014 e vai até o final de 2016; o período Covid começa em maio de 2020 e agrupa também o período pós-Covid até o presente.
+
+```{r scatter-rent-sale-gam}
+p3
+```
+
+Pode-se também buscar quebras de tendência entre os períodos. Agora, o gráfico ajusta linhas de regressão linear em cada um dos períodos. Visualmente, apenas o período Covid + Pós-Covid parece apresentar uma quebra na tendência, indicando variações maiores nos preços de aluguel para uma dada variação nos preços de venda. Os demais ciclos se distinguem por mudanças de média/nível e variância, mas preservam uma relação similar entre mudanças nos preços de aluguel e nos preços de venda.
+
+```{r scatter-rent-sale-lm}
+p4
+```
+
+## Um novo ciclo de aluguel?
+
+Usando uma abordagem mais rigorosa, podemos buscar algum tipo de cointegração entre as séries. Pelos testes de raiz unitária usais, é fácil concluir que ambas as séries são I(1)[^1]. Contudo, tanto o teste de Johanssen como o teste Engle-Granger apontam que não há relação de cointegração entre as séries[^2].
+
+[^1]: Usou-se o teste de Philips-Perron (`ur.pp`) e o teste Dickey Fuller Aumentado (`ur.df`) do pacote `urca`. Na série de venda incluiu-se uma constante e uma tendência linear. Na série de aluguel não se incluiu nem constante e nem tendência linear.
+
+[^2]: Em ambos os casos não se rejeita a hipótese nula de $r = 0$, isto é, de que há 0 relações de cointegração entre as variáveis. O teste foi realizado com e sem constante e com e sem tendência.
+
+Vale notar que estas séries passam por dois períodos de "exceção": a Crise Econômica, do governo Dilma, e a Pandemia do Covid-19. Assim, há motivo para se crer que possa haver quebras estruturais na série. Estas quebras podem estar ocultando alguma relação de cointegração entre as séries. Por outro lado, como o horizonte temporal das séries não é muito longo, seria difícil sustentar uma tese de convergência de equilíbrio de longo prazo se houver mais do que uma quebra estrutural nas séries.
+
+Usando testes de detecção e verificação de quebras estruturais[^3], chega-se na conclusão de que há uma quebra na série do aluguel (em outubro de 2020) e 3 quebras na série de preços de venda (em julho de 2010, novembro de 2012 e dezembro de 2018). O gráfico abaixo destaca as quebras nas séries de preço de aluguel e de venda.
+
+[^3]: Especificamente, testou-se a presença de quebras na série usando um teste F (`Fstats`) e um teste generalizado (empirical fluctuation process), considerando um processo SARMA(1,0,0)(1,0,0)\[12\]. O teste utilizado foi o `efp(type = "OLS-CUSUM")`. O número ótimo de quebras na série foi detectado usando o método de Bai e Perron (2003) via `breakspoints`. Todas as funções listadas são do pacote `strucchange`.
+
+Intuitivamente, pode-se associar a quebra da série de aluguel às mudanças no período da Pandemia e pós-Pandemia. As mudanças na série de vendas são mais opacas. A quebra na série de vendas na metade de 2010 pode estar refletindo o bom momento da economia brasileira na época, que ainda sentia os estímulos da política contracíclica de 2009, como também o recente lançamento do programa MCMV. A quebra no final de 2012 pode estar refletindo tanto o final do ciclo de commodities, como também o início do ciclo (forçado) de queda da taxa SELIC. A quebra no final de 2018 pode estar refletindo mudanças institucionais (reforma previdência, reforma dos distratos, etc.), a taxa de inflação estável e a baixa taxa SELIC.
+
+```{r series-breakpoints}
+p_rent_bp / p_sale_bp
+```
+
+Para manter a simplicidade da análise, vamos considerar apenas a quebra na série de aluguel. O gráfico abaixo destaca apenas a quebra na série do aluguel. É interessante notar que o período "normal" apresenta uma correlação positiva entre a variação do preço do aluguel e do preço de venda, sugerindo que os mercados andam lado a lado. Já no período pós-Covid a correlação é inexistente. O que se verifica é que os preços de venda variam consideravelmente, de -0.2% a quase 2% em cada mês, enquanto os preços de aluguem variam muito menos. Neste sentido, os mercados parecem se comportam de maneira quase independente no período denominado "Pós-Covid".
+
+```{r scatter-bp}
+p_changes
+```
+
+## Considerações importantes
+
+Pela análise dos dados, parece que o mercado de aluguel entrou num forte ciclo de alto, descolado do mercado de vendas. Isto pode ser resultado de diversos fatores, incluindo (1) o aumento da taxa de juros real da economia; (2) mudanças nos padrões de moradia no período pós-pandemia; ou, vale mencionar; (3) erros de mensuração. Vou tratar mais especificamente do último ponto.
+
+O Índice FipeZap captura a mediana dos preços de anúncios mês a mês e utiliza uma metodologia relativamente simples para converter este valor num número índice[^4]. O preço do anúncio de um imóvel certamente é correlacionado com o preço final de venda/aluguel, mas esta relação pode ter se alterado - ainda que temporariamente - durante o período da pandemia. O Índice de Variação de Aluguel Residencial (IVAR), desenvolvido pela Fundação Getúlio Vargas (FGV), é uma alternativa ao FipeZap. O IVAR é um índice de alugueis repetidos, metodologia adaptada do famoso Índice Case-Shiller, que utiliza somente a informação de contratos de alugueis efetivamente firmados[^5].
+
+[^4]: Para mais detalhes sobre a metodologia do Índice FipeZap veja [Fipe (2011)](https://downloads.fipe.org.br/indices/fipezap/metodologia/FipeZap%20Index%20-%20Methodology%20v20110216.pdf) e a atualização [Fipe (2020)](https://downloads.fipe.org.br/indices/fipezap/metodologia/indice-fipezap-metodologia-2019.pdf)
+
+[^5]: Para mais detalhes sobre a metodologia do IVAR veja [FGV (2021)](https://portalibre.fgv.br/sites/default/files/2022-01/ivar-fgv_nota-metodologica.pdf).
+
+Em particular, vale notar que o FipeZap divergiu consideravelmente em relação ao IVAR durante o período da pandemia. Enquanto o IVAR registrou quedas nominais, indicando a tendência do mercado de ceder descontos durante o período de maior incerteza da Pandemia, o FipeZap registrou um longo período de estagnação entrecortado por quedas pontuais. A partir de 2022, ambos os índices registram aumento, mas a alta do IVAR é consideravelmente menor.
+
+```{r series-ivar-fipe}
+p_fipe_ivar
+```
+
+Não é fácil afirmar que um ou outro índice seja mais correto. Contudo, vale afirmar que a metodologia do IVAR é considerada superior à metodologia do FipeZap segundos as melhores práticas internacionais. Ainda assim, é importante notar que a base territorial do FipeZap é consideravelmente superior: na sua versão mais recente, o índice abarca mais de 50 cidades; o IVAR, por outro lado, está disponível somente para quatro cidades (Belo Horizonte, Porto Alegre, Rio de Janeiro e São Paulo). De qualquer maneira, a série histórica do IVAR é muito recente; o índice remonta apenas até 2019, dificultando qualquer tipo de análise de cointegração.
+
+Num post futuro vou entrar em maiores detalhes sobre as séries do FipeZap e sobre os índices de preços imobiliários em geral. Também devo discutir em maiores detalhes os procedimentos de cointegração e de quebras estruturais em séries de tempo em posts futuros.
+
+```{r}
+# rent = ts(tbl_fipe$rent, start = c(2008, 1), frequency = 12)
+# sale = ts(tbl_fipe$sale, start = c(2008, 1), frequency = 12)
+# 
+# subrent = window(rent, end = c(2020, 9))
+# subsale = window(sale, end = c(2020, 9))
+# 
+# model = lm(subsale ~ subrent + time(subsale))
+# 
+# dat = ts.intersect(subrent, subsale)
+# # vars::VARselect(dat, type = "const")
+# johansen = urca::ca.jo(dat, ecdet = "const", K = 2, type = "eigen", spec = "longrun", season = 12)
+# vecm = urca::cajorls(johansen, r = 1)
+# 
+# test_sale = window(sale, start = c(2020, 10))
+# 
+# predict(vecm_rls$rlm, newdata = test_sale)
+# 
+# var_model = vars::vec2var(johansen)
+# predict(var_model, n.ahead = 40)
+```
