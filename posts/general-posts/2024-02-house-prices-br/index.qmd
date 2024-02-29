@@ -1,34 +1,42 @@
 ---
-title: "Preços de Imóveis no Brasil"
-date: "2024-02-21"
+title: "Índices de Preços Imobiliários no Brasil"
+date: "2024-02-25"
 categories: ["data-visualization", "brasil", "ggplot2", "real-estate"]
-description: "Existe uma impressão generalizada de que o preço dos imóveis no Brasil cresceu muito nos últimos anos. Neste post mostro como, em termos reais, o preço médio dos imóveis no Brasil andou de lado; na prática, os preços atuais estão abaixo dos valores observados em 2010."
+description: "Neste post discuto a teoria sobre índices de preços imobiliários e apresento os principais índices disponíveis no Brasil. Pela discussão teórica deve ficar claro as principais limitações de cada índice."
+image: "/static/images/rppi_brasil.png"
 execute: 
   message: false
   warning: false
   echo: false
-draft: true
 ---
 
-```{r}
+```{r setup}
 knitr::opts_chunk$set(
   fig.align = "center",
   fig.asp = 0.618,
-  out.width = "100%",
+  out.width = "90%",
+  fig.width = 7,
   fig.dev = "svg"
 )
 
 library(realestatebr)
+library(urca)
+library(forecast)
 library(dplyr)
+library(tidyr)
 library(ggplot2)
+library(patchwork)
 library(showtext)
 library(stringr)
 library(rbcb)
+library(gt)
+library(gtExtras)
+
 font_add_google("Lato", "Lato")
 showtext_auto()
 ```
 
-```{r}
+```{r theme-colors}
 colors <- c("#287271", "#2A9D8F", "#8AB17D", "#F4A261", "#E76F51")
 
 theme_vini <- theme_minimal(base_family = "Lato", base_size = 10) +
@@ -41,131 +49,153 @@ theme_vini <- theme_minimal(base_family = "Lato", base_size = 10) +
   )
 ```
 
-```{r}
-sale <- get_rppi(category = "sale", stack = TRUE)
-bis <- get_bis_rppi()
+```{r import rppi-sale}
+sale <- get_rppi(stack = TRUE)
+```
 
-bis <- bis %>%
+```{r}
+ipca = get_series(433, start_date = as.Date("2000-01-01"), as = "ts")
+incc = get_series(192, start_date = as.Date("2000-12-01"), as = "ts")
+
+mts <- ts.intersect(ipca, incc, dframe = TRUE)
+tbl_prices <- tibble(date = zoo::as.Date.ts(incc), mts)
+
+tbl_prices <- tbl_prices |> 
   mutate(
-    name_country = case_when(
-      reference_area == "Emerging market economies (aggregate)" ~ "Emergentes",
-      reference_area == "Advanced economies (aggregate)" ~ "Avançados",
-      reference_area == "World" ~ "Média Mundo",
-      reference_area == "Brazil" ~ "Brasil",
-      TRUE ~ reference_area
-    )
+    acum_ipca = c(NA, (cumprod(1 + ipca[-1] / 100) - 1) * 100),
+    index_ipca = if_else(date == first(date), 100, 100 + acum_ipca),
+    acum_incc = c(NA, (cumprod(1 + incc[-1] / 100) - 1) * 100),
+    index_incc = if_else(date == first(date), 100, 100 + acum_incc)
   )
 
-rppi <- bis %>%
-  filter(
-    date >= as.Date("2000-01-01"),
-    unit == "Index, 2010 = 100",
-    is_nominal == FALSE
-    )
-```
-
-```{r}
-sel_agg <- c("Brasil", "Avançados", "Emergentes", "Média Mundo")
-
-rppi_comp <- rppi %>%
-  filter(
-    name_country %in% sel_agg,
-    date >= as.Date("2010-01-01"),
-    date < as.Date("2023-01-01")) %>%
+tbl_index <- tbl_prices |> 
+  select(date, starts_with("index")) |> 
+  tidyr::pivot_longer(
+    cols = -date,
+    names_to = "source",
+    values_to = "index"
+    ) |> 
   mutate(
-    name_country = factor(name_country, levels = sel_agg)
-    )
-
-p_bis_geral <- ggplot(rppi_comp, aes(x = date, y = value)) + 
-  geom_line(aes(color = name_country), linewidth = 1) +
-  geom_hline(yintercept = 100) +
-  scale_x_date(date_breaks = "1 year", date_labels = "%Y") +
-  scale_color_manual(name = "", values = colors) +
-  labs(
-    x = NULL,
-    y = "Índice (2010 = 100)",
-    title = "Preços no Brasil seguem abaixo de 2010",
-    subtitle = str_wrap("Índices de preços imobiliários reais (ajustados pela inflação local) indexados nos valores médios de 2010. Definições de Avançados e Emergentes seguem convenções do BIS.", 111),
-    caption = "Fonte: BIS. @viniciusoike"
-  ) +
-  theme_vini
+    source = stringr::str_remove(source, "^index_"),
+    source = stringr::str_to_upper(source)
+  )
 ```
 
-```{r}
-country_sel <- c("Brasil", "Chile", "Mexico", "Peru", "Colombia")
-
-rppi_latam <- rppi %>%
-  filter(name_country %in% country_sel) %>%
-  na.omit()
-
-p_bis_latam <- 
-  ggplot(rppi_latam, aes(x = date, y = value, color = name_country)) +
-  geom_hline(yintercept = 100) +
-  geom_line(linewidth = 1) +
-  scale_x_date(date_breaks = "1 year", date_labels = "%Y") +
-  scale_color_manual(name = "", values = colors) +
-  labs(
-    x = NULL,
-    y = "Índice (2010 = 100)",
-    title = "Preços no Brasil ",
-    subtitle = "Índice de preços imobiliário real com base em 2010."
-  ) +
-  theme_vini +
-  theme(axis.text.x = element_text(angle = 90))
-```
-
-```{r}
-sel_rich <- c("Canada", "United States", "Philippines", "Israel", "Brazil")
-
-rppi_rich <- rppi %>%
-  filter(name_country %in% sel_rich) %>%
-  na.omit()
-
-p_bis_rich <- 
-  ggplot(rppi_rich, aes(x = date, y = value, color = name_country)) +
-  geom_hline(yintercept = 100) +
-  geom_line(linewidth = 1) +
-  scale_x_date(date_breaks = "1 year", date_labels = "%Y") +
-  scale_color_manual(name = "", values = colors) +
-  labs(
-    x = NULL,
-    y = "Índice (2010 = 100)",
-    title = "Preços no Brasil seguem abaixo",
-    subtitle = "Índice de preços imobiliário real com base em 2010."
-  ) +
-  theme_vini +
-  theme(axis.text.x = element_text(angle = 90))
-```
-
-```{r}
-sale <- get_rppi(stack = TRUE)
-
+```{r data-comp}
 rppi_sale <- sale |> 
   filter(name_muni %in% c("Brazil", "Índice Fipezap"))
 
-ipca <- rbcb::get_series(433, start_date = as.Date("2000-01-01"))
-
-ipca_index <- ipca |> 
-  rename(value = `433`) |> 
-  filter(date >= as.Date("2014-01-01")) |> 
+# Table with all RPPIs + IPCA + INCC
+rppi_indexes <- rppi_sale |> 
+  select(source, date, index) |> 
+  bind_rows(tbl_index) |> 
   mutate(
-    cumprod = (cumprod(1 + value / 100) - 1) * 100,
-    new_index = if_else(date == first(date), 100, 100 + cumprod),
-    source = "IPCA"
-    )
+    source = factor(
+      source,
+      levels = c("FipeZap", "IGMI-R", "IVG-R", "IPCA", "INCC")
+      )
+  )
+
+# Table with all RPPIs with 2019 = 100
+base <- rppi_sale |> 
+  mutate(year = lubridate::year(date)) |> 
+  filter(year == 2019) |> 
+  summarise(base_index = mean(index), .by = "source")
+
+rppi_comp <- rppi_sale |> 
+  select(source, date, index) |> 
+  left_join(base, by = "source") |> 
+  mutate(new_index = index / base_index * 100)
 ```
 
 ```{r}
-rppi_recent <- rppi_sale |> 
-  filter(date >= as.Date("2014-01-01")) |> 
-  mutate(new_index = index / first(index) * 100, .by = "source") |> 
-  bind_rows(ipca_index) |> 
-  mutate(
-    source = forcats::fct_relevel(source, "IPCA", after = Inf)
+# Compute year changes for table (gt)
+price_chg <- tbl_prices |> 
+  mutate(ipca = ipca / 100, incc = incc / 100) |> 
+  select(date, ipca, incc) |> 
+  pivot_longer(cols = -date, names_to = "source", values_to = "chg") |> 
+  mutate(source = str_to_upper(source))
+
+rppi_chg <- rppi_sale |> 
+  select(source, date, chg) |> 
+  bind_rows(price_chg)
+
+tab_rppi <- rppi_chg |> 
+  mutate(year = lubridate::year(date)) |> 
+  summarise(acum_year = (prod(1 + chg, na.rm = TRUE) - 1) * 100, .by = c("source", "year")) |> 
+  tidyr::pivot_wider(id_cols = "year", names_from = "source", values_from = "acum_year") |> 
+  arrange(year) |> 
+  filter(year >= 2003, year < 2024)
+```
+
+```{r plot-comp}
+p_rppi_comp <- ggplot(rppi_comp, aes(date, new_index, color = source)) +
+  geom_hline(yintercept = 100) +
+  geom_line(lwd = 0.8) +
+  scale_x_date(date_labels = "%Y") +
+  scale_color_manual(
+    name = "",
+    values = colors[c(1:3)]
+  ) +
+  labs(
+    title = "Inflação supera valorização imobiliária nos últimos dez anos",
+    subtitle = str_wrap("Comaparação de índices de preços imobiliários e inflação geral. Todos índices normalizados para jan/2014.", 111),
+    x = NULL,
+    y = "Índice (2019 = 100)",
+    caption = "Fonte: IVG-R (BCB), FipeZap (Fipe), IGMI-R (Abecip)") +
+  theme_vini
+```
+
+```{r vecm-analysis}
+tbl_rppi = rppi_comp |> 
+  filter(date >= as.Date("2014-01-01"), date <= as.Date("2023-12-01")) |> 
+  pivot_wider(id_cols = "date", names_from = "source", values_from = "new_index")
+
+ts_rppi <- ts(tbl_rppi[, -1], start = c(2014, 1), frequency = 12)
+
+sd = diff(log(ts_rppi))
+sdd = diff(sd, 12)
+
+johan = ca.jo(
+  ts_rppi,
+  type = "eigen",
+  ecdet = "trend",
+  K = 3,
+  season = 12
   )
 
-p_rppi_brasil <- 
-  ggplot(rppi_recent, aes(x = date, y = new_index, color = source)) +
+vecm = cajorls(johan, r = 2)
+```
+
+```{r data-comp-recent}
+# Recent comparison (all indexes based in 2014/1)
+rppi_recent <- rppi_indexes |> 
+  filter(date >= as.Date("2014-01-01"), date <= as.Date("2023-12-01")) |> 
+  mutate(new_index = index / first(index) * 100, .by = "source")
+
+p_rppi_brasil <- ggplot(
+  filter(rppi_recent, !(source %in% c("IPCA", "INCC"))),
+  aes(x = date, y = new_index, color = source)
+  ) +
+  geom_hline(yintercept = 100) +
+  geom_line(lwd = 0.8) +
+  scale_x_date(date_breaks = "1 year", date_labels = "%Y") +
+  scale_color_manual(
+    name = "",
+    values = colors[c(1:3)]
+  ) +
+  labs(
+    title = "Índices de Preços Imobiliários no Brasil",
+    subtitle = str_wrap("Comaparação de índices de preços imobiliários no Brasil. Todos índices normalizados para jan/2014.", 111),
+    x = NULL,
+    y = "Índice (jan/14 = 100)",
+    caption = "Fonte: IVG-R (BCB), FipeZap (Fipe), IGMI-R (Abecip)") +
+  theme_vini
+
+p_rppi_ipca <- 
+  ggplot(
+    filter(rppi_recent, source != "INCC"),
+    aes(x = date, y = new_index, color = source)) +
   geom_hline(yintercept = 100) +
   geom_line(lwd = 0.8) +
   scale_x_date(date_breaks = "1 year", date_labels = "%Y") +
@@ -180,33 +210,210 @@ p_rppi_brasil <-
     y = "Índice (jan/14 = 100)",
     caption = "Fonte: IVG-R (BCB), IPCA (IBGE), FipeZap (Fipe), IGMI-R (Abecip)") +
   theme_vini
+
+p_rppi_incc <- 
+  ggplot(
+    filter(rppi_recent, source != "IPCA"),
+    aes(x = date, y = new_index, color = source)) +
+  geom_hline(yintercept = 100) +
+  geom_line(lwd = 0.8) +
+  scale_x_date(date_breaks = "1 year", date_labels = "%Y") +
+  scale_color_manual(
+    name = "",
+    values = colors[c(1:3, 5)]
+  ) +
+  labs(
+    title = "Inflação de Custos supera valorização imobiliária nos últimos dez anos",
+    subtitle = str_wrap("Comaparação de índices de preços imobiliários e o INCC (Índice Nacional de Custos da Construção Civil). Todos índices normalizados para jan/2014.", 111),
+    x = NULL,
+    y = "Índice (jan/14 = 100)",
+    caption = "Fonte: IVG-R (BCB), INCC (FGV), FipeZap (Fipe), IGMI-R (Abecip)") +
+  theme_vini
 ```
 
 ```{r}
-igp = get_series(190)
+ivgr_comp <- rppi_indexes |> 
+  filter(
+    date >= as.Date("2001-03-01"),
+    date <= as.Date("2023-12-01"),
+    source %in% c("IPCA", "INCC", "IVG-R")
+    ) |> 
+  mutate(new_index = index / first(index) * 100, .by = "source")
 
-ipca_chg <- ipca |> 
-  rename(chg = `433`) |> 
-  mutate(chg = chg / 100, source = "IPCA")
+p_ivgr_ipca <- ggplot(
+    ivgr_comp,
+    aes(x = date, y = new_index, color = source)) +
+  geom_hline(yintercept = 100) +
+  geom_line(lwd = 0.8) +
+  scale_color_manual(
+    name = "",
+    values = colors[c(3, 4, 5)]
+  ) +
+  labs(
+    title = "Preço de Imóveis aumenta mais de seis vezes no longo prazo",
+    subtitle = str_wrap("Comaparação de índices de preços: IVGR, INCC e IPCA. Todos índices normalizados para mar/2001.", 111),
+    x = NULL,
+    y = "Índice (mar/01 = 100)",
+    caption = "Fonte: IVG-R (BCB), INCC (FGV), IPCA (IBGE).") +
+  theme_vini
+```
 
-igp_chg <- igp |> 
-  rename(chg = `190`) |> 
-  mutate(chg = chg / 100, source = "IGP-DI")
+```{r plot-rppi-function}
+plot_rppi <- function(name) {
+  
+  av_names <- unique(rppi_sale$source)
+  
+  if (!any(name %in% av_names)) {
+    stop("Argument `name` must be one of ", paste(av_names, collapse = ", "), ".")
+  }
+  
+  p_index <- ggplot(filter(rppi_sale, source == name), aes(date, index)) +
+    geom_line(lwd = 0.8, color = colors[1]) +
+    geom_hline(yintercept = 100) +
+    labs(x = NULL, y = "Índice", subtitle = "Índice") +
+    theme_vini
 
-rppi_chg <- rppi_sale |> 
-  select(source, date, chg) |> 
-  bind_rows(list(ipca_chg, igp_chg))
+  p_12m <- ggplot(filter(rppi_sale, source == name), aes(date, acum12m)) +
+    geom_line(lwd = 0.8, color = colors[1]) +
+    geom_hline(yintercept = 0) +
+    scale_y_continuous(labels = scales::label_percent()) +
+    labs(x = NULL, y = "% (acum. 12 meses)", subtitle = "Acumulado 12 meses") +
+    theme_vini
+  
+  p_chg <- ggplot(filter(rppi_sale, source == name), aes(date, chg)) +
+    geom_line(lwd = 0.8, color = colors[1]) +
+    geom_hline(yintercept = 0) +
+    scale_y_continuous(labels = scales::label_percent()) +
+    labs(x = NULL, y = "%", subtitle = "Variação Mensal") +
+    theme_vini
 
-tab_rppi <- rppi_chg |> 
-  mutate(year = lubridate::year(date)) |> 
-  summarise(acum_year = (prod(1 + chg, na.rm = TRUE) - 1) * 100, .by = c("source", "year")) |> 
-  tidyr::pivot_wider(id_cols = "year", names_from = "source", values_from = "acum_year") |> 
-  arrange(year) |> 
-  filter(year >= 2003, year < 2024)
 
-library(gt)
-library(gtExtras)
+  panel <- p_index / p_12m / p_chg
+  
+  panel <- panel + plot_annotation(title = name) & theme_vini
+  
+  return(panel)
+  
+}
+```
 
+# Índices de Preços Imobiliários
+
+## A teoria
+
+Um índice de preço convencional mensura a evolução do preço de um bem ou de uma cesta de bens ao longo do tempo. No caso mais simples, acompanha-se a dinâmica de um único bem, cujo preço no período $t$ é dado por $p_{t}$. Assim, temos um índice $I_t$ dado por:
+
+$$
+I_{t} = \frac{p_{t}}{p_{t-1}}\times 100
+$$
+
+Tipicamente, nosso interesse é de acompanhar uma cesta de bens. No caso do IPCA, indicador oficial da inflação, por exemplo, acomapanha-se um conjunto de bens que representa o "consumidor típico". Assim temos $i$ bens diferentes cada um com um preço $p_{i, t}$. Neste post, vamos ignorar o problema (bastante complexo) de como agregar estes diferentes bens num índice único. Para todos efeitos vamos imaginar que existam pesos $w_i$ imutáveis que representam o quão importante cada bem é para o "consumidor típico". Assim temos: $$
+I_{t} = \frac{\sum_{i \in I}w_{i}p_{i,t}}{\sum_{i \in I}w_i p_{i, t-1}}
+$$
+
+O índice assim é chamado de [Índice de Laspeyres](https://en.wikipedia.org/wiki/Price_index#Paasche_and_Laspeyres_price_indices) e é um dos índices mais comuns. O supracitado IPCA é um índice de Laspeyres, por exemplo. Apesar de simples, ele serve como base para se pensar índices de preços imobiliários[^1]. Um índice de preços imobiliário mensura a **tendência dos preços no mercado de imóveis**. Em geral, costuma-se distinguir os mercados residencial e comercial devido às idissincracias de cada mercado. Neste post vamos tratar somente do mercado residencial.
+
+[^1]: Uma discussão mais aprofundada da teoria de números-índice está disponível em [Hill & Melser (2008)](https://doi.org/10.1111/j.1465-7295.2007.00110.x), especificamente no contexto de imóveis. Os autores concluem que os índices de Fisher e de Törnqvist apresentam as melhores propriedades. A escolha entre um ou outro depende da forma funcional da equação de regressão utilizada no modelo hedônico. Num modelo semilog (onde a variável dependente, i.e., preço do imóvel, está em log) o melhor índice é o de Törnqvist.
+
+Há alguns desafios gerais relacionados à criação de um índice de preços imobiliário residencial (RPPI[^2]). Os pontos gerais são listados abaixo
+
+[^2]: Do inglês *Residential Property Price Index*.
+
+1.  **Imóveis são bens heterogêneos**
+2.  **Imóveis não são transacionados com frequência**
+3.  **Imóveis operam em submercados específicos**
+
+Abaixo entro em mais detalhes sobre estes pontos. Uma revisão geral sobre a literatura de índices de preços imobiliários no contexto brasileiro está disponível no texto do IPEA, [Índice de Preços para Imóveis](https://portalantigo.ipea.gov.br/agencia/images/stories/PDFs/boletim_regional/111125_boletimregional6_cap3.pdf). A referência geral e completa é o manual da Eurostat (2013), [Handbook on Residential Property Price Indices](https://ec.europa.eu/eurostat/web/products-manuals-and-guidelines/-/KS-RA-12-022).
+
+### Imóveis são heterogêneos
+
+Em economia, há bens homogêneos (ou *commodities*) e bens heterogêneos. Pode-se pensar em bens homogêneos como bens em que é fácil encontrar um substituto; já bens heterogêneos são aqueles em que é muito difícil encontrar um substituto. **Imóveis são um caso limite de bens heterogêneos**. Quando se considera a localização como parte de seus atributos, cada imóvel é literalmente único, não existe nenhum outro equivalente no mundo. Mesmo quando se constroi apartamentos com plantas idênticas num mesmo prédio, pode-se ainda encontrar diferenças entre as unidades (seja o andar, a posição solar, etc.).
+
+O preço de bens heterogêneos reflete diferenças de qualidade. No caso de imóveis, pode-se pensar nos seus atributos estruturais (metragem, número de dormitórios, etc.) e locacionais (rua, bairro, proximidade a pontos de interesse, etc.). Faz sentido que a maior ou menor disponibilidade destes atributos influencie o preço do imóvel.
+
+Para entender como isto dificulta a estimação de um índice considere o caso de um imóvel abandonado que passa por uma significativa reforma. Naturalmente, o preço de venda deste imóvel aumenta várias vezes. Um índice de preços que identifica isto como um movimento dos preços em geral será enviesado.
+
+Uma maneira de contornar isto é usando a modelagem hedônica. A modelagem ou precificação hedônica decompõe o preço de um imóvel em função de duas características observáveis. Assim, atribui-se um "preço" para cada uma das características do imóvel. Isto permite que se atribua corretamente qual parte do movimento dos preços é, de fato, um movimento de mercado.
+
+### Imóveis não transacionam com frequência
+
+Descobrir o preço do arroz é uma tarefa tão simples como de olhar o valor etiquetado sobre a sua embalagem no mercado. No caso de imóveis isto é muito mais complicado. Todo imóvel tem um preço, mas apenas uma minúscula fração do estoque total de imóveis está "no mercado", disponível para ser transacionado. Isto dificulta a aferição de preços.
+
+Além disso, torna-se difícil comparar "laranjas com laranjas". Considere o caso de um índice mensal. Dificilmente, os mesmos imóveis serão vendidos todos mês; pelo contrário, o caso mais comum seria observar, a cada novo mês, uma lista completamente nova de imóveis vendidos. Isto significa que o Índice vai estar comparando a evolução de preços de imóveis diferentes a cada mês.
+
+Uma maneira de contornar isto é usando modelagem hedônica para precificar os imóveis que não estão à venda. Assim, seria possível prever o preço que um imóvel teria, caso ele tivesse sido vendido num determinado mês, o que permite fazer comparações adequadas. A qualidade desta precificação, por sua vez, depende da qualidade de dados disponíveis.
+
+### Imóveis operam em submercados
+
+Isto é outra maneira de dizer que nem todos os imóveis competem entre si. O mercado de imóveis se comporta similarmente a um *mercado de mathcing* onde as demandas dos clientes limitam a oferta relevante. Uma família de quatro pessoas dificilmente vai estar interessada em comprar um studio ou apartamento de 1 dormitório, qualquer que seja o seu preço. Na prática, isto significa que há vários mercados imobiliários; é possível que o mercado de casas de 4 dormitórios esteja em alta enquanto o mercado de apartamentos de 1d esteja em baixa. Similarmente, o mercado imobiliário da capital pode seguir um processo distinto do mercado imobiliário do interior.
+
+Novamente, uma estratégia para resolver isto é usar a modelagem hedônica. Outra estratégia é estratificar o índice para criar subíndices. Esta é uma prática bastante comum. Tipicamente, cria-se subíndices segundo algum critério estrutural (número de dormitórios ou tipologia) ou regional (capital x região metropolitana, interior).
+
+## Resumo
+
+Existe uma literatura considerável sobre a criação de índices de preços. Desde a Grande Crise Financeira de 2008, há um interesse renovado no monitoramento do preço dos imóveis[^3].
+
+[^3]: Uma lista de justificativas e usos de índices de preços imobiliários pode ser vista em ...
+
+O atual consenso da literatura é de que um RPPI deve controlar pela qualidade dos imóveis observados (quality-adjusted index). Idealmente, a **melhor metodologia é construir um índice hedônico com alguma estratégia de estratificação e imputação dupla**. O único motivo para não usar um índice hedônico é quando não há informação suficiente para estimá-lo.
+
+A estratégia de imputação dupla permite maior flexibilidade na escolha da forma funcional do modelo hedônico. Escolhas comuns incluem: (1) regressão linear; (2) modelos de econometria espacial (SAR, SEM, etc.); e (3) modelos aditivos generalizados. Mais recentemente, alguns pesquisadores têm experimentado com modelos de aprendizado de máquina como de redes neurais. Em 2023, a Zillow revisou a [metodologia do Zillow Home Value Index (ZHVI); o índice agora utiliza um modelo de redes neurais](https://www.zillow.com/research/methodology-neural-zhvi-32128/).
+
+Enquanto um Índice de Fisher (ou Tornqvist) apresenta propriedades ideais, nem sempre existe informação disponível para calculá-los. Assim, é natural utilizar um índice de Laspeyres junto com informação censitária para ajustar os pesos. Infelizmente, o Brasil não dispõe de um Censo de Imóveis, assim é necessário adaptar os pesos a partir do Censo Demográfico.
+
+# Índices no Brasil
+
+No Brasil há três principais índices de preços imobiliários:
+
+1.  Índice de Valores de Garantia de Imóveis Residenciais Financiados (IVG-R)
+2.  Índice FipeZap (FZ)
+3.  Índice Geral do Mercado Imobiliário Residencial (IGMI-R)
+
+Os dois primeiros são índices de mediana estratificados, enquanto o último é um índice hedônico. Vou comentar sobre estes índices em maior detalhe.
+
+## IVG-R
+
+O IVG-R foi desenvolvido pelo Banco Central do Brasil a partir de laudos que são feitos durante o processo de financiamento de imóveis para pessoas físicas. Neste sentido, a base do IVG-R é muito rica pois abarca a totalidade dos imóveis financiados pelos sistema financeiro nacional. Evidentemente, isto implica que os imóveis comprados à vista não estão incluidos neste índice. Territorialmente, o índice considera as mesmas regiões metropolitanas do IPCA, o que garante boa representatividade nacional.
+
+Em termos metodológicos o IVGR é um índice de mediana estratificado. Essencialmente, verifica-se o preço mediano do imóvel financiado mês a mês e encadeia-se este valor de maneira a gerar um índice. A interpretação do índice é bastante simples e usa-se a mediana, ao invés da média, pois o preço de imóveis costuma ser fortemente assimétrico à direita. Na prática, alguns cuidados adicionais são feitos para reduzir a volatilidade do indicador. As estimativas mensais são geradas em [janelas móveis de três meses (right-aligned)](https://restateinsight.com/posts/general-posts/2024-02-media-movel/#médias-móveis), considerando o preço do mês atual e dos dois meses anteriores. A série final é [suavizada pelo filtro HP](https://restateinsight.com/posts/general-posts/2024-02-hamilton-trend/#filtro-hp) e as séries regionais são agregadas considerando pesos do Censo do IBGE (2010).
+
+Como resultado, o IVG-R é um índice bastante suave. O IVG-R é o mais próximo que existe de um índice "oficial" de preços de imóveis no Brasil. Ele é o índice utilizado pelo BIS na compilação de índices de preços imobiliários.
+
+```{r}
+plot_rppi("IVG-R")
+```
+
+## FipeZap
+
+O Índice FipeZap é um índice de mediana estratificado construído a partir de anúncios online de imóveis. Atualmente, há bastante apoio teórico e empírico para a construção de indicadores baseados em anúncios:
+
+1.  O preço do anúncio é fortemente correlacionado com o preço de venda;
+2.  A difusão da internet e a digitalização do mercado imobiliário garante que bases de anúncios tenham uma abrangência boa e uma temporalidade quase instantânea;
+3.  O custo de construção de um índice de anúncios é baixíssimo quando comparado com outros métodos de coleta de dados.
+
+```{r}
+plot_rppi("FipeZap")
+```
+
+## IGMI-R
+
+O Índice Geral do Mercado Imobiliário Residencial é o primeiro índice de preços imobiliário hedônico do Brasil. A base de dados do índice é similar a do IVG-R mas o seu tratamento é mais sofisticado. Mais de 40 variáveis são utilizadas no modelo hedônico que ajuda a decompor o preço dos imóveis.
+
+O IGMI-R foi desenvolvido pelo economista Paulo Pichetti, numa [parceria entre a FGV e a Abecip](https://www.abecip.org.br/igmi-r-abecip/caracteristicas-do-indice). Alguns detalhes sobre a metodologia do índice podem ser vistos nesta [apresentação institucional](https://www.abecip.org.br/igmi-r-abecip/apresentacao-igmi-r-abecip). Atualmente, o IGMI-R é o índice mais preciso sobre o mercado de vendas no Brasil.
+
+A principal fragilidade do IGMI-R é o seu histórico curto. Além disso, o *timing* de criação do índice foi bastante infortuito, pois a série inicia em 2014. Nos seus breves 10 anos de história, o IGMI-R passou pela maior recessão econômica da história recente do país, uma pandemia global, dois ciclos de alta de juros e a menor taxa de juros da história.
+
+```{r}
+plot_rppi("IGMI-R")
+```
+
+## Comparando os índices
+
+### Quadro Geral
+
+A tabela abaixo mostra a variação anual acumulada dos três. Para facilitar a contextualização, coloca-se também a variação do IPCA e do INCC.
+
+```{r}
 gt(tab_rppi) |> 
   gt::cols_label(year = "Ano") |> 
   fmt_number(2:6, decimals = 2) |> 
@@ -214,67 +421,73 @@ gt(tab_rppi) |>
   gt_theme_538()
 ```
 
+### Gráficos
+
+Para fazer uma comparação visual entre as séries é preciso definir um período comum para servir de base. No gráfico abaixo, ajusto as três séries em torno de seus valores médios em 2019. Vê-se como o comportamento das séries é muito similar nas séries históricas. Há uma divergência - cada vez maior - a partir de 2021 no período da pandemia. O IGMI-R registra um aumento significativo dos preços enquanto o IVG-R fica estagnado. Já o FipeZap registra uma alta muito mais tímida do que o IGMI-R.
+
 ```{r}
-ipca = get_series(433, start_date = as.Date("2000-01-01"), as = "ts")
-incc = get_series(192, start_date = as.Date("2000-12-01"), as = "ts")
-ivgr = get_series(21340, as = "ts")
-
-(cumprod(1 + ipca / 100) - 1) * 100
-
-mts <- ts.intersect(ipca, incc, ivgr, dframe = TRUE)
-
-tbl_series <- tibble(date = zoo::as.Date.ts(ivgr), mts)
-
-tbl_index <- tbl_series |> 
-  rename(c("index_ivgr" = "ivgr")) |> 
-  mutate(
-    acum_ipca = c(NA, (cumprod(1 + ipca[-1] / 100) - 1) * 100),
-    index_ipca = if_else(date == first(date), 100, 100 + acum_ipca),
-    acum_incc = c(NA, (cumprod(1 + incc[-1] / 100) - 1) * 100),
-    index_incc = if_else(date == first(date), 100, 100 + acum_incc)
-  ) |> 
-  select(date, starts_with("index"))
-
-tbl_index <- tbl_index |> 
-  tidyr::pivot_longer(
-    cols = -date,
-    names_to = "name_series",
-    values_to = "index"
-    )
+p_rppi_comp
 ```
 
-```{r}
-ggplot(tbl_index, aes(date, index, color = name_series)) +
-  geom_line()
-```
+O gráfico abaixo encadeia todas as séries a partir de 2014. Este gráfico facilita a comparação dos índices no período mais recente.
 
 ```{r}
-rppi_chg |> 
-  arrange(date) |> 
-  filter(date >= as.Date("2008-02-01"), date <= as.Date("2023-12-01")) |>
-  mutate(acum = (cumprod(1 + chg) - 1) * 100, .by = "source") |>
-  tidyr::pivot_wider(
-    id_cols = "date",
-    names_from = "source",
-    values_from = "acum"
+p_rppi_brasil
+```
+
+O próximo gráfico contrasta os índices de preços imobiliárias com a taxa de inflação geral da economia.
+
+```{r}
+p_rppi_ipca
+```
+
+Por fim, compara-se a evolução dos índices com relação aos custos de construção. Novamente, os preços finais dos imóveis não acompanham o aumento nos custos da construção civil, ao menos dentro desta janela de análise.
+
+```{r}
+p_rppi_incc
+```
+
+### Correlação e Cointegração
+
+Em termos mais técnicos, pode-se ver que as séries naturalmente são correlacionadas, visto que elas estão tentando mensurar a mesma variável. Assim, não deve ser surpreendente que as séries tenham autocorrelação cruzada e que sejam cointegradas. O gráfico abaixo mostra a função de autocorrelação entre as séries após se tomar uma diferença simples e uma diferença sazonal.
+
+```{r}
+ggAcf(sdd) + theme_vini
+```
+
+Mais a título de curiosidade reporta-se as estimativas dos coeficientes dos termos de ajustamento do modelo de correção de erros, normalizadas segundo a série do IGMI.
+
+```{r}
+tab = tibble(
+  variable = rownames(vecm$beta),
+  ect1 = vecm$beta[, 1],
+  ect2 = vecm$beta[, 2]
   )
+
+gt(tab, rowname_col = "variable") %>%
+  fmt_number(decimals = 4)
 ```
 
-# Preços de Imóveis no Brasil
+### Longo Prazo
 
-Existe uma percepção generalizada na população de que os preços dos imóveis no Brasil são muito caros. Isto pode ser resultado tanto de uma ignorância sobre a dinâmica do mercado como do [excesso de notícias sobre recordes de preços que se vê na imprensa](https://g1.globo.com/economia/noticia/2024/01/16/preco-do-aluguel-residencial-sobe-16percent-em-2023-tres-vezes-mais-que-a-inflacao-mostra-fipezap.ghtml). Também não faltam casos de regiões ou mesmo de ruas que, após significativo processo de revitalização, [apresentaram aumentos de preços muito acima da inflação](https://extra.globo.com/economia-e-financas/imoveis-usados-no-rio-precos-explodiram-em-2009-mostra-pesquisa-do-secovi-89071.html). De maneira geral, contudo, os dados apontam que [os preços dos imóveis no Brasil andaram de lado](https://einvestidor.estadao.com.br/investimentos/investir-em-imoveis-vale-a-pena/): em termos reais, isto é, descontando a inflação, o nível atual do preço dos imóveis está praticamente idêntico ao que se observava em 2010.
+A maior janela de análise possível é comparar o IVG-R com os demais índices de preço da economia. Este gráfico é interessante, pois mostra como o preço dos imóveis no Brasil cresceu acima tanto da inflação como dos custos quando se olha o horizonte mais longo, desde 2001. Estes resultados [constrastam com o verificado nos últimos 14 anos, desde 2010, como apontei em outro post](https://restateinsight.com/posts/general-posts/2024-01-wz-house-prices/#preços-de-imóveis-no-brasil). Uma discussão interessante sobre estes três indicadores está disponível em [Lima (2022) num texto de discussão do Núcleo de Real Estate da Poli-USP](https://www.realestate.br/dash/uploads/sistema/Comite_de_Mercado/precosiesidenciaisparacima-271022.pdf).
 
-A percepção de que os imóveis são caros no Brasil não é totalmente desprovida de embasamento. Como comentei em outro post, para o consumidor o preço da parcela do financiamento acaba sendo mais relevante do que o próprio preço do imóvel. Ou seja, a falta de manutenção do programa CVA durante seus últimos anos e o aumento das taxas de juros certamente [piorou a acessibilidade geral aos imóveis no Brasil](https://restateinsight.com/posts/general-posts/2023-08-juros-affordability/#acessibilidade-à-moradia).
+A dinâmica de preços de imóveis no Brasil, em partes reflete a própria economia brasileira. O ciclo de crescimento de preços é interrompido em 2014 e só volta a crescer em 2018, ganhando força em 2020 com a baixa taxa de juros.
 
-Em termos de preços, houve um aumento significativa dos preços dos imóveis no período da pandemia, alimentado pela baixa taxa de juros da época. Contudo, também houve um aumento significativo do preço dos insumos da construção civil assim como dos preços em geral da economia.
-
-Por fim, vale notar que boa parte do mundo desenvolvido enfrenta, há alguns anos, uma crise habitacional generalizada <https://www.oecd.org/housing/no-home-for-the-young.pdf>. O preço dos imóveis nos Estados Unidos recentemente superou, em termos reais, o nível mais alto que se observou no auge da Bolha Imobiliária. O país enfrenta um [nível recorde de moradores de rua](https://www.jchs.harvard.edu/blog/record-homelessness-amid-ongoing-affordability-crisis) e os indicadores de acessibilidade à moradia estão em mínimos históricos. Este mesmo cenário se repete em outros países como [Canadá](https://theconcordian.com/2024/02/housing-crisis-deepens-in-canada/), [Nova Zelândia](https://www.theguardian.com/world/2023/jul/08/new-zealand-housing-crisis-couch-surfing), [Reino Unido](https://www.ft.com/content/f21642d8-da2d-4e75-886e-2b7c1645f063), [Chile](https://www.globalpropertyguide.com/latin-america/chile/price-history) e muitos outros países.
-
-1.  **Evidência anedótica**. Quando se discute preços de imóveis é certo que aparecem casos específicos de regiões, bairros, ou ruas onde os preços dos imóveis aumentaram muito acima da inflação. Estes casos são reais, como foi, por exemplo,
-2.  **Ignorância sobre a dinâmica de preços**. Dificilmente se observa uma queda nominal do preço dos imóveis; mesmo em períodos de fraca demanda ou de crise, os proprietários de imóveis tendem a
-3.  Aumento dos juros e recency bias.
-4.  **A narrativa da Housing Crisis**. Narrativa parcialmente importada dos Estados Unidos e de boa parte do mundo desenvolvido
-
-```{=html}
-<script type="text/javascript" src="https://ssl.gstatic.com/trends_nrtr/3620_RC01/embed_loader.js"></script> <script type="text/javascript"> trends.embed.renderExploreWidget("TIMESERIES", {"comparisonItem":[{"keyword":"housing crisis","geo":"","time":"today 5-y"},{"keyword":"fair housing","geo":"","time":"today 5-y"},{"keyword":"housing affordability","geo":"","time":"today 5-y"}],"category":0,"property":""}, {"exploreQuery":"date=today%205-y&q=housing%20crisis,fair%20housing,housing%20affordability&hl=pt","guestPath":"https://trends.google.com:443/trends/embed/"}); </script>
+```{r}
+p_ivgr_ipca
 ```
+
+# Referências
+
+-   Hill, R. J., & Melser, D. (2008). Hedonic imputation and the price index problem: an application to housing. *Economic Inquiry*, *46*(4), 593-609.
+
+-   Hill, R. J. (2013). Hedonic price indexes for residential housing: A survey, evaluation and taxonomy. *Journal of economic surveys*, *27*(5), 879-914.
+
+-   Eurostat (2013). Handbook on residential property prices indices (RPPIs).
+
+-   Nadalin, V. G., & Furtado, B. A. (2011). Índice de preços para imóveis: uma revisão.
+
+-   Fipe (2011) Methodology
+
+-   Fipe (2020) Notas Metodológicas (Atualização)
