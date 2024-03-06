@@ -1,0 +1,724 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.3.450">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+<meta name="author" content="Vinicius Oike">
+<meta name="dcterms.date" content="2024-01-06">
+<meta name="description" content="Neste post ensino abordagens diferentes para selecionar colunas de maneira eficiente. Apresento também as novidades que o dplyr trouxe nos últimos anos como a função across e novo argumento .by.">
+
+<title>Vinicius Oike - O novo tidyverse: select</title>
+<style>
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+</style>
+
+
+<script src="../../../site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="../../../site_libs/quarto-nav/headroom.min.js"></script>
+<script src="../../../site_libs/clipboard/clipboard.min.js"></script>
+<script src="../../../site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="../../../site_libs/quarto-search/fuse.min.js"></script>
+<script src="../../../site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="../../../">
+<script src="../../../site_libs/quarto-html/quarto.js"></script>
+<script src="../../../site_libs/quarto-html/popper.min.js"></script>
+<script src="../../../site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="../../../site_libs/quarto-html/anchor.min.js"></script>
+<link href="../../../site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="../../../site_libs/quarto-html/quarto-syntax-highlighting.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="../../../site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="../../../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="../../../site_libs/bootstrap/bootstrap.min.css" rel="stylesheet" id="quarto-bootstrap" data-mode="light">
+<script id="quarto-search-options" type="application/json">{
+  "location": "navbar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "end",
+  "type": "overlay",
+  "limit": 20,
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit",
+    "search-label": "Search"
+  }
+}</script>
+<script async="" src="https://www.googletagmanager.com/gtag/js?id=G-EJF8PGT67H"></script>
+
+<script type="text/javascript">
+
+window.dataLayer = window.dataLayer || [];
+function gtag(){dataLayer.push(arguments);}
+gtag('js', new Date());
+gtag('config', 'G-EJF8PGT67H', { 'anonymize_ip': true});
+</script>
+
+
+<link rel="stylesheet" href="../../../styles.css">
+</head>
+
+<body class="nav-fixed">
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top">
+    <nav class="navbar navbar-expand-lg navbar-dark ">
+      <div class="navbar-container container-fluid">
+      <div class="navbar-brand-container">
+    <a class="navbar-brand" href="../../../index.html">
+    <span class="navbar-title">Vinicius Oike</span>
+    </a>
+  </div>
+            <div id="quarto-search" class="" title="Search"></div>
+          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" aria-expanded="false" aria-label="Toggle navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+  <span class="navbar-toggler-icon"></span>
+</button>
+          <div class="collapse navbar-collapse" id="navbarCollapse">
+            <ul class="navbar-nav navbar-nav-scroll ms-auto">
+  <li class="nav-item">
+    <a class="nav-link" href="../../../blog.html" rel="" target="">
+ <span class="menu-text">Blog</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../../../aboutme.html" rel="" target="">
+ <span class="menu-text">Sobre</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../../../my_apps.html" rel="" target="">
+ <span class="menu-text">Apps</span></a>
+  </li>  
+  <li class="nav-item compact">
+    <a class="nav-link" href="https://github.com/viniciusoike" rel="" target=""><i class="bi bi-github" role="img">
+</i> 
+ <span class="menu-text"></span></a>
+  </li>  
+  <li class="nav-item compact">
+    <a class="nav-link" href="https://twitter.com/viniciusoike" rel="" target=""><i class="bi bi-twitter" role="img">
+</i> 
+ <span class="menu-text"></span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../../../archive.html" rel="" target="">
+ <span class="menu-text">Archive</span></a>
+  </li>  
+</ul>
+            <div class="quarto-navbar-tools">
+</div>
+          </div> <!-- /navcollapse -->
+      </div> <!-- /container-fluid -->
+    </nav>
+</header>
+<!-- content -->
+<header id="title-block-header" class="quarto-title-block default page-columns page-full">
+  <div class="quarto-title-banner page-columns page-full">
+    <div class="quarto-title column-body">
+      <h1 class="title">O novo tidyverse: select</h1>
+                  <div>
+        <div class="description">
+          Neste post ensino abordagens diferentes para selecionar colunas de maneira eficiente. Apresento também as novidades que o <code>dplyr</code> trouxe nos últimos anos como a função <code>across</code> e novo argumento <code>.by</code>.
+        </div>
+      </div>
+                          <div class="quarto-categories">
+                <div class="quarto-category">data-science</div>
+                <div class="quarto-category">tutorial-R</div>
+                <div class="quarto-category">tidyverse</div>
+              </div>
+                  </div>
+  </div>
+    
+  
+  <div class="quarto-title-meta">
+
+      <div>
+      <div class="quarto-title-meta-heading">Author</div>
+      <div class="quarto-title-meta-contents">
+               <p>Vinicius Oike </p>
+            </div>
+    </div>
+      
+      <div>
+      <div class="quarto-title-meta-heading">Published</div>
+      <div class="quarto-title-meta-contents">
+        <p class="date">January 6, 2024</p>
+      </div>
+    </div>
+    
+      
+    </div>
+    
+  
+  </header><div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article page-navbar">
+<!-- sidebar -->
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">On this page</h2>
+   
+  <ul>
+  <li><a href="#tidyverse" id="toc-tidyverse" class="nav-link active" data-scroll-target="#tidyverse">Tidyverse</a></li>
+  <li><a href="#alguns-verbos" id="toc-alguns-verbos" class="nav-link" data-scroll-target="#alguns-verbos">Alguns verbos</a></li>
+  <li><a href="#select" id="toc-select" class="nav-link" data-scroll-target="#select">select</a>
+  <ul class="collapse">
+  <li><a href="#o-básico" id="toc-o-básico" class="nav-link" data-scroll-target="#o-básico">O básico</a></li>
+  <li><a href="#tidyselectors" id="toc-tidyselectors" class="nav-link" data-scroll-target="#tidyselectors">Tidyselectors</a></li>
+  <li><a href="#resumindo" id="toc-resumindo" class="nav-link" data-scroll-target="#resumindo">Resumindo</a></li>
+  </ul></li>
+  <li><a href="#outros-posts-da-série" id="toc-outros-posts-da-série" class="nav-link" data-scroll-target="#outros-posts-da-série">Outros posts da série</a>
+  <ul class="collapse">
+  <li><a href="#veja-também" id="toc-veja-também" class="nav-link" data-scroll-target="#veja-também">Veja também</a></li>
+  </ul></li>
+  </ul>
+</nav>
+    </div>
+<!-- main -->
+<main class="content quarto-banner-title-block" id="quarto-document-content">
+
+
+
+
+<section id="tidyverse" class="level1">
+<h1>Tidyverse</h1>
+<p>O tidyverse é uma coleção poderosa de pacotes, voltados para a manipulação e limpeza de dados. Num outro post, discuti alguns <a href="https://restateinsight.com/posts/general-posts/2023-09-tidyverse/">aspectos gerais da filosofia</a> destes pacotes que incluem a sua consistência sintática e o uso de <a href="https://restateinsight.com/posts/general-posts/2023-09-pipes-in-r/">pipes</a>. A filosofia geral do tidyverse toma muito emprestado da gramática. As funções têm nomes de verbos que costumam ser intuitivos e são encadeados via “pipes” que funcionam como conectivos numa frase. Em tese, isto torna o código mais legível e até mais didático.</p>
+<p>O tidyverse está em constante expansão, novas funcionalidades são criadas para melhorar a performance e capabilidade de suas funções. Assim, é importante atualizar nosso conhecimento destes pacotes periodicamente. Nesta série de posts vou focar nas funções principais dos pacotes <code>dplyr</code> e <code>tidyr</code>, voltados para a limpeza de dados.</p>
+</section>
+<section id="alguns-verbos" class="level1">
+<h1>Alguns verbos</h1>
+<p>Essencialmente, o <code>dplyr</code> gira em torno de quatro grandes funções: <code>filter</code>, <code>select</code>, <code>mutate</code> e <code>summarise</code>. Estas funções fazem o grosso do trabalho de limpeza de dados: filtram linhas, selecionam colunas e transformam os dados. A tabela abaixo resume as principais funções do pacote.</p>
+<table class="table">
+<colgroup>
+<col style="width: 23%">
+<col style="width: 23%">
+<col style="width: 52%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Nome da Função</th>
+<th>Tradução</th>
+<th>O que faz</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>rename</code></td>
+<td>Renomear</td>
+<td>Modifica o nome das colunas.</td>
+</tr>
+<tr class="even">
+<td><code>select</code></td>
+<td>Selecionar</td>
+<td>Seleciona as colunas.</td>
+</tr>
+<tr class="odd">
+<td><code>filter</code></td>
+<td>Filtrar</td>
+<td>Filtra/seleciona as linhas segundo alguma condição.</td>
+</tr>
+<tr class="even">
+<td><code>arrange</code></td>
+<td>Arranjar/ordenar</td>
+<td>Ordena as linhas (crescente/decrescente) segundo alguma variável.</td>
+</tr>
+<tr class="odd">
+<td><code>mutate</code></td>
+<td>Mutar/transformar</td>
+<td>Cria uma nova coluna a partir de outras colunas ou dados.</td>
+</tr>
+<tr class="even">
+<td><code>summarise</code></td>
+<td>Sumarizar/resumir</td>
+<td>Aplica alguma função sobre as linhas. Cria uma tabela “resumo”.</td>
+</tr>
+<tr class="odd">
+<td><code>group_by</code></td>
+<td>Agrupar</td>
+<td>Agrupa as linhas segundo alguma variável.</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="select" class="level1">
+<h1>select</h1>
+<p>A função <code>select</code> serve para selecionar colunas e reduzir a complexidade de uma tabela. Esta função mudou consideravelmente nos últimos anos após a criação de algumas funções auxiliares conhecidas como <code>tidyselectors</code>. Estas funções poderosas</p>
+<section id="o-básico" class="level2">
+<h2 class="anchored" data-anchor-id="o-básico">O básico</h2>
+<p>Os pacotes utilizados neste tutorial são listados abaixo.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb1"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(dplyr)</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(readr)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>Para praticar as funções vamos utilizar uma tabela que traz informações sobre as cidades do Brasil.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb2"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>tbl <span class="ot">&lt;-</span> readr<span class="sc">::</span><span class="fu">read_csv</span>(</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>  <span class="st">"https://github.com/viniciusoike/restateinsight/raw/main/static/data/cities_brazil.csv"</span></span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>  )</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>A função <code>select</code> serve para selecionar colunas. Adicionalmente, ela também pode renomear as colunas selecionadas. A sintaxe da função é a seguinte</p>
+<div class="sourceCode" id="cb3"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="fu">select</span>(dados, coluna1, coluna2, <span class="at">nome_coluna =</span> coluna3)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<p>O código abaixo seleciona três colunas: <code>name_muni</code>, <code>population</code>, <code>pib</code>.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb4"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="fu">select</span>(tbl, name_muni, population, pib)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>Pode-se selecionar colunas de três maneiras gerais: (1) como expressões (escrevendo o nome delas como se elas fossem objetos); (2) strings; (3) índices (que indicam a sua posição na tabela).</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb5"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Selecionando colunas de modo geral</span></span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a><span class="fu">select</span>(tbl, name_muni, population, pib)</span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Selecionando columnas usando strings</span></span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a><span class="fu">select</span>(tbl, <span class="st">"name_muni"</span>, <span class="st">"population"</span>, <span class="st">"pib"</span>)</span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a><span class="co"># Selecionando colunas usando vetor de texto</span></span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a>sel_cols <span class="ot">=</span> <span class="fu">c</span>(<span class="st">"name_muni"</span>, <span class="st">"population"</span>, <span class="st">"pib"</span>)</span>
+<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a><span class="fu">select</span>(tbl, sel_cols)</span>
+<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a><span class="co"># Selecionando colunas usando índices</span></span>
+<span id="cb5-11"><a href="#cb5-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-12"><a href="#cb5-12" aria-hidden="true" tabindex="-1"></a><span class="co"># Usando índices explicitamente</span></span>
+<span id="cb5-13"><a href="#cb5-13" aria-hidden="true" tabindex="-1"></a><span class="fu">select</span>(tbl, <span class="dv">2</span>, <span class="dv">8</span>, <span class="dv">15</span>)</span>
+<span id="cb5-14"><a href="#cb5-14" aria-hidden="true" tabindex="-1"></a><span class="co"># Usando um vetor numérico</span></span>
+<span id="cb5-15"><a href="#cb5-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-16"><a href="#cb5-16" aria-hidden="true" tabindex="-1"></a><span class="co"># Encontra a posição de todas as colunas que começam com 'pib'</span></span>
+<span id="cb5-17"><a href="#cb5-17" aria-hidden="true" tabindex="-1"></a>inds <span class="ot">&lt;-</span> <span class="fu">grep</span>(<span class="st">"^pib_"</span>, <span class="fu">names</span>(tbl))</span>
+<span id="cb5-18"><a href="#cb5-18" aria-hidden="true" tabindex="-1"></a><span class="fu">select</span>(tbl, inds)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>Para remover uma coluna usa-se o sinal de menos (<code>-</code>) ou o operador lógico de negação (<code>!</code>).</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb6"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="fu">select</span>(tbl, <span class="sc">!</span>name_muni)</span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a><span class="fu">select</span>(tbl, <span class="sc">-</span>name_muni)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>Para facilitar a seleção de colunas, pode-se usar os operadores lógicos convencionais (<code>&amp;</code>, <code>|</code>, <code>!</code>). Por fim, existe também o operador <code>:</code> que serve para selecionar colunas contíguas.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb7"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="fu">select</span>(tbl, code_muni<span class="sc">:</span>name_region)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+</section>
+<section id="tidyselectors" class="level2">
+<h2 class="anchored" data-anchor-id="tidyselectors">Tidyselectors</h2>
+<p>Existe um conjunto de funções auxiliares que facilita a seleção de colunas. Estas funções retornam índices a partir de alguma regra. Isto é, elas permitem selecionar colunas com base em algum padrão. O caso mais geral é da função <code>matches</code>, que seleciona colunas com base em um regex.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb8"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Seleciona as colunas que começam com 'pib_'</span></span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a><span class="fu">select</span>(tbl, <span class="fu">matches</span>(<span class="st">"^pib_"</span>))</span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a><span class="co"># Seleciona as colunas que terminam com 'muni'</span></span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a><span class="fu">select</span>(tbl, <span class="fu">matches</span>(<span class="st">"muni$"</span>))</span>
+<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a><span class="co"># Seleciona as colunas que contém o termo '_share'</span></span>
+<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a><span class="fu">select</span>(tbl, <span class="fu">matches</span>(<span class="st">"_share"</span>))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>A função <code>matches</code> retorna colunas a partir de algum padrão de texto no nome da coluna. Na linha da <a href="https://restateinsight.com/posts/general-posts/2023-09-tidyverse/#funções">filosofia do tidyverse, de transformar tarefas rotineiras em funções específicas</a> e com nomes “intuitivos” há uma série de funções auxiliares que imitam a função <code>matches</code>:</p>
+<ul>
+<li><p><code>starts_with()</code> - seleciona colunas que começam com algum string</p></li>
+<li><p><code>ends_with()</code> - seleciona colunas que terminam com algum string</p></li>
+<li><p><code>contains()</code> - seleciona colunas que contêm algum string</p></li>
+</ul>
+<p>Isto é, podemos reescrever os códigos acima da seguinte maneira</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb9"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Seleciona as colunas que começam com 'pib_'</span></span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a><span class="fu">select</span>(tbl, <span class="fu">starts_with</span>(<span class="st">"pib_"</span>))</span>
+<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a><span class="co"># Seleciona as colunas que terminam com 'muni'</span></span>
+<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a><span class="fu">select</span>(tbl, <span class="fu">ends_with</span>(<span class="st">"muni"</span>))</span>
+<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a><span class="co"># Seleciona as colunas que contém o termo '_share'</span></span>
+<span id="cb9-6"><a href="#cb9-6" aria-hidden="true" tabindex="-1"></a><span class="fu">select</span>(tbl, <span class="fu">contains</span>(<span class="st">"_share"</span>))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>Como visto acima, pode-se selecionar colunas com base em um vetor de texto. Nos casos em que é necessário maior controle sobre a seleção, há duas funções auxiliares: <code>any_of</code> e <code>all_of</code>. A primeira função faz o match entre o vetor de texto e o nome das colunas e retorna todos os casos positivos; já a segunda função faz o match entre o vetor de texto e o nome das colunas e retorna um resultado somente no caso de todos os matches terem sucesso.</p>
+<p>A diferença entre as funções fica mais evidente num exemplo. Considere o caso em que colocamos uma coluna adicional <code>pib_per_capita</code> que não existe na base de dados. Quando se usa a função <code>all_of</code> retorna-se todas as colunas onde o match teve sucesso.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb10"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a>sel_cols <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="st">"code_muni"</span>, <span class="st">"name_muni"</span>, <span class="st">"population"</span>, <span class="st">"pib"</span>, <span class="st">"pib_per_capita"</span>)</span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a><span class="fu">select</span>(tbl, <span class="fu">any_of</span>(sel_cols))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code># A tibble: 5,570 × 4
+   code_muni name_muni             population     pib
+       &lt;dbl&gt; &lt;chr&gt;                      &lt;dbl&gt;   &lt;dbl&gt;
+ 1   1100015 Alta Floresta D'Oeste      21495  570272
+ 2   1100023 Ariquemes                  96833 2818049
+ 3   1100031 Cabixi                      5363  167190
+ 4   1100049 Cacoal                     86895 2519353
+ 5   1100056 Cerejeiras                 15890  600670
+ 6   1100064 Colorado do Oeste          15663  366931
+ 7   1100072 Corumbiara                  7519  268381
+ 8   1100080 Costa Marques              12627  261978
+ 9   1100098 Espigão D'Oeste            29397  666331
+10   1100106 Guajará-Mirim              39386  984586
+# ℹ 5,560 more rows</code></pre>
+</div>
+</div>
+<p>A função <code>all_of</code> é mais exigente e retorna um erro neste caso.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb12"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="fu">select</span>(tbl, <span class="fu">all_of</span>(sel_cols))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-error">
+<pre><code>Error in `all_of()`:
+! Can't subset columns that don't exist.
+✖ Column `pib_per_capita` doesn't exist.</code></pre>
+</div>
+</div>
+<p>Note que, neste caso, isto é equivalente a:</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb14"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a><span class="fu">select</span>(tbl, sel_cols)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-error">
+<pre><code>Error in `select()`:
+! Can't subset columns that don't exist.
+✖ Column `pib_per_capita` doesn't exist.</code></pre>
+</div>
+</div>
+<p>Há também algumas funções auxilares mais gerais:</p>
+<ul>
+<li><p><code>everything()</code> - seleciona todas as colunas</p></li>
+<li><p><code>last_col()</code> - seleciona a última coluna</p></li>
+<li><p><code>group_cols()</code> - seleciona todas as colunas que compõem o <code>group</code>.</p></li>
+</ul>
+<p>A função <code>everything()</code> tem um comportamento particular quando combinada com outras colunas. A função seleciona todas as colunas, exceto as que foram explicitamente chamadas. Isto facilita bastante o trabalho de rearranjar as colunas dentro de uma mesma base de dados.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb16"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Coloca as colunas pib e pib_industrial na frente das demais colunas</span></span>
+<span id="cb16-2"><a href="#cb16-2" aria-hidden="true" tabindex="-1"></a><span class="fu">select</span>(tbl, pib, pib_industrial, <span class="fu">everything</span>())</span>
+<span id="cb16-3"><a href="#cb16-3" aria-hidden="true" tabindex="-1"></a><span class="co"># Dropa todas as variáveis</span></span>
+<span id="cb16-4"><a href="#cb16-4" aria-hidden="true" tabindex="-1"></a><span class="fu">select</span>(tbl, <span class="sc">-</span><span class="fu">everything</span>())</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>Por fim, pode-se selecionar as colunas pela sua classe. Vale lembrar que num <code>data.frame</code> cada coluna tem uma classe específica. Os exemplos abaixo mostram os casos de aplicação mais simples.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb17"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Seleciona todas as colunas numéricas</span></span>
+<span id="cb17-2"><a href="#cb17-2" aria-hidden="true" tabindex="-1"></a><span class="fu">select</span>(tbl, <span class="fu">where</span>(is.numeric))</span>
+<span id="cb17-3"><a href="#cb17-3" aria-hidden="true" tabindex="-1"></a><span class="co"># Seleciona todas as colunas tipo character</span></span>
+<span id="cb17-4"><a href="#cb17-4" aria-hidden="true" tabindex="-1"></a><span class="fu">select</span>(tbl, <span class="fu">where</span>(is.character))</span>
+<span id="cb17-5"><a href="#cb17-5" aria-hidden="true" tabindex="-1"></a><span class="co"># Seleciona todas as colunas tipo factor</span></span>
+<span id="cb17-6"><a href="#cb17-6" aria-hidden="true" tabindex="-1"></a><span class="fu">select</span>(tbl, <span class="fu">where</span>(is.factor))</span>
+<span id="cb17-7"><a href="#cb17-7" aria-hidden="true" tabindex="-1"></a><span class="co"># Selciona todas as colunas lógicas (i.e. TRUE, FALSE, NA)</span></span>
+<span id="cb17-8"><a href="#cb17-8" aria-hidden="true" tabindex="-1"></a><span class="fu">select</span>(tbl, <span class="fu">where</span>(is.logical))</span>
+<span id="cb17-9"><a href="#cb17-9" aria-hidden="true" tabindex="-1"></a><span class="co"># Seleciona todas as colunas</span></span>
+<span id="cb17-10"><a href="#cb17-10" aria-hidden="true" tabindex="-1"></a><span class="fu">select</span>(tbl, <span class="fu">where</span>(is.Date))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>Essencialmente, o que o código acima faz é aplicar a função selecionada em cada uma das colunas e retornar os casos positivos. É possível criar condições lógicas mais complexas com auxílio do operador <code>~</code> (tilde). Os exemplos abaixo mostram como dropar todas as colunas que contém somente <code>NA</code> e selecionar as colunas com datas (<code>Date</code>).</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb18"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a><span class="co"># eval: true</span></span>
+<span id="cb18-2"><a href="#cb18-2" aria-hidden="true" tabindex="-1"></a>dat <span class="ot">&lt;-</span> <span class="fu">tibble</span>(</span>
+<span id="cb18-3"><a href="#cb18-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">lgl =</span> <span class="cn">NA</span>,</span>
+<span id="cb18-4"><a href="#cb18-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">missing =</span> <span class="cn">NA</span>,</span>
+<span id="cb18-5"><a href="#cb18-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">lglT =</span> <span class="fu">sample</span>(<span class="fu">c</span>(<span class="cn">TRUE</span>, <span class="cn">FALSE</span>), <span class="at">size =</span> <span class="dv">10</span>, <span class="at">replace =</span> <span class="cn">TRUE</span>),</span>
+<span id="cb18-6"><a href="#cb18-6" aria-hidden="true" tabindex="-1"></a>  <span class="at">dia_mes =</span> <span class="fu">seq</span>(<span class="fu">as.Date</span>(<span class="st">"2000-01-01"</span>), <span class="at">by =</span> <span class="st">"month"</span>, <span class="at">length.out =</span> <span class="dv">10</span>),</span>
+<span id="cb18-7"><a href="#cb18-7" aria-hidden="true" tabindex="-1"></a>  <span class="at">val =</span> <span class="fu">rnorm</span>(<span class="dv">10</span>)</span>
+<span id="cb18-8"><a href="#cb18-8" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb18-9"><a href="#cb18-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-10"><a href="#cb18-10" aria-hidden="true" tabindex="-1"></a><span class="co"># "Remove" as colunas que contêm somente NA</span></span>
+<span id="cb18-11"><a href="#cb18-11" aria-hidden="true" tabindex="-1"></a><span class="fu">select</span>(dat, <span class="sc">!</span><span class="fu">where</span>(<span class="sc">~</span><span class="fu">all</span>(<span class="fu">is.na</span>(.x))))</span>
+<span id="cb18-12"><a href="#cb18-12" aria-hidden="true" tabindex="-1"></a><span class="co"># Seleciona apenas as colunas de data</span></span>
+<span id="cb18-13"><a href="#cb18-13" aria-hidden="true" tabindex="-1"></a><span class="fu">select</span>(dat, <span class="fu">where</span>(<span class="sc">~</span><span class="fu">all</span>(<span class="fu">inherits</span>(.x, <span class="st">"Date"</span>))))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+</section>
+<section id="resumindo" class="level2">
+<h2 class="anchored" data-anchor-id="resumindo">Resumindo</h2>
+<p>Em resumo, temos quatro grupos gerais de <code>tidyselectors</code>.</p>
+<ol type="1">
+<li>Seleção com base num padrão de texto. (<code>matches</code>, <code>starts_with</code>, <code>ends_with</code>, <code>contains</code>)</li>
+<li>Seleção com base num vetor de texto. (<code>all_of</code>, <code>any_of</code>)</li>
+<li>Seleção com base na “posição”. (<code>last_col</code>, <code>everything</code>, <code>group_cols</code>)</li>
+<li>Seleção com base numa função que retorna um valor lógico. (<code>where</code>)</li>
+</ol>
+<p>Estas funções auxiliares são muito importantes pois elas funcionam não somente com o <code>select</code> mas também com outras funções do pacote <code>dplyr</code> como <code>mutate</code>, <code>rename</code>, <code>summarise</code> e outras. Estas funções são relativamente recentes e marcam uma <a href="https://www.tidyverse.org/blog/2020/04/dplyr-1-0-0-colwise/">mudança considerável em relação às versões &lt;1 do <code>dplyr</code></a>, que utilizam sufixos (<code>all</code>, <code>if</code>, <code>at</code>) para diferenciar as funções como <code>select_if</code>, ou <code>mutate_at</code>.</p>
+</section>
+</section>
+<section id="outros-posts-da-série" class="level1">
+<h1>Outros posts da série</h1>
+<ul>
+<li><p><a href="https://restateinsight.com/posts/general-posts/2024-01-tidyverse-mutate/">mutate</a></p></li>
+<li><p><a href="https://restateinsight.com/posts/general-posts/2024-01-tidyverse-filter/">filter</a></p></li>
+<li><p><a href="https://restateinsight.com/posts/general-posts/2024-01-tidyverse-rename/">rename</a></p></li>
+</ul>
+<section id="veja-também" class="level2">
+<h2 class="anchored" data-anchor-id="veja-também">Veja também</h2>
+<ul>
+<li><p><a href="https://dplyr.tidyverse.org/reference/dplyr_tidy_select.html">Tidyselect</a></p></li>
+<li><p><a href="https://tidyselect.r-lib.org/reference/language.html">Tidyselect help</a></p></li>
+</ul>
+
+
+</section>
+</section>
+
+</main> <!-- /main -->
+<script id="quarto-html-after-body" type="application/javascript">
+window.document.addEventListener("DOMContentLoaded", function (event) {
+  const toggleBodyColorMode = (bsSheetEl) => {
+    const mode = bsSheetEl.getAttribute("data-mode");
+    const bodyEl = window.document.querySelector("body");
+    if (mode === "dark") {
+      bodyEl.classList.add("quarto-dark");
+      bodyEl.classList.remove("quarto-light");
+    } else {
+      bodyEl.classList.add("quarto-light");
+      bodyEl.classList.remove("quarto-dark");
+    }
+  }
+  const toggleBodyColorPrimary = () => {
+    const bsSheetEl = window.document.querySelector("link#quarto-bootstrap");
+    if (bsSheetEl) {
+      toggleBodyColorMode(bsSheetEl);
+    }
+  }
+  toggleBodyColorPrimary();  
+  const icon = "";
+  const anchorJS = new window.AnchorJS();
+  anchorJS.options = {
+    placement: 'right',
+    icon: icon
+  };
+  anchorJS.add('.anchored');
+  const isCodeAnnotation = (el) => {
+    for (const clz of el.classList) {
+      if (clz.startsWith('code-annotation-')) {                     
+        return true;
+      }
+    }
+    return false;
+  }
+  const clipboard = new window.ClipboardJS('.code-copy-button', {
+    text: function(trigger) {
+      const codeEl = trigger.previousElementSibling.cloneNode(true);
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+  });
+  clipboard.on('success', function(e) {
+    // button target
+    const button = e.trigger;
+    // don't keep focus
+    button.blur();
+    // flash "checked"
+    button.classList.add('code-copy-button-checked');
+    var currentTitle = button.getAttribute("title");
+    button.setAttribute("title", "Copied!");
+    let tooltip;
+    if (window.bootstrap) {
+      button.setAttribute("data-bs-toggle", "tooltip");
+      button.setAttribute("data-bs-placement", "left");
+      button.setAttribute("data-bs-title", "Copied!");
+      tooltip = new bootstrap.Tooltip(button, 
+        { trigger: "manual", 
+          customClass: "code-copy-button-tooltip",
+          offset: [0, -8]});
+      tooltip.show();    
+    }
+    setTimeout(function() {
+      if (tooltip) {
+        tooltip.hide();
+        button.removeAttribute("data-bs-title");
+        button.removeAttribute("data-bs-toggle");
+        button.removeAttribute("data-bs-placement");
+      }
+      button.setAttribute("title", currentTitle);
+      button.classList.remove('code-copy-button-checked');
+    }, 1000);
+    // clear code selection
+    e.clearSelection();
+  });
+  function tippyHover(el, contentFn) {
+    const config = {
+      allowHTML: true,
+      content: contentFn,
+      maxWidth: 500,
+      delay: 100,
+      arrow: false,
+      appendTo: function(el) {
+          return el.parentElement;
+      },
+      interactive: true,
+      interactiveBorder: 10,
+      theme: 'quarto',
+      placement: 'bottom-start'
+    };
+    window.tippy(el, config); 
+  }
+  const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+  for (var i=0; i<noterefs.length; i++) {
+    const ref = noterefs[i];
+    tippyHover(ref, function() {
+      // use id or data attribute instead here
+      let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+      try { href = new URL(href).hash; } catch {}
+      const id = href.replace(/^#\/?/, "");
+      const note = window.document.getElementById(id);
+      return note.innerHTML;
+    });
+  }
+      let selectedAnnoteEl;
+      const selectorForAnnotation = ( cell, annotation) => {
+        let cellAttr = 'data-code-cell="' + cell + '"';
+        let lineAttr = 'data-code-annotation="' +  annotation + '"';
+        const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+        return selector;
+      }
+      const selectCodeLines = (annoteEl) => {
+        const doc = window.document;
+        const targetCell = annoteEl.getAttribute("data-target-cell");
+        const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+        const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+        const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+        const lineIds = lines.map((line) => {
+          return targetCell + "-" + line;
+        })
+        let top = null;
+        let height = null;
+        let parent = null;
+        if (lineIds.length > 0) {
+            //compute the position of the single el (top and bottom and make a div)
+            const el = window.document.getElementById(lineIds[0]);
+            top = el.offsetTop;
+            height = el.offsetHeight;
+            parent = el.parentElement.parentElement;
+          if (lineIds.length > 1) {
+            const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+            const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+            height = bottom - top;
+          }
+          if (top !== null && height !== null && parent !== null) {
+            // cook up a div (if necessary) and position it 
+            let div = window.document.getElementById("code-annotation-line-highlight");
+            if (div === null) {
+              div = window.document.createElement("div");
+              div.setAttribute("id", "code-annotation-line-highlight");
+              div.style.position = 'absolute';
+              parent.appendChild(div);
+            }
+            div.style.top = top - 2 + "px";
+            div.style.height = height + 4 + "px";
+            let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+            if (gutterDiv === null) {
+              gutterDiv = window.document.createElement("div");
+              gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+              gutterDiv.style.position = 'absolute';
+              const codeCell = window.document.getElementById(targetCell);
+              const gutter = codeCell.querySelector('.code-annotation-gutter');
+              gutter.appendChild(gutterDiv);
+            }
+            gutterDiv.style.top = top - 2 + "px";
+            gutterDiv.style.height = height + 4 + "px";
+          }
+          selectedAnnoteEl = annoteEl;
+        }
+      };
+      const unselectCodeLines = () => {
+        const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+        elementsIds.forEach((elId) => {
+          const div = window.document.getElementById(elId);
+          if (div) {
+            div.remove();
+          }
+        });
+        selectedAnnoteEl = undefined;
+      };
+      // Attach click handler to the DT
+      const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+      for (const annoteDlNode of annoteDls) {
+        annoteDlNode.addEventListener('click', (event) => {
+          const clickedEl = event.target;
+          if (clickedEl !== selectedAnnoteEl) {
+            unselectCodeLines();
+            const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+            if (activeEl) {
+              activeEl.classList.remove('code-annotation-active');
+            }
+            selectCodeLines(clickedEl);
+            clickedEl.classList.add('code-annotation-active');
+          } else {
+            // Unselect the line
+            unselectCodeLines();
+            clickedEl.classList.remove('code-annotation-active');
+          }
+        });
+      }
+  const findCites = (el) => {
+    const parentEl = el.parentElement;
+    if (parentEl) {
+      const cites = parentEl.dataset.cites;
+      if (cites) {
+        return {
+          el,
+          cites: cites.split(' ')
+        };
+      } else {
+        return findCites(el.parentElement)
+      }
+    } else {
+      return undefined;
+    }
+  };
+  var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+  for (var i=0; i<bibliorefs.length; i++) {
+    const ref = bibliorefs[i];
+    const citeInfo = findCites(ref);
+    if (citeInfo) {
+      tippyHover(citeInfo.el, function() {
+        var popup = window.document.createElement('div');
+        citeInfo.cites.forEach(function(cite) {
+          var citeDiv = window.document.createElement('div');
+          citeDiv.classList.add('hanging-indent');
+          citeDiv.classList.add('csl-entry');
+          var biblioDiv = window.document.getElementById('ref-' + cite);
+          if (biblioDiv) {
+            citeDiv.innerHTML = biblioDiv.innerHTML;
+          }
+          popup.appendChild(citeDiv);
+        });
+        return popup.innerHTML;
+      });
+    }
+  }
+});
+</script>
+<script src="https://giscus.app/client.js" data-repo="viniciusoike/restateinsight" data-repo-id="R_kgDOJ9Lnfw" data-category="General" data-category-id="" data-mapping="title" data-reactions-enabled="1" data-emit-metadata="0" data-input-position="top" data-theme="light" data-lang="en" crossorigin="anonymous" async="">
+</script>
+</div> <!-- /content -->
+
+
+
+</body></html>
