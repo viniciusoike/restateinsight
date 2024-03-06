@@ -1,0 +1,321 @@
+---
+title: "Recessões no Brasil"
+date: "2024-03-01"
+categories: ['data-visualization', 'brasil', 'economia', 'ggplot2']
+description: "Neste post, exploro as recessões econômicas mais recentes na histórica econômica do Brasil. Mostro como comparar as recessões de diferentes maneiras e construo uma tabela informativa."
+format:
+  html:
+    code-tools: true
+    fig-align: "center"
+    out-width: "90%"
+    fig-width: 9
+execute: 
+  echo: false
+  warning: false
+  message: false
+---
+
+```{r libs}
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(GetBCBData)
+library(MetBrewer)
+library(showtext)
+
+font_add_google("Roboto", "Roboto")
+showtext_auto()
+```
+
+```{r theme-plot}
+theme_series <- theme_minimal(base_size = 10, base_family = "Roboto") +
+  theme(
+    text = element_text(colour = "gray15"),
+    plot.title = element_text(size = 14),
+    plot.subtitle = element_text(size = 12, colour = "gray30"),
+    plot.caption = element_text(size = 7, colour = "gray30"),
+    legend.title.align = 0.5,
+    legend.title = element_text(size = 8, colour = "gray15"),
+    
+    panel.grid.minor = element_blank(),
+    legend.position = "bottom",
+    panel.background = element_rect(fill = "white", colour = "white"),
+    plot.background = element_rect(fill = "white", colour = "white"),
+    legend.box.margin = margin(0),
+    legend.margin = margin(0)
+  )
+```
+
+```{r import-series}
+code_series <- 22109
+pib <- gbcbd_get_series(code_series, first.date = as.Date("1995-01-01"))
+
+pib <- pib %>%
+  mutate(
+    recession = case_when(
+      ref.date >= as.Date("1998-01-01") & ref.date <= as.Date("1999-01-01") ~ "1998Q1-1999Q1",
+      ref.date >= as.Date("2001-04-01") & ref.date <= as.Date("2001-10-01") ~ "2001Q2-Q4",
+      ref.date >= as.Date("2003-01-01") & ref.date <= as.Date("2003-04-01") ~ "2003Q1-2003Q2",
+      ref.date >= as.Date("2008-10-01") & ref.date <= as.Date("2009-01-01") ~ "2008Q4-2009Q1",
+      ref.date >= as.Date("2014-04-01") & ref.date <= as.Date("2016-10-01") ~ "2014Q2-2016Q4",
+      ref.date >= as.Date("2020-01-01") & ref.date <= as.Date("2020-04-01") ~ "2020Q1-2020Q2",
+      TRUE ~ ""
+    )
+  )
+
+codace <- tribble(
+            ~rec_start,               ~rec_end, ~label,
+  #-------------------#----------------------#----------#
+  as.Date("1997-10-01"), as.Date("1999-01-01"), "FHC-1",
+  as.Date("2001-01-01"), as.Date("2001-10-01"), "FHC-2",
+  as.Date("2002-10-01"), as.Date("2003-04-01"), "LULA",
+  as.Date("2008-07-01"), as.Date("2009-01-01"), "GFR",
+  as.Date("2014-01-01"), as.Date("2016-10-01"), "DILMA",
+  as.Date("2019-10-01"), as.Date("2020-04-01"), "COVID"
+)
+```
+
+```{r recession-comparison}
+rec_comp <- pib |> 
+  # Create a lead for all recession to serve as base
+  mutate(
+    rec_lead = lead(recession),
+    rec_full = if_else(rec_lead == "" & recession != "", recession, rec_lead)
+  )
+
+# For each recession, index the pre-recession GDP and evaluate
+rec_comp <- rec_comp %>%
+  filter(rec_full != "") %>%
+  mutate(
+    new_index = value / first(value),
+    period = row_number() - 1,
+    .by = "rec_full"
+    )
+```
+
+```{r}
+tab1 <- rec_comp |> 
+  mutate(chg = value - lag(value), .by = "rec_full") |> 
+  filter(!is.na(chg)) |> 
+  summarise(avg = mean((1 + chg / 100)^4 - 1), .by = "rec_full")
+
+tab2 <- rec_comp |> 
+  summarise(total_loss = -(first(new_index) - last(new_index)), .by = "rec_full")
+
+tbl_rec_summary <- left_join(tab1, tab2, by = "rec_full") |> 
+  rename(label_recession = rec_full)
+
+tbl_recession <- tribble(
+  ~label_recession, ~label,      ~date_rec_start,          ~date_rec_end,        ~date_recovery,
+  #--------------#--------#---------------------#-----------------------#----------------------#
+  "1998Q1-1999Q1", "FHC-1", as.Date("1998-01-01"), as.Date("1999-01-01"), as.Date("1999-10-01"),
+      "2001Q2-Q4", "FHC-2", as.Date("2001-04-01"), as.Date("2001-10-01"), as.Date("2002-01-01"),
+  "2003Q1-2003Q2",  "LULA", as.Date("2003-01-01"), as.Date("2003-04-01"), as.Date("2003-10-01"),
+  "2008Q4-2009Q1",   "GFR", as.Date("2008-10-01"), as.Date("2009-01-01"), as.Date("2009-10-01"),
+  "2014Q2-2016Q4", "DILMA", as.Date("2014-04-01"), as.Date("2016-10-01"), as.Date("2022-04-01"),
+  "2020Q1-2020Q2", "COVID", as.Date("2020-01-01"), as.Date("2020-04-01"), as.Date("2021-01-01")
+)
+
+tbl_recession <- tbl_recession |> 
+  mutate(
+    time_recession = 1 + lubridate::interval(date_rec_start, date_rec_end) / months(3),
+    time_recovery = 1 + lubridate::interval(date_rec_start, date_recovery) / months(3)
+  )
+
+tbl_recession <- left_join(tbl_recession, tbl_rec_summary)
+```
+
+```{r pib-series}
+p_pib <- ggplot() +
+  geom_line(
+    data = pib,
+    aes(x = ref.date, y = value),
+    lwd = 0.9,
+    color = met.brewer("Cross", n = 5)[5]
+  ) +
+  geom_rect(
+    data = codace,
+    aes(xmin = rec_start, xmax = rec_end, ymin = -Inf, ymax = Inf, group = label),
+    alpha = 0.4
+  ) +
+  labs(
+    title = "PIB e ciclos de recessão",
+    subtitle = "Variação indexada do PIB a preços de mercado. Áreas sombreadas indicam períodos de recessão.",
+    x = NULL,
+    y = "Índice (100 = 1996)"
+  ) +
+  theme_series
+```
+
+```{r plot-recessions}
+p1 <- ggplot(rec_comp, aes(x = period, y = new_index * 100)) +
+  geom_hline(yintercept = 100) +
+  geom_line(aes(colour = rec_full)) +
+  geom_point(aes(colour = rec_full)) +
+  geom_text(
+    data = data.frame(x = 3.5,
+                      y = 92,
+                      label = "A recessão do Covid\nfoi a maior queda relativa\ndo PIB na história recente."),
+    aes(x = x, y = y, label = label),
+    family = "Roboto",
+    size = 3,
+    colour = met.brewer("Cross", n = 6)[5]
+  ) +
+  geom_text(
+    data = data.frame(x = 9, y = 94, label = "A recessão do 2º governo\nDilma foi a mais longa no\n período registrado"),
+    aes(x = x, y = y, label = label),
+    family = "Roboto",
+    size = 3,
+    colour = met.brewer("Cross", n = 5)[4]
+  ) +
+  scale_colour_manual(
+    name = "Início/fim\nda recessão",
+    values = met.brewer("Cross", n = 6) 
+  ) +
+  labs(
+    title = "Ciclos de Recessão no Brasil (1995-2021)",
+    x = "Trimestres desde início da recessão",
+    y = "Índice normalizado",
+    subtitle = "Índice normalizado ao valor do PIB (a preços de mercado) imediatamente anterior ao início da recessão.\nA datação das recessões segue o CODACE (FGV).",
+    caption = "Fonte: IBGE e CODACE. Cores: MetBrewer (Cross). Autor: @viniciusoike"
+  ) +
+  scale_y_continuous(breaks = seq(80, 100, 1)) +
+  scale_x_continuous(breaks = seq(0, 20, 1)) +
+  theme_series
+```
+
+```{r compute-cycles}
+recession_start <- c("1997-10-01", "2001-01-01", "2002-10-01", "2008-07-01", "2014-01-01", "2019-10-01")
+
+pib <- pib %>%
+  arrange(ref.date)
+
+ls <- list()
+
+for (i in seq_along(recession_start)) {
+  
+  start <- lubridate::ymd(recession_start[i])
+  
+  df <- pib %>%
+    filter(ref.date >= start) %>%
+    mutate(new_index = value / first(value))
+  
+  end <- df %>%
+    mutate(ind = ifelse(new_index > 1.005, 1, 0)) %>%
+    filter(ind == 1) %>%
+    slice(1) %>%
+    pull(ref.date)
+  
+  out <- df %>%
+    filter(ref.date <= lubridate::ymd(end))
+  
+  ls[[i]] <- out
+  
+}
+
+name_rec <- unique(pib$recession)
+name_rec <- name_rec[-c(1)]
+names(ls) <- name_rec
+
+cycles <- bind_rows(ls, .id = "recession")
+
+cycles <- cycles %>%
+  mutate(period = row_number() - 1, .by = "recession")
+```
+
+```{r plot-cycles}
+p2 <- ggplot(data = cycles, aes(x = period, y = new_index * 100)) +
+  geom_hline(yintercept = 100) +
+  geom_line(aes(colour = recession)) +
+  geom_point(aes(colour = recession)) +
+  geom_text(
+    data = data.frame(x = 14, y = 101, label = "A economia brasileira levou 2 anos para\nse recuperar totalmente da Crise de 1998."),
+    aes(x = x, y = y, label = label),
+    family = "Roboto",
+    size = 3,
+    colour = met.brewer("Cross", n = 6)[1]
+  ) +
+  geom_text(
+    data = data.frame(x = 14, y = 90, label = "Foi necessário mais de 8 anos para a\neconomia voltar ao patamar pré-Crise de 2014."),
+    aes(x = x, y = y, label = label),
+    family = "Roboto",
+    size = 3,
+    colour = met.brewer("Cross", n = 6)[5]
+  ) +
+  scale_colour_manual(
+    name = "Início/fim\nda recessão",
+    values = met.brewer("Cross", n = 6) 
+  ) +
+  labs(
+    title = "Recessão e Recuperação (1996-2021)",
+    x = "Trimestres após início da recessão",
+    y = "Índice normalizado",
+    subtitle = "Índice normalizado ao valor do PIB (a preços de mercado) imediatamente anterior ao início da recessão.\nA datação das recessões segue o CODACE (FGV).",
+    caption = "Fonte: IBGE e CODACE. Cores: MetBrewer (Cross). Autor: @viniciusoike"
+  ) +
+  scale_y_continuous(breaks = seq(80, 102, 1),
+                     limits = c(86, 102)) +
+  scale_x_continuous(breaks = seq(0, 40, 1)) +
+  theme_series
+
+```
+
+# Ciclos Econômicos
+
+Ciclos econômicos são flutuações recorrentes observadas empiricamente na atividade econômica de países. Estes ciclos são caracterizados por variações numa série de índices de atividade, emprego, investimento, etc. Estas flutuações geralmente seguem um padrão de expansão seguido por contração/recessão, formando o que é conhecido como um ciclo. Os ciclos econômicos são influenciados por uma variedade de fatores, incluindo mudanças na demanda do consumidor, políticas governamentais, inovações tecnológicas e choques externos (e.g. quebra de safra, pandemia, etc.).
+
+No Brasil, a datação dos ciclos econômicos é feita pela CODACE[^1]. Desde 1996, houve 6 recessões. A maioria das recessões foi relativamente curta, durando de 2 a 5 trimestres. A recessão mais longa foi a da Crise Econômica no segundo governo Dilma; oficialmente, a recessão começou no segundo trimestre de 2014 e foi até o quarto trimestre de 2016.
+
+[^1]: O Comitê de Datação de Ciclos Econômicos (CODACE) organizado pela Fundação Getúlio Vargas (FGV) se reúne periodicamente para datar os ciclos econômicos brasileiros. Para mais informações veja o [site](https://portalibre.fgv.br/codace).
+
+O gráfico abaixo mostra a série trimestral do PIB, dessazonalizada, em número índice. A base do índice é a média de 1996. Nota-se que os períodos de expansão são mais frequentes do que os períodos de recessão: no período da amostra houve 87 trimestres de expansão contra 25 trimestres de recessão. Grosso modo, 1 a cada quatro trimestres apresentou uma recessão.
+
+```{r}
+p_pib
+```
+
+O gráfico abaixo normaliza o valor do PIB em cada uma das recessões ao valor pré-crise, isto é, ao valor observado no trimestre imediatamente anterior ao do início da recessão. Comparativamente, a maior queda relativa registrada aconteceu na Crise do Covid, na primeira metade de 2020. Ao todo a queda foi de quase 11%.
+
+```{r}
+p1
+```
+
+O período de recessão termina, grosso modo, quando a economia para de diminuir. Isto é, o final da recessão não implica que a economia já está operando no mesmo nível que estava antes da crise. É preciso alguns trimestres a mais de crescimento simplesmente para recuperar o que foi perdido, em termos de PIB.
+
+O segundo gráfico mostra justamente o esforço necessário para voltar ao patamar pré-crise. Na maioria dos casos, foi necessário mais 2-3 trimestres para que a economia recuperasse o que foi perdido na recessão. A exceção notável foi a crise de 2014-16: foi necessário mais de 5 anos, após o final da recessão, para que a economia voltasse ao mesmo nível que estava antes da crise. Isto é, apenas no segundo trimestre de 2022 a economia brasileira apresentou PIB acima do observado no primeiro trimestre de 2014.
+
+```{r}
+p2
+```
+
+A tabela final abaixo resume alguns fatos sobre as recessões econômicas mais recentes da história econômica brasileira.
+
+```{r}
+library(gt)
+library(gtExtras)
+
+col_names <- c(
+  "Período",
+  "Nome",
+  "Início",
+  "Fim",
+  "Recuperação",
+  "Duração Recessão",
+  "Tempo até Recuperação*",
+  "Crescimento Médio**",
+  "Perda Total"
+)
+names(col_names) <- names(tbl_recession)
+
+gt(tbl_recession) %>%
+  gt::cols_label(.list = col_names) %>%
+  fmt_date(3:5, date_style = "yQQQ") %>%
+  fmt_percent(8:9) %>%
+  tab_footnote(
+    footnote = "(*) - Número de trimestres até a economia voltar ao patamar pré-crise"
+    ) %>%
+  tab_footnote(
+    footnote = "(**) - Crescimento trimestral médio anualizado"
+    ) %>%
+  gt_theme_538()
+```
