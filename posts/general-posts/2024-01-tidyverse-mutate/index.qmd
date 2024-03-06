@@ -1,6 +1,6 @@
 ---
 title: "O novo tidyverse: mutate"
-date: "2024-01-21"
+date: "2024-01-11"
 categories: ['data-science', 'tutorial-R', 'tidyverse']
 description: "Neste post ensino abordagens diferentes para criar colunas de maneira eficiente. Apresento também as novidades que o `dplyr` trouxe nos últimos anos como a função `across` e novo argumento `.by`."
 image: "/static/images/dplyr_logo.png" 
@@ -36,7 +36,7 @@ O tidyverse está em constante expansão, novas funcionalidades são criadas par
 Essencialmente, o `dplyr` gira em torno de quatro grandes funções: `filter`, `select`, `mutate` e `summarise`. Estas funções fazem o grosso do trabalho de limpeza de dados: filtram linhas, selecionam colunas e transformam os dados. A tabela abaixo resume as principais funções do pacote.
 
 | Nome da Função | Tradução          | O que faz                                                         |
-|----------------|-------------------|-------------------------------------------------------------------|
+|---------------|---------------|-------------------------------------------|
 | `rename`       | Renomear          | Modifica o nome das colunas.                                      |
 | `select`       | Selecionar        | Seleciona as colunas.                                             |
 | `filter`       | Filtrar           | Filtra/seleciona as linhas segundo alguma condição.               |
@@ -181,7 +181,11 @@ tbl |>
   )
 ```
 
-A função `across` serve para aplicar uma função sobre um subconjunto de colunas seguindo: `across(colunas, funcao)`. Ela funciona com os `tidyselectors`, facilitando a seleção de colunas a ser transformadas. Funções mais complexas podem ser utilizadas via função anônima usando o operador `~`.
+A função `across` serve para aplicar uma função sobre um subconjunto de colunas seguindo: `across(colunas, funcao)`. Ela funciona com os `tidyselectors`[^1], facilitando a seleção de colunas a ser transformadas. Funções mais complexas podem ser utilizadas via função anônima usando o operador `~`[^2].
+
+[^1]: Para mais detalhes sobre os `tidyselectors` veja o [post sobre a função `select`](https://restateinsight.com/posts/general-posts/2024-01-tidyverse-select/).
+
+[^2]: A função `across` foi uma mudança significativa de paradigma na evolução do `dplyr`. Esta função tornou obsoletas diversas funções que eram distinguidas pelos sufixos (`_at`, `_all`, `_if`). [Para mais detalhes veja o post do blog do dplyr](https://www.tidyverse.org/blog/2020/06/dplyr-1-0-0/).
 
 O primeiro exemplo abaixo mostra como aplicar a função `log` em todas as colunas cujo nome começa com `pib`. Já o segundo exemplo mostra como converter todas as colunas do tipo `character` para `factor`. O terceiro exemplo mostra como converter as colunas de `factor` para `numeric` utilizando o operador `~`. Os últimos dois exemplos mostram outras aplicações do mesmo operador.
 
@@ -199,9 +203,9 @@ mutate(tbl, across(pib_taxes:pib_govmt_services, ~.x / pib * 100))
 mutate(tbl, across(where(is.numeric), ~ as.numeric(scale(.x))))
 ```
 
-Por fim, existe um argumento opcional `.names` que permite renomear as novas colunas usando uma sintaxe estilo `glue`[^1]. Esta sintaxe tem dois tipos especiais importantes: `{.col}`, que faz referência ao nome original da coluna, e `{.fn}`, que faz referência ao nome da função utilizada. O exemplo abaixo refina o primeiro caso que vimos acima. Agora aplica-se a função `as.numeric(scale(x))` sobre cada uma das colunas numéricas. As novas colunas têm o nome `"scaled_NomeOriginalDaColuna"`.
+Por fim, existe um argumento opcional `.names` que permite renomear as novas colunas usando uma sintaxe estilo `glue`[^3]. Esta sintaxe tem dois tipos especiais importantes: `{.col}`, que faz referência ao nome original da coluna, e `{.fn}`, que faz referência ao nome da função utilizada. O exemplo abaixo refina o primeiro caso que vimos acima. Agora aplica-se a função `as.numeric(scale(x))` sobre cada uma das colunas numéricas. As novas colunas têm o nome `"scaled_NomeOriginalDaColuna"`.
 
-[^1]: Do pacote `glue`. [Veja mais aqui](https://glue.tidyverse.org).
+[^3]: Do pacote `glue`. [Veja mais aqui](https://glue.tidyverse.org).
 
 ```{r}
 tbl |> 
@@ -302,8 +306,8 @@ tbl |>
 
 # Outros posts da série
 
--   select
+-   [select](https://restateinsight.com/posts/general-posts/2024-01-tidyverse-select/)
 
--   filter
+-   [filter](https://restateinsight.com/posts/general-posts/2024-01-tidyverse-filter/)
 
 -   [rename](https://restateinsight.com/posts/general-posts/2024-01-tidyverse-rename/)
