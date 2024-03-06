@@ -7,7 +7,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
 <meta name="author" content="Vinicius Oike">
-<meta name="dcterms.date" content="2024-01-21">
+<meta name="dcterms.date" content="2024-01-11">
 <meta name="description" content="Neste post ensino abordagens diferentes para criar colunas de maneira eficiente. Apresento também as novidades que o dplyr trouxe nos últimos anos como a função across e novo argumento .by.">
 
 <title>Vinicius Oike - O novo tidyverse: mutate</title>
@@ -191,7 +191,7 @@ gtag('config', 'G-EJF8PGT67H', { 'anonymize_ip': true});
       <div>
       <div class="quarto-title-meta-heading">Published</div>
       <div class="quarto-title-meta-contents">
-        <p class="date">January 21, 2024</p>
+        <p class="date">January 11, 2024</p>
       </div>
     </div>
     
@@ -237,9 +237,9 @@ gtag('config', 'G-EJF8PGT67H', { 'anonymize_ip': true});
 <p>Essencialmente, o <code>dplyr</code> gira em torno de quatro grandes funções: <code>filter</code>, <code>select</code>, <code>mutate</code> e <code>summarise</code>. Estas funções fazem o grosso do trabalho de limpeza de dados: filtram linhas, selecionam colunas e transformam os dados. A tabela abaixo resume as principais funções do pacote.</p>
 <table class="table">
 <colgroup>
-<col style="width: 22%">
-<col style="width: 22%">
-<col style="width: 55%">
+<col style="width: 20%">
+<col style="width: 20%">
+<col style="width: 58%">
 </colgroup>
 <thead>
 <tr class="header">
@@ -418,7 +418,7 @@ gtag('config', 'G-EJF8PGT67H', { 'anonymize_ip': true});
 <span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a>    <span class="fu">across</span>(<span class="fu">where</span>(is.numeric), scale)</span>
 <span id="cb13-4"><a href="#cb13-4" aria-hidden="true" tabindex="-1"></a>  )</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
-<p>A função <code>across</code> serve para aplicar uma função sobre um subconjunto de colunas seguindo: <code>across(colunas, funcao)</code>. Ela funciona com os <code>tidyselectors</code>, facilitando a seleção de colunas a ser transformadas. Funções mais complexas podem ser utilizadas via função anônima usando o operador <code>~</code>.</p>
+<p>A função <code>across</code> serve para aplicar uma função sobre um subconjunto de colunas seguindo: <code>across(colunas, funcao)</code>. Ela funciona com os <code>tidyselectors</code><a href="#fn1" class="footnote-ref" id="fnref1" role="doc-noteref"><sup>1</sup></a>, facilitando a seleção de colunas a ser transformadas. Funções mais complexas podem ser utilizadas via função anônima usando o operador <code>~</code><a href="#fn2" class="footnote-ref" id="fnref2" role="doc-noteref"><sup>2</sup></a>.</p>
 <p>O primeiro exemplo abaixo mostra como aplicar a função <code>log</code> em todas as colunas cujo nome começa com <code>pib</code>. Já o segundo exemplo mostra como converter todas as colunas do tipo <code>character</code> para <code>factor</code>. O terceiro exemplo mostra como converter as colunas de <code>factor</code> para <code>numeric</code> utilizando o operador <code>~</code>. Os últimos dois exemplos mostram outras aplicações do mesmo operador.</p>
 <div class="cell">
 <div class="sourceCode cell-code" id="cb14"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Aplica uma transformação log em todas as colunas que começam com pib</span></span>
@@ -433,7 +433,7 @@ gtag('config', 'G-EJF8PGT67H', { 'anonymize_ip': true});
 <span id="cb14-10"><a href="#cb14-10" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Normaliza todas as colunas numéricas</span></span>
 <span id="cb14-11"><a href="#cb14-11" aria-hidden="true" tabindex="-1"></a><span class="fu">mutate</span>(tbl, <span class="fu">across</span>(<span class="fu">where</span>(is.numeric), <span class="sc">~</span> <span class="fu">as.numeric</span>(<span class="fu">scale</span>(.x))))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
-<p>Por fim, existe um argumento opcional <code>.names</code> que permite renomear as novas colunas usando uma sintaxe estilo <code>glue</code><a href="#fn1" class="footnote-ref" id="fnref1" role="doc-noteref"><sup>1</sup></a>. Esta sintaxe tem dois tipos especiais importantes: <code>{.col}</code>, que faz referência ao nome original da coluna, e <code>{.fn}</code>, que faz referência ao nome da função utilizada. O exemplo abaixo refina o primeiro caso que vimos acima. Agora aplica-se a função <code>as.numeric(scale(x))</code> sobre cada uma das colunas numéricas. As novas colunas têm o nome <code>"scaled_NomeOriginalDaColuna"</code>.</p>
+<p>Por fim, existe um argumento opcional <code>.names</code> que permite renomear as novas colunas usando uma sintaxe estilo <code>glue</code><a href="#fn3" class="footnote-ref" id="fnref3" role="doc-noteref"><sup>3</sup></a>. Esta sintaxe tem dois tipos especiais importantes: <code>{.col}</code>, que faz referência ao nome original da coluna, e <code>{.fn}</code>, que faz referência ao nome da função utilizada. O exemplo abaixo refina o primeiro caso que vimos acima. Agora aplica-se a função <code>as.numeric(scale(x))</code> sobre cada uma das colunas numéricas. As novas colunas têm o nome <code>"scaled_NomeOriginalDaColuna"</code>.</p>
 <div class="cell">
 <div class="sourceCode cell-code" id="cb15"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a>tbl <span class="sc">|&gt;</span> </span>
 <span id="cb15-2"><a href="#cb15-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(</span>
@@ -572,8 +572,8 @@ gtag('config', 'G-EJF8PGT67H', { 'anonymize_ip': true});
 <section id="outros-posts-da-série" class="level1">
 <h1>Outros posts da série</h1>
 <ul>
-<li><p>select</p></li>
-<li><p>filter</p></li>
+<li><p><a href="https://restateinsight.com/posts/general-posts/2024-01-tidyverse-select/">select</a></p></li>
+<li><p><a href="https://restateinsight.com/posts/general-posts/2024-01-tidyverse-filter/">filter</a></p></li>
 <li><p><a href="https://restateinsight.com/posts/general-posts/2024-01-tidyverse-rename/">rename</a></p></li>
 </ul>
 
@@ -584,7 +584,9 @@ gtag('config', 'G-EJF8PGT67H', { 'anonymize_ip': true});
 <div id="quarto-appendix" class="default"><section id="footnotes" class="footnotes footnotes-end-of-document" role="doc-endnotes"><h2 class="anchored quarto-appendix-heading">Footnotes</h2>
 
 <ol>
-<li id="fn1"><p>Do pacote <code>glue</code>. <a href="https://glue.tidyverse.org">Veja mais aqui</a>.<a href="#fnref1" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+<li id="fn1"><p>Para mais detalhes sobre os <code>tidyselectors</code> veja o <a href="https://restateinsight.com/posts/general-posts/2024-01-tidyverse-select/">post sobre a função <code>select</code></a>.<a href="#fnref1" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+<li id="fn2"><p>A função <code>across</code> foi uma mudança significativa de paradigma na evolução do <code>dplyr</code>. Esta função tornou obsoletas diversas funções que eram distinguidas pelos sufixos (<code>_at</code>, <code>_all</code>, <code>_if</code>). <a href="https://www.tidyverse.org/blog/2020/06/dplyr-1-0-0/">Para mais detalhes veja o post do blog do dplyr</a>.<a href="#fnref2" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+<li id="fn3"><p>Do pacote <code>glue</code>. <a href="https://glue.tidyverse.org">Veja mais aqui</a>.<a href="#fnref3" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
 </ol>
 </section></div></main> <!-- /main -->
 <script id="quarto-html-after-body" type="application/javascript">
