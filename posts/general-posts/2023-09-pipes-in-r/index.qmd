@@ -23,7 +23,9 @@ knitr::opts_chunk$set(
 
 ## Introdução
 
-A partir da versão 4.1.0, o `R` passou a oferecer o operador `|>` chamado de pipe (literalmente, *cano*). Este operador foi fortemente inspirado no operador homônimo `%>%` do popular pacote `magrittr`. Neste post, explico como utilizar o pipe nativo e como ele difere do pipe do `magrittr`.
+A partir da versão 4.1.0, o `R` passou a oferecer o operador `|>` chamado de pipe (literalmente, *cano*)[^1]. Este operador foi fortemente inspirado no operador homônimo `%>%` do popular pacote `magrittr`. Neste post, explico como utilizar o pipe nativo e como ele difere do pipe do `magrittr`.
+
+[^1]: Para a lista completa de mudanças veja [News and Notes](https://journal.r-project.org/archive/2021-1/core.pdf).
 
 O operador pipe (em ambos os casos), essencialmente, ordena uma função composta.
 
@@ -35,16 +37,22 @@ $$
 
 Para tornar o exemplo mais concreto considere o exemplo abaixo onde calcula-se a média geométrica de uma sequência de números aleatórios.
 
+A média geométrica é dada pela expressão:
+
+$$
+\overline{x} = (\prod_{i = 1}^{n}x_{i})^{\frac{1}{n}} = \text{exp}(\frac{1}{n}\sum_{i = 1}^{n}\text{log}(x_{i}))
+$$
+
 ```{r}
 x <- rnorm(n = 100, mean = 10)
 #> Calcula a média geométrica
-exp(log(mean(x)))
+exp(mean(log(x)))
 ```
 
-Usando a mesma notação acima, aplica-se primeiro a função `mean` (f), depois a função `log` (g) e, por fim, a função `exp` (h). Usando o operador pipe, pode-se reescrever a expressão da seguinte forma.
+Usando a mesma notação acima, aplica-se primeiro a função `log` (f), depois a função `mean` (g) e, por fim, a função `exp` (h). Usando o operador pipe, pode-se reescrever a expressão da seguinte forma.
 
 ```{r}
-x |> mean() |> log() |> exp()
+x |> log() |> mean() |> exp()
 ```
 
 Note que o resultado da função vai sendo "carregado" da esquerda para a direita sucessivamente. Para muitos usuários, a segunda sintaxe é mais intuitiva e/ou fácil de ler. No segundo código a ordem em que o nome das funções aparecem coincide com a ordem da sua aplicação.
@@ -52,8 +60,8 @@ Note que o resultado da função vai sendo "carregado" da esquerda para a direit
 Por fim, note que o uso de várias funções numa mesma linha de código também nos poupa de ter de criar objetos intermediários como no exemplo abaixo.
 
 ```{r}
-media_x <- mean(x)
-log_media <- log(media_x)
+log_x <- log(x)
+log_media <- mean(log_x)
 media_geometrica_x <- exp(log_media)
 
 media_geometrica_x
@@ -61,7 +69,9 @@ media_geometrica_x
 
 Os exemplos acima funcionaram sem problemas porque usou-se o operador pipe para "abrir" uma função composta. O argumento de cada função subsequente é o resultado da função antecedente: funciona como uma linha de montagem, em que cada nova etapa soma-se ao resultado da etapa anterior.
 
-Quando o resultado da função anterior não vai diretamente no primeiro argumento da função subsequente, precisa-se usar o operador `_` (underline). Este operador serve como um *placeholder*: indica onde que o resultado da etapa anterior deve entrar. No exemplo abaixo, uso o placeholder para colocar a base de dados filtrada no argumento `data` dentro da função `lm`.
+Quando o resultado da função anterior não vai diretamente no primeiro argumento da função subsequente, precisa-se usar o operador `_` (underscore). Este operador serve como um *placeholder*: indica onde que o resultado da etapa anterior deve entrar[^2]. No exemplo abaixo, uso o placeholder para colocar a base de dados filtrada no argumento `data` dentro da função `lm`.
+
+[^2]: Tecnicamente, o *placeholder* foi apenas introduzido na versão 4.2.0 como uma melhoria em relação ao pipe nativo implementado anteriormente. "In a forward pipe `|>` expression it is now possible to use a named argument with the placeholder `_` in the `rhs` call to specify where the `lhs` is to be inserted. The placeholder can only appear once on the `rhs`.". [Link original](https://cran.r-project.org/bin/windows/base/old/4.2.0/NEWS.R-4.2.0.html).
 
 ```{r}
 #| eval: false
@@ -73,11 +83,18 @@ mtcars |>
   lm(mpg ~ wt, data = _)
 ```
 
-Por fim, temos o caso das funções anônimas. Uma função anônima é simplesmente uma função sem nome que é chamada uma única vez. Infelizmente, a sintaxe de um pipe com uma função anônima é bastante carregada.
+Por fim, temos o caso das funções anônimas[^3]. Uma função anônima é simplesmente uma função sem nome que é chamada uma única vez. Infelizmente, a sintaxe de um pipe com uma função anônima é bastante carregada.
+
+[^3]: A notação abaixo de função anônima, usando `\(x)`, também foi introduzida na versão 4.1.0 do R. Antigamente, para se definir uma função era necessário usar `function(x)`.
 
 ```{r}
 #| eval: false
-objeto |> (\(...) {define função})()
+objeto |> (\(x, y, z, ...) {define função})()
+
+# Nova sintaxe de funções anônimas (similar a lambda no Python)
+objeto |> (\(x, y) {x^2 + y^2})()
+# Antiga sintaxe de funções anônimas
+objeto |> (function(x, y) {x^2 + y^2})()
 ```
 
 O exemplo repete o código acima, mas agora usa uma função anônima para pegar o R2 ajustado da regressão.
@@ -121,7 +138,7 @@ Na sintaxe convencional temos
 sqrt(mean(residuals(fit)^2))
 ```
 
-O problema é que a exponenciação acontece via um operador e não uma função. Nenhuma dos exemplos abaixo funciona.
+O problema é que a exponenciação acontece via um *operador* e não uma *função*. Nenhum dos exemplos abaixo funciona.
 
 ```{r, error = TRUE}
 fit |> residuals() |> ^2 |> mean() |> sqrt()
@@ -203,7 +220,7 @@ abecip$units |>
   theme(legend.position = "top")
 ```
 
-O código abaixo mostra um exemplo de como quebrar o código acima em passos distintos. Além de ficar mais organizado, o código salva objetos úteis como a tabela agrupada por trimestre, antes de se aplicar o filtro de unidades. A tabela final também fica salva num objeto, permitindo que se faça outros gráficos e análises com estes dados.
+É recomendável quebrar o código acima em passos distintos. Além de ficar mais organizado, pode-se salvar objetos úteis como a tabela agrupada por trimestre, antes de se aplicar o filtro de unidades. A tabela final também fica salva num objeto, permitindo que se faça outros gráficos e análises com estes dados.
 
 ```{r}
 #| eval: false
@@ -253,23 +270,29 @@ library(geobr)
 library(sf)
 library(mapview)
 
+# Importa alguns dados do Censo IBGE 2010
 pop <- read_population(
   year = 2010,
   columns = c("code_weighting", "abbrev_state", "V0010")
   )
-
+# Calcula a população total das áreas de ponderação no Rio de Janeiro
 df <- pop |>
       filter(abbrev_state == "RJ") |>
       group_by(code_weighting) |>
       summarise(total_pop = sum(V0010)) |>
       collect()
 
+# Import o shape das áreas de ponderação do Censo
 areas <- read_weighting_area(3304557, showProgress = FALSE)
 
 areas |> 
+  # Converte o CRS da geometria
   st_transform(crs = 4326) |> 
+  # "Limpa" as geometrias
   st_make_valid() |> 
+  # Junta com os dados do Censo
   left_join(df, by = "code_weighting") |> 
+  # Visualiza os dados num mapa interativo
   mapview(zcol = "total_pop")
 ```
 
@@ -334,7 +357,7 @@ iris |>
 
 ### Pipes curtos
 
-Este aqui é um gatilho pessoal; tento evitar ao máximo usar um pipe com uma única função. Pipes são úteis quando se aplica uma longa sequência de funções a um mesmo objeto; faz pouco sentido usar um pipe quando se aplica somente uma função.
+Este aqui é um gatilho pessoal; tento evitar ao máximo usar um pipe com uma única função. Pipes são úteis quando se aplica uma sequência de funções a um mesmo objeto; faz pouco sentido usar um pipe quando se aplica somente uma função.
 
 ```{r}
 #| eval: false
@@ -377,14 +400,13 @@ base_index <- economics_long |>
   select(variable, base = value)
 
 economics_index <- economics_long |> 
-  select(date, variable, value) |> 
   left_join(base_index, by = "variable") |> 
   group_by(variable) |> 
   mutate(index = value / base * 100) |> 
   filter(date <= as.Date("1980-01-01"))
 ```
 
-Por fim, faço um gráfico do resultado final para tornar evidente o que está acontecendo.
+Faço um gráfico do resultado final para tornar evidente o que está acontecendo.
 
 ```{r}
 ggplot(economics_index, aes(x = date, y = index)) +
@@ -394,7 +416,9 @@ ggplot(economics_index, aes(x = date, y = index)) +
 
 # Qual pipe usar?
 
-Como comentei acima, o pipe nativo do R foi inspirado no pipe do pacote `magrittr`, um dos mais populares pacotes criados. Há algumas pequenas diferenças entre o `%>%` e o `|>`. Primeiro, em termos de eficiência, o `|>` é levemente mais rápido, mas a diferença é praticamente imperceptível.
+Como comentei acima, o pipe nativo do R foi inspirado no pipe do pacote `magrittr`, um dos mais populares pacotes criados. Há algumas pequenas diferenças entre o `%>%` e o `|>`.
+
+Primeiro, em termos de eficiência, o `|>` é levemente mais rápido, mas a diferença é praticamente imperceptível.
 
 ```{r}
 library(microbenchmark)
@@ -405,7 +429,7 @@ microbenchmark(
   )
 ```
 
-A principal diferença entre os dois é o uso do *placeholder*. O operador *placeholder* do `magrittr` é o ponto `.` e é mais versátil que o `_`. No exemplo abaixo eu consigo colocar a tabela filtrada dentro da função `rownames` durante o pipe.
+A principal diferença entre os dois é o uso do *placeholder*. O operador *placeholder* do `magrittr` é o ponto `.` e é *mais versátil* que o `_`. No exemplo abaixo, eu consigo colocar a tabela filtrada dentro da função `rownames` durante o pipe.
 
 ```{r, eval = FALSE}
 mtcars %>%
@@ -440,11 +464,13 @@ fit <- lm(mpg ~ wt, data = mtcars)
 fit %>%
   residuals() %>%
   .^2 %>%
-  sum() %>%
+  mean() %>%
   sqrt()
 ```
 
-O `.` pode ser seguido de outros operadores como o `$`. Assim pode-se extrair uma coluna específica depois de filtrar uma tabela.
+O `.` pode ser seguido de outros operadores como o `$`[^4]. Assim pode-se extrair uma coluna específica depois de filtrar uma tabela.
+
+[^4]: Vale notar que este comportamento foi introduzido também no placeholder do pipe nativo a partir da versão 4.3.0 do R. Contudo, este comportamento ainda está em fase experimental. "As an experimental feature the placeholder `_` can now also be used in the `rhs` of a forward pipe `|>` expression as the first argument in an extraction call, such as `_$coef`.". [Link Original](https://cran.r-project.org/bin/windows/base/old/4.3.0/NEWS.R-4.3.0.html).
 
 ```{r, eval = FALSE}
 mtcars %>%
@@ -464,7 +490,7 @@ mtcars |>
   anti_join(x = _, y = _)
 ```
 
-Por fim, o pipe nativo também é um pouco inútil quando se usa o `data.table`. Isto acontece por causa da sintaxe do pacote.
+Por fim, o pipe nativo também é inútil quando se usa o pacote `data.table`. Isto acontece por causa da maneira como o `data.table` encadeia as suas operações.
 
 ```{r, message=FALSE, warning=FALSE}
 library(data.table)
@@ -475,6 +501,7 @@ dtmtcars <- setDT(dtmtcars)
 Na sintaxe do `data.table` é possível encadear as operação naturalmente usando `[`.
 
 ```{r}
+# Calcula a média de 'mpg' por 'cyl' e depois ordena segundo 'cyl'
 dtmtcars[, .(mpg = mean(mpg)), by = cyl][order(cyl)]
 ```
 
@@ -505,10 +532,22 @@ dtmtcars[, .(mpg = mean(mpg)), by = cyl] |>
 
 O pipe é um operador simples que serve para deixar o código mais limpo. Sempre é uma boa escolha usar pipes quando se quer aplicar múltiplas funções num mesmo objeto. O custo do `|>` é mínimo em termos de eficiência; além disso, ele diminui a necessidade de criar objetos intermediários o que poupa memória do sistema.
 
-O pipe nativo é imbutido no R a partir da versão 4.1.0 enquanto o `%>%` exige `library(magrittr)`. Vale notar que muitos pacotes carregam o `%>%` automaticamente. De fato, pacotes como `dplyr`, `leaflet`, `mapview`, `rvest`, `gt`, e `flextable` são praticamente inutilizáveis sem pipes[^1].
+O pipe nativo é embutido no R a partir da versão 4.1.0 enquanto o `%>%` exige `library(magrittr)`. Vale notar que muitos pacotes carregam o `%>%` automaticamente. De fato, pacotes como `dplyr`, `leaflet`, `mapview`, `rvest`, `gt`, `flextable` e tantos outros são praticamente inutilizáveis sem pipes[^5].
 
-[^1]: Uma quantidade enorme de pacotes utiliza o `magrittr` como dependência. Veja a [página do CRAN](https://cloud.r-project.org/web/packages/magrittr/index.html).
+[^5]: Uma quantidade enorme de pacotes utiliza o `magrittr` como dependência. Veja a [página do CRAN](https://cloud.r-project.org/web/packages/magrittr/index.html).
 
-Antes de pensar em usar o pipe nativo, vale a pena reforçar que ele foi criado recentemente. Isto significa que qualquer código ou pacote desenvolvido com uso de pipes vai exigir a versão 4.1.0 ou superior, o que pode exigir que o usuário atualize a sua versão do R. Além disso, algumas funcionalidades do pipe nativo mudaram nas versões 4.2 e 4.3 o que pode complicar ainda mais o uso do pipe.
+Antes de pensar em usar o pipe nativo, vale a pena reforçar que ele foi criado recentemente. Isto significa que qualquer código ou pacote desenvolvido com uso de pipes vai exigir a versão 4.1.0 ou superior, o que pode exigir que o usuário atualize a sua versão do R. Além disso, algumas funcionalidades do pipe nativo mudaram nas versões 4.2 e 4.3 o que pode complicar ainda mais o uso do pipe. Em contrapartida, o pipe do `magrittr` é bastante estável e seu comportamento é consistente há muitos anos.
 
 Pessoalmente, tento utilizar o `|>` nos posts do blog, mas sem nunca utilizar o `_`. Quando preciso de um *placeholder* utilizo o `%>%`, mas evito usá-lo com operadores como `.^2`.
+
+## Referências
+
+-   [Guia de estilo do tidyverse](https://style.tidyverse.org/pipes.html)
+
+-   [Differences between the base R and magrittr pipes](https://www.tidyverse.org/blog/2023/04/base-vs-magrittr-pipe/)
+
+-   [Changes in R 4.0-4.1](https://journal.r-project.org/archive/2021-1/core.pdf)
+
+-   [Changes in R 4.2.0](https://cran.r-project.org/bin/windows/base/old/4.2.0/NEWS.R-4.2.0.html)
+
+-   [Changes in R 4.3.0](https://cran.r-project.org/doc/manuals/r-release/NEWS.html)
