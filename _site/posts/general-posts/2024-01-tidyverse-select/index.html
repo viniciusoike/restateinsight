@@ -212,7 +212,14 @@ gtag('config', 'G-EJF8PGT67H', { 'anonymize_ip': true});
   <li><a href="#select" id="toc-select" class="nav-link" data-scroll-target="#select">select</a>
   <ul class="collapse">
   <li><a href="#o-básico" id="toc-o-básico" class="nav-link" data-scroll-target="#o-básico">O básico</a></li>
-  <li><a href="#tidyselectors" id="toc-tidyselectors" class="nav-link" data-scroll-target="#tidyselectors">Tidyselectors</a></li>
+  <li><a href="#tidyselectors" id="toc-tidyselectors" class="nav-link" data-scroll-target="#tidyselectors">Tidyselectors</a>
+  <ul class="collapse">
+  <li><a href="#básico" id="toc-básico" class="nav-link" data-scroll-target="#básico">Básico</a></li>
+  <li><a href="#all_of-e-any_of" id="toc-all_of-e-any_of" class="nav-link" data-scroll-target="#all_of-e-any_of"><code>all_of</code> e <code>any_of</code></a></li>
+  <li><a href="#conflitos-de-nomes" id="toc-conflitos-de-nomes" class="nav-link" data-scroll-target="#conflitos-de-nomes">Conflitos de nomes</a></li>
+  <li><a href="#helpers-de-posição" id="toc-helpers-de-posição" class="nav-link" data-scroll-target="#helpers-de-posição">Helpers de posição</a></li>
+  <li><a href="#helpers-de-tipo" id="toc-helpers-de-tipo" class="nav-link" data-scroll-target="#helpers-de-tipo">Helpers de tipo</a></li>
+  </ul></li>
   <li><a href="#resumindo" id="toc-resumindo" class="nav-link" data-scroll-target="#resumindo">Resumindo</a></li>
   </ul></li>
   <li><a href="#outros-posts-da-série" id="toc-outros-posts-da-série" class="nav-link" data-scroll-target="#outros-posts-da-série">Outros posts da série</a>
@@ -238,9 +245,9 @@ gtag('config', 'G-EJF8PGT67H', { 'anonymize_ip': true});
 <p>Essencialmente, o <code>dplyr</code> gira em torno de quatro grandes funções: <code>filter</code>, <code>select</code>, <code>mutate</code> e <code>summarise</code>. Estas funções fazem o grosso do trabalho de limpeza de dados: filtram linhas, selecionam colunas e transformam os dados. A tabela abaixo resume as principais funções do pacote.</p>
 <table class="table">
 <colgroup>
-<col style="width: 20%">
-<col style="width: 20%">
-<col style="width: 58%">
+<col style="width: 22%">
+<col style="width: 22%">
+<col style="width: 55%">
 </colgroup>
 <thead>
 <tr class="header">
@@ -290,7 +297,7 @@ gtag('config', 'G-EJF8PGT67H', { 'anonymize_ip': true});
 </section>
 <section id="select" class="level1">
 <h1>select</h1>
-<p>A função <code>select</code> serve para selecionar colunas e reduzir a complexidade de uma tabela. Esta função mudou consideravelmente nos últimos anos após a criação de algumas funções auxiliares conhecidas como <code>tidyselectors</code>. Estas funções poderosas</p>
+<p>A função <code>select</code> serve para selecionar colunas e reduzir a complexidade de uma tabela. Esta função mudou consideravelmente nos últimos anos após a criação de algumas funções auxiliares conhecidas como <em>selection helpers</em>, que fazem parte do <code>tidyselect</code>. Estas funções poderosas permitem selecionar colunas usando regras lógicas e segundo padrões de texto; isto facilita consideravelmente a tarefa de limpeza de dados. Além disso, a lógica do <code>tidyselect</code> foi extendida para outros pacotes como <code>tidymodels</code>, <code>gt</code>, entre outros.</p>
 <section id="o-básico" class="level2">
 <h2 class="anchored" data-anchor-id="o-básico">O básico</h2>
 <p>Os pacotes utilizados neste tutorial são listados abaixo.</p>
@@ -309,48 +316,66 @@ gtag('config', 'G-EJF8PGT67H', { 'anonymize_ip': true});
 <p>O código abaixo seleciona três colunas: <code>name_muni</code>, <code>population</code>, <code>pib</code>.</p>
 <div class="cell">
 <div class="sourceCode cell-code" id="cb4"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="fu">select</span>(tbl, name_muni, population, pib)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code># A tibble: 5,570 × 3
+   name_muni             population     pib
+   &lt;chr&gt;                      &lt;dbl&gt;   &lt;dbl&gt;
+ 1 Alta Floresta D'Oeste      21495  570272
+ 2 Ariquemes                  96833 2818049
+ 3 Cabixi                      5363  167190
+ 4 Cacoal                     86895 2519353
+ 5 Cerejeiras                 15890  600670
+ 6 Colorado do Oeste          15663  366931
+ 7 Corumbiara                  7519  268381
+ 8 Costa Marques              12627  261978
+ 9 Espigão D'Oeste            29397  666331
+10 Guajará-Mirim              39386  984586
+# ℹ 5,560 more rows</code></pre>
+</div>
 </div>
 <p>Pode-se selecionar colunas de três maneiras gerais: (1) como expressões (escrevendo o nome delas como se elas fossem objetos); (2) strings; (3) índices (que indicam a sua posição na tabela).</p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb5"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Selecionando colunas de modo geral</span></span>
-<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a><span class="fu">select</span>(tbl, name_muni, population, pib)</span>
-<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Selecionando columnas usando strings</span></span>
-<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a><span class="fu">select</span>(tbl, <span class="st">"name_muni"</span>, <span class="st">"population"</span>, <span class="st">"pib"</span>)</span>
-<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a><span class="co"># Selecionando colunas usando vetor de texto</span></span>
-<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a>sel_cols <span class="ot">=</span> <span class="fu">c</span>(<span class="st">"name_muni"</span>, <span class="st">"population"</span>, <span class="st">"pib"</span>)</span>
-<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a><span class="fu">select</span>(tbl, sel_cols)</span>
-<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a><span class="co"># Selecionando colunas usando índices</span></span>
-<span id="cb5-11"><a href="#cb5-11" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb5-12"><a href="#cb5-12" aria-hidden="true" tabindex="-1"></a><span class="co"># Usando índices explicitamente</span></span>
-<span id="cb5-13"><a href="#cb5-13" aria-hidden="true" tabindex="-1"></a><span class="fu">select</span>(tbl, <span class="dv">2</span>, <span class="dv">8</span>, <span class="dv">15</span>)</span>
-<span id="cb5-14"><a href="#cb5-14" aria-hidden="true" tabindex="-1"></a><span class="co"># Usando um vetor numérico</span></span>
-<span id="cb5-15"><a href="#cb5-15" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb5-16"><a href="#cb5-16" aria-hidden="true" tabindex="-1"></a><span class="co"># Encontra a posição de todas as colunas que começam com 'pib'</span></span>
-<span id="cb5-17"><a href="#cb5-17" aria-hidden="true" tabindex="-1"></a>inds <span class="ot">&lt;-</span> <span class="fu">grep</span>(<span class="st">"^pib_"</span>, <span class="fu">names</span>(tbl))</span>
-<span id="cb5-18"><a href="#cb5-18" aria-hidden="true" tabindex="-1"></a><span class="fu">select</span>(tbl, inds)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb6"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Selecionando colunas de modo geral</span></span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a><span class="fu">select</span>(tbl, name_muni, population, pib)</span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Selecionando colunas usando strings</span></span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a><span class="fu">select</span>(tbl, <span class="st">"name_muni"</span>, <span class="st">"population"</span>, <span class="st">"pib"</span>)</span>
+<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a><span class="co"># Selecionando colunas usando vetor de texto</span></span>
+<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a>sel_cols <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="st">"name_muni"</span>, <span class="st">"population"</span>, <span class="st">"pib"</span>)</span>
+<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a><span class="fu">select</span>(tbl, sel_cols)</span>
+<span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-10"><a href="#cb6-10" aria-hidden="true" tabindex="-1"></a><span class="co"># Selecionando colunas usando índices</span></span>
+<span id="cb6-11"><a href="#cb6-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-12"><a href="#cb6-12" aria-hidden="true" tabindex="-1"></a><span class="co"># Usando índices explicitamente</span></span>
+<span id="cb6-13"><a href="#cb6-13" aria-hidden="true" tabindex="-1"></a><span class="fu">select</span>(tbl, <span class="dv">2</span>, <span class="dv">8</span>, <span class="dv">15</span>)</span>
+<span id="cb6-14"><a href="#cb6-14" aria-hidden="true" tabindex="-1"></a><span class="co"># Usando um vetor numérico</span></span>
+<span id="cb6-15"><a href="#cb6-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-16"><a href="#cb6-16" aria-hidden="true" tabindex="-1"></a><span class="co"># Encontra a posição de todas as colunas que começam com 'pib'</span></span>
+<span id="cb6-17"><a href="#cb6-17" aria-hidden="true" tabindex="-1"></a>inds <span class="ot">&lt;-</span> <span class="fu">grep</span>(<span class="st">"^pib_"</span>, <span class="fu">names</span>(tbl))</span>
+<span id="cb6-18"><a href="#cb6-18" aria-hidden="true" tabindex="-1"></a><span class="fu">select</span>(tbl, inds)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
-<p>Para remover uma coluna usa-se o sinal de menos (<code>-</code>) ou o operador lógico de negação (<code>!</code>).</p>
+<p>Para remover uma coluna usa-se o sinal de menos (<code>-</code>) ou o operador lógico de negação (<code>!</code>)<a href="#fn1" class="footnote-ref" id="fnref1" role="doc-noteref"><sup>1</sup></a>.</p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb6"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="fu">select</span>(tbl, <span class="sc">!</span>name_muni)</span>
-<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a><span class="fu">select</span>(tbl, <span class="sc">-</span>name_muni)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb7"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="fu">select</span>(tbl, <span class="sc">!</span>name_muni)</span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a><span class="fu">select</span>(tbl, <span class="sc">-</span>name_muni)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
-<p>Para facilitar a seleção de colunas, pode-se usar os operadores lógicos convencionais (<code>&amp;</code>, <code>|</code>, <code>!</code>). Por fim, existe também o operador <code>:</code> que serve para selecionar colunas contíguas.</p>
+<p>De modo geral, para facilitar a seleção de colunas, pode-se usar os operadores lógicos convencionais (<code>&amp;</code>, <code>|</code>, <code>!</code>). Por fim, existe também o operador <code>:</code> que serve para selecionar colunas contíguas.</p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb7"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="fu">select</span>(tbl, code_muni<span class="sc">:</span>name_region)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb8"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="fu">select</span>(tbl, code_muni<span class="sc">:</span>name_region)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 </section>
 <section id="tidyselectors" class="level2">
 <h2 class="anchored" data-anchor-id="tidyselectors">Tidyselectors</h2>
+<section id="básico" class="level3">
+<h3 class="anchored" data-anchor-id="básico">Básico</h3>
 <p>Existe um conjunto de funções auxiliares que facilita a seleção de colunas. Estas funções retornam índices a partir de alguma regra. Isto é, elas permitem selecionar colunas com base em algum padrão. O caso mais geral é da função <code>matches</code>, que seleciona colunas com base em um regex.</p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb8"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Seleciona as colunas que começam com 'pib_'</span></span>
-<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a><span class="fu">select</span>(tbl, <span class="fu">matches</span>(<span class="st">"^pib_"</span>))</span>
-<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a><span class="co"># Seleciona as colunas que terminam com 'muni'</span></span>
-<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a><span class="fu">select</span>(tbl, <span class="fu">matches</span>(<span class="st">"muni$"</span>))</span>
-<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a><span class="co"># Seleciona as colunas que contém o termo '_share'</span></span>
-<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a><span class="fu">select</span>(tbl, <span class="fu">matches</span>(<span class="st">"_share"</span>))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb9"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Seleciona as colunas que começam com 'pib_'</span></span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a><span class="fu">select</span>(tbl, <span class="fu">matches</span>(<span class="st">"^pib_"</span>))</span>
+<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a><span class="co"># Seleciona as colunas que terminam com 'muni'</span></span>
+<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a><span class="fu">select</span>(tbl, <span class="fu">matches</span>(<span class="st">"muni$"</span>))</span>
+<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a><span class="co"># Seleciona as colunas que contém o termo '_share'</span></span>
+<span id="cb9-6"><a href="#cb9-6" aria-hidden="true" tabindex="-1"></a><span class="fu">select</span>(tbl, <span class="fu">matches</span>(<span class="st">"_share"</span>))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 <p>A função <code>matches</code> retorna colunas a partir de algum padrão de texto no nome da coluna. Na linha da <a href="https://restateinsight.com/posts/general-posts/2023-09-tidyverse/#funções">filosofia do tidyverse, de transformar tarefas rotineiras em funções específicas</a> e com nomes “intuitivos” há uma série de funções auxiliares que imitam a função <code>matches</code>:</p>
 <ul>
@@ -360,19 +385,23 @@ gtag('config', 'G-EJF8PGT67H', { 'anonymize_ip': true});
 </ul>
 <p>Isto é, podemos reescrever os códigos acima da seguinte maneira</p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb9"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Seleciona as colunas que começam com 'pib_'</span></span>
-<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a><span class="fu">select</span>(tbl, <span class="fu">starts_with</span>(<span class="st">"pib_"</span>))</span>
-<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a><span class="co"># Seleciona as colunas que terminam com 'muni'</span></span>
-<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a><span class="fu">select</span>(tbl, <span class="fu">ends_with</span>(<span class="st">"muni"</span>))</span>
-<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a><span class="co"># Seleciona as colunas que contém o termo '_share'</span></span>
-<span id="cb9-6"><a href="#cb9-6" aria-hidden="true" tabindex="-1"></a><span class="fu">select</span>(tbl, <span class="fu">contains</span>(<span class="st">"_share"</span>))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb10"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Seleciona as colunas que começam com 'pib_'</span></span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a><span class="fu">select</span>(tbl, <span class="fu">starts_with</span>(<span class="st">"pib_"</span>))</span>
+<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a><span class="co"># Seleciona as colunas que terminam com 'muni'</span></span>
+<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a><span class="fu">select</span>(tbl, <span class="fu">ends_with</span>(<span class="st">"muni"</span>))</span>
+<span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a><span class="co"># Seleciona as colunas que contém o termo '_share'</span></span>
+<span id="cb10-6"><a href="#cb10-6" aria-hidden="true" tabindex="-1"></a><span class="fu">select</span>(tbl, <span class="fu">contains</span>(<span class="st">"_share"</span>))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
+</section>
+<section id="all_of-e-any_of" class="level3">
+<h3 class="anchored" data-anchor-id="all_of-e-any_of"><code>all_of</code> e <code>any_of</code></h3>
 <p>Como visto acima, pode-se selecionar colunas com base em um vetor de texto. Nos casos em que é necessário maior controle sobre a seleção, há duas funções auxiliares: <code>any_of</code> e <code>all_of</code>. A primeira função faz o match entre o vetor de texto e o nome das colunas e retorna todos os casos positivos; já a segunda função faz o match entre o vetor de texto e o nome das colunas e retorna um resultado somente no caso de todos os matches terem sucesso.</p>
+<p>Estas funções também são úteis para evitar potenciais ambiguidades entre o nome de objetos criados com o nome de colunas.</p>
 <p>A diferença entre as funções fica mais evidente num exemplo. Considere o caso em que colocamos uma coluna adicional <code>pib_per_capita</code> que não existe na base de dados. Quando se usa a função <code>all_of</code> retorna-se todas as colunas onde o match teve sucesso.</p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb10"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a>sel_cols <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="st">"code_muni"</span>, <span class="st">"name_muni"</span>, <span class="st">"population"</span>, <span class="st">"pib"</span>, <span class="st">"pib_per_capita"</span>)</span>
-<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a><span class="fu">select</span>(tbl, <span class="fu">any_of</span>(sel_cols))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb11"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a>sel_cols <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="st">"code_muni"</span>, <span class="st">"name_muni"</span>, <span class="st">"population"</span>, <span class="st">"pib"</span>, <span class="st">"pib_per_capita"</span>)</span>
+<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a><span class="fu">select</span>(tbl, <span class="fu">any_of</span>(sel_cols))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code># A tibble: 5,570 × 4
    code_muni name_muni             population     pib
@@ -392,22 +421,43 @@ gtag('config', 'G-EJF8PGT67H', { 'anonymize_ip': true});
 </div>
 <p>A função <code>all_of</code> é mais exigente e retorna um erro neste caso.</p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb12"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="fu">select</span>(tbl, <span class="fu">all_of</span>(sel_cols))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb13"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a><span class="fu">select</span>(tbl, <span class="fu">all_of</span>(sel_cols))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-error">
 <pre><code>Error in `all_of()`:
 ! Can't subset columns that don't exist.
 ✖ Column `pib_per_capita` doesn't exist.</code></pre>
 </div>
 </div>
-<p>Note que, neste caso, isto é equivalente a:</p>
+<p>Note que, neste caso, isto é equivalente a simplesmente usar o vetor. Esta sintaxe, contudo, não é recomendado e futuramente será descontinuada.</p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb14"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a><span class="fu">select</span>(tbl, sel_cols)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb15"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a><span class="fu">select</span>(tbl, sel_cols)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-error">
 <pre><code>Error in `select()`:
 ! Can't subset columns that don't exist.
 ✖ Column `pib_per_capita` doesn't exist.</code></pre>
 </div>
 </div>
+</section>
+<section id="conflitos-de-nomes" class="level3">
+<h3 class="anchored" data-anchor-id="conflitos-de-nomes">Conflitos de nomes</h3>
+<p>A função <code>select</code> faz um bom trabalho em resolver situações onde há alguma ambiguidade sobre qual o <em>environment</em> em que se deve avaliar uma expressão. O uso de <code>all_of</code> e <code>any_of</code> é recomendado justamente para evitar potenciais ambiguidades. Vale tirar um tempo para entender os exemplos abaixo.</p>
+<p>Note que no primeiro caso, a função <code>ncol</code> é aplicada sobre <code>x</code> dentro da função <code>select</code>. A função <code>ncol</code> é avaliada no environment geral, isto é, ela considera <code>x</code> como o <code>data.frame</code> criado no espaço geral e não como uma coluna específica.</p>
+<p>No segundo caso, a expressão <code>y</code> dentro da função <code>select</code> é interpretada como uma data-expression, isto é, como uma expressão que se refere ao nome de coluna do <code>data.frame</code> x.</p>
+<p>No último caso, a função <code>all_of</code> indica que a expressão <code>y</code> deve ser avaliada como uma env-expression, isto é, como uma variável no environment geral, como o vetor de texto criado anteriormente.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb17"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a>x <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(<span class="at">x =</span> <span class="dv">1</span>, <span class="at">y =</span> <span class="dv">2</span>)</span>
+<span id="cb17-2"><a href="#cb17-2" aria-hidden="true" tabindex="-1"></a>y <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="st">"x"</span>, <span class="st">"y"</span>)</span>
+<span id="cb17-3"><a href="#cb17-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-4"><a href="#cb17-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Retorna as duas colunas, 'x', 'y'</span></span>
+<span id="cb17-5"><a href="#cb17-5" aria-hidden="true" tabindex="-1"></a><span class="fu">select</span>(x, <span class="dv">1</span><span class="sc">:</span><span class="fu">ncol</span>(x))</span>
+<span id="cb17-6"><a href="#cb17-6" aria-hidden="true" tabindex="-1"></a><span class="co"># Retorna a segunda coluna, 'y'</span></span>
+<span id="cb17-7"><a href="#cb17-7" aria-hidden="true" tabindex="-1"></a><span class="fu">select</span>(x, y)</span>
+<span id="cb17-8"><a href="#cb17-8" aria-hidden="true" tabindex="-1"></a><span class="co"># Retorna as duas colunas, 'x', 'y'</span></span>
+<span id="cb17-9"><a href="#cb17-9" aria-hidden="true" tabindex="-1"></a><span class="fu">select</span>(x, <span class="fu">all_of</span>(y))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+</section>
+<section id="helpers-de-posição" class="level3">
+<h3 class="anchored" data-anchor-id="helpers-de-posição">Helpers de posição</h3>
 <p>Há também algumas funções auxilares mais gerais:</p>
 <ul>
 <li><p><code>everything()</code> - seleciona todas as colunas</p></li>
@@ -416,40 +466,44 @@ gtag('config', 'G-EJF8PGT67H', { 'anonymize_ip': true});
 </ul>
 <p>A função <code>everything()</code> tem um comportamento particular quando combinada com outras colunas. A função seleciona todas as colunas, exceto as que foram explicitamente chamadas. Isto facilita bastante o trabalho de rearranjar as colunas dentro de uma mesma base de dados.</p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb16"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Coloca as colunas pib e pib_industrial na frente das demais colunas</span></span>
-<span id="cb16-2"><a href="#cb16-2" aria-hidden="true" tabindex="-1"></a><span class="fu">select</span>(tbl, pib, pib_industrial, <span class="fu">everything</span>())</span>
-<span id="cb16-3"><a href="#cb16-3" aria-hidden="true" tabindex="-1"></a><span class="co"># Dropa todas as variáveis</span></span>
-<span id="cb16-4"><a href="#cb16-4" aria-hidden="true" tabindex="-1"></a><span class="fu">select</span>(tbl, <span class="sc">-</span><span class="fu">everything</span>())</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb18"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Coloca as colunas pib e pib_industrial na frente das demais colunas</span></span>
+<span id="cb18-2"><a href="#cb18-2" aria-hidden="true" tabindex="-1"></a><span class="fu">select</span>(tbl, pib, pib_industrial, <span class="fu">everything</span>())</span>
+<span id="cb18-3"><a href="#cb18-3" aria-hidden="true" tabindex="-1"></a><span class="co"># Dropa todas as variáveis</span></span>
+<span id="cb18-4"><a href="#cb18-4" aria-hidden="true" tabindex="-1"></a><span class="fu">select</span>(tbl, <span class="sc">-</span><span class="fu">everything</span>())</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
+</section>
+<section id="helpers-de-tipo" class="level3">
+<h3 class="anchored" data-anchor-id="helpers-de-tipo">Helpers de tipo</h3>
 <p>Por fim, pode-se selecionar as colunas pela sua classe. Vale lembrar que num <code>data.frame</code> cada coluna tem uma classe específica. Os exemplos abaixo mostram os casos de aplicação mais simples.</p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb17"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Seleciona todas as colunas numéricas</span></span>
-<span id="cb17-2"><a href="#cb17-2" aria-hidden="true" tabindex="-1"></a><span class="fu">select</span>(tbl, <span class="fu">where</span>(is.numeric))</span>
-<span id="cb17-3"><a href="#cb17-3" aria-hidden="true" tabindex="-1"></a><span class="co"># Seleciona todas as colunas tipo character</span></span>
-<span id="cb17-4"><a href="#cb17-4" aria-hidden="true" tabindex="-1"></a><span class="fu">select</span>(tbl, <span class="fu">where</span>(is.character))</span>
-<span id="cb17-5"><a href="#cb17-5" aria-hidden="true" tabindex="-1"></a><span class="co"># Seleciona todas as colunas tipo factor</span></span>
-<span id="cb17-6"><a href="#cb17-6" aria-hidden="true" tabindex="-1"></a><span class="fu">select</span>(tbl, <span class="fu">where</span>(is.factor))</span>
-<span id="cb17-7"><a href="#cb17-7" aria-hidden="true" tabindex="-1"></a><span class="co"># Selciona todas as colunas lógicas (i.e. TRUE, FALSE, NA)</span></span>
-<span id="cb17-8"><a href="#cb17-8" aria-hidden="true" tabindex="-1"></a><span class="fu">select</span>(tbl, <span class="fu">where</span>(is.logical))</span>
-<span id="cb17-9"><a href="#cb17-9" aria-hidden="true" tabindex="-1"></a><span class="co"># Seleciona todas as colunas</span></span>
-<span id="cb17-10"><a href="#cb17-10" aria-hidden="true" tabindex="-1"></a><span class="fu">select</span>(tbl, <span class="fu">where</span>(is.Date))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb19"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Seleciona todas as colunas numéricas</span></span>
+<span id="cb19-2"><a href="#cb19-2" aria-hidden="true" tabindex="-1"></a><span class="fu">select</span>(tbl, <span class="fu">where</span>(is.numeric))</span>
+<span id="cb19-3"><a href="#cb19-3" aria-hidden="true" tabindex="-1"></a><span class="co"># Seleciona todas as colunas tipo character</span></span>
+<span id="cb19-4"><a href="#cb19-4" aria-hidden="true" tabindex="-1"></a><span class="fu">select</span>(tbl, <span class="fu">where</span>(is.character))</span>
+<span id="cb19-5"><a href="#cb19-5" aria-hidden="true" tabindex="-1"></a><span class="co"># Seleciona todas as colunas tipo factor</span></span>
+<span id="cb19-6"><a href="#cb19-6" aria-hidden="true" tabindex="-1"></a><span class="fu">select</span>(tbl, <span class="fu">where</span>(is.factor))</span>
+<span id="cb19-7"><a href="#cb19-7" aria-hidden="true" tabindex="-1"></a><span class="co"># Selciona todas as colunas lógicas (i.e. TRUE, FALSE, NA)</span></span>
+<span id="cb19-8"><a href="#cb19-8" aria-hidden="true" tabindex="-1"></a><span class="fu">select</span>(tbl, <span class="fu">where</span>(is.logical))</span>
+<span id="cb19-9"><a href="#cb19-9" aria-hidden="true" tabindex="-1"></a><span class="co"># Seleciona todas as colunas</span></span>
+<span id="cb19-10"><a href="#cb19-10" aria-hidden="true" tabindex="-1"></a><span class="fu">select</span>(tbl, <span class="fu">where</span>(is.Date))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 <p>Essencialmente, o que o código acima faz é aplicar a função selecionada em cada uma das colunas e retornar os casos positivos. É possível criar condições lógicas mais complexas com auxílio do operador <code>~</code> (tilde). Os exemplos abaixo mostram como dropar todas as colunas que contém somente <code>NA</code> e selecionar as colunas com datas (<code>Date</code>).</p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb18"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a><span class="co"># eval: true</span></span>
-<span id="cb18-2"><a href="#cb18-2" aria-hidden="true" tabindex="-1"></a>dat <span class="ot">&lt;-</span> <span class="fu">tibble</span>(</span>
-<span id="cb18-3"><a href="#cb18-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">lgl =</span> <span class="cn">NA</span>,</span>
-<span id="cb18-4"><a href="#cb18-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">missing =</span> <span class="cn">NA</span>,</span>
-<span id="cb18-5"><a href="#cb18-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">lglT =</span> <span class="fu">sample</span>(<span class="fu">c</span>(<span class="cn">TRUE</span>, <span class="cn">FALSE</span>), <span class="at">size =</span> <span class="dv">10</span>, <span class="at">replace =</span> <span class="cn">TRUE</span>),</span>
-<span id="cb18-6"><a href="#cb18-6" aria-hidden="true" tabindex="-1"></a>  <span class="at">dia_mes =</span> <span class="fu">seq</span>(<span class="fu">as.Date</span>(<span class="st">"2000-01-01"</span>), <span class="at">by =</span> <span class="st">"month"</span>, <span class="at">length.out =</span> <span class="dv">10</span>),</span>
-<span id="cb18-7"><a href="#cb18-7" aria-hidden="true" tabindex="-1"></a>  <span class="at">val =</span> <span class="fu">rnorm</span>(<span class="dv">10</span>)</span>
-<span id="cb18-8"><a href="#cb18-8" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb18-9"><a href="#cb18-9" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb18-10"><a href="#cb18-10" aria-hidden="true" tabindex="-1"></a><span class="co"># "Remove" as colunas que contêm somente NA</span></span>
-<span id="cb18-11"><a href="#cb18-11" aria-hidden="true" tabindex="-1"></a><span class="fu">select</span>(dat, <span class="sc">!</span><span class="fu">where</span>(<span class="sc">~</span><span class="fu">all</span>(<span class="fu">is.na</span>(.x))))</span>
-<span id="cb18-12"><a href="#cb18-12" aria-hidden="true" tabindex="-1"></a><span class="co"># Seleciona apenas as colunas de data</span></span>
-<span id="cb18-13"><a href="#cb18-13" aria-hidden="true" tabindex="-1"></a><span class="fu">select</span>(dat, <span class="fu">where</span>(<span class="sc">~</span><span class="fu">all</span>(<span class="fu">inherits</span>(.x, <span class="st">"Date"</span>))))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb20"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a><span class="co"># eval: true</span></span>
+<span id="cb20-2"><a href="#cb20-2" aria-hidden="true" tabindex="-1"></a>dat <span class="ot">&lt;-</span> <span class="fu">tibble</span>(</span>
+<span id="cb20-3"><a href="#cb20-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">lgl =</span> <span class="cn">NA</span>,</span>
+<span id="cb20-4"><a href="#cb20-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">missing =</span> <span class="cn">NA</span>,</span>
+<span id="cb20-5"><a href="#cb20-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">lglT =</span> <span class="fu">sample</span>(<span class="fu">c</span>(<span class="cn">TRUE</span>, <span class="cn">FALSE</span>), <span class="at">size =</span> <span class="dv">10</span>, <span class="at">replace =</span> <span class="cn">TRUE</span>),</span>
+<span id="cb20-6"><a href="#cb20-6" aria-hidden="true" tabindex="-1"></a>  <span class="at">dia_mes =</span> <span class="fu">seq</span>(<span class="fu">as.Date</span>(<span class="st">"2000-01-01"</span>), <span class="at">by =</span> <span class="st">"month"</span>, <span class="at">length.out =</span> <span class="dv">10</span>),</span>
+<span id="cb20-7"><a href="#cb20-7" aria-hidden="true" tabindex="-1"></a>  <span class="at">val =</span> <span class="fu">rnorm</span>(<span class="dv">10</span>)</span>
+<span id="cb20-8"><a href="#cb20-8" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb20-9"><a href="#cb20-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-10"><a href="#cb20-10" aria-hidden="true" tabindex="-1"></a><span class="co"># "Remove" as colunas que contêm somente NA</span></span>
+<span id="cb20-11"><a href="#cb20-11" aria-hidden="true" tabindex="-1"></a><span class="fu">select</span>(dat, <span class="sc">!</span><span class="fu">where</span>(<span class="sc">~</span><span class="fu">all</span>(<span class="fu">is.na</span>(.x))))</span>
+<span id="cb20-12"><a href="#cb20-12" aria-hidden="true" tabindex="-1"></a><span class="co"># Seleciona apenas as colunas de data</span></span>
+<span id="cb20-13"><a href="#cb20-13" aria-hidden="true" tabindex="-1"></a><span class="fu">select</span>(dat, <span class="fu">where</span>(<span class="sc">~</span><span class="fu">all</span>(<span class="fu">inherits</span>(.x, <span class="st">"Date"</span>))))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
+</section>
 </section>
 <section id="resumindo" class="level2">
 <h2 class="anchored" data-anchor-id="resumindo">Resumindo</h2>
@@ -458,7 +512,7 @@ gtag('config', 'G-EJF8PGT67H', { 'anonymize_ip': true});
 <li>Seleção com base num padrão de texto. (<code>matches</code>, <code>starts_with</code>, <code>ends_with</code>, <code>contains</code>)</li>
 <li>Seleção com base num vetor de texto. (<code>all_of</code>, <code>any_of</code>)</li>
 <li>Seleção com base na “posição”. (<code>last_col</code>, <code>everything</code>, <code>group_cols</code>)</li>
-<li>Seleção com base numa função que retorna um valor lógico. (<code>where</code>)</li>
+<li>Seleção com base na “classe”, i.e., numa função que retorna um valor lógico. (<code>where</code>)</li>
 </ol>
 <p>Estas funções auxiliares são muito importantes pois elas funcionam não somente com o <code>select</code> mas também com outras funções do pacote <code>dplyr</code> como <code>mutate</code>, <code>rename</code>, <code>summarise</code> e outras. Estas funções são relativamente recentes e marcam uma <a href="https://www.tidyverse.org/blog/2020/04/dplyr-1-0-0-colwise/">mudança considerável em relação às versões &lt;1 do <code>dplyr</code></a>, que utilizam sufixos (<code>all</code>, <code>if</code>, <code>at</code>) para diferenciar as funções como <code>select_if</code>, ou <code>mutate_at</code>.</p>
 </section>
@@ -481,7 +535,13 @@ gtag('config', 'G-EJF8PGT67H', { 'anonymize_ip': true});
 </section>
 </section>
 
-</main> <!-- /main -->
+
+<div id="quarto-appendix" class="default"><section id="footnotes" class="footnotes footnotes-end-of-document" role="doc-endnotes"><h2 class="anchored quarto-appendix-heading">Footnotes</h2>
+
+<ol>
+<li id="fn1"><p>Apesar de ambas as opções serem válidas, recomenda-se utilizar os operadores booleanos ao invés do opreadores de conjuntos. Isto é, deve-se usar <code>!</code> ao invés de <code>-</code>.<a href="#fnref1" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+</ol>
+</section></div></main> <!-- /main -->
 <script id="quarto-html-after-body" type="application/javascript">
 window.document.addEventListener("DOMContentLoaded", function (event) {
   const toggleBodyColorMode = (bsSheetEl) => {

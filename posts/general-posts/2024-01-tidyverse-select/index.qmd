@@ -36,7 +36,7 @@ O tidyverse está em constante expansão, novas funcionalidades são criadas par
 Essencialmente, o `dplyr` gira em torno de quatro grandes funções: `filter`, `select`, `mutate` e `summarise`. Estas funções fazem o grosso do trabalho de limpeza de dados: filtram linhas, selecionam colunas e transformam os dados. A tabela abaixo resume as principais funções do pacote.
 
 | Nome da Função | Tradução          | O que faz                                                         |
-|---------------|---------------|-------------------------------------------|
+|----------------|----------------|----------------------------------------|
 | `rename`       | Renomear          | Modifica o nome das colunas.                                      |
 | `select`       | Selecionar        | Seleciona as colunas.                                             |
 | `filter`       | Filtrar           | Filtra/seleciona as linhas segundo alguma condição.               |
@@ -47,7 +47,7 @@ Essencialmente, o `dplyr` gira em torno de quatro grandes funções: `filter`, `
 
 # select
 
-A função `select` serve para selecionar colunas e reduzir a complexidade de uma tabela. Esta função mudou consideravelmente nos últimos anos após a criação de algumas funções auxiliares conhecidas como `tidyselectors`. Estas funções poderosas
+A função `select` serve para selecionar colunas e reduzir a complexidade de uma tabela. Esta função mudou consideravelmente nos últimos anos após a criação de algumas funções auxiliares conhecidas como *selection helpers*, que fazem parte do `tidyselect`. Estas funções poderosas permitem selecionar colunas usando regras lógicas e segundo padrões de texto; isto facilita consideravelmente a tarefa de limpeza de dados. Além disso, a lógica do `tidyselect` foi extendida para outros pacotes como `tidymodels`, `gt`, entre outros.
 
 ## O básico
 
@@ -82,6 +82,7 @@ select(dados, coluna1, coluna2, nome_coluna = coluna3)
 O código abaixo seleciona três colunas: `name_muni`, `population`, `pib`.
 
 ```{r}
+#| eval: true
 select(tbl, name_muni, population, pib)
 ```
 
@@ -91,10 +92,10 @@ Pode-se selecionar colunas de três maneiras gerais: (1) como expressões (escre
 # Selecionando colunas de modo geral
 select(tbl, name_muni, population, pib)
 
-# Selecionando columnas usando strings
+# Selecionando colunas usando strings
 select(tbl, "name_muni", "population", "pib")
 # Selecionando colunas usando vetor de texto
-sel_cols = c("name_muni", "population", "pib")
+sel_cols <- c("name_muni", "population", "pib")
 select(tbl, sel_cols)
 
 # Selecionando colunas usando índices
@@ -108,20 +109,24 @@ inds <- grep("^pib_", names(tbl))
 select(tbl, inds)
 ```
 
-Para remover uma coluna usa-se o sinal de menos (`-`) ou o operador lógico de negação (`!`).
+Para remover uma coluna usa-se o sinal de menos (`-`) ou o operador lógico de negação (`!`)[^1].
+
+[^1]: Apesar de ambas as opções serem válidas, recomenda-se utilizar os operadores booleanos ao invés do opreadores de conjuntos. Isto é, deve-se usar `!` ao invés de `-`.
 
 ```{r}
 select(tbl, !name_muni)
 select(tbl, -name_muni)
 ```
 
-Para facilitar a seleção de colunas, pode-se usar os operadores lógicos convencionais (`&`, `|`, `!`). Por fim, existe também o operador `:` que serve para selecionar colunas contíguas.
+De modo geral, para facilitar a seleção de colunas, pode-se usar os operadores lógicos convencionais (`&`, `|`, `!`). Por fim, existe também o operador `:` que serve para selecionar colunas contíguas.
 
 ```{r}
 select(tbl, code_muni:name_region)
 ```
 
 ## Tidyselectors
+
+### Básico
 
 Existe um conjunto de funções auxiliares que facilita a seleção de colunas. Estas funções retornam índices a partir de alguma regra. Isto é, elas permitem selecionar colunas com base em algum padrão. O caso mais geral é da função `matches`, que seleciona colunas com base em um regex.
 
@@ -153,7 +158,11 @@ select(tbl, ends_with("muni"))
 select(tbl, contains("_share"))
 ```
 
+### `all_of` e `any_of`
+
 Como visto acima, pode-se selecionar colunas com base em um vetor de texto. Nos casos em que é necessário maior controle sobre a seleção, há duas funções auxiliares: `any_of` e `all_of`. A primeira função faz o match entre o vetor de texto e o nome das colunas e retorna todos os casos positivos; já a segunda função faz o match entre o vetor de texto e o nome das colunas e retorna um resultado somente no caso de todos os matches terem sucesso.
+
+Estas funções também são úteis para evitar potenciais ambiguidades entre o nome de objetos criados com o nome de colunas.
 
 A diferença entre as funções fica mais evidente num exemplo. Considere o caso em que colocamos uma coluna adicional `pib_per_capita` que não existe na base de dados. Quando se usa a função `all_of` retorna-se todas as colunas onde o match teve sucesso.
 
@@ -172,13 +181,37 @@ A função `all_of` é mais exigente e retorna um erro neste caso.
 select(tbl, all_of(sel_cols))
 ```
 
-Note que, neste caso, isto é equivalente a:
+Note que, neste caso, isto é equivalente a simplesmente usar o vetor. Esta sintaxe, contudo, não é recomendado e futuramente será descontinuada.
 
 ```{r}
 #| eval: true
 #| error: true
 select(tbl, sel_cols)
 ```
+
+### Conflitos de nomes
+
+A função `select` faz um bom trabalho em resolver situações onde há alguma ambiguidade sobre qual o *environment* em que se deve avaliar uma expressão. O uso de `all_of` e `any_of` é recomendado justamente para evitar potenciais ambiguidades. Vale tirar um tempo para entender os exemplos abaixo.
+
+Note que no primeiro caso, a função `ncol` é aplicada sobre `x` dentro da função `select`. A função `ncol` é avaliada no environment geral, isto é, ela considera `x` como o `data.frame` criado no espaço geral e não como uma coluna específica.
+
+No segundo caso, a expressão `y` dentro da função `select` é interpretada como uma data-expression, isto é, como uma expressão que se refere ao nome de coluna do `data.frame` x.
+
+No último caso, a função `all_of` indica que a expressão `y` deve ser avaliada como uma env-expression, isto é, como uma variável no environment geral, como o vetor de texto criado anteriormente.
+
+```{r}
+x <- data.frame(x = 1, y = 2)
+y <- c("x", "y")
+
+# Retorna as duas colunas, 'x', 'y'
+select(x, 1:ncol(x))
+# Retorna a segunda coluna, 'y'
+select(x, y)
+# Retorna as duas colunas, 'x', 'y'
+select(x, all_of(y))
+```
+
+### Helpers de posição
 
 Há também algumas funções auxilares mais gerais:
 
@@ -196,6 +229,8 @@ select(tbl, pib, pib_industrial, everything())
 # Dropa todas as variáveis
 select(tbl, -everything())
 ```
+
+### Helpers de tipo
 
 Por fim, pode-se selecionar as colunas pela sua classe. Vale lembrar que num `data.frame` cada coluna tem uma classe específica. Os exemplos abaixo mostram os casos de aplicação mais simples.
 
@@ -237,7 +272,7 @@ Em resumo, temos quatro grupos gerais de `tidyselectors`.
 1.  Seleção com base num padrão de texto. (`matches`, `starts_with`, `ends_with`, `contains`)
 2.  Seleção com base num vetor de texto. (`all_of`, `any_of`)
 3.  Seleção com base na "posição". (`last_col`, `everything`, `group_cols`)
-4.  Seleção com base numa função que retorna um valor lógico. (`where`)
+4.  Seleção com base na "classe", i.e., numa função que retorna um valor lógico. (`where`)
 
 Estas funções auxiliares são muito importantes pois elas funcionam não somente com o `select` mas também com outras funções do pacote `dplyr` como `mutate`, `rename`, `summarise` e outras. Estas funções são relativamente recentes e marcam uma [mudança considerável em relação às versões \<1 do `dplyr`](https://www.tidyverse.org/blog/2020/04/dplyr-1-0-0-colwise/), que utilizam sufixos (`all`, `if`, `at`) para diferenciar as funções como `select_if`, ou `mutate_at`.
 
