@@ -1,0 +1,112 @@
+---
+title: "Housing Affordability em São Paulo"
+date: "2024-03-07"
+categories: ['data-visualization', 'mapas', 'sao-paulo', 'ggplot2']
+description: "Um mapa coroplético que apresenta a distribuição do Price-Income-Ratio (PIR) em São Paulo por regiões. O PIR mede a acessibilidade financeira aos imóveis."
+format:
+  html:
+    code-tools: true
+execute: 
+  echo: false
+  warning: false
+  message: false
+---
+
+```{r}
+#| include: false
+library(ggplot2)
+library(tmap)
+library(tmaptools)
+library(dplyr)
+library(tidyr)
+library(sf)
+library(showtext)
+
+# Fonts
+font_add_google("Playfair Display", "Playfair Display")
+font_add_google("Roboto Condensed", "Roboto Condensed")
+showtext_auto()
+
+affordability <- st_read(
+  "/Users/viniciusoike/Documents/GitHub/maps/data/affordability_relatorio_local.geojson",
+  quiet = TRUE
+)
+
+affordability <- affordability |> 
+  mutate(
+    inc_med_label = round(inc_med_total, -2),
+    pc_m2_med_label = round(pc_m2_med, -2)
+  )
+```
+
+```{r}
+jenks <- BAMMtools::getJenksBreaks(affordability$pir_med_total, k = 8)
+
+p_map <- ggplot(affordability) +
+  geom_sf(aes(fill = pir_med_total), lwd = 0.15, color = "white") +
+  scale_fill_fermenter(
+    name = "",
+    palette = "Reds",
+    direction = 1,
+    breaks = jenks,
+    labels = round(jenks),
+    na.value = "gray90") +
+  labs(
+    title = "Housing Affordability",
+    subtitle = "Distribuição do Price-Income Ratio em São Paulo"
+  ) +
+  ggthemes::theme_map(base_family = "Playfair Display") +
+  theme(
+    legend.position = "top",
+    legend.justification = 0.5,
+    legend.key.size = unit(0.5, "cm"),
+    legend.key.width = unit(1.25, "cm"),
+    legend.text = element_text(size = 12),
+    legend.margin = margin(),
+    plot.margin = margin(10, 5, 5, 10),
+    plot.title = element_text(size = 32, hjust = 0.5),
+    plot.subtitle = element_text(size = 10, hjust = 0.5)
+  )
+```
+
+# PIR
+
+O mapa abaixo apresenta o Price-Income-Ratio (PIR) por Zona OD na cidade de São Paulo. Os dados são de 2021 e provêm do artigo [Acesso à moradia em São Paulo: visão geral e mensuração](https://lares.architexturez.net/system/files/4DRB.pdf), publicado na LARES 2021. O PIR é um indicador simples que mensura a acessibilidade financeira à moradia numa região: sua interpretação é do tipo "quanto maior, pior", isto é, quanto maior for o valor do PIR, pior é a acessibilidade financeira à moradia. O mapa abaixo compara o preço médio dos imóveis disponíveis[^1] nestas regiões com a renda média familiar bruta de São Paulo. Regiões centrais como Jardins e Alto de Pinheiros apresentam os piores indicadores de acessibilidade.
+
+[^1]: Os dados provêm de um webscrape dos principais portais de anúncios.
+
+```{r}
+#| out-width: "100%"
+#| out-height: 900px
+#| fig-width: 9
+#| fig-height: 12
+#| fig-format: svg
+#| fig-showtext: true
+#| fig-dpi: 72
+
+p_map
+```
+
+-   Dados: [Acesso à moradia em São Paulo: visão geral e mensuração](https://lares.architexturez.net/system/files/4DRB.pdf)
+
+-   Tipografia: [Playfair Display](https://fonts.google.com/specimen/Playfair+Display)
+
+-   Paleta: `Reds` ([ColorBrewer](https://colorbrewer2.org/#type=sequential&scheme=Reds&n=9))
+
+## O que é o PIR?
+
+O PIR é uma razão simples entre o preço médio/mediano dos imóveis e a renda média/mediana anual das famílias:
+
+$$
+\text{PIR} = \frac{\text{Precos}}{\text{Renda Anual}}
+$$
+
+O PIR indica, grosso modo, a quantidade de "anos de trabalho" que uma família típica precisa investir de renda para comprar um imóvel típico. A principal vantagem do PIR é a sua simplicidade de cálculo, o que facilita comparações entre diferentes regiões. A principal desvantagem do PIR é de ignorar as condições de financiamento disponíveis para a população. Supondo que a renda anual média das famílias seja $R\$30.000$ e que o preço médio dos imóveis seja $R\$270.000$. Então o valor do PIR seria:
+
+$$
+\text{PIR} = \frac{R\$270.000}{R\$30.000} = 9
+$$
+
+Na literatura internacional, valores de PIR na faixa de 5-10 indicam baixa acessibilidade financeira. Estudos feitos em países em desenvolvimento e subdesenvolvidos, contudo, apontam valores de PIR muito mais elevados do que este intervalo, devido tanto à baixa renda média da população como também às condições limitadas de acesso ao crédito. Neste sentido, talvez uma comparação mais justa seja com as megacidades chinesas que tem PIR na faixa de 10-15. No artigo [Acesso à moradia em São Paulo: visão geral e mensuração](https://lares.architexturez.net/system/files/4DRB.pdf), escrito por mim em parceria com outros colegas, estima-se que o PIR de São Paulo em 2021 era próximo de 19-20. Mais a título de curiosidade, o site [Numbeo apresenta o PIR](https://www.numbeo.com/property-investment/rankings.jsp?title=2021) para um amplo grupo de cidades no mundo[^2]. Em 2021, segundo o site, o PIR de São Paulo era de 17,8.
+
+[^2]: É difícil apurar a qualidade dos dados utilizados no site.
