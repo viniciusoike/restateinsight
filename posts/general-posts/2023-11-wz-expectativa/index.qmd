@@ -33,8 +33,14 @@ dstr <- tidypod::districts
 dstr <- filter(dstr, code_muni == 36)
 
 # Import Mapa Desigualdade Data
+# https://www.nossasaopaulo.org.br/campanhas/#13
+
+url <- "https://www.nossasaopaulo.org.br/wp-content/uploads/2023/11/mapa_da_desigualdade_2023_dados.xlsx"
+tf <- tempfile(fileext = "xlsx")
+download.file(url, tf, quiet = TRUE)
+
 sp <- read_excel(
-  "/Users/viniciusoike/Documents/GitHub/maps/data/mapa_da_desigualdade_2023_dados.xlsx",
+  tf,
   sheet = 4,
   .name_repair = janitor::make_clean_names
 )
@@ -46,7 +52,6 @@ sp <- sp |>
 
 mapasp <- dstr |> 
   left_join(sp, by = "name_district")
-
 
 pmap <- ggplot(mapasp, aes(fill = idade_media_ao_morrer)) +
   geom_sf() +
