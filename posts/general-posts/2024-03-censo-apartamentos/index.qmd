@@ -1,0 +1,234 @@
+---
+title: "Casas e Apartamentos"
+date: "2024-03-19"
+description: "Neste post exploro os dados recentes do Censo sobre tipos de domicílios nas cidades brasileiras."
+categories: ['data-visualization', 'ggplot2', 'real-estate', 'data-science']
+format:
+  html:
+    code-tools: true
+    fig-align: "center"
+execute:
+  message: false
+  warning: false
+  echo: false
+---
+
+```{r}
+knitr::opts_chunk$set(fig.align = "center")
+
+library(dplyr)
+library(tidyr)
+library(stringr)
+library(sidrar)
+library(DT)
+library(gt)
+library(gtExtras)
+library(ggplot2)
+
+domi <- get_sidra(6326, variable = 381, geo = "City")
+
+domi <- domi |> 
+  janitor::clean_names() |> 
+  as_tibble() |> 
+  select(
+    code_muni = municipio_codigo,
+    municipio,
+    tipo_de_domicilio,
+    qtd = valor
+    ) |> 
+  separate(
+    col = "municipio",
+    into = c("name_muni", "abbrev_state"),
+    sep = " - "
+    )
+
+domi <- domi |> 
+  mutate(
+    tipo = case_when(
+      tipo_de_domicilio == "Apartamento" ~ "Apartamento",
+      str_detect(tipo_de_domicilio, "^Casa") ~ "Casa",
+      TRUE ~ "Outros"
+    )
+  )
+
+dat <- domi |> 
+  filter(tipo_de_domicilio != "Total") |> 
+  summarise(
+    total = sum(qtd, na.rm = TRUE),
+    .by = c("code_muni", "name_muni", "abbrev_state", "tipo")
+    ) |> 
+  mutate(share = total / sum(total), .by = "code_muni")
+
+tab_geral <- dat |> 
+  pivot_wider(
+    id_cols = c("code_muni", "name_muni", "abbrev_state"),
+    names_from = "tipo",
+    values_from = "share"
+  ) |> 
+  arrange(desc(Apartamento))
+
+total_houses <- dat %>%
+  summarise(total_houses = sum(total), .by = "code_muni")
+
+tab_geral <- left_join(tab_geral, total_houses, by = "code_muni")
+```
+
+# Um país de casas
+
+A vasta maioria dos domicílios residenciais no Brasil são casas[^1]. De fato, em apenas 3, das mais de 5000 cidades brasileiras, o número de apartamentos é superior ao número de casas. Isto é, apenas em Santos, Balneário Camboriú e São Caetano do Sul, existe uma proporção maior de apartamentos do que de casas. Embora São Paulo seja famosa por seus prédios, os apartamentos representam apenas um terço das moradias na cidade.
+
+[^1]: Vale notar que os dados refletem o número total de domicílios e não o número total de pessoas morando em domicílios (por tipo de domicílio).
+
+A tabela abaixo resume os dados para as vinte cidade mais "verticalizadas" do Brasil.
+
+```{r}
+tab_geral %>%
+  select(-code_muni) %>%
+  rename(
+    "Total Domicílios" = "total_houses",
+    "Nome Cidade" = "name_muni",
+    "UF" = "abbrev_state") %>%
+  slice(1:20) %>%
+  gt() %>%
+  fmt_percent(3:5, dec_mark = ",", decimals = 1) %>%
+  fmt_number(6, decimals = 0, sep_mark = ".") %>%
+  gt_theme_538()
+```
+
+## Tamanho do Município
+
+Pode-se imaginar que cidades maiores são mais verticalizadas, na média, do que cidades menores. Isto não parece ser o caso no Brasil. O gráfico abaixo mostra a relação entre o número total de domicílios e o share de apartamentos nas maiores cidades brasileiras. Considerou-se somente cidades com pelo menos 50 mil domicílios (grosso modo, 150 mil habitantes).
+
+Os dados apresentam uma correlação muito fraca e grande variabilidade. De fato, não parece haver relação alguma entre os dados.
+
+```{r plot-cities-vert}
+big_cities <- total_houses %>%
+  filter(total_houses > 50000) %>%
+  pull(code_muni)
+
+sub <- tab_geral %>%
+  filter(code_muni %in% big_cities) %>%
+  mutate(code_region = factor(str_sub(code_muni, 1, 1)))
+
+ggplot(sub, aes(x = log(total_houses), y = Apartamento)) +
+  geom_point(aes(color = code_region)) +
+  geom_smooth(
+    se = FALSE,
+    method = "lm",
+    color = MetBrewer::met.brewer("Hokusai2", 1)
+    ) +
+  scale_y_continuous(
+    breaks = seq(0.1, 0.7, 0.1),
+    labels = scales::label_percent()
+    ) +
+  scale_color_manual(
+    name = "Região",
+    values = MetBrewer::met.brewer("Hokusai1", 5),
+    labels = c("Norte", "Nordeste", "Sudeste", "Sul", "Centro Oeste")) +
+  labs(
+    title = "Verticalização e Tamanho",
+    subtitle = "Relação entre o número total de domicílios e o percentual de apartamentos por cidade",
+    x = "Número total de Domicílios (log)",
+    y = "Percentual de Apartamentos",
+    caption = "Fonte: IBGE (CENSO 2022)") +
+  theme_bw() +
+  theme(
+    panel.grid.minor = element_blank(),
+    legend.position = "bottom"
+  )
+```
+
+A tabela abaixo ilustra este fato. A tabela mostra todas as cidades na faixa de 150 a 200 mil domicílios. A cidade com maior percentual de apartamentos é Santos: 67% dos seus 167 mil domicílios são apartamentos; um contraste enorme com São João de Meriti: menos de 5% dos seus 168 domicílios são apartamentos.
+
+```{r}
+tab_geral %>%
+  filter(between(total_houses, 150000, 200000)) %>%
+  arrange(desc(Apartamento)) %>%
+  select(name_muni, abbrev_state, Apartamento, total_houses) %>%
+  rename(
+    "Total Domicílios" = "total_houses",
+    "Nome Cidade" = "name_muni",
+    "UF" = "abbrev_state") %>%
+  gt() %>%
+  fmt_percent(3, dec_mark = ",", decimals = 1) %>%
+  fmt_number(4, decimals = 0, sep_mark = ".") %>%
+  gt_theme_538()
+```
+
+Comparando o share de apartamentos com o tamanho do município[^2], chega-se na mesma conclusão. O gráfico abaixo mostra o percentual de domicílios contra a área total do município. Seria intuitivo que municípios menores, onde há menos oferta de terra, exibissem maiores percentuais de apartamentos. Contudo, não parece haver relação entre as variáveis.
+
+[^2]: Existe uma leve distorção no cálculo da área do município. Calculou-se a área total do perímetro municipal, o que penaliza cidades com muitas áreas verdes. Cidades como Campo Grande e Manaus, por exemplo, tem uma área total muito superior à área urbana. Conseguir o shapefile somente da área urbana da cidade, contudo, não é tarefa simples.
+
+```{r}
+library(sf)
+library(geobr)
+cities <- geobr::read_municipality(showProgress = FALSE)
+
+tab_area <- cities %>%
+  st_transform(crs = 31984) %>%
+  mutate(area = st_area(.), area = as.numeric(area) / 1e5) %>%
+  st_drop_geometry() %>%
+  as_tibble() %>%
+  select(code_muni, area_ha = area) %>%
+  mutate(code_muni = as.character(code_muni))
+
+tab_geral <- tab_geral %>%
+  left_join(tab_area, by = "code_muni")
+```
+
+```{r}
+sub <- tab_geral %>%
+  filter(code_muni %in% big_cities) %>%
+  mutate(code_region = factor(str_sub(code_muni, 1, 1)))
+
+ggplot(sub, aes(x = log(area_ha), y = Apartamento)) +
+  geom_point(aes(color = code_region)) +
+  scale_y_continuous(
+    breaks = seq(0.1, 0.7, 0.1),
+    labels = scales::label_percent()
+    ) +
+  scale_color_manual(
+    name = "Região",
+    values = MetBrewer::met.brewer("Hokusai1", 5),
+    labels = c("Norte", "Nordeste", "Sudeste", "Sul", "Centro Oeste")) +
+  labs(
+    title = "Verticalização e Tamanho",
+    subtitle = "Relação entre o número total de domicílios e o percentual de apartamentos por cidade",
+    x = "Tamanho do Município (hectares, escala log)",
+    y = "Percentual de Apartamentos",
+    caption = "Fonte: IBGE (CENSO 2022)") +
+  theme_bw() +
+  theme(
+    panel.grid.minor = element_blank(),
+    legend.position = "bottom"
+  )
+```
+
+Na faixa de 450 a 500 hectares, temos 20 municípios, a maioria com menos de 5% de apartamentos. Neste contexto, Balneário Camboriú é um outlier notável com mais de 60% de apartamentos.
+
+```{r}
+tab_geral %>%
+  filter(between(area_ha, 450, 500)) %>%
+  arrange(desc(Apartamento)) %>%
+  select(name_muni, abbrev_state, Apartamento, total_houses, area_ha) %>%
+  rename(
+    "Total Domicílios" = "total_houses",
+    "Nome Cidade" = "name_muni",
+    "UF" = "abbrev_state",
+    "Área (ha.)" = "area_ha") %>%
+  gt() %>%
+  fmt_percent(3, dec_mark = ",", decimals = 1) %>%
+  fmt_number(4:5, decimals = 0, sep_mark = ".") %>%
+  gt_theme_538()
+```
+
+## Tabela completa
+
+A lista completa dos dados pode ser acessada na tabela abaixo.
+
+```{r}
+tab_geral %>%
+  rename("Nome Cidade" = name_muni) %>%
+  mutate(across(where(is.numeric), ~round(.x * 100, 2))) %>%
+  datatable()
+```
