@@ -1,0 +1,288 @@
+---
+title: "Enriquecendo e coletando do Google Maps"
+date: "2024-03-22"
+categories: ['data-science', 'google-maps', 'tutorial-R', 'mapas']
+description: "Neste post mostro como usar o Google Places API para importar informação do Google Maps dentro do R. O foco deste post será no Places, que encontra informações sobre estabelecimentos ou pontos de interesse. Também mostro como montar um mapa interativo com os resultados."
+execute: 
+  message: false
+  warning: false
+---
+
+# Google Places
+
+O Google [Places API](https://developers.google.com/maps/documentation/places/web-service/overview) permite acessar os dados do Google Maps. O pacote `googleway` integra estes dados dentro de `R` já em formato tidy. Neste post vou mostrar como importar dados desta API com foco no Places, que encontra informações sobre estabelecimentos ou pontos de interesse, em geral. Há diversos outros usos desta API, como de encontrar rotas, estimar a elevação, recuperar fotos do Street View, entre outros. Para uma lista completa [veja a documentação do pacote](http://symbolixau.github.io/googleway/articles/googleway-vignette.html).
+
+```{r libs}
+library(sf)
+library(googleway)
+library(dplyr)
+library(tidyr)
+library(stringr)
+library(leaflet)
+```
+
+### API - chave
+
+Para usar o pacote é preciso registrar uma API. Se você não tem uma key é preciso criar uma. Um tutorial do Google [está disponível aqui](https://developers.google.com/maps/documentation/javascript/get-api-key).
+
+```{r}
+#| eval: false
+googleway::set_key("sua_chave")
+```
+
+## Starbucks
+
+Para exemplificar o uso da API vamos começar com um exemplo simples. Via de regra, é preciso definir apenas dois parâmetros para começar a busca:
+
+1.  Um termo de busca
+2.  Um ponto
+
+No exemplo abaixo buscamos o termo "starbucks" a partir da coordenada do Museu de Arte de São Paulo (MASP).
+
+```{r}
+#| eval: false
+ponto = c(-23.561462, -46.655937)
+
+search_sbux = google_places(
+  search_string = "starbucks",
+  location = ponto
+)
+```
+
+O objeto guarda vários resultados da query.
+
+```{r}
+#| eval: false
+# Resultados da query em formato data.frame
+places$results
+# 'token' para continuar a busca
+places$next_page_token
+# Status da query
+places$status
+```
+
+A query de busca encontra apenas 20 resultados (no máximo). Para encontrar mais resultados é preciso fazer uma nova busca, usando `$next_page_token` para encontrar mais resultados.
+
+```{r}
+#| eval: false
+# busca mais resultados para a mesma pesquisa
+search_sbux_2 = google_places(
+  search_string = "starbucks",
+  location = ponto,
+  page_token = search_sbux$next_page_token
+)
+# busca mais resultados para a mesma pesquisa
+search_sbux_3 = google_places(
+  search_string = "starbucks",
+  location = ponto,
+  page_token = search_sbux_2$next_page_token
+)
+# Agrega todos os resultados encontrados
+res <- bind_rows(
+  search_sbux$results,
+  search_sbux_2$results,
+  search_sbux_3$results
+)
+```
+
+```{r}
+#| include: false
+res <- qs::qread(here::here("static/data/starbucks_example.qs"))
+```
+
+Ao todo, a query encontrou 50 resultados que estão agregados no objeto `res` acima. A query retorna várias das informações que normalmente se encontram numa busca via Google Maps: a nota média do estabelecimento, algumas fotos, o endereço, a posição geográfica (lat/lng), o tipo do estabelecimento, etc.
+
+Formalmentem, as informações estão estruturadas num "nested" `data.frame`, que é um `data.frame` comum que possui outros `data.frame` ou `list` como colunas. Isto pode causar algum estranhamento, mas não é nada demais. Para selecionar uma coluna acaba sendo necessário fazer `df$col1$col2` ou usar os comandos `tidyr::unnest`.
+
+```{r}
+subres <- res %>%
+  unnest(cols = "geometry") %>%
+  unnest(cols = "location") %>%
+  select(
+    business_status, name, formatted_address, rating, user_ratings_total, types,
+    lat, lng
+  )
+
+subres <- st_as_sf(subres, coords = c("lng", "lat"), crs = 4326)
+
+# Mapa iterativo simples
+leaflet(subres) |> 
+  addTiles() |> 
+  addCircleMarkers(label = ~name) |> 
+  addProviderTiles("CartoDB")
+```
+
+A coluna `types` é uma lista que contém cinco strings que categorizam o estabelecimento.
+
+```{r}
+#| eval: false
+subres$types[[1]]
+```
+
+Os dados do Google Maps não costumam ser 100% limpos. Não é incomum encontrar estabelecimentos fantasmas, ou mal-construídos. Um jeito fácil de encontrar estes casos é filtrar pelo número de reviews ou pelo nome. Na tabela abaixo há dois estabelecimentos suspeitos: o `STARBUCKS CO` e o `Starbucks Coffee`: ambos têm um baixo número de reviews e têm uma nota muito baixa (2 e 2.1, respectivamente).
+
+```{r}
+#| eval: false
+subres |> 
+  arrange(user_ratings_total) |> 
+  head(10)
+```
+
+## Busca estruturada
+
+```{r}
+#| include: false
+starbucks <- qs::qread(here::here("static/data/starbucks_webscrape.qs"))
+```
+
+Vou montar uma busca simples para retornar todos os Starbucks do Brasil. Seria muito demorado fazer uma busca completa, no país inteiro, então vou usar como ponto de partida os pares de coordenadas que encontrei via webscrape.
+
+A função abaixo procura pelo termo "starbucks" em todos os pontos que forneço. Para simplificar, a função devolve apenas algumas das colunas.
+
+```{r code-fun}
+# Function to grap starbucks info
+get_starbucks_info <- function(lat, lng) {
+  
+  places = google_places(
+    search_string = "starbucks",
+    location = c(lat, lng)
+  )
+  
+  sel_cols = c(
+    "name", "formatted_address", "lat", "lng", "rating", "user_ratings_total",
+    "business_status")
+  
+  places$results %>%
+    tidyr::unnest("geometry") %>%
+    tidyr::unnest("location") %>%
+    dplyr::select(dplyr::all_of(sel_cols))
+  
+}
+```
+
+O código abaixo roda a função acima em todos os 142 estabelecimentos, encontrados na página oficial do Starbucks Brasil.
+
+```{r code-fun2}
+#| eval: false
+# Remove geometry and keep only coordinates
+coords_starbucks <- starbucks %>%
+  st_drop_geometry() %>%
+  as_tibble() %>%
+  select(index, name, lat, lng)
+
+starbucks_info = purrr::map2(
+  coords_starbucks$lat,
+  coords_starbucks$lng,
+  get_starbucks_info
+  )
+
+dat <- starbucks_info %>%
+  bind_rows(.id = "search_id") %>%
+  distinct()
+```
+
+```{r import-dat-google}
+#| include: false
+dat = qs::qread(here::here("static/data/starbucks_gmaps.qs"))
+```
+
+Novamente, é preciso limpar os resultados. Olhando para a coluna de nome vemos que há vários estabelecimentos errados.
+
+```{r}
+unique(dat$name)
+```
+
+Para fazer a limpeza, vou manter apenas as unidades ativas com contêm "Starbucks" no seu nome. Além disso, vou parear os dados com a minha base de webscape usando `st_nearest_feature(x, y)`. Esta função encontra o ponto mais próximo em `y` para cada ponto de `x`.
+
+```{r}
+dat <- dat |> 
+  filter(str_detect(name, "Starbucks"), business_status == "OPERATIONAL") |> 
+  arrange(formatted_address)
+
+google_data <- dat %>%
+  st_as_sf(coords = c("lng", "lat"), crs = 4326)
+
+inds <- st_nearest_feature(google_data, starbucks)
+
+metadata <- starbucks %>%
+  slice(inds) %>%
+  st_drop_geometry() %>%
+  as_tibble()
+
+google_data <- google_data |> 
+  rename(google_name = name, google_address = formatted_address) |> 
+  bind_cols(metadata)
+```
+
+### Mapa
+
+O mapa interativo abaixo mostra todos os Starbucks de São Paulo. A cor de cada círculo representa a sua nota e o tamanho do círculo, o número de avaliações. As unidades no corredor da Av. Paulista, por exemplo, têm notas médias elevadas e grande número de avaliações. Uma das piores unidades parece ser a da Uv. Mackenzie, que tem nota 2,1 e 15 avaliações. Na Zona Leste, a unidade no Shopping Aricanduva também tem nota um pouco inferior, 3,9 com 158 avaliações.
+
+```{r map-overall}
+sp <- filter(google_data, name_muni == "São Paulo")
+
+sp <- sp |> 
+  mutate(
+    rad = findInterval(user_ratings_total, c(25, 100, 1000, 2500, 5000))*2 + 5
+  )
+
+pal <- colorNumeric("RdBu", domain = sp$rating)
+
+labels <- stringr::str_glue(
+  "<b> {sp$name} </b> <br>
+   <b> Rating </b>: {sp$rating} <br>
+   <b> No Ratings </b> {sp$user_ratings_total}"
+)
+
+labels <- lapply(labels, htmltools::HTML)
+
+leaflet(sp) |> 
+  addTiles() |> 
+  addCircleMarkers(
+    radius = ~rad,
+    color = ~pal(rating),
+    label = labels,
+    stroke = FALSE,
+    fillOpacity = 0.5
+  ) |> 
+  addLegend(pal = pal, values = ~rating) |> 
+  addProviderTiles("CartoDB")
+```
+
+### Melhores Starbucks de São Paulo
+
+Tecnicamente, o Starbucks mais bem avaliado de São Paulo é o [Starbucks da Ala Consultório do Hospital Albert Einstein](https://maps.app.goo.gl/VB69HoxxmmgzieFdA), com nota 4,8. Contudo, considerando as unidades com maior número de avaliações, podemos montar um mapa dos "melhores" Starbucks de São Paulo: as unidades com nota igual ou superior a 4,4 e com mais de 500 avaliações.
+
+De maneira geral, o mapa mostra as unidades dentro do Centro Expandido, no eixo da Paulista e do Itaim Bibi. Nas bordas do Centro Expandido temos quase exclusivamente, unidades dentro de shoppings.
+
+```{r map-best}
+melhores_starbucks <- sp |> 
+  filter(rating >= 4.4 & user_ratings_total > 500)
+
+pal <- colorNumeric("Blues", domain = melhores_starbucks$rating)
+
+labels <- stringr::str_glue(
+  "<b> {melhores_starbucks$name} </b> <br>
+   <b> Rating </b>: {melhores_starbucks$rating} <br>
+   <b> No Ratings </b> {melhores_starbucks$user_ratings_total}"
+)
+
+labels <- lapply(labels, htmltools::HTML)
+
+leaflet(melhores_starbucks) |> 
+  addTiles() |> 
+  addCircleMarkers(
+    radius = ~sqrt(user_ratings_total / 10),
+    color = "#045a8d",
+    label = labels,
+    stroke = FALSE,
+    fillOpacity = 0.5
+  ) |>
+  addProviderTiles("CartoDB")
+```
+
+## Posts Relacionados
+
+-   [Encontrando todos os Starbucks do Brasil](https://restateinsight.com/posts/general-posts/2024-03-starbucks-scrape/)
+
+-   [Tutorial Leaflet: mapas interativos com leaflet](https://restateinsight.com/posts/general-posts/2024-03-mapas-interativos-leaflet/)
