@@ -1,6 +1,7 @@
 ---
 title: "Mapas Interativos com Leaflet e R"
-description: ""
+date: "2024-03-25"
+description: "Neste post mostro como fazer mapas interativos usando o pacote `leaflet` no R. O pacote é bastante flexível na construção de mapas, permitindo muitas opções de customização. Mostro como fazer mapas simples de pontos e também como fazer mapas coropléticos."
 categories: ['mapas', 'data-visualization', 'tutorial-R', 'data-science']
 format:
   html:
@@ -8,13 +9,407 @@ format:
 execute: 
   message: false
   warning: false
-draft: true
 ---
 
 # Mapas Interativos
 
-Mapas interativos permitem
+Mapas interativos permitem uma visualização mais interessante e exploratória dos dados. Nos últimos tempos, este tipo de visualização se tornou mais popular por permitir que usuário encontre os dados que procura de maneira mais simples e intuitiva. Neste post vou mostrar como fazer mapas interativos usando o pacote `leaflet` no R.
 
 # Leaflet
 
 Leaflet é uma biblioteca de JavaScript feita para produzir mapas interativos de qualidade. O pacote `leaflet`, do R, é uma interface que permite produzir estes mapas diretamente dentro do R.
+
+As funções do `leaflet` somam elementos e camadas em um mapa inicial usando o operador pipe; o nome das funções segue o padrão camel case (i.e. `nomeDaFuncao`). A documentação das funções pode ser encontrada aqui.
+
+De maneira geral, o `leaflet` é bastante flexível na construção de mapas, permitindo muitas opções de customização. Como de costume, esta flexibilidade vem com um custo: mesmo mapas relativamente simples exigem uma quantidade considerável de código. Neste sentido, pode-se considerar pacotes alternativos como `tmap` e `mapview`.
+
+## Básico
+
+```{r}
+# Pacotes necessários para este tutorial
+library(leaflet)
+library(sf)
+library(dplyr)
+library(tidyr)
+library(stringr)
+library(sidrar)
+# Pactotes que utilizamos apenas uma função
+# library(janitor)
+# library(mapview)
+# library(sidrar)
+# library(MetBrewer)
+```
+
+Criar um mapa iterativo no `leaflet` é bastante simples. O código abaixo cria um mapa de São Paulo. Note que o mapa é construindo como uma composição de funções usando o operador pipe. Assim, a construção de mapas no `leaflet` fica similar ao `ggplot2` onde soma-se várias funções a uma mesma visualização. O pacote `leaflet` carrega automaticamente o pipe do `magritrr`, mas, naturalmente, é possível usar o pipe `|>` nativo do R. [Para mais informações sobre o operador pipe no R vale consultar meu post sobre o assunto](https://restateinsight.com/posts/general-posts/2023-09-pipes-in-r/).
+
+A função `setView` define o ponto central do mapa e o nível do zoom. Defino o ponto central como as coordenadas do Museu de Arte de São Paulo (MASP).
+
+```{r map-1}
+m <- leaflet() %>%
+  addTiles() %>%
+  setView(lng = -46.655837, lat = -23.561387, zoom = 12)
+
+m
+```
+
+Pode-se trocar o basemap do mapa alterando o `provider`.
+
+```{r map-2}
+m %>%
+  addProviderTiles(provider = "CartoDB")
+```
+
+Para adicionar "shapes" ao mapa usa-se as funções `add*` como `addMarkers`.
+
+```{r map-3}
+pontos <- tibble(
+  lng = -46.655837, lat = -23.561387
+)
+
+pontos <- st_as_sf(pontos, coords = c("lng", "lat"), crs = 4326)
+
+m %>%
+  addMarkers(data = pontos) %>%
+  addProviderTiles("CartoDB")
+```
+
+## Markers
+
+```{r sbucks-import-data}
+#| include: false
+starbucks = qs::qread(
+  here::here("static/data/starbucks_webscrape.qs")
+)
+```
+
+O `leaflet` tem algumas opções para mapear pontos. A mais simples delas é a `addMarkers`, vista acima. No mapa abaixo, mostro todos os Starbucks de São Paulo. [Os dados provêm de um webscrape, que fiz em outro post](https://restateinsight.com/posts/general-posts/2024-03-starbucks-scrape/).
+
+```{r sbucks-map-marker}
+sp_starbucks <- dplyr::filter(starbucks, code_muni == 3550308)
+  
+m %>%
+  addMarkers(data = sp_starbucks, label = ~as.character(name)) %>%
+  addProviderTiles("CartoDB")
+```
+
+Quando temos muitos pontos podemos agregá-los usando `markerClusterOptions()`.
+
+```{r sbucks-map-marker-cluster}
+m %>%
+  addMarkers(
+    data = sp_starbucks,
+    label = ~as.character(name),
+    clusterOptions = markerClusterOptions()) %>%
+  addProviderTiles("CartoDB")
+```
+
+É possível fazer outros tipos de marcadores e inclusive usar cores para representar diferentes valores ou categorias. Comparado com outras alternativas, como `tmap` ou `mapview`, contudo, o `leaflet` é um pouco mais trabalhoso. O código abaixo categoriza as unidades do Starbucks em 4 tipos distintos:
+
+1.  *Shopping* - se a unidade estiver dentro de um shopping.
+2.  *Aeroporto* - se a unidade estiver dentro de um aeroporto.
+3.  *B2B* - se a unidade estiver inserida dentro de outro negócio (e.g. hospital, torre corporativa, etc.)
+4.  *On-street* - se a unidade for uma loja de rua.
+
+Eu mapeio uma cor distinta para cada uma das categorias. Como se vê, é necessário criar um objeto que mapeia os valores para as cores (usando `colorFactor`). Vale notar que esta função aceita paletas de cores do `RColorBrewer`. A legenda de cores não é adicionada automaticamente e é preciso configurá-la também.
+
+```{r sbucks-map-colors}
+sp_starbucks <- sp_starbucks %>%
+  mutate(
+    type = case_when(
+      str_detect(name, "Shopping|shopping") ~ "Shopping",
+      str_detect(name, "Aeroporto") ~ "Aeroporto",
+      str_detect(name, "Hospital|Corporate") ~ "B2B",
+      TRUE ~ "On-street"
+    )
+  )
+
+pal <- colorFactor("Set1", domain = unique(sp_starbucks$type))
+
+m %>%
+  addCircleMarkers(
+    data = sp_starbucks,
+    color = ~pal(type),
+    stroke = FALSE,
+    fillOpacity = 0.5,
+    label = ~as.character(name)) %>%
+  addProviderTiles(provider = "CartoDB") %>%
+  addLegend(
+    position = "bottomright",
+    pal = pal,
+    values = unique(sp_starbucks$type))
+```
+
+A título de exemplo, note como é possível chegar numa mapa muito similar usando somente uma linha de código.
+
+```{r mapview-example}
+mapview::mapview(sp_starbucks, zcol = "type")
+```
+
+O exemplo acima ilustra bem o trade-off do leaflet: a flexibilidade do pacote vem ao custo de maior complexidade.
+
+# Choropleths
+
+Mapas coropléticos mostram a distribuição espacial de uma variável num mapa, usando cores para respresentar diferentes valores de uma variável. Montar mapas coropléticos no `leaflet` é um tanto trabalhoso. Em geral, é necessário fornecer as cores, legendas e valores manualmente. Isto ficará mais claro nos exemplos abaixo.
+
+## Domicílios por tipo de Ocupação
+
+### Dados
+
+Para este exemplo vamos importar os dados da PNADC/A sobre condição de ocupação dos imóveis. Importo os dados usando o pacote sidrar. [Para mais informações sobre como usar o pacote veja o meu post sobre o assunto](https://restateinsight.com/posts/general-posts/2023-08-importando-dados-sidra/).
+
+Queremos montar um mapa que mostre o percentual de domicílio alugados em cada estado. Além disso, o mapa deve mostrar os outros tipos de ocupação (próprio, etc.)
+
+```{r state-sidrar}
+pnad <- sidrar::get_sidra(
+  6821,
+  period = "2022",
+  variable = 162,
+  geo = "State"
+)
+```
+
+Após importar os dados, precisamos fazer uma limpeza básica e agregar um pouco as categorias do IBGE.
+
+```{r state-data-clean}
+tab_houses <- pnad |> 
+  as_tibble() |> 
+  janitor::clean_names() |> 
+  select(
+    code_state = unidade_da_federacao_codigo,
+    prop_type = condicao_de_ocupacao_do_domicilio,
+    count = valor
+    )
+
+tab_houses <- tab_houses |> 
+  filter(prop_type != "Total") |> 
+  mutate(
+    prop_type_grouped = case_when(
+      str_detect(prop_type, "Próprio") ~ "Owned",
+      prop_type == "Alugado" ~ "Rented",
+      TRUE ~ "Other"
+    )
+  ) |> 
+  summarise(
+    total = sum(count, na.rm = TRUE),
+    .by = c("code_state", "prop_type_grouped")
+    ) |> 
+  mutate(share = total / sum(total) * 100, .by = "code_state")
+```
+
+Por fim, precisamos transformar os dados em "wide" para fazer o join com o shapefile.
+
+```{r state-data-clean-2}
+houses_prop <- tab_houses |> 
+  pivot_wider(
+    id_cols = "code_state",
+    names_from = "prop_type_grouped",
+    values_from = "share"
+  ) |> 
+  mutate(code_state = as.numeric(code_state))
+
+houses_prop
+```
+
+### Shape das UFs
+
+Conseguir o shape dos estados é bastante simples, usando o pacote `geobr`. O `leaflet` é feito para funcionar com a projeção WGS84. Na prática, é possível usar outras (como a 4674, por exemplo), mas a função vai sempre retornar um aviso: `Need '+proj=longlat +datum=WGS84'`.
+
+Após importar o shape, basta juntar os dados com o shapefile usando `left_join`.
+
+```{r state-shapefile}
+# Importa o shapefile de todos os estados do Brasil
+state_border <- geobr::read_state(showProgress = FALSE)
+state_border <- sf::st_transform(state_border, crs = 4326)
+# Junta o shapefile com os dados da tabela
+state_prop <- left_join(state_border, houses_prop, by = "code_state")
+```
+
+### O mapa
+
+O código abaixo mostra como fazer a primeira versão do mapa. Este mapa é quase equivalente a um mapa estático: mostra a proporção domicílios alugados numa escala de cor simples. A função `colorNumeric` serve para mapear os valores numéricos na coluna `Rented` em cores. O primeiro argumento pode ser tanto um vetor com cores, como o nome de uma paleta; felizmente, as paletas do [ColorBrewer](https://colorbrewer2.org/#type=sequential&scheme=BuGn&n=3) são aceitas.
+
+```{r map-state-basic}
+pal = colorNumeric("Greens", domain = c(min(state_prop$Rented), max(state_prop$Rented)))
+
+leaflet(state_prop) %>%
+  addTiles() %>%
+  addPolygons(
+    weight = 2,
+    color = "white",
+    fillColor = ~pal(Rented),
+    fillOpacity = 0.9
+    ) %>%
+  addLegend(
+    pal = pal,
+    values = ~Rented,
+    title = "Rented (%)",
+    position = "bottomright"
+  ) %>%
+  addProviderTiles("CartoDB") 
+```
+
+Para adicionar labels, é preciso formatar o texto em html. Este é o texto que vai aparecer para o usuário quando o cursor do mouse estiver sobre o polígono. Além disso, para melhor formatar os números, uso as funções `round` e `format`.
+
+```{r state-labels}
+labels <- sprintf(
+  "<strong>%s</strong><br/> Owned: %s <br/> Rented: %s <br/> Other: %s",
+  state_prop$name_state,
+  format(round(state_prop$Owned, 1), decimal.mark = ","),
+  format(round(state_prop$Rented, 1), decimal.mark = ","),
+  format(round(state_prop$Other, 1), decimal.mark = ",")
+  )
+
+# Exemplifica o label
+labels[1]
+# Converte para html
+labels <- lapply(labels, htmltools::HTML)
+```
+
+Além de acrescentar este "popup" de informação, também podemos dar um destaque para o estado que o usuário está analisando com `highlightOptions`.
+
+```{r map-state}
+leaflet(state_prop) %>%
+  addTiles() %>%
+  addPolygons(
+    weight = 2,
+    color = "white",
+    fillColor = ~pal(Rented),
+    fillOpacity = 0.9,
+    label = ~labels,
+    highlightOptions = highlightOptions(
+      color = "orange",
+      weight = 4,
+      bringToFront = TRUE)
+    ) %>%
+  addLegend(
+    pal = pal,
+    values = ~Rented,
+    title = "Rented (%)",
+    position = "bottomright"
+  ) %>%
+  addProviderTiles("CartoDB")
+```
+
+## População Bairros de Curitiba
+
+Como segundo exemplo vamos montar um mapa com a densidade populacional dos bairros de Curitiba. Novamente, os dados são importados do SIDRA via `sidrar` e o shapefile via `geobr`.
+
+### Dados
+
+```{r cur-data}
+# Neighborhoods
+nb <- geobr::read_neighborhood(showProgress = FALSE)
+nb <- nb |> 
+  filter(code_muni == 4106902)
+
+# Import population table from SIDRA
+pop_nb <- sidrar::get_sidra(
+  x = 1378,
+  variable = 93,
+  classific = "c2",
+  geo = "Neighborhood",
+  geo.filter = list("City" = 4106902)
+)
+
+# Clean table and make it wide
+pop_nb <- pop_nb |> 
+  as_tibble() |> 
+  janitor::clean_names() |> 
+  select(code_neighborhood = bairro_codigo, sex = sexo, count = valor) |> 
+  mutate(
+    sex = str_replace(sex, "Homens", "Male"),
+    sex = str_replace(sex, "Mulheres", "Female")
+    ) |> 
+  pivot_wider(
+    id_cols = "code_neighborhood",
+    names_from = "sex",
+    values_from = "count"
+    )
+
+# Make neighborhood codes compatible
+pop_nb <- pop_nb |> 
+  mutate(code_neighborhood = str_c(
+    str_sub(code_neighborhood, 1, 7), "05", str_sub(code_neighborhood, 8, 10))
+    )
+
+# Join census table with shapefile
+cur_nb <- left_join(nb, pop_nb, by = "code_neighborhood")
+
+# Calculate population density
+cur_nb <- cur_nb %>%
+  st_transform(crs = 32722) %>%
+  mutate(
+    area = st_area(.),
+    area = as.numeric(area) / 1e5,
+    pop_dens = Total / area,
+    pop_ntile = ntile(pop_dens, 5)
+    )
+# Convert back to 4326 for leaflet
+cur_nb <- st_transform(cur_nb, crs = 4326)
+```
+
+### O mapa
+
+Neste mapa, vamos discretizar os dados usando quintis. Infelizmente, o `leaflet` não tem uma função que facilita esta classificação então temos que fazê-la passo a passo. Poderíamos ter optado por outra classificação, usando decis ou quebras naturais. [Para algumas outras opções vale ver o meu post sobre mapas em ggplot2](https://restateinsight.com/posts/ggplot2-tutorial/12-2-mapas#discretizando-dados-contínuos). O código abaixo usa a função `colorBin` para mapear as cores nos respectivos valores. Também uso uma paleta de cores diferente, usando o pacote `MetBrewer`.
+
+```{r cur-bins}
+# Color palette and bins
+bins <- quantile(cur_nb$pop_dens, probs = seq(0.2, 0.8, 0.2))
+bins <- c(0, bins, max(cur_nb$pop_dens))
+pal <- colorBin(
+  palette = as.character(MetBrewer::met.brewer("Hokusai2", 5)),
+  domain = cur_nb$pop_dens,
+  bins = bins)
+```
+
+Novamente para montar os labels precisamos escrever em html.
+
+```{r cur-labels}
+# Labels
+labels <- sprintf(
+  "<strong>%s</strong><br/> %s people <br/> %g people / ha<sup>2</sup>",
+  cur_nb$name_neighborhood,
+  format(cur_nb$Total, big.mark = "."),
+  round(cur_nb$pop_dens, 1)
+  )
+
+labels <- lapply(labels, htmltools::HTML)
+```
+
+Agora, com todos os elementos podemos montar o mapa.
+
+```{r map-curitiba}
+# Center of the map for zoom
+border <- geobr::read_municipality(4106902, showProgress = FALSE)
+center <- st_coordinates(st_centroid(border))
+
+leaflet(cur_nb) %>%
+  addTiles() %>%
+  addPolygons(
+    weight = 2,
+    color = "white",
+    fillColor = ~pal(pop_dens),
+    fillOpacity = 0.8,
+    highlightOptions = highlightOptions(
+      color = "gray20",
+      weight = 10,
+      fillOpacity = 0.8,
+      bringToFront = TRUE),
+    label = labels,
+    labelOptions = labelOptions(
+      style = list("font-weight" = "normal", "font-family" = "Fira Code")
+    )
+  ) %>%
+  addLegend(
+    pal = pal,
+    values = ~pop_dens,
+    title = "Densidade Pop.",
+    position = "bottomright"
+  ) %>%
+  addProviderTiles(providers$CartoDB) %>%
+  setView(lng = center[1], lat = center[2], zoom = 11)
+```
+
+# Conclusão
+
+O pacote `leaflet` é uma ótima opção para visualizações interativas no `R`. O pacote é muito versátil e permite uma ampla gama de customizações. Como vimos, esta fleixibilidade tem um custo: é preciso de bastante código para chegar no resultado final. Em outros posts vou explorar duas outras opções de visualização interativa de mapas, o `tmap` e o `mapview`.
