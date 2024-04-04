@@ -13,14 +13,31 @@ execute:
 Abaixo segue a lista com os principais pacotes que utilizo neste post. Eventualmente, outros pacotes como o `ggtext` ou `sidrar` são utilizados, mas deixo isto sinalizado.
 
 ```{r}
+#| include: false
+knitr::opts_chunk$set(
+  fig.align = "center"
+)
+```
+
+
+```{r}
 library(ggplot2)
 library(stringr)
 library(forcats)
 library(dplyr)
 library(tidyr)
 library(showtext)
+library(patchwork)
 
 showtext_auto()
+```
+
+```{r}
+#| include: false
+# Adiciona as fonts Gotham Rounded Bold e Light
+font_add("Gotham Rounded Bold", "Gotham Rounded Bold.otf")
+font_add("Gotham Rounded Light", "Gotham Rounded Light.otf")
+font_add("Gotham Rounded Medium", "Gotham Rounded Medium.otf")
 ```
 
 # Folha de SP
@@ -248,6 +265,10 @@ Para chegar num resultado mais próximo do original é necessário mexer em vár
 
 ```{r}
 #| code-fold: true
+
+font_add("Gill Sans", "GillSans.ttc")
+showtext_auto()
+
 ggplot(dat, aes(x = date, y = reindex, color = country)) +
   geom_line(linewidth = 1.1) + 
   scale_color_manual(name = "", values = cores, labels = country_labels) +
@@ -290,7 +311,7 @@ ggplot(dat, aes(x = date, y = reindex, color = country)) +
     axis.ticks.length = unit(7, "pt"),
     
     #> Altera a posição da legenda
-    legend.position = c(0.35, 1)
+    legend.position = c(0.4, 1)
     
     )
 ```
@@ -308,6 +329,7 @@ A imagem é um gráfico de colunas que mostra a taxa de desemprego média mensal
 Importo os dados diretamente da API do [SIDRA](https://sidra.ibge.gov.br/home/ipca15/brasil), o sistema de consultas do IBGE, via o pacote sidrar. Para mais informações sobre este pacote consulte o [meu post sobre](https://restateinsight.com/posts/general-posts/2023-08-importando-dados-sidra/).
 
 ```{r}
+#| code-fold: true
 library(sidrar)
 
 unemp <- sidrar::get_sidra(
@@ -426,13 +448,13 @@ ggplot(tbl_unemp, aes(x = date_label, y = unemp, fill = "a", color = "a")) +
 
 # Nexo
 
-## Gráfico
+## Gráfico 1
 
 O gráfico mostra o ciclo de recessões e expansões nos países da América Latina, desde 1900. Os dados são do [projeto Maddison](https://www.rug.nl/ggdc/historicaldevelopment/maddison/?lang=en) e a [fonte para a matéria está aqui](https://www.nexojornal.com.br/grafico/2018/07/30/O-crescimento-e-a-queda-do-PIB-dos-países-ao-longo-do-tempo). [Num post anterior](https://restateinsight.com/posts/general-posts/repost-crescimento-pib-mundo/) mostrei como reproduzir este gráfico e os outros da matéria.
 
 ![](/static/images/grafico_nexo_crescimento.png){fig-align="center"}
 
-## Dados
+### Dados
 
 Existe um [pacote com os dados do projeto Maddison](https://cran.r-project.org/web/packages/maddison/vignettes/maddison_project_database.html), chamado `maddisson`, mas os dados estão um pouco defasados. Para o propósito de replicar o gráfico acima isto não é um problema, já que a série se encerra em 2016. Para atualizar o gráfico, contudo, é preciso baixar os [dados manualmente do site](https://www.rug.nl/ggdc/historicaldevelopment/maddison/data/mpd2020.xlsx). Felizmente, isto é bastante simples no R. O código abaixo mostra as duas opções.
 
@@ -487,7 +509,7 @@ latam <- mad |>
   ungroup()
 ```
 
-## Replicando o gráfico
+### Replicando o gráfico
 
 ### Básico
 
@@ -586,9 +608,257 @@ ggplot(latam, aes(year, country)) +
     )
 ```
 
+## Gráfico 2
+
+O gráfico mostra o percentual de carteiras de habilitação por faixa etária e por sexo, no Brasio, em janeiro de 2024. Os dados são do Renach (Registro Nacional de Condutores habilitados). [Link para a matéria original](https://www.nexojornal.com.br/grafico/2024/03/28/cnh-perfil-motorista-brasil).
+
+### Gráfico Original
+
+![](images/Screenshot%202024-04-04%20at%2011.48.40.png){fig-align="center"}
+
+### Dados
+
+Já que nosso foco é somente em replicar a visualização, vamos copiar os dados diretamente da tabela. Haverá um pequeno erro de precisão no processo.
+
+```{r}
+#| code-fold: true
+
+# Copia os dados do gráfico
+tabela <- tribble(
+  ~age_label, ~masc, ~femi,
+  "18 a 30", 0.627, 0.373,
+  "31 a 40", 0.622, 0.378,
+  "41 a 50", 0.641, 0.359,
+  "51 a 60", 0.674, 0.326,
+  "61 a 70", 0.709, 0.291,
+  "71 ou +", 0.774, 0.291
+)
+
+# Formata os dados
+dados <- tabela |> 
+  pivot_longer(cols = -"age_label", names_to = "sex", values_to = "share") |> 
+  mutate(
+    # Converte as variáveis categóricas para factor
+    sex = factor(sex,
+                 levels = c("femi", "masc"),
+                 labels = c("Feminino", "Masculino")
+                 ),
+    age_min = as.numeric(str_sub(age_label, 1, 2)),
+    age_label = factor(age_label),
+    age_label = fct_reorder(age_label, -age_min),
+    # Cria o label de percentual para facilitar
+    share_label = paste0(format(share * 100, decimal.mark = ","), "%")
+  )
+```
+
+### Replicando o Gráfico
+
+### Básico
+
+Essencialmente, a visualização do Nexo é um gráfico de colunas deitado; o valor percentual de cada coluna é impresso nos cantos do gráfico e as cores representam os diferentes sexos. O código abaixo captura o essencial do gráfico.
+
+```{r}
+#| code-fold: true
+ggplot(dados, aes(age_label, share, fill = sex)) +
+  geom_col(position = "fill") +
+  geom_hline(yintercept = 0, lwd = 1) +
+  geom_hline(yintercept = 1, lwd = 1) +
+  geom_hline(yintercept = 0.5, linetype = 2, lwd = 0.25) +
+  geom_text(
+    data = filter(dados, sex == "Masculino"),
+    aes(age_label, 0.075, label = share_label),
+    color = "white"
+  ) +
+  geom_text(
+    data = filter(dados, sex == "Feminino"),
+    aes(age_label, 0.925, label = share_label),
+    color = "white"
+  ) +
+  coord_flip() +
+  scale_fill_manual(values = c("#40c2cf", "#22678c")) +
+  guides(fill = "none") +
+  theme_minimal() +
+  theme(
+    panel.grid = element_blank(),
+    panel.grid.minor = element_blank()
+  )
+```
+
+### Completo
+
+O gráfico completo faz diversas alterações temáticas no gráfico. O portal Nexo utiliza a fonte [Gotham Rounded](https://fontsgeek.com/gotham-rounded-font) em algumas variantes. Para usar esta fonte é preciso tê-la instalada. Para evitar problemas, o código abaixo verifica se as fontes necessárias estão instaladas; caso contrário, usa-se a fonte Montserrat, do Google Fonts.
+
+O código abaixo replica o gráfico sem a legenda de cores e sem ajustar o alinhamento do título.
+
+```{r}
+#| code-fold: true
+ggplot(dados, aes(age_label, share, fill = sex)) +
+  geom_col(position = "fill") +
+  geom_hline(yintercept = 0, lwd = 1) +
+  geom_hline(yintercept = 1, lwd = 1) +
+  geom_hline(yintercept = 0.5, linetype = 2, lwd = 0.25) +
+  geom_text(
+    data = filter(dados, sex == "Masculino"),
+    aes(age_label, 0.1, label = share_label),
+    color = "white",
+    family = "Gotham Rounded Bold",
+    size = 5
+  ) +
+  geom_text(
+    data = filter(dados, sex == "Feminino"),
+    aes(age_label, 0.9, label = share_label),
+    color = "white",
+    family = "Gotham Rounded Bold",
+    size = 5
+  ) +
+  scale_y_continuous(
+    breaks = c(0, 0.5, 1),
+    labels = c("0%", "50%", "100%"),
+    position = "right"
+    ) +
+  coord_flip() +
+  scale_fill_manual(values = c("#40c2cf", "#22678c")) +
+  guides(fill = "none") +
+  labs(
+    title = "Percentual de carteiras de habilitação",
+    subtitle = "POR FAIXA ETÁRIA, EM JANEIRO DE 2024",
+    x = NULL,
+    y = NULL
+  ) +
+  theme_minimal() +
+  theme(
+    panel.grid = element_blank(),
+    panel.grid.minor = element_blank(),
+    axis.text.y = element_text(
+      size = 14,
+      color = "#000000",
+      family = "Gotham Rounded Bold"
+      ),
+    axis.text.x = element_text(
+      size = 14,
+      color = "#747474",
+      family = "Gotham Rounded Light"
+    ),
+    plot.title = element_text(
+      family = "Crimson Text",
+      size = 20,
+      face = "bold",
+      hjust = -0.25),
+    plot.subtitle = element_text(
+      family = "Gotham Rounded Medium",
+      size = 10,
+      hjust = -0.2
+    )
+  )
+```
+
+Há várias maneiras de replicar a legenda do gráfico original. Talvez a mais simples seja usar algum software de edição de imagem. Uma solução usando apenas ggplot2 é criar um gráfico auxiliar, que contém a legenda e então compor os gráficos usando `patchwork`.
+
+```{r}
+#| code-fold: true
+
+# Gráfico com a legenda --------------------------------------------
+
+# data.frame auxiliar para montar a legenda
+df_aux <- tibble(
+  x = 1,
+  y = c(0.5, 0.5),
+  ypos = c(0.25, 0.75),
+  label = c("Masculino", "Feminino")
+)
+
+# Gráfico com a legenda de cores
+p_legend <- ggplot(df_aux, aes(x, y, fill = label)) +
+  geom_col() +
+  geom_text(
+    aes(y = ypos, label = label),
+    color = "white",
+    family = "Gotham Rounded Bold",
+    size = 3) +
+  scale_fill_manual(values = c("#40c2cf", "#22678c")) +
+  guides(fill = 'none') +
+  coord_flip() +
+  theme_void()
+
+# Gráfico principal --------------------------------------------
+
+# Gráfico principal (sem título e sem subtítulo)
+p_main <- ggplot(dados, aes(age_label, share, fill = sex)) +
+  geom_col(position = "fill") +
+  geom_hline(yintercept = 0, lwd = 1) +
+  geom_hline(yintercept = 1, lwd = 1) +
+  geom_hline(yintercept = 0.5, linetype = 2, lwd = 0.25) +
+  geom_text(
+    data = filter(dados, sex == "Masculino"),
+    aes(age_label, 0.075, label = share_label),
+    color = "white",
+    family = "Gotham Rounded Bold",
+    size = 5
+  ) +
+  geom_text(
+    data = filter(dados, sex == "Feminino"),
+    aes(age_label, 0.925, label = share_label),
+    color = "white",
+    family = "Gotham Rounded Bold",
+    size = 5
+  ) +
+  scale_y_continuous(
+    breaks = c(0, 0.5, 1),
+    labels = c("0%", "50%", "100%"),
+    position = "right"
+  ) +
+  coord_flip() +
+  scale_fill_manual(values = c("#40c2cf", "#22678c")) +
+  guides(fill = "none") +
+  labs(x = NULL,y = NULL) +
+  theme_minimal() +
+  theme(
+    panel.grid = element_blank(),
+    panel.grid.minor = element_blank(),
+    axis.text.y = element_text(
+      size = 14,
+      color = "#000000",
+      family = "Gotham Rounded Bold"
+    ),
+    axis.text.x = element_text(
+      size = 14,
+      color = "#747474",
+      family = "Gotham Rounded Light"
+    )
+  )
+
+# Compor os gráficos -----------------------------------------------
+
+# Coloca um espaço vazio acima do gráfico principal
+panel <- plot_spacer() / p_main + plot_layout(heights = c(0.1, 0.9))
+
+# Gráfico final
+panel +
+  # Insere a legenda no espaço vazio acima do gráfico principal
+  inset_element(p_legend, left = -0.125, bottom = 1.1, right = 0.5, top = 1.2) +
+  # Adiciona título e subtítulo
+  plot_annotation(
+    title = "Percentual de carteiras de habilitação",
+    subtitle = "POR FAIXA ETÁRIA, EM JANEIRO DE 2024",
+  ) &
+  # Ajusta fonte, tamanho e posição
+  theme(
+    plot.title = element_text(
+      family = "Crimson Text",
+      size = 20,
+      face = "bold",
+      hjust = 0.05),
+    plot.subtitle = element_text(
+      family = "Gotham Rounded Medium",
+      size = 10,
+      hjust = 0.040
+    )
+  )
+```
+
 # The Economist
 
-## Gráfico
+## Gráfico 1
 
 Esta visualização da The Economist mostra um ranking da riqueza entre países. O [artigo original](https://www.economist.com/graphic-detail/2023/12/15/the-worlds-richest-countries-in-2023) discute diferentes maneiras de mensurar e de comparar a riqueza entre países. Vamos nos focar apenas no gráfico abaixo. Este gráfico mostra um ranking dos países mais ricos do mundo segundo três métricas.
 
@@ -598,7 +868,7 @@ Num post anterior, eu [descrevi em maiores detalhes este tipo de gráfico](https
 
 ![](/static/images/economist_bump_plot.jpeg){fig-align="center" width="400"}
 
-## Dados
+### Dados
 
 Os dados originais estão disponíveis on [GitHub da The Economist](https://github.com/TheEconomist) mas eu não consegui encontrar o código que gera o gráfico acima. Como resultado, vou tentar adivinhar quais colunas, de fato, são utilizadas no gráfico. Além disso, como a fonte da The Economist é proprietária vou utilizar a Lato, da Google Fonts.
 
@@ -649,9 +919,9 @@ df_gdp <- df_gdp |>
     )
 ```
 
-## Replicando o gráfico
+### Replicando o gráfico
 
-## Básico
+### Básico
 
 A versão simplificada do gráfico está resumida no código abaixo. Vale notar o uso da coord_cartesian para "cortar o gráfico" sem perder informação. Não é muito usual utilizar `linewidth` como um elemento estético dentro de `aes` mas pode-se ver como isto é bastante simples e como isto economiza algumas linhas de código, quando comparado com o gráfico anterior.
 
@@ -674,7 +944,7 @@ ggplot(ranking, aes(measure, rank, group = country)) +
   scale_linewidth_manual(values = c(0.5, 1.2))
 ```
 
-## Completo
+### Completo
 
 O objetivo deste post é de sempre fazer o máximo possível usando `ggplot2` mas, na prática, as caixas de texto acima do gráfico podem ser feitas num software externo. Não é muito fácil usar caracteres especiais (neste caso, flechas) e a própria fonte (Lato) não inclui flechas em unicode. Pode-se melhorar a ordem da sobreposição das linhas usando `geom_bump` duas vezes como fizemos no gráfico dos imóveis, mas isto exigiria várias linhas adicionais de código.
 
@@ -737,4 +1007,326 @@ ggplot(ranking, aes(measure, rank, group = country)) +
     legend.position = "none",
     axis.text = element_blank()
   )
+```
+
+## Gráfico 2
+
+Uma recente edição da revista inglesa [The Economist](https://www.economist.com/) exibe uma [série de listras coloridas em sua capa](https://pbs.twimg.com/media/EE0hWYAXUAATHvv?format=jpg&name=4096x4096). Elas formam um degradê que vai de um azul escuro até um vermelho intenso. Cada listra representa a temperatura de um ano e a linha do tempo vai desde o 1850 até o presente. A mensagem é bastante clara: o planeta esta cada ano mais quente e é nos anos recentes que estão concentradas as maiores altas de temperatura. Esta imagem é creditada a [Ed Hawkings](http://www.met.reading.ac.uk/~ed/home/index.php), editor do [Climate Lab Book](https://www.climate-lab-book.ac.uk/2018/warming-stripes/).
+
+![](images/20190921_cna400.jpg.avif){fig-align="center"}
+
+### Dados
+
+Para ser preciso, a imagem não plota a temperatura de cada ano, mas sim o quanto cada ano se desvia da temperatura média do período 1971-2000. Isto é, anos acima dessa média têm um valor positivo, valores abaixo dessa média, valores negativos.
+
+Existe uma base `gtemp_both` do pacote `astsa` que mede estas anomalias climáticas no período 1850-2023. Contudo, esta série usa o período 1991-2020 como referência. Assim, os valores são um pouco diferentes. Ainda assim, acho que vale a pena usar esta base pela sua conveniência.
+
+```{r}
+library(astsa)
+
+# Converte o objeto para data.frame
+temperature <- tibble(
+  year = as.numeric(time(gtemp_both)),
+  temp = as.numeric(gtemp_both)
+)
+```
+
+### Replicando o gráfico
+
+### Básico
+
+É possível reproduzir o essencial deste gráfico com poucas linhas de código. Aqui, utilizo `geom_tile` para fazer as listras e `scale_fill_gradient2` para construir uma paleta de cores divergente.
+
+```{r}
+# Monta o gráfico
+ggplot(temperature, aes(x = year, y = 0, fill = temp)) +
+  geom_tile() +
+  scale_fill_gradient2(low = "#104e8b", high = "#ff0000") +
+  guides(fill = "none") +
+  theme_void()
+```
+
+### Completo
+
+O gráfico original usa a paleta de cores do ColorBrewer: especificamente, ela combina as cores mais saturadas das paletas "Blues" e "Reds". A fonte do texto é Georgia. Eu adapto um pouco os anos já que os dados estão mais atualizados.
+
+```{r}
+#| code-fold: true
+font_add("Georgia", "Georgia.ttf")
+showtext_auto()
+
+# Paleta de cores
+blues <- RColorBrewer::brewer.pal(9, "Blues")[2:9]
+reds <- RColorBrewer::brewer.pal(9, "Reds")[2:9]
+
+palette <- c(rev(blues), reds)
+
+# Data.frames auxiliares para plotar as anotações de texto
+df_aux_title <- tibble(x = 1940, y = 0, label = "The Climate Issue")
+df_aux_anos <- tibble(
+  label = seq(1860, 2020, 40),
+  x = c(1865, 1900, 1940, 1980, 2010)
+)
+
+ggplot() +
+  geom_tile(data = temperature, aes(x = year, y = 0, fill = temp)) +
+  geom_text(
+    data = df_aux_anos,
+    aes(x = x, y = 0, label = label),
+    vjust = 1.5,
+    colour = "white",
+    size = 6,
+    family = "Georgia") +
+  geom_text(
+    data = df_aux_title,
+    aes(x = x, y = 0.05, label = label),
+    family = "Georgia",
+    size = 11,
+    colour = "white") +
+  geom_hline(yintercept = 0, colour = "white", size = 1) +
+  scale_fill_gradientn(colors = palette) +
+  guides(fill = "none") +
+  labs(x = NULL, y = NULL) +
+  theme(
+    axis.title = element_blank(),
+    axis.text = element_blank(),
+    axis.ticks = element_blank(),
+    panel.background = element_rect(fill = NA),
+    plot.margin = margin(c(0, 0, 0, 0))
+  )
+```
+
+O resultado acima é bastante satisfatório, mesmo quando consideramos que a base de dados é um pouco diferente e que a série inclui dados mais atuais. Vale notar que a visualização abaixo não é a mais precisa, pois alguns valores positivos estão sendo mapeados em tons de azul-claro.
+
+Para chegar numa visualização mais precisa é preciso ajustar a paleta de cores.
+
+```{r}
+#| code-fold: true
+blues <- RColorBrewer::brewer.pal(9, "Blues")[3:6]
+reds <- RColorBrewer::brewer.pal(9, "Reds")[2:9]
+palette <- c(rev(blues), reds)
+
+ggplot(temperature) +
+  geom_tile(aes(x = year, y = 0, fill = temp), height = 3) +
+  geom_line(aes(year, temp)) +
+  geom_point(aes(year, temp)) +
+  labs(x = NULL, y = NULL) +
+  coord_cartesian(ylim = c(-1, NA)) +
+  scale_fill_stepsn(
+    name = "",
+    colors = palette,
+    breaks = round(seq(-0.6, 1.2, 0.2), 1)
+    ) +
+  theme_minimal() +
+  theme(
+    legend.position = "bottom",
+    legend.key.size = unit(1.5, "cm")
+    )
+```
+
+O resultado final (atualizado) fica assim.
+
+```{r}
+#| code-fold: true
+#| out-width: 80%
+#| fig-width: 5
+#| fig-height: 6.5
+ggplot() +
+  geom_tile(data = temperature, aes(x = year, y = 0, fill = temp)) +
+  geom_text(
+    data = df_aux_anos,
+    aes(x = x, y = 0, label = label),
+    vjust = 1.5,
+    colour = "white",
+    size = 5,
+    family = "Georgia") +
+  geom_text(
+    data = df_aux_title,
+    aes(x = x, y = 0.05, label = label),
+    family = "Georgia",
+    size = 10,
+    colour = "white") +
+  geom_hline(yintercept = 0, colour = "white", size = 1) +
+  scale_fill_stepsn(colors = palette, breaks = round(seq(-0.6, 1.2, 0.2), 1)) +
+  guides(fill = "none") +
+  labs(x = NULL, y = NULL) +
+  theme(
+    axis.title = element_blank(),
+    axis.text = element_blank(),
+    axis.ticks = element_blank(),
+    panel.background = element_rect(fill = NA),
+    plot.margin = margin(c(0, 0, 0, 0))
+  )
+```
+
+# OWID
+
+A visualização abaixo é do site OurWorldInData (OWID) e mostra a relação entre satisfação pessoal ("felicidade") e PIB per capita. O índice de felicidade varia de 0 a 10, enquanto o PIB per capita é mensurado em dólares (PPP) numa escala log. A fonte original do gráfico está no [link](https://ourworldindata.org/happiness-and-life-satisfaction#the-link-between-happiness-and-income). Já discuti sobre este gráfico em maiores detalhes [no meu outro post](https://restateinsight.com/posts/general-posts/2023-09-happiness/).
+
+![](/static/images/owid_happiness.png)
+
+## Gráfico
+
+### Dados
+
+Os dados podem ser baixados diretamente do site da [OWID](https://ourworldindata.org/happiness-and-life-satisfaction#the-link-between-happiness-and-income) ou do meu [GitHub](https://github.com/viniciusoike/restateinsight/raw/main/static/data/gdp-vs-happiness.csv).
+
+```{r}
+#| echo: false
+owid <- readr::read_csv(here::here("static/data/gdp-vs-happiness.csv"))
+owid <- janitor::clean_names(owid)
+```
+
+```{r}
+#| eval: false
+owid <- readr::read_csv(
+  "https://github.com/viniciusoike/restateinsight/raw/main/static/data/gdp-vs-happiness.csv"
+  )
+```
+
+É preciso fazer apenas alguns ajustes nos dados. Em particular precisamos filtrar o ano e juntar a tabela de países com a de continentes.
+
+```{r}
+#| code-fold: true
+dat <- owid |> 
+  janitor::clean_names() |> 
+  rename(
+    life_satisfaction = cantril_ladder_score,
+    gdppc = gdp_per_capita_ppp_constant_2017_international,
+    pop = population_historical_estimates
+  ) |>
+  filter(!is.na(gdppc), !is.na(life_satisfaction)) |> 
+  mutate(gdppc = log10(gdppc)) |> 
+  group_by(entity) |> 
+  filter(year == max(year)) |> 
+  ungroup() |> 
+  select(entity, pop, gdppc, life_satisfaction)
+
+dim_continent <- owid |> 
+  select(entity, continent) |> 
+  filter(!is.na(continent), !is.na(entity)) |> 
+  distinct()
+
+dat <- left_join(dat, dim_continent, by = "entity")
+```
+
+### Replicando o gráfico
+
+### Básico
+
+A visualização, fundamentalmente, é um gráfico de dispersão em que as cores representam o continente de cada país e em que o tamanho do círculo é proporcional à população de cada país. É tipo de gráfico também é conhecido como "bubble plot".
+
+```{r}
+ggplot(dat, aes(x = gdppc, y = life_satisfaction)) +
+  geom_point(
+    aes(fill = continent, size = pop),
+    color = "#A5A9A9",
+    alpha = 0.8,
+    shape = 21
+    )
+```
+
+### Completo
+
+A versão finalizada do gráfico exige bastante trabalho manual, já que é necessário destacar o nome dos países. Fora isso, é preciso ajustar o tamanho dos círculos, trocar a paleta de cores, inserir as informações textuais e ajustar a legenda de cores. Para este gráfico uso as fontes [Lato](https://fonts.google.com/specimen/Lato?query=lato) e [Playfair Display](https://fonts.google.com/specimen/Playfair+Display). Assim como no gráfico do G1, é preciso usar `override.aes` para modificar a legenda de cores.
+
+```{r}
+#| code-fold: true
+#| fig-asp: 0.618
+#| out-width: 100%
+#| fig-width: 9
+
+font_add_google("Lato", "Lato")
+font_add_google("Playfair Display", "Playfair Display")
+showtext_opts(dpi = 300)
+showtext_auto()
+
+# Tema do gráfico
+theme_owid <- theme_minimal() +
+  theme(
+    # Linhas de grade
+    panel.grid.minor = element_blank(),
+    panel.grid.major = element_line(linetype = 3, color = "#DDDDDD"),
+    
+    # Título, subtítulo e nota de rodapé
+    text = element_text(family = "Lato"),
+    title = element_text(family = "Lato"),
+    
+    plot.caption = element_text(color = "#777777", hjust = 0, size = 8),
+    plot.title = element_text(
+      color = "#444444",
+      family = "Playfair Display",
+      size = 18),
+    plot.subtitle = element_text(color = "#666666", size = 11),
+    # Textos nos eixos
+    axis.title = element_text(color = "#000000", size = 9),
+    axis.text = element_text(color = "#666666", size = 12),
+    # Legenda de cores
+    legend.key.size = unit(5, "pt"),
+    legend.position = "right",
+    legend.text = element_text(size = 10),
+    # Margens do gráfico
+    plot.margin = margin(rep(10, 4))
+  )
+
+#> Countries to highlight
+sel_countries <- c(
+  "Ireland", "Qatar", "Hong Kong", "Switzerland", "United States", "France",
+  "Japan", "Costa Rica", "Russia", "Turkey", "China", "Brazil", "Indonesia",
+  "Iran", "Egypt", "Botswana", "Lebanon", "Philippines", "Bolivia", "Pakistan",
+  "Bangladesh", "Nepal", "Senegal", "Burkina Faso", "Ethiopia", "Tanzania",
+  "Democratic Republic of Congo", "Mozambique", " Somalia", "Chad", "Malawi",
+  "Burundi", "India")
+
+#> Caption
+caption <- "Source: World Happiness Report (2023), Data compiled from multiple sources by World Bank\nNote: GDP per capita is expressed in international-$ at 2017 prices.\nOurWorldInData.org/happiness-and-life-satisfacation/"
+#> Subtitle
+subtitle <- "Self-reported life satisfaction is measured on a scale ranging from 0-10, where 10 is the highest possible life\nsatisfaction. GDP per capita is adjusted for inflation and differences in the cost of living between countries."
+
+dftext <- dat |> 
+  mutate(highlight = if_else(entity %in% sel_countries, entity, NA))
+
+#> x-axis labels
+xbreaks <- c(3, 3.3, 3.7, 4, 4.3, 5)
+xlabels <- c(1000, 2000, 5000, 10000, 20000, 100000)
+xlabels <- paste0("$", format(xlabels, big.mark = ",", scientific = FALSE))
+
+#> Colors
+colors <- c("#A2559C", "#00847E", "#4C6A9C", "#E56E5A", "#9A5129", "#883039")
+
+# Gráfico final
+ggplot(dat, aes(x = gdppc, y = life_satisfaction)) +
+  geom_point(
+    aes(fill = continent, size = pop),
+    color = "#A5A9A9",
+    alpha = 0.8,
+    shape = 21
+    ) +
+  ggrepel::geom_label_repel(
+    data = dftext,
+    aes(x = gdppc, y = life_satisfaction, label = highlight, color = continent),
+    size = 3,
+    force = 5,
+    family = "Lato",
+    label.padding = unit(0.05, "lines"),
+    label.size = NA
+    ) +
+  scale_x_continuous(breaks = xbreaks, labels = xlabels) +
+  scale_y_continuous(breaks = 3:7) +
+  scale_size_continuous(range = c(1, 15)) +
+  scale_fill_manual(name = "", values = colors) +
+  scale_color_manual(name = "", values = colors) +
+  guides(
+    color = "none",
+    size = "none",
+    fill = guide_legend(override.aes = list(shape = 22, alpha = 1))
+    ) +
+  labs(
+    title = "Self-reported life satisfaction vs. GDP per capita, 2022",
+    subtitle = subtitle,
+    x = "GDP per capita",
+    y = "Life satisfaction (country average; 0-10)",
+    caption = caption
+    ) +
+  theme_owid
 ```
