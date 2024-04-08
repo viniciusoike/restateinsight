@@ -1,0 +1,160 @@
+---
+title: "Domicilios em Sao Paulo"
+categories: ['data-visualization', 'mapas', 'ggplot2', 'sao-paulo']
+date: "2024-04-02"
+description: "Um mapa coroplético em formato de grid retangular 100 x 100m mostrando a densidade de domicílios particulares em São Paulo. Os dados são do Censo mais recente, de 2022."
+execute: 
+  warning: false
+  message: false
+  echo: false
+---
+
+```{r code}
+#| code-fold: true
+#| echo: true
+
+# Setup ---------------------------------------------------------
+
+# Libraries
+library(ggplot2)
+library(geobr)
+library(dplyr)
+library(showtext)
+library(dplyr)
+library(sf)
+library(MetBrewer)
+# https://github.com/viniciusoike/tidypod
+library(tidypod)
+
+# Fonts
+font_add("HelveticaNeue", "HelveticaNeue.ttc")
+showtext_auto()
+
+# Data ----------------------------------------------------------
+
+# Import Sao Paulo shapefile
+sp_border <- geobr::read_municipality(3550308, showProgress = FALSE)
+
+# Import locally Census data
+censo22 <- data.table::fread("/Volumes/T7 Touch/github/tidyibge/data-raw/35.csv")
+
+# Convert column names to lowercase and filter only capital
+censo22 <- censo22 |> 
+  rename_with(tolower) |> 
+  filter(cod_mun == 3550308)
+
+# Variable dictionary
+dictionary_censo <- tribble(
+  ~cod_especie, ~label_especie,
+  1, "Domicílio particular",
+  2, "Domicílio coletivo",
+  3, "Estabelecimento agropecuário",
+  4, "Estabelecimento de ensino",
+  5, "Estabelecimento de saúde",
+  6, "Estabelecimento de outras finalidades",
+  7, "Edificação em construção",
+  8, "Estabelecimento religioso"
+)
+
+# Join data with dictionary -------------------------------------
+censo22 <- left_join(censo22, dictionary_censo, by = "cod_especie")
+
+
+# Spatial data --------------------------------------------------
+
+# Import districts shapefile
+dstr <- tidypod::districts
+dstr <- filter(dstr, code_muni == 36)
+
+domicilios <- st_as_sf(
+  censo22[cod_especie == 1],
+  coords = c("longitude", "latitude"),
+  crs = 4674
+  )
+
+sp_grid_rectangular <- sp_border |> 
+  st_transform(crs = 32722) |> 
+  st_make_grid(cellsize = 100) |> 
+  st_as_sf() |> 
+  st_transform(crs = 4326) |> 
+  mutate(gid = row_number())
+
+domi_grid <- domicilios |> 
+  st_transform(crs = 4326) |> 
+  st_join(sp_grid_rectangular) |> 
+  filter(!is.na(gid))
+
+domi_grid_count <- domi_grid |> 
+  st_drop_geometry() |> 
+  summarise(total = n(), .by = "gid")
+
+grid_count <- left_join(sp_grid_rectangular, domi_grid_count, by = "gid")
+
+# Plot ----------------------------------------------------------
+
+breaks <- BAMMtools::getJenksBreaks(na.omit(grid_count$total), 7)
+labels <- format(round(breaks, -1), big.mark = ".")
+
+map_sp <- ggplot() +
+  geom_sf(data = sp_border, lwd = 0.05, fill = NA) +
+  geom_sf(
+    data = filter(grid_count, !is.na(total)),
+    aes(fill = total, color = total),
+    alpha = 0.8
+    ) +
+  scale_fill_fermenter(
+    name = "",
+    na.value = "gray50",
+    direction = 1,
+    palette = "BuPu",
+    breaks = breaks,
+    labels = labels
+    ) +
+  scale_color_fermenter(
+    name = "",
+    na.value = "gray50",
+    direction = 1,
+    palette = "BuPu",
+    breaks = breaks,
+    labels = labels
+    ) +
+  coord_sf() +
+  labs(
+    title = "Domicílios em São Paulo",
+    subtitle = "Concentração de domicílios em grid 100x100m em São Paulo") +
+  ggthemes::theme_map(base_family = "HelveticaNeue") +
+  theme(
+    legend.position = "top",
+    legend.justification = 0.5,
+    legend.key.size = unit(0.85, "cm"),
+    legend.key.width = unit(1.5, "cm"),
+    legend.text = element_text(size = 12),
+    legend.margin = margin(),
+    plot.margin = margin(10, 5, 5, 10),
+    plot.title = element_text(size = 24, hjust = 0.5),
+    plot.subtitle = element_text(size = 10, hjust = 0.5)
+  )
+```
+
+# Domicilios
+
+O mapa abaixo mostra a densidade de domicílios[^1] em São Paulo num grid de 100 x 100m. Como se vê no mapa, há uma grande concentração de domicílios no Centro da cidade. De modo geral, a região com maior número de domicílios é a Zona Leste. Os dados provêm do Cadastro Nacional de Endereços, divulgados recentemente pelo IBGE. Esta base contém dados georeferenciados detalhados sobre os domicílios no Brasil.
+
+[^1]: Definidos como domicílios particulares permanentes, segundo o Censo do IBGE (2022).
+
+```{r plot-map}
+#| out-width: "100%"
+#| out-height: 900px
+#| fig-width: 9
+#| fig-height: 12
+#| fig-format: svg
+#| fig-showtext: true
+#| fig-dpi: 72
+map_sp
+```
+
+-   Dados: IBGE ([**Cadastro Nacional de Endereços para Fins Estatísticos**](https://www.ibge.gov.br/estatisticas/sociais/populacao/38734-cadastro-nacional-de-enderecos-para-fins-estatisticos.html))
+
+-   Tipografia: Helvetica Neue
+
+-   Paleta: `BuPu` ([ColorBrewer](https://colorbrewer2.org/#type=diverging&scheme=BrBG&n=3))
