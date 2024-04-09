@@ -1,0 +1,339 @@
+---
+title: "Importando dados em PDF no R"
+date: "2024-04-07"
+description: "Neste post vou mostrar uma solução para importar dados em formato PDF de maneira fácil e prática usando `R`. Arquivos PDF não são um típico formato de armazenamento de dados, como `csv`, PDFs são relatórios que combinam texto, imagens, tabelas, etc. Ainda assim, não é incomum receber tabelas de dados salvas dentro de arquivos PDF."
+categories: ['data-science', 'web-scraping', 'tutorial-R']
+execute: 
+  message: false
+  warning: false
+---
+
+# Importando dados em PDF
+
+Trabalhar com dados e visualizar dados, muitas vezes, são objetivos que não se conciliam facilmente. Uma tabela, otimizada para leitura humana, dificilmente será a mais apropriada para análise de dados. De maneira geral, a maior parte dos dados que se encontra são sujos, num sentido amplo. Isto não significa que estes dados estejam errados, ou com algum tipo de imprecisão; quer dizer que os dados não estão num formato tabular, apropriado para a análise de dados.
+
+Talvez um dos formatos mais frustrantes para se consumir dados seja o PDF. Arquivos PDF não são um típico formato de armazenamento de dados, como CSV, XLSX, SAV, etc. PDFs são relatórios que combinam texto, imagens, tabelas, fórmulas, etc. Ainda assim, não é incomum receber tabelas de dados salvas dentro de arquivos PDF.
+
+![](images/PDF_file_icon.svg){fig-align="center" width="240"}
+
+Neste post vou mostrar uma solução para importar dados em formato PDF de maneira fácil e prática usando `R`.
+
+## tabulizer
+
+O pacote `tabulizer` oferece funções simples para importar tabelas de dados que estão salvas em formato PDF. Como o formato PDF é muito flexível e diverso, não é possível garantir que o `tabulizer` funcione sempre. Além disso, como veremos adiante, o processo de limpeza dos dados é bastante artesanal, variando caso a caso.
+
+### Composição religiosa por país
+
+Como exemplo, vamos importar dados sobre a composição religiosa de cada país. A tabela provém do [Pew Research Center](https://www.pewresearch.org/religion/2012/12/18/global-religious-landscape-exec/) e pode ser baixada no [seguinte link](https://assets.pewresearch.org/wp-content/uploads/sites/11/2012/12/globalReligion-tables.pdf). Mais recentemente, foi disponibilizada uma [versão interativa destes dados](https://www.pewresearch.org/religion/interactives/religious-composition-by-country-2010-2050/), com uma opção mais simples de consumo. Mas, para seguir os objetivos deste post, vamos seguir com o arquivo PDF.
+
+A imagem abaixo mostra o começo da tabela em PDF. A tabela é dividida em 6 páginas e tem dez colunas.
+
+![](images/Screenshot 2024-04-09 at 11.04.31.png){fig-align="center"}
+
+### Importando
+
+Abaixo listo os pacotes necessários para este tutorial.
+
+```{r setup}
+library(tabulizer)
+library(dplyr)
+library(tidyr, include.only = "pivot_longer")
+library(janitor)
+library(stringr)
+library(countries, include.only = "country_name")
+```
+
+O primeiro passo é baixar os dados e importar a tabela. Note que seria possível fazer isto de maneira mais automatizada usando `download.file`, criando um arquivo temporário, etc. Contudo, como trata-se de um dado estático, que será consumido uma única vez, acaba sendo mais simples baixá-lo manualmente. Para ler as tabelas do PDF usa-se a função `extract_tables()`. No código abaixo eu utilizo o pacote `here`, que não é essencial, mas é recomendável. Para mais sobre o pacote [veja 'Escrevendo paths relativos com here'](https://restateinsight.com/posts/general-posts/2023-09-comandos-simples/#escrevendo-paths-relativos-com-here).
+
+```{r}
+#| eval: false
+# path fake, use o seu path
+path = here::here("project/data/globalReligion-tables.pdf")
+tables = extract_tables(path)
+```
+
+```{r}
+#| include: false
+path = here::here("static/data/raw/globalReligion-tables.pdf")
+tables = extract_tables(path)
+```
+
+O resultado é uma lista de seis elementos (um para cada página). Pode-se ver também que houve algum problema na hora de importar os dados. Como comentei, o padrão PDF não é apropriado para compatilhamento de dados; inevitavelmente, o processo de importação e limpeza será caso a caso.
+
+```{r}
+str(tables)
+```
+
+### Limpeza dos dados
+
+Olhando as primeiras linhas do primeiro elemento, vemos que o cabeçalho foi importado em duas linhas distintas.
+
+```{r}
+tables[[1]][1:5, ]
+```
+
+Vamos primeiro separar estas linhas e montar o cabeçalho (nome das colunas) da nossa tabela. Queremos (1) juntar as informações; e (2) renomear as colunas. Assim, queremos juntar `"PERCENT"` com `"CHRISTIAN"` e depois tornar o nome limpo, i.e., `"percent_christian"`.
+
+```{r}
+# Seleciona apenas as duas primeiras linhas do primeiro elemento
+header = tables[[1]][1:2, ]
+
+# Junta as colunas e 'limpa' os nomes
+col_names = apply(header, 2, \(x) make_clean_names(str_c(x, collapse = "_")))
+
+col_names
+```
+
+Agora vamos empilhar os dados e usar o cabeçalho. Além disso, vamos inspecionar as primeiras linhas.
+
+```{r}
+table_data = bind_rows(lapply(tables, as.data.frame))
+table_data = table_data[3:nrow(table_data), ]
+names(table_data) = col_names
+
+head(table_data)
+```
+
+A primeira coluna de nossa tabela é de strings, enquanto as demais são todas numéricas. Para facilitar a leitura humana, os números foram formatados, com separador de milhar, sinal de porcentagem, etc. O próximo passo é formatar os números: o código abaixo remove este símbolos e converte para numérico.
+
+```{r}
+table_data = table_data |> 
+  as_tibble() |> 
+  mutate(across(2:last_col(), ~as.numeric(str_remove_all(.x, "[%<>,]"))))
+```
+
+Por fim, se olharmos para as últimas linhas da tabela, veremos que as linhas representam regiões ao invés de países. Isto é muito frequente em tabelas: é costumeiro acrescentar "totais" ou "agregados" nas últimas linhas de uma tabela para facilitar a interpretação dos dados.
+
+Em termos de análise, contudo, é importante que cada linha representa a mesma unidade. Isto é, cada linha na tabela principal deve representar um país.
+
+```{r}
+slice_tail(table_data, n = 7)
+```
+
+Vamos guardar esta informação num objeto secundário chamado `table_regions`.
+
+```{r}
+table_regions <- slice_tail(table_data, n = 7)
+table_data <- slice(table_data, 1:(nrow(table_data) - 7))
+```
+
+Por fim, temos um problema específico. O nome de muitos países saiu cortado, faltando a primeira letra. Para resolver isto vamos usar o pacote `countries` que oferece um fuzzy matching para o nome de países.
+
+Para melhor compreender o uso do pacote vamos analisar um exemplo. Olhando a linha 51, vemos que o país importado foi "yprus". O correto seria "Cyprus".
+
+```{r}
+test_name = table_data[51, ]$country
+test_name
+```
+
+A função `country_name` consegue identificar o nome corretamente.
+
+```{r}
+country_name(test_name, fuzzy_match = TRUE, to = "name_en")
+```
+
+Pode-se aplicar esta função em todos os nomes dos países. Além disso, é importante verificar se houve erros. O código busca qualquer entrada com `NA` em `name` ou `iso3c`.
+
+```{r}
+test = table_data |> 
+  mutate(
+    name = country_name(country, to = "name_en", fuzzy_match = TRUE),
+    iso3c = country_name(country, to = "ISO3", fuzzy_match = TRUE)
+  )
+
+errors = test |> 
+  filter(if_any(name:iso3c, ~is.na(.))) |> 
+  pull(country)
+
+errors
+```
+
+Como se vê, o algoritmo falha em identificar alguns países, que serão corrigidos manualmente. O foco do post não é de como usar o algortimo de fuzzy matching então não vou entrar em muitos detalhes. Vale notar que é possível acrescentar o argumento `verbose = TRUE` na função `country_name` para receber um retorno mais informativo.
+
+Além dos valores ausentes, vou verificar também os matchings duplicados. O código abaixo faz uma correção manual destes casos. Vale notar que há um caso "impossível": Gambia e Zambia, pois ambos os países estão com o nome "ambia" na tabela importada. Neste caso, uso a informação da população para discriminar os casos.
+
+```{r}
+errors = test |>
+  get_dupes(name) |> 
+  select(name, country)
+  
+correction = c(
+  "c", "k", "n", "n", "p", "u", "m", "m", "p", "", "m", "", "l", "e", "p", "f",
+  "i", "n", "z", "g", "u", "i", "o", "r", "r", "p", "s", "g", "u", "f", "u"
+  )
+
+fix_table = errors |> 
+  mutate(country_fixed = str_c(str_to_upper(correction), country)) |> 
+  select(country, country_fixed)
+
+table_data = table_data |> 
+  left_join(fix_table, by = 'country', relationship = "many-to-many") |> 
+  mutate(
+    temp_name = case_when(
+      country == "ambia" & country_population == 1730000 ~ "Gambia",
+      country == "ambia" & country_population > 1730000 ~ "Zambia",
+      is.na(country_fixed) ~ country,
+      TRUE ~ country_fixed
+    ),
+    # faz o matching do nomes dos países
+    name = country_name(temp_name, to = "name_en", fuzzy_match = TRUE),
+    # resolve alguns casos extremos "Channel Islands"
+    name = if_else(is.na(name), temp_name, name),
+    # encontra o ISO3 code de cada país
+    iso3c = country_name(name, to = "ISO3", fuzzy_match = FALSE)
+  )
+```
+
+Os erros finais acontecem porque alguns dos países listados não possuem ISO3, como `"Netherlands Antilles"`
+
+### Tabela Final
+
+A tabela final é apresentada abaixo. Vale notar que alguns dos valores estão truncados, o que gera uma pequena imprecisão, como é o caso das entradas que eram listadas como "\< 0.1".
+
+```{r}
+table_data = table_data %>%
+  select(name, iso3c, country_population:percent_jewish)
+```
+
+```{r}
+DT::datatable(table_data)
+```
+
+### Tidy data
+
+Por fim, vale notar que podemos melhorar ainda mais os dados acima. Na tabela acima, muitas das colunas são valores da variável "religião"; então podemos, transformar os dados em "tidy" convertendo-os em longitudinais da seguinte forma.
+
+```{r}
+tab_religion = table_data |> 
+  pivot_longer(
+    cols = percent_christian:percent_jewish,
+    names_to = "religion",
+    values_to = "share"
+    ) |> 
+  mutate(religion = str_remove(religion, "(percent_)|(_religion)"))
+
+tab_religion
+```
+
+Agora temos uma coluna `religion` que identifica cada uma das religiões consideradas na pesquisa e uma coluna `share` que mostra a representatividade de cada religão em cada país. Como comentado anteriormente, existem algumas impreciões pois substituímos os valores "\< 0.1" simplesmente por "0.1", então alguns shares vão somar valores um pouco maiores do que 100.
+
+Com os dados neste formato fica fácil responder perguntas como: qual a religão dominante em cada país? Olhando os dados vemos que há 149 países em que a religião "dominante", definida simplesmente como a religão que tem o maior share de convertidos, é o cristianismo. Há um gap considerável entre a religão muçulmana, com 47 países.
+
+```{r}
+tab_religion |> 
+  filter(share == max(share), .by = c("name", "iso3c")) |> 
+  count(religion, sort = TRUE)
+```
+
+E qual o resultado quando se olha para o total da população religiosa? A religião cristã continua em primeiro lugar, com quase 1.6 bilhão de convertidos. Já a religião hindu, apesar de ser dominante em apenas 3 países, aparece com quase 1 bilhão de seguidores. Isto acontece porque esta é a religão dominante da Índia, que à época da pesquisa tinha 1.22 bilhão de habitantes.
+
+```{r}
+tab_religion |> 
+  filter(share == max(share), .by = c("name", "iso3c")) |> 
+  mutate(total = country_population * share / 100) |> 
+  summarise(total_relig = sum(total), .by = "religion") |> 
+  arrange(desc(total_relig))
+```
+
+```{r}
+tab_religion |> 
+  filter(share == max(share), .by = c("name", "iso3c")) |> 
+  filter(religion == "hindu")
+```
+
+## Resumo
+
+O código abaixo resume os passos da importação e limpeza dos dados.
+
+```{r}
+#| eval: false
+
+library(tabulizer)
+library(dplyr)
+library(janitor)
+library(stringr)
+library(tidyr, include.only = "pivot_longer")
+library(countries, include.only = "country_name")
+
+
+# (opcional: baixa os dados)
+url = "https://pewresearch ..."
+download.file(url, destfile = tempfile(fileext = "pdf"))
+
+# Importa a tabela
+path = here::here("project/data/globalReligion-tables.pdf")
+tables = extract_tables(path)
+
+# Limpeza -------------------------------------------------------
+
+# Nome das colunas
+
+header = tables[[1]][1:2, ]
+# Junta as colunas e 'limpa' os nomes
+col_names = apply(header, 2, \(x) make_clean_names(str_c(x, collapse = "_")))
+# Empilha os dados e define nome das colunas
+table_data = bind_rows(lapply(tables, as.data.frame))
+table_data = table_data[3:nrow(table_data), ]
+names(table_data) = col_names
+
+# Converte colunas para numérico
+table_data = table_data |> 
+  as_tibble() |> 
+  mutate(across(2:last_col(), ~as.numeric(str_remove_all(.x, "[%<>,]"))))
+
+# Remove as últimas sete linhas
+table_regions <- slice_tail(table_data, n = 7)
+table_data <- slice(table_data, 1:(nrow(table_data) - 7))
+
+# Nome dos países
+
+# Correção manual
+test = table_data |> 
+  mutate(
+    name = country_name(country, to = "name_en", fuzzy_match = TRUE),
+    iso3c = country_name(country, to = "ISO3", fuzzy_match = TRUE)
+  )
+
+errors = test |>
+  get_dupes(name) |> 
+  select(name, country)
+  
+correction = c(
+  "c", "k", "n", "n", "p", "u", "m", "m", "p", "", "m", "", "l", "e", "p", "f",
+  "i", "n", "z", "g", "u", "i", "o", "r", "r", "p", "s", "g", "u", "f", "u"
+  )
+
+fix_table = errors |> 
+  mutate(country_fixed = str_c(str_to_upper(correction), country)) |> 
+  select(country, country_fixed)
+
+# Matching dos nomes
+table_data = table_data |> 
+  left_join(fix_table, by = 'country', relationship = "many-to-many") |> 
+  mutate(
+    temp_name = case_when(
+      country == "ambia" & country_population == 1730000 ~ "Gambia",
+      country == "ambia" & country_population > 1730000 ~ "Zambia",
+      is.na(country_fixed) ~ country,
+      TRUE ~ country_fixed
+    ),
+    # faz o matching do nomes dos países
+    name = country_name(temp_name, to = "name_en", fuzzy_match = TRUE),
+    # resolve alguns casos extremos "Channel Islands"
+    name = if_else(is.na(name), temp_name, name),
+    # encontra o ISO3 code de cada país
+    iso3c = country_name(name, to = "ISO3", fuzzy_match = FALSE)
+  ) |> 
+  select(name, iso3c, country_population:percent_jewish)
+
+# Tidy
+
+# Converte os dados para long
+tab_religion = table_data |> 
+  pivot_longer(
+    cols = percent_christian:percent_jewish,
+    names_to = "religion",
+    values_to = "share"
+    ) |> 
+  mutate(religion = str_remove(religion, "(percent_)|(_religion)"))
+```
