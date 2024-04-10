@@ -1,0 +1,159 @@
+---
+title: "Razão de Dependência no Brasil"
+description: "Um mapa coroplético interativo que mostra as medida de Razão de Dependência no Brasil por estado. O mapa destaca tanto a Razão de Dependência Total, como a RD Jovem e RD Idosa."
+cateogories: ['data-visualization', 'mapas', 'leaflet', 'demografia']
+execute: 
+  warning: false
+  message: false
+---
+
+```{r}
+#| code-fold: true
+library(sf)
+library(dplyr)
+library(tidyr)
+library(leaflet)
+
+brasil = geobr::read_country(showProgress = FALSE)
+center = st_coordinates(st_centroid(brasil))
+state_border = geobr::read_state(showProgress = FALSE)
+dim_state = as_tibble(st_drop_geometry(state_border))
+
+codes = c(93070, 93084:93098, 49108, 49109, 60040, 60041, 6653)
+
+tab_population = sidrar::get_sidra(
+  9514,
+  variable = 93,
+  geo = "State",
+  classific = "c287",
+  category = list(codes)
+)
+
+tab_pop <- tab_population |> 
+  janitor::clean_names() |> 
+  as_tibble() |> 
+  filter(sexo == "Total", forma_de_declaracao_da_idade == "Total") |> 
+  select(
+    code_state = unidade_da_federacao_codigo,
+    age_group = idade,
+    count = valor
+  )
+
+tab_pop <- tab_pop |> 
+  mutate(
+    code_state = as.numeric(code_state),
+    age_min = as.numeric(stringr::str_extract(age_group, "\\d+")),
+    age_group = factor(age_group),
+    age_group = forcats::fct_reorder(age_group, age_min),
+    age_ibge = case_when(
+      age_min < 15 ~ "young",
+      age_min >= 15 & age_min < 65 ~ "adult",
+      age_min >= 65 ~ "elder"
+    ),
+    factor(age_ibge, levels = c("young", "adult", "elder"))
+  )
+
+pop_state <- tab_pop %>%
+  summarise(
+    total = sum(count), .by = c("age_ibge", "code_state")
+  ) %>%
+  pivot_wider(
+    id_cols = "code_state",
+    names_from = "age_ibge",
+    values_from = "total"
+  ) %>%
+  mutate(
+    dre = elder / adult * 100,
+    dry = young / adult * 100,
+    tdr = dre + dry
+  )
+
+tab_pop_state <- left_join(dim_state, pop_state, by = "code_state")
+pop <- left_join(state_border, pop_state, by = "code_state")
+
+bins <- quantile(pop$tdr, probs = seq(0, 1, 0.2))
+bins <- BAMMtools::getJenksBreaks(pop$tdr, k = 6)
+pal <- colorBin(
+  palette = as.character(MetBrewer::met.brewer("Hokusai2", 5)),
+  domain = pop$tdr,
+  bins = bins
+)
+
+labels <- sprintf(
+  "<b>RDT<b/>: %s <br>
+   <b>RDJ<b/>: %s <br>
+   <b>RDI<b/>: %s <br>",
+  format(round(pop$tdr, 1), decimal.mark = ","),
+  format(round(pop$dry, 1), decimal.mark = ","),
+  format(round(pop$dre, 1), decimal.mark = ",")
+)
+
+labels <- lapply(labels, htmltools::HTML)
+
+map <- leaflet(pop) %>%
+  addTiles() %>%
+  addPolygons(
+    weight = 2,
+    color = "white",
+    fillColor = ~pal(tdr),
+    fillOpacity = 0.9,
+    highlightOptions = highlightOptions(
+      color = "#e09351",
+      weight = 10,
+      fillOpacity = 0.8,
+      bringToFront = TRUE),
+    label = labels,
+    labelOptions = labelOptions(
+      style = list("font-weight" = "normal", "font-family" = "Fira Code")
+    )
+  ) %>%
+  addLegend(
+    pal = pal,
+    values = ~tdr,
+    labFormat = labelFormat(digits = 1),
+    title = "RDT (2022)",
+    position = "bottomright"
+  ) %>%
+  addProviderTiles(providers$CartoDB) %>%
+  setView(lng = center[1], lat = center[2], zoom = 4)
+```
+
+# Razão de Dependência no Brasil
+
+A Razão de Dependência Total (RDT) no Brasil varia de 38,5 a 52,3. A composição do RDT, contudo, varia consideravelmente. No Amazonas, por exemplo, a RDT de 49,7 é majoritariamente função da enorme população jovem do estado; a Razão de Dependência Idosa é de apenas 8,9. Já no Rio Grande do Sul, por outro lado, com RDT similar de 46,2 tem RDI de 20,9. Atualmente, os estados com as menores RDT são o Distrito Federal (38,5), Santa Catarina (41,1) e Goiás (41,8).
+
+```{r}
+#| out-width: 100%
+map
+```
+
+-   Dados: IBGE ([**Censo 2022**](https://censo2022.ibge.gov.br))
+
+-   Tipografia: Fira Code
+
+-   Paleta: `Hokusai2` ([MetBrewer](https://github.com/BlakeRMills/MetBrewer))
+
+## Sobre a Razão de Dependência
+
+A razão de dependência mede a proporção da população que depende, num sentido amplo, do trabalho da população economicamente ativa. No Brasil, o IBGE define a Razão de Dependência Total (RDT), como a razão entre o número de jovens e idosos e o número de adultos (em idade de trabalhar). Como critério de corte, define-se jovem como uma pessoa com até 14 anos e idoso como uma pessoa com 65 anos ou mais.Formalmente, define-se a RDT como:
+
+$$\text{RDT} = \frac{\text{Idade}\leq14 \, \lor \, \text{Idade} \geq 65}{\text{Idade} >14 \, \land \, \text{Idade} < 65}
+$$
+
+O denominador da fórmula representa a População Economicamente Ativa (PEA) e é uma proxy para a população trabalhadora.
+
+Adicionalmente, também pode-se definir a Razão de Dependência Jovem (RDJ) e a Razão de Dependência Idosa (RDI)
+
+$$
+\text{RDJ} = \frac{\text{Idade}\leq14}{\text{Idade} >14 \, \land \, \text{Idade} < 65} = \frac{\text{Idade}\leq14}{\text{PEA}}
+$$
+
+$$
+\text{RDI} = \frac{\text{Idade} \geq 65}{\text{Idade} >14 \, \land \, \text{Idade} < 65} = \frac{\text{Idade} \geq 65}{\text{PEA}}
+$$
+
+Vale notar que:
+
+$$
+\text{RDT} = \text{RDJ} + \text{RDI}
+$$
