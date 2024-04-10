@@ -1,0 +1,381 @@
+---
+title: "Nascimentos e Óbitos no Brasil"
+date: "2024-04-10"
+categories: ['data-visualization', 'mapas', 'ggplot2', 'brasil', 'demografia']
+description: "Neste post analiso os dados do mais recente Estatísticas do Registro
+Civil do IBGE. Esta base de dados estima o número total de nascidos vivos e de óbitos em cada município a cada ano. Os dados são bastante detalhados e permitem diversos tipos de análise."
+execute: 
+  message: false
+  warning: false
+---
+
+```{r, setup}
+#| include: false
+library(dplyr)
+library(sf)
+library(showtext)
+library(biscale)
+library(gt)
+library(gtExtras)
+library(ggplot2)
+library(patchwork)
+
+font_add_google("Lato", "Lato")
+showtext_auto()
+
+theme_plots <- theme_minimal(base_family = "Lato", base_size = 10) +
+  theme(
+    panel.grid.minor = element_blank()
+  )
+
+knitr::opts_chunk$set(
+  fig.align = "center",
+  out.width = "90%"
+)
+```
+
+```{r, import-data}
+#| include: false
+records <- qs::qread(here::here("static/data/birth_death_rate.qs"))
+rec <- as_tibble(st_drop_geometry(records))
+```
+
+# Nascimentos e Óbitos
+
+O IBGE recentemente atualizou as contagens de nascimento e óbitos no Brasil, no estudo períodico [Estatísticas do Registro Civil](https://www.ibge.gov.br/estatisticas/sociais/populacao/9110-estatisticas-do-registro-civil.html). Esta base de dados estima o número total de nascidos vivos e de óbitos em cada município a cada ano. Os dados são bastante detalhados e permitem diversos tipos de análise. Já usei estes dados em outro [post, onde mostrei como as divergências do Censo 2022 eram surpreendentes](https://restateinsight.com/posts/general-posts/2023-10-censo-erros/#nascimentos-e-óbitos), visto que houve "houve cerca de 400 mil mortes a mais do que o projetado e 800 mil nascimentos a menos".
+
+## Análise de Dados
+
+```{r libs}
+#| eval: false
+library(dplyr)
+library(sf)
+library(showtext)
+library(biscale)
+library(gt)
+library(gtExtras)
+library(ggplot2)
+library(patchwork)
+
+records <- qs::qread("...")
+rec <- as_tibble(st_drop_geometry(records))
+```
+
+Pode-se importar o shapefile dos estados via `geobr`.
+
+```{r, import-dim-state}
+state_border <- geobr::read_state(showProgress = FALSE)
+dim_state <- as_tibble(st_drop_geometry(state_border))
+
+dim_state <- dim_state |> 
+  mutate(name_state = stringr::str_replace(
+    name_state,
+    "Espirito Santo",
+    "Espírito Santo")
+    )
+
+# Aggregate data by state
+state_records <- rec |> 
+  summarise(across(population:births, ~sum(.x, na.rm = TRUE)), .by = "abbrev_state") |> 
+  mutate(cbr = births / population * 1000, cdr = deaths / population * 1000)
+
+state_pop <- left_join(state_border, state_records, by = "abbrev_state")
+```
+
+### Panorama
+
+Quando se olha para a tendência dentro de cada estado, vê-se uma divisão regional. Os estados do Norte têm taxas de natalidade elevadas e taxas de mortalidade baixas. O Centro-Oeste tem TBN e TBM moderadas, com exceção do Distrito Federal, que tem ambas as taxas baixas. Já o litoral do país apresenta taxas de mortalidade moderadas ou elevadas e baixas taxas de natalidade. Isto é particularmente relevante, visto que a maior parte da população brasileira mora nestes estados.
+
+É importante notar também que o Nordeste começa a exibir padrões demográficos similares a do Sul e do Sudeste, apesar de ter um renda per capita significativamente menor. Isto tende a se traduzir em desafios ainda maiores para o desenvolvimento econômico da região.
+
+```{r, map-biclass-uf}
+#| code-fold: true
+rates <- bi_class(state_pop, cdr, cbr, style = "jenks", dim = 3)
+
+pal <- "BlueOr"
+
+p_map <- ggplot(rates) +
+  geom_sf(aes(fill = bi_class)) +
+  bi_scale_fill(pal = pal, dim = 3) +
+  guides(fill = "none") +
+  coord_sf(xlim = c(NA, -36.25)) +
+  theme_void()
+
+p_legend <- bi_legend(
+  pal = pal,
+  dim = 3,
+  xlab = "Deaths",
+  ylab = "Births",
+  size = 8)
+
+state_map <- p_map + inset_element(p_legend, 0, 0, 0.4, 0.4)
+
+theme_map <- theme_minimal(base_family = "Lato") +
+  theme(
+    plot.title = element_text(hjust = 0.5),
+    plot.subtitle = element_text(hjust = 0.5)
+    )
+
+state_map <- state_map + plot_annotation(
+  title = "Nascimentos e Mortes",
+  subtitle = "Taxas brutas de nascimento e mortes por mil habitantes",
+  theme = theme_map
+  )
+
+state_map
+```
+
+De modo geral, a maior parte dos municípios continua apresentando números maiores de nascimentos do que óbitos. Cerca de 84% dos municípios tem taxas brutas de natalidade (TBN) superiores às suas respectivas taxas brutas de mortalidade (TBM). O gráfico abaixo mostra a dispersão entre a taxa bruta de natalidade, por mil habitantes, contra a taxa bruta de mortalidade, por mil habitantes. Outliers são removidos para facilitar a leitura dos dados.
+
+Os municípios abaixo da linha laranja apresentam TBM maior do que TBN, isto é, são municípios onde se registram mais óbitos do que nascimentos. O contrário é válido para os municípios acima da linha: nos municípios acima da linha laranja há mais nascimentos do que óbitos. Isto, de fato, reflete o [acelerado envelhecimento da população, como mostrei em outro post](https://restateinsight.com/posts/general-posts/2023-11-wz-census-ages/).
+
+```{r plot-scatterplot}
+#| code-fold: true
+sub <- rec |> 
+  filter(cdr <= 20, cbr <= 30)
+
+plot_scatter <- ggplot(sub, aes(cdr, cbr)) +
+  geom_point(
+    aes(size = sqrt(population)),
+    alpha = 0.5,
+    shape = 21,
+    color = "#023047"
+    ) +
+  geom_abline(slope = 1, intercept = 0, lwd = 1, color = "#fb8500") +
+  geom_hline(yintercept = 0) +
+  geom_vline(xintercept = 0) +
+  geom_text(
+    data = tibble(x = 17.5, y = 3, label = "Mais Óbitos\ndo que\nNascimentos"),
+    aes(x, y, label = label),
+    family = "Lato",
+    size = 3
+  ) +
+  geom_text(
+    data = tibble(x = 17.5, y = 25.25, label = "Mais Nasc.\ndo que\nÓbitos"),
+    aes(x, y, label = label),
+    family = "Lato",
+    size = 3
+  ) +
+  guides(size = "none") +
+  labs(
+    title = "Nascimentos e Óbitos",
+    subtitle = stringr::str_wrap("Taxa Bruta de Nascimentos e Óbitos por mil habitantes por município no Brasil (2022). Tamanho do círculo proporcional à população do município.", 86),
+    x = "Óbitos (p/ 1.000 habitantes)",
+    y = "Nascimentos (p/ 1.000 habitantes)"
+  ) +
+  theme_minimal(base_family = "Lato")
+
+plot_scatter
+```
+
+```{r, data-state}
+#| echo: false
+top_births <- rec |> 
+  filter(population > 50000) |> 
+  slice_max(cbr, n = 15) |> 
+  mutate(rni = cbr - cdr) |> 
+  select(name_muni, abbrev_state, cbr, cdr, births, deaths, population)
+
+top_deaths <- rec |> 
+  filter(population > 50000) |> 
+  slice_max(cdr, n = 15) |> 
+  mutate(rni = cbr - cdr) |> 
+  select(name_muni, abbrev_state, cbr, cdr, births, deaths, population)
+
+col_names <- c("Nome", "UF", "Nascimentos", "Óbitos", "Nascimentos", "Óbitos", "População")
+names(col_names) <- names(top_deaths)
+```
+
+```{r, table-top-births}
+#| echo: false
+table_births <- gt(top_births) |> 
+  cols_label(.list = col_names) |> 
+  tab_spanner(label = "Taxa por mil", 3:4) |> 
+  tab_spanner(label = "Absoluto", 5:6) |> 
+  fmt_number(3:4, decimals = 2, dec_mark = ",") |> 
+  fmt_number(5:7, decimals = 0, sep_mark = ".") |> 
+  gt_theme_espn()
+```
+
+```{r, table-top-deaths}
+#| echo: false
+table_deaths <- gt(top_deaths) |> 
+  cols_label(.list = col_names) |> 
+  tab_spanner(label = "Taxa por mil", 3:4) |> 
+  tab_spanner(label = "Absoluto", 5:6) |> 
+  fmt_number(3:4, decimals = 2, dec_mark = ",") |> 
+  fmt_number(5:7, decimals = 0, sep_mark = ".") |> 
+  gt_theme_espn()
+```
+
+A tabela abaixo apresenta os principais municípios com baixas taxas de natalidade e altas taxas de mortalidade. Vê-se que municípios de médio porte, do interior do Rio Grande do Sul, predominam na lista. É o caso de cidade como São Borja, São Gabriel, Bagé e Vacaria.
+
+```{r}
+#| echo: false
+table_deaths
+```
+
+A taxa bruta de natalidade é uma boa proxy para a taxa de fecundidade e a sua redução, de fato, indica menor crescimento demográfico. A tabela abaixo mostra os principais municípios com TBN elevada. Todos os municípios listados estão na região Norte e os estados do Pará e, sobretudo, do Amazonas predominam na lista.
+
+```{r}
+#| echo: false
+table_births
+```
+
+
+## Mapas
+
+Como visto, a dinâmica populacional varia de região para região e até de estado para estado. O mapa abaixo normaliza a taxa de crescimento natural para o Rio Grande do Sul. Aqui, define-se que a TCN é a diferença entre a TBN e a TBM, isto é
+
+$$
+\text{TCN} = \text{TBN} - \text{TBM} = \frac{N}{P}\times1.000 - \frac{O}{P}\times1.000 = 1.000 (\frac{N - O}{P})
+$$
+onde $N$ é o número total de nascidos vivos no ano, $O$ é o número total de óbitos registrados no ano e $P$ é a contagem total da população no ano.
+
+```{r}
+#| echo: false
+records <- records |> 
+  mutate(
+    rni = cbr - cdr
+  )
+
+rs <- filter(records, code_state == 43)
+
+rs <- rs |> 
+  mutate(
+    scaled_rni = as.numeric(scale(rni)),
+    group = factor(findInterval(scaled_rni, seq(-2.5, 2.5, 1)))
+    )
+
+p_hist <- records |> 
+  mutate(rs = factor(if_else(code_state == 43, 1L, 0L))) |> 
+  ggplot(aes(x = rni, fill = rs)) +
+  geom_hline(yintercept = 0) +
+  geom_vline(xintercept = 0, linetype = "dashed") +
+  geom_density(alpha = 0.5) +
+  scale_fill_brewer(name = "", type = "qual", palette = 6, labels = c("BR", "RS")) +
+  labs(
+    x = "TCN",
+    y = NULL
+  ) +
+  theme_minimal(base_family = "Lato") +
+  theme(
+    panel.grid.minor = element_blank(),
+    legend.position = "bottom"
+    )
+
+p_map <- ggplot(rs) +
+  geom_sf(aes(fill = group), color = "white", lwd = 0.1) +
+  scale_fill_brewer(
+    name = "TCN (sd)",
+    palette = "RdBu",
+    labels = c("< -2.5", "-2.5 to -1.5", "-1.5 to -0.5", "-0.5 to 0.5",
+               "0.5 to 1.5", "1.5 to 2.5", "> 2.5")
+    ) +
+  ggthemes::theme_map(base_family = "Lato")
+```
+
+O gráfico abaixo mostra a distribuição da TCN entre os municípios do Rio Grande do Sul em contraste com os demais municípios do Brasil. Nota-se que o formato da distribuição é relativamente similar; contudo, a distribuição da TCN está deslocada à esquerda no gráfico, indicando que os municípios gaúchos tem TCN menores.
+
+```{r}
+#| echo: false
+p_hist
+```
+
+O mapa abaixo mostra a distribuição espacial da TCN no Rio Grande do Sul. Os dados são normalizados e as cores destacam os municípios que estão "nas pontas" da distribuição. A distância é mensurada em termos de desvios-padrão.
+
+Os municípios em cinza apresentam TCN próximas à média do estado; já os municípios em vermelho apresentam TCN abaixo da média. Nota-se que o Centro-Sul do estado possui praticamente nenhum município com TCN acima da média. A região metropolitana de Porto Alegre e boa parte das regiões Norte e Nordeste do estado apresentam vários municípios em azul, indicando TCN positivas.
+
+```{r}
+#| echo: false
+p_map
+```
+
+Pode-se olhar também para a distribuição simulatânea da TBN e da TBM no estado. A função abaixo implementa uma maneira fácil de montar esta visualização para qualquer estado do Brasil.
+
+```{r, fun-plot-biscale}
+#| code-fold: true
+available_states <- unique(dim_state$abbrev_state)
+available_states <- available_states[order(available_states)]
+available_states <- paste(available_states, collapse = ", ")
+
+theme_map <- theme_minimal(base_family = "Lato") +
+  theme(
+    plot.title = element_text(hjust = 0.5),
+    plot.subtitle = element_text(hjust = 0.5)
+    )
+
+plot_biscale <- function(
+    state,
+    t = 0.35,
+    r = 0.35,
+    b = 0,
+    l = 0,
+    pal = "BlueOr",
+    theme = theme_map
+    ) {
+  
+  if (is.numeric(state) && nchar(state) == 2) {
+    state <- dplyr::filter(records, code_state == state)$abbrev_state
+  }
+  
+  if (length(state) == 0) {
+    stop("Argument `state` must be one of: ", available_states, ".")
+  }
+  
+  sub <- dplyr::filter(records, abbrev_state == state)
+  rates <- bi_class(sub, cdr, cbr, style = "jenks", dim = 3)
+
+  p_map <- ggplot(rates) +
+    geom_sf(aes(fill = bi_class)) +
+    bi_scale_fill(pal = pal, dim = 3) +
+    guides(fill = "none") +
+    theme_void()
+
+  p_legend <- bi_legend(
+    pal = pal,
+    dim = 3,
+    xlab = "Deaths",
+    ylab = "Births",
+    size = 8)
+
+  p_map <- p_map + inset_element(p_legend, left = l, bottom = b, right = r, top = t)
+  
+  p_map <- p_map + plot_annotation(
+    title = stringr::str_glue("Nascimentos e Mortes ({state})"),
+    subtitle = "Taxas brutas de nascimento e mortes por mil habitantes",
+    theme = theme_map
+    )
+  
+  return(p_map)
+  
+}
+```
+
+### Rio Grande do Sul
+
+Olhando para o mapa, vê-se que a região Centro-Sul do estado apresenta taxas de mortalidade moderadas ou elevadas. Aqui, os municípios em laranja são os mais preocupantes, por apresentar simultaneamente mortalidade elevada e natalidade baixa. A região metropolitana de Porto Alegre e boa parte das regiões Norte e Nordeste do estado apresentam vários municípios em azul claro e azul escuro, indicando TBN moderada ou elevada e TBM baixa.
+
+```{r}
+#| echo: false
+plot_biscale("RS")
+```
+
+### Santa Catarina
+
+```{r}
+#| echo: false
+plot_biscale("SC")
+```
+
+### Minas Gerais
+
+```{r}
+#| echo: false
+plot_biscale("MG", 1, 0.3, 0.7, 0)
+```
+
+## Posts relacionados
+
+* [Nascimentos no Brasil](https://restateinsight.com/posts/general-posts/2023-10-nascimentos-brasil/)
+* [Envelhecimento no Brasil](https://restateinsight.com/posts/general-posts/2023-11-wz-census-ages/)
