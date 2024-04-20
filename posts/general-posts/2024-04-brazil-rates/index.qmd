@@ -1,0 +1,216 @@
+---
+title: "Demographic Trends in Brazil"
+date: "2024-04-02"
+categories: ['maps', 'mapas', 'data-visualization', 'ggplot2', 'brazil']
+description: ""
+execute: 
+  message: false
+  warning: false
+  eval: false
+draft: true
+---
+
+# Demography in Brazil
+
+```{r libs}
+library(dplyr)
+library(sf)
+library(showtext)
+library(biscale)
+library(cowplot)
+library(gt)
+library(gtExtras)
+library(ggplot2)
+library(MetBrewer)
+
+font_add_google("Lato", "Lato")
+showtext_auto()
+
+theme_plots <- theme_minimal(base_family = "Lato", base_size = 10) +
+  theme(
+    panel.grid.minor = element_blank()
+  )
+```
+
+```{r import-data}
+
+records <- qs::qread(here::here("static/data/birth_death_rate.qs"))
+rec <- as_tibble(st_drop_geometry(records))
+
+dat <- readr::read_rds(here::here("static/data/births_weddings.rds"))
+```
+
+```{r}
+births_state <- dat$births |> 
+  filter(sex_children_born == "total") |> 
+  mutate(year = as.numeric(year)) |> 
+  summarise(
+    year_births = sum(total_births, na.rm = TRUE), .by = c("year", "name_state")
+  )
+  
+pop_state <- dat$pop |> 
+  filter(age_group == "Total", sex == "total") |> 
+  rename(pop = value)
+
+tab_birth <- births_state |> 
+  left_join(pop_state, by = c("year", "name_state")) |> 
+  mutate(cbr = year_births / pop * 1000)
+```
+
+```{r import-dim-state}
+dim_state <- as_tibble(st_drop_geometry(geobr::read_state(showProgress = FALSE)))
+
+dim_state <- dim_state |> 
+  mutate(name_state = stringr::str_replace(name_state, "Espirito Santo", "Espírito Santo"))
+
+tab_birth <- tab_birth |> 
+  mutate(name_state = stringr::str_to_title(name_state)) |> 
+  left_join(dim_state, by = "name_state")
+```
+
+```{r}
+end_point <- tab_birth |> 
+  filter(year == max(year))
+
+ranks <- tab_birth |> 
+  filter(year == max(year)) |> 
+  mutate(rank_state = rank(cbr), .by = "name_region") |> 
+  select(code_region, name_state, rank_state)
+ 
+tab_birth <- tab_birth |> 
+  left_join(ranks, by = c("code_region", "name_state")) |> 
+  mutate(
+    rank = as.numeric(paste0(code_region, rank_state)),
+    abbrev_state = forcats::fct_reorder(abbrev_state, rank)
+    )
+
+inds <- ranks |> 
+  filter(rank_state == max(rank_state), .by = "code_region") |> 
+  pull(rank_state)
+
+colors <- lapply(inds, \(x) as.character(met.brewer("Hokusai1", x)))
+colors <- unlist(colors)
+```
+
+```{r plot-line-facet}
+ggplot(tab_birth, aes(year, cbr, color = abbrev_state)) +
+  geom_line() +
+  ggrepel::geom_label_repel(
+    data = end_point,
+    aes(year, cbr, label = abbrev_state),
+    family = "Lato"
+  ) +
+  scale_x_continuous(limits = c(NA, 2023)) +
+  scale_color_manual(name = "", values = colors) +
+  facet_wrap(vars(name_region)) +
+  guides(color = "none") + 
+  theme_minimal(base_family = "Lato", base_size = 10) +
+  theme(
+    panel.grid.minor = element_blank()
+  )
+```
+
+```{r}
+rs <- filter(records, code_state == 33)
+
+rs <- rs |> 
+  mutate(
+    scaled_cbr = as.numeric(scale(cbr)),
+    group = factor(findInterval(scaled_cbr, seq(-2.5, 2.5, 1)))
+    )
+
+rec |> 
+  mutate(is_rs = factor(if_else(code_state == 43, 1L, 0L))) |> 
+  ggplot(aes(x = cbr, color = is_rs, fill = is_rs)) +
+  geom_density(alpha = 0.5) +
+  geom_hline(yintercept = 0) +
+  scale_x_continuous(limits = c(NA, 40)) +
+  scale_color_manual(
+    name = "",
+    values = c("#8c510a", "#01665e"),
+    labels = c("BR", "RS")) +
+  scale_fill_manual(
+    name = "",
+    values = c("#8c510a", "#01665e"),
+    labels = c("BR", "RS")) +
+  theme_plots +
+  theme(legend.position = "bottom")
+
+ggplot(rs) +
+  geom_sf(aes(fill = group), color = "white", lwd = 0.1) +
+  scale_fill_brewer(
+    name = "Standard Deviations",
+    palette = "RdBu",
+    labels = c("< -2.5", "-2.5 to -1.5", "-1.5 to -0.5", "-0.5 to 0.5",
+               "0.5 to 1.5", "1.5 to 2.5", "> 2.5")
+    ) +
+  ggthemes::theme_map(base_family = "Lato")
+```
+
+```{r}
+biscale_map_state <- function(
+    cd_state,
+    leg.x = 0.6,
+    leg.y = 0.1,
+    leg.width = 0.2,
+    leg.heigth = leg.width,
+    include_legend = TRUE) {
+  
+  dat <- dplyr::filter(records, code_state == cd_state)
+  
+  map_state <- ggplot(dat) +
+    geom_sf(
+      aes(fill = bi_class_state),
+      color = "white",
+      lwd = 0.1,
+      show.legend = FALSE
+      ) +
+    bi_scale_fill(pal = "DkViolet2", dim = 3, flip_axes = TRUE) +
+    bi_theme(base_family = "Lato")
+  
+  if (include_legend) {
+    
+    legend <- bi_legend(
+      "DkViolet2",
+      flip_axes = TRUE,
+      dim = 3,
+      size = 12,
+      xlab = "Birth Rate",
+      ylab = "Death Rate"
+    )
+    
+    finalPlot <- ggdraw() +
+      draw_plot(map_state, 0, 0, 1, 1) +
+      draw_plot(legend, leg.x, leg.y, leg.width, leg.width)
+    
+    return(finalPlot)
+    
+  }
+  return(map_state)
+}
+
+biscale_map_state(43)
+```
+
+```{r}
+rec = as_tibble(st_drop_geometry(records))
+```
+
+```{r}
+rec |> 
+  filter(deaths > births) |> 
+  nrow()
+```
+
+Close to 15% of all cities
+
+```{r}
+tab1 <- rec |>
+  filter(deaths > births, population > 50000) |> 
+  arrange(desc(cdr)) |> 
+  select(name_muni, abbrev_state, cbr, cdr, births, deaths, population)
+
+gt(tab1) |> 
+  fmt_number(3:4, decimals = 1, dec_mark = ",") |> 
+  fmt_number(5:7, sep_mark = ".", decimals = 0)
+```
