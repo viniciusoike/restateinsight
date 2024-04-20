@@ -1,0 +1,327 @@
+---
+title: "Razão de Dependência nos Estados do Brasil"
+date: "2024-04-04"
+description: ""
+categories: ['data-visualization', 'ggplot2', 'censo', 'brasil', 'demografia']
+execute: 
+  message: false
+  warning: false
+  eval: false
+draft: true
+---
+
+```{r, setup}
+library(sf)
+library(dplyr)
+library(tidyr)
+library(gt)
+library(gtExtras)
+font_add_google("Lato", "Lato")
+showtext_auto()
+```
+
+```{r}
+state_border = geobr::read_state(showProgress = FALSE)
+dim_state = as_tibble(st_drop_geometry(state_border))
+```
+
+```{r}
+codes = c(93070, 93084:93098, 49108, 49109, 60040, 60041, 6653)
+
+tab_population = sidrar::get_sidra(
+  9514,
+  variable = 93,
+  geo = "State",
+  classific = "c287",
+  category = list(codes)
+  )
+```
+
+```{r}
+tab_pop <- tab_population |> 
+  janitor::clean_names() |> 
+  as_tibble() |> 
+  filter(sexo == "Total", forma_de_declaracao_da_idade == "Total") |> 
+  select(
+    code_state = unidade_da_federacao_codigo,
+    age_group = idade,
+    count = valor
+    )
+
+tab_pop <- tab_pop |> 
+  mutate(
+    code_state = as.numeric(code_state),
+    age_min = as.numeric(str_extract(age_group, "\\d+")),
+    age_group = factor(age_group),
+    age_group = fct_reorder(age_group, age_min),
+    age_ibge = case_when(
+      age_min < 15 ~ "young",
+      age_min >= 15 & age_min < 65 ~ "adult",
+      age_min >= 65 ~ "elder"
+    ),
+    factor(age_ibge, levels = c("young", "adult", "elder"))
+  )
+
+pop_state <- tab_pop %>%
+  summarise(
+    total = sum(count), .by = c("age_ibge", "code_state")
+  ) %>%
+  pivot_wider(
+    id_cols = "code_state",
+    names_from = "age_ibge",
+    values_from = "total"
+    ) %>%
+  mutate(
+    dre = elder / adult,
+    dry = young / adult,
+    tdr = dre + dry
+  )
+
+tab_pop_state <- left_join(dim_state, pop_state, by = "code_state")
+pop <- left_join(state_border, pop_state, by = "code_state")
+```
+
+```{r}
+pal <- colorNumeric("Blues", pop$tdr)
+
+leaflet() |> 
+  addTiles() |> 
+  addPolygons()
+```
+
+
+
+```{r}
+dep_biclass <- bi_class(pop, dre, dry, dim = 3, style = "quantile")
+
+p_map <- ggplot(dep_biclass) +
+  geom_sf(
+    aes(fill = bi_class),
+    color = "white",
+    lwd = 0.2,
+    show.legend = FALSE
+    ) +
+  coord_sf(xlim = c(NA, -35)) +
+  bi_scale_fill(pal = "GrPink", dim = 3) +
+  bi_theme()
+
+p_legend <- bi_legend(
+  pal = "GrPink",
+  dim = 3,
+  xlab = "Idoso (%)",
+  ylab = "Jovem (%)",
+  size = 8
+  )
+
+map_states <- p_map + inset_element(p_legend, 0, 0.1, 0.35, 0.45)
+
+plot_map <- map_states + plot_annotation(
+  title = "Razão de Dependência",
+  subtitle = "Razão de dependência jovem e idosa no Brasil (2022)."
+) &
+  theme(
+    plot.title = element_text(size = 18, family = "Lato", hjust = 0.5),
+    plot.subtitle = element_text(family = "Lato", hjust = 0.5)
+  )
+```
+
+```{r, gt-population}
+tab <- tab_pop_state |> 
+  mutate(population = young + adult + elder) |>
+  mutate(across(dre:tdr, ~.x * 100)) |> 
+  select(name_state, dre, dry, tdr, population) |> 
+  arrange(desc(tdr))
+
+table_population <- gt(tab) |> 
+  cols_label(
+    name_state = "Nome UF",
+    dre = "Idoso",
+    dry = "Jovem",
+    tdr = "Total",
+    population = "População"
+  ) |> 
+  tab_spanner(label = "Razão de Dependência", 2:4) |> 
+  fmt_number(2:4, decimals = 1, dec_mark = ",") |> 
+  fmt_number(5, decimals = 0, sep_mark = ".") |> 
+  opt_stylize(style = 6) |> 
+  opt_table_font(font = google_font("Questrial"))
+```
+
+```{r, funs-state-pop}
+get_population <- function(state) {
+  
+  tab_population = sidrar::get_sidra(
+    9514,
+    variable = 93,
+    geo = "State",
+    geo.filter = list("State" = state)
+  )
+  
+  return(tab_population)
+  
+}
+
+clean_population <- function(dat, group_var) {
+  
+  tab_pop = dat |> 
+    janitor::clean_names() |> 
+    tidyr::as_tibble() |> 
+    dplyr::filter(
+      sexo != "Total",
+      forma_de_declaracao_da_idade == "Total",
+      idade_codigo %in% codes) |> 
+    dplyr::select(
+      code_state = unidade_da_federacao_codigo,
+      age_group = idade,
+      sex = sexo,
+      count = valor
+      )
+
+  tab_pop <- tab_pop |> 
+   dplyr::mutate(
+      code_state = as.numeric(code_state),
+      age_min = as.numeric(stringr::str_extract(age_group, "\\d+")),
+      age_group = factor(age_group),
+      age_group = forcats::fct_reorder(age_group, age_min),
+      sex = factor(sex,
+                   levels = c("Homens", "Mulheres"),
+                   labels = c("Masculino", "Feminino")
+                   )
+    ) |> 
+    dplyr::mutate(share = count / sum(count) * 100, .by = "sex") |> 
+    dplyr::mutate(share = dplyr::if_else(sex == "Masculino", -share, share))
+  
+  return(tab_pop)
+  
+}
+```
+
+```{r, params-state-pop}
+states <- c(13, 22, 43, 42)
+ls_population <- lapply(states, get_population)
+ls_population <- lapply(ls_population, clean_population)
+dat_pop <- bind_rows(ls_population)
+```
+
+```{r, plot-pyramid}
+sub <- dplyr::filter(dat_pop, code_state %in% states)
+
+sub <- sub |> 
+  mutate(
+    age_group_lump = if_else(age_min >= 80, "80 ou mais", age_group),
+    age_group_lump = str_remove(age_group_lump, " anos"),
+    age_group_lump = factor(age_group_lump),
+    age_group_lump = fct_reorder(age_group_lump, age_min),
+    .by = "code_state"
+    )
+
+sub <- left_join(sub, dim_state, by = "code_state")
+
+plot_pyramid <- ggplot(sub, aes(x = age_group_lump, y = share, fill = sex)) +
+  geom_col(alpha = 0.9) +
+  geom_hline(yintercept = 0) +
+  coord_flip() +
+  facet_wrap(vars(name_state)) +
+  scale_fill_manual(values = c("#e76f51", "#2a9d8f")) +
+  labs(
+    title = "Pirâmides demográficas",
+    subtitle = "",
+    x = NULL,
+    y = "(%)") +
+  guides(fill = "none") +
+  theme_minimal(base_family = "Lato", base_size = 10) +
+  theme(
+    panel.grid.minor = element_blank(),
+    axis.text.y = element_text(hjust = 0.5)
+  )
+```
+
+```{r, get-demographic-indicators}
+demographic <- get_sidra(7360, variable = 10609:10612, geo = "State")
+
+tab_demographic <- demographic %>%
+  janitor::clean_names() %>%
+  as_tibble() %>%
+  select(
+    code_state = unidade_da_federacao_codigo,
+    year = ano_2,
+    variable = variavel,
+    value = valor
+  ) %>%
+  mutate(year = as.numeric(year), code_state = as.numeric(code_state))
+
+tab_demographic_state <- left_join(tab_demographic, dim_state, by = "code_state")
+
+demographic <- get_sidra(7360, variable = 10609:10612, geo = "Region")
+
+tab_demographic <- demographic %>%
+  janitor::clean_names() %>%
+  as_tibble() %>%
+  select(
+    code_region = grande_regiao_codigo,
+    year = ano_2,
+    variable = variavel,
+    value = valor
+  ) %>%
+  mutate(year = as.numeric(year), code_region = as.numeric(code_region))
+
+dim_region <- distinct(dim_state, code_region, name_region)
+
+tab_demographic_region <- left_join(tab_demographic, dim_region, by = "code_region")
+```
+
+```{r, gt-table-region}
+table_region <- tab_demographic_region %>%
+  filter(year %in% seq(2010, 2060, 5), variable == "Razão de dependência total") %>%
+  pivot_wider(id_cols = "name_region", names_from = "year", values_from = "value") %>%
+  gt() %>%
+  cols_label(name_region = "Região") |> 
+  fmt_number(2:12, decimals = 1) |> 
+  opt_stylize(style = 6) |> 
+  opt_table_font(font = google_font("Questrial"))
+```
+
+```{r, plot-proj-region}
+plot_proj <- tab_demographic_region %>%
+  filter(variable != "Índice de envelhecimento") %>%
+  ggplot(aes(year, value, color = variable)) +
+  geom_line(lwd = 1) +
+  scale_color_manual(
+    name = "",
+    values = c("#264653", "#2a9d8f", "#e76f51"),
+    labels = c("RDI", "RDJ", "RDT")) +
+  facet_wrap(vars(name_region)) +
+  labs(
+    x = NULL,
+    y = NULL,
+    title = "Razão de Dependência Brasil",
+    subtitle = "Evolução da Razão de Dependência no Brasil 2000-2060",
+    caption = "Fonte: IBGE (Projeções da População)") +
+  theme_minimal(base_family = "Lato") +
+  theme(
+    panel.grid.minor = element_blank(),
+    legend.position = "top",
+    strip.text = element_text(size = 10),
+    axis.text.x = element_text(angle = 90)
+    )
+```
+
+
+# Razão de Dependência nos Estados do Brasil
+
+A razão de dependência mede a proporção da população que depende, num sentido amplo, do trabalho da população economicamente ativa. No Brasil, o IBGE define a Razão de Dependência Total (RDT), como a razão entre o número de jovens e idosos e o número de adultos (em idade de trabalhar). Como critério de corte, define-se jovem como uma pessoa com até 14 anos e idoso como uma pessoa com 65 anos ou mais.
+
+Formalmente, define-se a RDT como:
+
+$$
+\text{RDT} = \frac{\text{Idade}\leq14 \, \lor \, \text{Idade} \geq 65}{\text{Idade} >14 \, \land \, \text{Idade} < 65}
+$$
+
+Adicionalmente, também pode-se definir a Razão de Dependência Jovem (RDJ) e a Razão de Dependência Idosa (RDI)
+
+
+# Histórico e Projeções
+
+
+
+
