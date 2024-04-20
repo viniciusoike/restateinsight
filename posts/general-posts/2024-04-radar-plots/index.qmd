@@ -1,0 +1,117 @@
+---
+title: ""
+date: "2024-04-15"
+categories: ['data-visualization', 'ggplot2', 'real-estate']
+description: ""
+execute: 
+  message: false
+  warning: false
+  eval: false
+draft: true
+---
+
+```{r}
+library(tidyverse)
+library(realestatebr)
+library(ggradar)
+library(showtext)
+font_add_google("Lato", "Lato")
+showtext_auto()
+
+abrainc <- get_abrainc_indicators()
+
+radar <- abrainc$radar
+
+current_period <- radar |> 
+  filter(date == max(date)) |> 
+  pivot_wider(id_cols = date, names_from = variable, values_from = value)
+
+latest_date <- max(radar$date)
+last_year <- latest_date - lubridate::years(1)
+
+best_year <- radar |> 
+  mutate(month = lubridate::month(date)) |> 
+  filter(month == lubridate::month(latest_date)) |> 
+  group_by(date) |> 
+  summarise(total = sum(value)) |> 
+  slice_max(total, n = 1) |> 
+  pull(date)
+
+compare_best <- radar |> 
+  filter(date %in% c(latest_date, best_year)) |> 
+  pivot_wider(id_cols = year, names_from = variable, values_from = value)
+
+compare <- radar |> 
+  mutate(month = lubridate::month(date)) |> 
+  filter(year >= lubridate::year(latest_date) - 1,
+         month == lubridate::month(latest_date)) |> 
+  pivot_wider(id_cols = year, names_from = variable, values_from = value)
+
+radar_labels <- c(
+  "Confidence Index", "Activity (GDP)", "Interest Rate", "Financing Conditions",
+  "Real Concessions", "Atractivity", "Employment", "Wages", "Real Estate Investing",
+  "Input Costs", "New Launches", "Real estate Prices")
+
+radar_labels <- str_wrap(radar_labels, width = 10)
+
+plot_radar_current <- 
+  ggradar(
+    current_period,
+    values.radar = c("0", "5", "10"),
+    axis.labels = radar_labels,
+    font.radar = "Lato",
+    grid.label.size = 3,
+    axis.label.size = 3,
+    plot.extent.x.sf = 1.5,
+    plot.extent.y.sf = 1.4,
+    group.colours = "#264653",
+    grid.min = 0,
+    grid.mid = 5,
+    grid.max = 10,
+    group.point.size = 3)
+
+plot_radar_current
+
+plot_radar_yoy <- 
+  ggradar(
+    compare,
+    values.radar = c("0", "5", "10"),
+    axis.labels = radar_labels,
+    font.radar = "Lato",
+    grid.label.size = 3,
+    axis.label.size = 3,
+    legend.text.size = 10,
+    plot.extent.x.sf = 1.5,
+    plot.extent.y.sf = 1.5,
+    group.colours = c("#264653", "#e76f51"),
+    grid.min = 0,
+    grid.mid = 5,
+    grid.max = 10.5,
+    group.point.size = 2) +
+  theme(legend.position = "top")
+
+plot_radar_yoy
+
+ggradar(compare, group.colours = c("#264653", "#e76f51"), axis.labels = radar_labels,) +
+  theme(legend.position = "top")
+
+dat = compare |> 
+  pivot_longer(cols = -year) |> 
+  mutate(year = factor(year))
+
+ggplot(dat, aes(name, value, color = year)) +
+  geom_line(aes(group = name), color = "gray30") +
+  geom_point(size = 3) +
+  coord_flip() +
+  scale_color_manual(
+    name = "Ano",
+    values = c("#2A9D8F", "#E9C46A")
+    )
+    
+ggplot(dat, aes(name, value, color = year, group = year)) +
+  geom_line()
+
+ggplot(dat, aes(name, value, fill = year)) +
+  geom_col(position = position_dodge())
+
+```
