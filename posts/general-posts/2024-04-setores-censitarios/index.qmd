@@ -1,0 +1,376 @@
+---
+title: "Census Tracts in Brazil"
+date: "2024-04-18"
+categories: ['censo', 'brasil', 'sao-paulo', 'data-science', 'data-visualization', 'mapas', 'leaflet', 'ggplot2']
+description: ""
+execute: 
+  message: false
+  warning: false
+  eval: false
+draft: true
+---
+
+```{r, setup}
+library(here)
+library(sf)
+library(dplyr)
+library(leaflet)
+library(ggplot2)
+library(gt)
+library(gtExtras)
+library(geobr)
+library(showtext)
+```
+
+## Importing the data
+
+### Census Files
+
+```{r, import-data}
+
+file_dir <- "/Volumes/T7 Touch/github/tidyibge/data-raw/dados_setores_censitarios"
+
+dat <- data.table::fread(
+ paste0(file_dir, "/Agregados_preliminares_por_setores_censitarios_BR.zip")
+)
+
+setores <- sf::st_read(paste0(file_dir, "/BR_Malha_Preliminar_2022.gpkg"))
+```
+
+### Data Dictionary
+
+An excel spreadsheet is available as a data dictionary at the IBGE website. Alternatively, the code below serves as a quick way to get this data into R.
+
+```{r}
+dict <- tibble(
+  name_variable = paste0("v000", 1:7),
+  desc_variable = c(
+    "Total de Pessoas", "Total de Domicilios", "Total de Domicilios Particulares",
+    "Total de Domicilios Coletivos", "Media de moradores em domicilios particulares ocupados",
+    "Percentual de domicilios imputados", "Total de domicilios particulares ocupados"),
+  short_name = c("pop", "dom", "dom_prt", "dom_col", "pop_dom", "share_dom_imput", "dom_prt_ocup")
+)
+
+rename_cols <- dict$name_variable
+names(rename_cols) <- dict$short_name
+
+vl_names <- c(
+  "code_tract" = "CD_SETOR",
+  "area_km2" = "AREA_KM2",
+  "code_region" = "CD_REGIAO",
+  "name_region" = "NM_REGIAO",
+  "code_state" = "CD_UF",
+  "name_state" = "NM_UF",
+  "code_muni" = "CD_MUN",
+  "name_muni" = "NM_MUN",
+  "code_district" = "CD_DIST",
+  "name_district" = "NM_DIST",
+  "code_subdistrict" = "CD_SUBDIST",
+  "name_subdistrict" = "NM_SUBDIST",
+  "code_microregion" = "CD_MICRO",
+  "name_microregion" = "NM_MICRO",
+  "code_mesoregion" = "CD_MESO",
+  "name_mesoregion" = "NM_MESO",
+  "code_immediate" = "CD_RGI",
+  "name_immediate" = "NM_RGI",
+  "code_intermediate" = "CD_RGINT",
+  "name_intermediate" = "NM_RGINT",
+  "code_urban_concentration" = "CD_CONCURB",
+  "name_urban_concentration" = "NM_CONCURB"
+)
+
+rename_cols <- c(rename_cols, vl_names)
+```
+
+Using the `rename_cols` vector we can easily rename all column names.
+
+```{r}
+dat <- dat %>%
+  rename(all_of(rename_cols)) %>%
+  select(
+    code_tract, code_muni, name_muni, code_region, name_region, code_state,
+    name_state, pop:dom_prt_ocup
+  )
+
+setores <- setores %>%
+  rename(any_of(rename_cols))
+```
+
+# Census Tracts
+
+Broadly speaking, census tracts are small areas that exhibit similar socioeconomic and demographic patterns. In major urban settings, these are usually small areas
+
+
+
+
+```{r}
+setores2000 <- read_census_tract(code_tract = "all", year = 2000, showProgress = FALSE)
+setores2010 <- read_census_tract(code_tract = "all",year = 2010, showProgress = FALSE)
+```
+
+```{r}
+sapply(list(setores2000, setores2010, setores), nrow)
+
+sapply(list(setores2000, setores2010, setores), \(x) length(unique(x$code_muni)))
+```
+
+```{r}
+curitiba_setores <- setores %>%
+  filter(code_muni == 4106902) %>%
+  mutate(across(pop:dom_prt_ocup, as.numeric)) %>%
+  mutate(
+    area_km2 = as.numeric(area_km2),
+    pop_dens_area = pop / area_km2,
+    pop_dens_hh = pop / dom_prt_ocup
+  )
+```
+
+```{r}
+labels <- sprintf(
+  "<b>Code Tract<b/>: %s <br>
+  <b>Code Subdistrict<b/>: %s <br>
+  <b>Name Subdistrict<b/>: %s",
+  curitiba_setores$code_tract,
+  curitiba_setores$code_subdistrict,
+  curitiba_setores$name_subdistrict
+)
+
+labels <- lapply(labels, htmltools::HTML)
+
+leaflet(curitiba_setores) |> 
+  addTiles() |> 
+  addPolygons(weight = 2, fillColor = "gray80", color = "#feb24c", label = labels) |> 
+  addProviderTiles(provider = "CartoDB.Positron")
+```
+
+
+```{r}
+ggplot(curitiba_setores, aes(pop_dens_area, pop_dens_hh)) +
+  geom_jitter()
+
+ggplot(curitiba_setores, aes(log(pop_dens_area))) +
+  geom_histogram()
+
+ggplot(curitiba_setores, aes(pop_dens_hh)) +
+  geom_histogram()
+
+breaks <- BAMMtools::getJenksBreaks(curitiba_setores$pop, k = 7)
+
+ggplot(curitiba_setores) +
+  geom_sf(aes(fill = pop)) +
+  scale_fill_fermenter(breaks = breaks, direction = 1, palette = "Spectral")
+```
+
+```{r}
+curitiba_subdistritos <- curitiba_setores %>%
+  group_by(code_subdistrict, name_subdistrict) %>%
+  summarise(across(pop:dom_prt_ocup, sum))
+
+ggplot(curitiba_subdistritos) +
+  geom_sf(aes(fill = pop))
+```
+
+
+```{r}
+
+
+curitiba_setores %>%
+  mutate(trunc_dens = if_else(pop_dens_hh >= 5, 5, pop_dens_hh)) %>%
+  ggplot(aes(fill = trunc_dens)) +
+  geom_sf() +
+  scale_fill_fermenter(breaks = c(1, 1.5, 2, 2.5, 3, 3.5, 4, 5), direction = 1)
+
+curitiba_setores %>%
+  filter(pop > 10, area_km2 < 2.5) %>%
+  ggplot(aes(log(area_km2 * 100), log(pop))) +
+  geom_point(shape = 21, color = "#219ebc") +
+  geom_smooth(method = "lm", se = FALSE, color = "#ffb703") +
+  theme_bw()
+
+ggplot(curitiba_setores, aes(x = area_km2, y = pop)) +
+  geom_point()
+
+curitiba_setores %>%
+  filter(pop > 10, area_km2 < 2.5, pop_dens_hh < 5) %>%
+  ggplot(aes(pop_dens_hh, log(pop_dens_area))) +
+  geom_point()
+
+curitiba_setores %>%
+  filter(pop > 10, area_km2 < 2.5, pop_dens_hh < 5) %>%
+  mutate(scaled_pop_dens_area = as.numeric(scale(log(pop_dens_area)))) %>%
+  ggplot() +
+  geom_sf(aes(fill = scaled_pop_dens_area)) +
+  scale_fill_fermenter(
+    palette = "RdBu",
+    direction = 1,
+    breaks = c(-3, -1.5, -1, 0, 1, 1.5, 3)
+    )
+```
+
+
+```{r}
+#| eval: false
+library(sf)
+library(tidyverse)
+
+dat <- read_csv2("/Volumes/T7 Touch/github/tidyibge/data-raw/dados_setores_censitarios/Agregados_preliminares_por_setores_censitarios_BR.zip")
+
+file_path <- "/Volumes/T7 Touch/github/tidyibge/data-raw/dados_setores_censitarios/BR_Malha_Preliminar_2022.zip"
+
+setores <- st_read("/Volumes/T7 Touch/github/tidyibge/data-raw/dados_setores_censitarios/BR_Malha_Preliminar_2022.gpkg")
+
+# V0001	numérico		Total de pessoas
+# V0002	numérico		Total de Domicílios (DPPO + DPPV + DPPUO + DPIO + DCCM + DCSM)
+# V0003	numérico		Total de Domicílios Particulares (DPPO + DPPV + DPPUO + DPIO)
+# V0004	numérico		Total de Domicílios Coletivos (DCCM + DCSM)
+# V0005	real		Média de moradores em Domicílios Particulares Ocupados (Total pessoas em Domicílios Particulares Ocupados / DPPO + DPIO)
+# V0006	real		Percentual de Domicílios Particulares Ocupados Imputados (Total DPO imputados / Total DPO)
+# V0007	numérico		Total de Domicílios Particulares Ocupados (DPPO + DPIO)
+
+
+dict <- tibble(
+  name_variable = paste0("v000", 1:7),
+  desc_variable = c(
+    "Total de Pessoas", "Total de Domicilios", "Total de Domicilios Particulares",
+    "Total de Domicilios Coletivos", "Media de moradores em domicilios particulares ocupados",
+    "Percentual de domicilios imputados", "Total de domicilios particulares ocupados"),
+  short_name = c("pop", "dom", "dom_prt", "dom_col", "pop_dom", "share_dom_imput", "dom_prt_ocup")
+)
+
+rename_cols <- dict$name_variable
+names(rename_cols) <- dict$short_name
+
+vl_names <- c(
+  "code_tract" = "CD_SETOR",
+  "area_km2" = "AREA_KM2",
+  "code_region" = "CD_REGIAO",
+  "name_region" = "NM_REGIAO",
+  "code_state" = "CD_UF",
+  "name_state" = "NM_UF",
+  "code_muni" = "CD_MUN",
+  "name_muni" = "NM_MUN",
+  "code_district" = "CD_DIST",
+  "name_district" = "NM_DIST",
+  "code_subdistrict" = "CD_SUBDIST",
+  "name_subdistrict" = "NM_SUBDIST",
+  "code_microregion" = "CD_MICRO",
+  "name_microregion" = "NM_MICRO",
+  "code_mesoregion" = "CD_MESO",
+  "name_mesoregion" = "NM_MESO",
+  "code_immediate" = "CD_RGI",
+  "name_immediate" = "NM_RGI",
+  "code_intermediate" = "CD_RGINT",
+  "name_intermediate" = "NM_RGINT",
+  "code_urban_concentration" = "CD_CONCURB",
+  "name_urban_concentration" = "NM_CONCURB"
+)
+
+rename_cols <- c(rename_cols, vl_names)
+
+dat <- dat %>%
+  rename(all_of(rename_cols)) %>%
+  select(
+    code_tract, code_muni, name_muni, code_region, name_region, code_state,
+    name_state, pop:dom_prt_ocup
+  )
+
+setores <- setores %>%
+  rename(any_of(rename_cols))
+
+
+# Curitiba ----------------------------------------------------------------
+
+
+curitiba_setores <- setores %>%
+  filter(code_muni == 3550308) %>%
+  mutate(across(pop:dom_prt_ocup, as.numeric)) %>%
+  mutate(
+    area_km2 = as.numeric(area_km2),
+    pop_dens_area = pop / area_km2,
+    pop_dens_hh = pop / dom_prt_ocup
+  )
+
+ggplot(curitiba_setores, aes(pop_dens_area, pop_dens_hh)) +
+  geom_jitter()
+
+ggplot(curitiba_setores, aes(log(pop_dens_area))) +
+  geom_histogram()
+
+ggplot(curitiba_setores, aes(pop_dens_hh)) +
+  geom_histogram()
+
+breaks <- BAMMtools::getJenksBreaks(curitiba_setores$pop, k = 7)
+
+ggplot(curitiba_setores) +
+  geom_sf(aes(fill = pop)) +
+  scale_fill_fermenter(breaks = breaks, direction = 1, palette = "Spectral")
+
+breaks <- BAMMtools::getJenksBreaks(curitiba_setores$pop_dens_hh, k = 7)
+
+ggplot(curitiba_setores) +
+  geom_sf(aes(fill = pop_dens_hh)) +
+  scale_fill_fermenter(breaks = breaks, direction = 1, palette = "Spectral")
+
+curitiba_setores %>%
+  arrange(desc(pop_dens_hh))
+
+curitiba_subdistritos <- curitiba_setores %>%
+  group_by(code_subdistrict, name_subdistrict) %>%
+  summarise(across(pop:dom_prt_ocup, sum))
+
+ggplot(curitiba_subdistritos) +
+  geom_sf(aes(fill = pop))
+
+curitiba_setores %>%
+  mutate(trunc_dens = if_else(pop_dens_hh >= 5, 5, pop_dens_hh)) %>%
+  ggplot(aes(fill = trunc_dens)) +
+  geom_sf() +
+  scale_fill_fermenter(breaks = c(1, 1.5, 2, 2.5, 3, 3.5, 4, 5), direction = 1)
+
+curitiba_setores %>%
+  filter(pop > 10, area_km2 < 2.5) %>%
+  ggplot(aes(log(area_km2 * 100), log(pop))) +
+  geom_point(shape = 21, color = "#219ebc") +
+  geom_smooth(method = "lm", se = FALSE, color = "#ffb703") +
+  theme_bw()
+
+ggplot(curitiba_setores, aes(x = area_km2, y = pop)) +
+  geom_point()
+
+curitiba_setores %>%
+  filter(pop > 10, area_km2 < 2.5, pop_dens_hh < 5) %>%
+  ggplot(aes(pop_dens_hh, log(pop_dens_area))) +
+  geom_point()
+
+curitiba_setores %>%
+  filter(pop > 10, area_km2 < 2.5, pop_dens_hh < 5) %>%
+  mutate(scaled_pop_dens_area = as.numeric(scale(log(pop_dens_area)))) %>%
+  ggplot() +
+  geom_sf(aes(fill = scaled_pop_dens_area)) +
+  scale_fill_fermenter(
+    palette = "RdBu",
+    direction = 1,
+    breaks = c(-3, -1.5, -1, 0, 1, 1.5, 3)
+    )
+
+mapview::mapview(curitiba_setores, zcol = "pop_dens_area")
+
+curitiba_setores %>%
+  arrange(desc(pop_dens_area))
+
+
+santos_setoers <- setores %>%
+  filter(code_muni == 3548500)
+
+
+```
+
+# Setores Censitários
+
+## Panorama
+
+## Algumas novidades
+
+### Distritos em São Paulo
+
+### Maior resolução
