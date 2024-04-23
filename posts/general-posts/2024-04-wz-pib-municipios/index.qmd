@@ -1,0 +1,181 @@
+---
+title: "GDP in Brazil"
+date: "2024-04-20"
+categories: ['data-visualization', 'brazil', 'maps', 'ggplot2']
+description: "A choropleth map showing the spatial distribution of Brazilian GDP by city. Colors represent the economic sector with the highest share of contribution to total city GDP. Data comes from the most recent National Accounts data from IBGE (2023)."
+execute: 
+  message: false
+  warning: false
+---
+
+```{r, code}
+#| code-fold: true
+# Libraries
+library(geobr)
+library(sf)
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+library(stringr)
+library(MetBrewer)
+library(showtext)
+
+# Color palette
+cores = met.brewer("Hiroshige", 20)[c(1, 8, 15, 20)]
+# Import Gill Sans locally
+font_add("Gill Sans", "GillSans.ttc")
+showtext_auto()
+
+# Data ------------------------------------------------------------------
+
+# Shapes
+
+# Import city shapefile
+munis <- read_municipality(year = 2022, showProgress = FALSE)
+# Import state shapefile
+geostate <- read_state(showProgress = FALSE)
+
+# Import city data from Brazil (see data/raw/R/painel_municipios.R)
+panel <- readr::read_csv(here::here("static/data", "cities_brazil.csv"))
+
+## Data cleaning --------------------------------------------------------
+
+# Vector to select GDP columns
+pib_cols = c("pib_agriculture", "pib_industrial", "pib_services",
+             "pib_govmt_services")
+
+# Compute GDP share by city
+pib_share = panel |> 
+  select(all_of(c("code_muni", "pib", pib_cols))) |> 
+  pivot_longer(cols = 3:last_col(), names_to = "sector", values_to = "total") |> 
+  mutate(
+    share = total / pib * 100,
+    # Improve text labels
+    sector_label = str_remove(sector, "pib_"),
+    sector_label = str_to_title(sector_label),
+    sector_label = str_replace(sector_label, "Govmt_services", "Government"),
+    sector_label = str_replace(sector_label, "Industrial", "Industry")
+    )
+
+# Convert to wider
+tab_pib_share = pib_share |> 
+  pivot_wider(
+    id_cols = "code_muni",
+    names_from = "sector",
+    values_from = "share"
+    )
+
+# Find the most relevant economic sector by city
+top_pib_share = pib_share |> 
+  filter(share == max(share), .by = "code_muni") |> 
+  select(code_muni, top_sector = sector_label)
+
+# Join tabular data with city shapefile
+map_share = munis |> 
+  left_join(tab_pib_share, by = "code_muni") |> 
+  left_join(top_pib_share, by = "code_muni")
+
+# Map -------------------------------------------------------------------
+
+m1 = ggplot() +
+  # State borders
+  geom_sf(data = geostate, lwd = 0.3, color = "gray30", fill = "white") +
+  # City colors
+  geom_sf(
+    data = na.omit(map_share),
+    aes(fill = top_sector),
+    lwd = 0.01,
+    color = "gray90"
+    ) +
+  # Remove junk from the east coast
+  coord_sf(xlim = c(NA, -35)) +
+  # Use Hiroshige colors
+  scale_fill_manual(name = "", values = cores) +
+  labs(
+    title = "Top GDP contribution by City (2021)",
+    subtitle = "Colors represent the most relevant economic contributing group in each city",
+    caption = "Source: National Accounts, IBGE (2023)") +
+  ggthemes::theme_map(base_family = "Gill Sans") +
+  # Thematic elements
+  theme(
+    # Background
+    panel.background = element_rect(fill = "#ffffff", color = NA),
+    plot.background = element_rect(fill = "#ffffff", color = NA),
+    # Legend
+    legend.position = "left",
+    legend.justification = 0.5,
+    legend.key.size = unit(1, "cm"),
+    legend.key.width = unit(1.5, "cm"),
+    legend.text = element_text(size = 12),
+    legend.margin = margin(),
+    # Labels (title, subtitle)
+    plot.title = element_text(size = 38, hjust = 0.5),
+    plot.subtitle = element_text(size = 14, hjust = 0.5),
+    # Plot margins
+    plot.margin = margin(10, 5, 5, 10)
+  )
+
+# Histogram -------------------------------------------------------------
+
+pib_bars = top_pib_share |> 
+  count(top_sector) |> 
+  mutate(top_sector = forcats::fct_rev(top_sector))
+
+p_hist = ggplot(pib_bars, aes(top_sector, n)) +
+  geom_col(aes(fill = top_sector)) +
+  # Number labels
+  geom_text(
+    aes(y = n, label = n, color = factor(c(0, 0, 0, 1))),
+    size = 4,
+    family = "Gill Sans",
+    nudge_y = c(-200, -200, 200, -200)
+    ) +
+  # Text labels
+  geom_text(
+    aes(y = 50, label = top_sector, color = factor(c(0, 0, 0, 1))),
+    family = "Gill Sans",
+    size = 4,
+    hjust = 0
+  ) +
+  # Flip axis
+  coord_flip() +
+  scale_fill_manual(values = rev(cores)) +
+  scale_color_manual(values = c("black", "white")) +
+  labs(x = NULL, y = NULL, title = "Number of cities") +
+  guides(fill = "none", color = "none") +
+  theme_minimal(base_family = "Gill Sans") +
+  theme(
+    plot.title = element_text(size = 14, hjust = 0.5),
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    axis.text = element_blank()
+    )
+```
+
+# GDP Contribution by city
+
+-   The number of cities where Agriculture is the main driver of the local economy rose from 1049 in 2020 to 1272 in 2021. Agriculture is most prevalent in the Midwest cities.
+
+-   Public Administration is the most prevalent economic activity among cities in the North and Northeast of the country. General services are most prevalent in the Southeast.
+
+-   Industrial activities constitute the primary economic driver for fewer than 8% of cities. The few industrial cities are spatially disperse across the country, exhibiting no clear pattern.
+
+```{r, map}
+#| out-width: "100%"
+#| out-height: 900px
+#| fig-width: 9
+#| fig-height: 12
+#| fig-format: svg
+#| fig-showtext: true
+#| fig-dpi: 72
+#| echo: false
+library(patchwork)
+
+m1 + theme(legend.position = "none") + inset_element(p_hist, 0, 0.1, 0.4, 0.4)
+```
+
+-   Dados: IBGE, Contas Nacionais, Produto Interno Bruto dos Municípios (2023)
+
+-   Tipografia: Gill Sans
+
+-   Paleta: `Hiroshige` (MetBrewer)
