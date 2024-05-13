@@ -1,5 +1,5 @@
 ---
-title: "Greatest Films of Alltime: another case of recency bias?"
+title: "The Greatest Films of All-time: another case of recency bias?"
 date: "2024-04-17"
 categories: ['data-visualization', 'ggplot2', 'movies', 'bias']
 description: ""
@@ -9,6 +9,72 @@ execute:
   eval: false
 draft: true
 ---
+
+# Recency Bias
+
+Recency bias is a well known cognitive bias, also known as memory bias. It describes the human tendency to attribute a greater importance to more recent events than to events that occurred further in time. This happens when travelers believe an airplane crash is more likely to occur after seeing news about an airplane accident; when investors believe the market will keep growing following a recent string of positive news; when swimmers believe that shark attacks will be more likely after watching a documentary about sharks.
+
+More recently, *recency bias has become a pervasive feature of online culture*. In a never ending cycle of "the new is always better", social media influencers and the media more broadly are constantly claiming that this new thing is actually *the best thing of all time*. Public opinion is slowly but surely catching up to this in sports discussions, as GOAT (*greatest of all time*) discussion fatigue is increasing among fans.
+
+![](images/Screenshot%202024-05-01%20at%2013.41.49.png){fig-align="center" width="500"}
+
+> *It's really convenient that all of the GOATs, of all sports, just happen to play and perform at their best during the first 20 years of the most recent century: just in time for you to watch them.*
+
+For several different reasons, human's tend to put a greater weight onto more recent events when evaluating pretty much anything. This is partly due to how our memory works but sometimes is due to availability. When something new happens, social media is quickly extract all possible content from it and then moves on to the next thing.
+
+Recency bias even affects the awards season in movies.
+
+This cognitive bias had been widely studied across many disciplines including behavioral finance, psychology, and business studies.
+
+```{r}
+library(ggplot2)
+library(dplyr)
+
+films <- qs::qread(here::here("static/data/greatest_movies.qs"))
+
+dict <- tribble(
+  ~source, ~list_type,
+  "afi", "critics",
+  "bfi", "critics",
+  "ebert", "critics",
+  "empire", "public",
+  "variety", "critics",
+  "timeout", "critics",
+  "bbc_american", "critics",
+  "bbc_women", "critics",
+  "bbc_foreign", "critics",
+  "bbc_21st", "critics",
+  "imdb", "public",
+  "rolling_stones_scifi", "critics",
+  "letterboxd", "public",
+  "criticker", "public"
+)
+
+films <- left_join(films, dict, by = "source")
+```
+
+```{r}
+films <- films |> 
+  mutate(decade = year - (year %% 10))
+
+imdb <- filter(films, source == "imdb")
+
+ggplot(imdb, aes(as.factor(decade), rating)) +
+  geom_count()
+
+ggplot(imdb, aes(decade)) +
+  geom_bar(fill = "#deb522") +
+  geom_hline(yintercept = 0) +
+  theme_minimal()
+  
+```
+
+```{r}
+bfi <- filter(films, source == "bfi")
+
+ggplot(bfi, aes(decade)) +
+  geom_bar(fill = "#000000")
+```
 
 ```{r}
 # imdb_bfi |> 
