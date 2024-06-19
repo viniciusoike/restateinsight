@@ -1,0 +1,261 @@
+---
+title: "Weddings and Births in Brazil"
+date: "2024-05-15"
+categories: ["data-visualization", "ggplot2", "demographics", "brazil", "english"]
+description: ""
+execute: 
+  message: false
+  warning: false
+  echo: false
+draft: true  
+---
+
+```{r}
+library(here)
+library(lubridate)
+library(MetBrewer)
+library(showtext)
+library(tidyverse)
+library(RcppRoll)
+
+font_add("Helvetica", "Helvetica.ttc")
+showtext_auto()
+```
+
+```{r}
+colors <- met.brewer("Hokusai1", 7)[c(2, 5, 7)]
+
+colors <- met.brewer("Hokusai1", 7)[c(6, 7, 5)]
+
+theme_vini <- theme_minimal(base_family = "Helvetica", base_size = 10) +
+  theme(
+    panel.grid.minor = element_blank(),
+    
+    panel.background = element_rect(fill = "white", colour = "white"),
+    plot.background = element_rect(fill = "white", colour = "white"),
+    
+    legend.position = "top",
+    legend.box.margin = margin(0),
+    legend.margin = margin(0),
+    
+    text = element_text(color = "gray15"),
+    plot.title = element_text(size = 14),
+    plot.subtitle = element_text(size = 8, color = "gray30"),
+    plot.caption  = element_text(size = 6, color = "gray30"),
+    axis.text.x = element_text(angle = 90)
+  )
+```
+
+```{r}
+data <- readr::read_rds(here("static/data/births_weddings.rds"))
+
+rates <- data$data
+
+tbl_rates <- rates %>%
+  mutate(name_state = factor(name_state),
+         name_state = fct_reorder(name_state, code_state)) %>%
+  select(date, name_state, b_rate, w_rate) %>%
+  pivot_longer(cols = -c(date, name_state)) %>%
+  group_by(name_state, name) %>%
+  mutate(ma = roll_meanr(value, n = 12))
+```
+
+```{r}
+tbl1 <- data$births
+
+tbl1 <- tbl1 %>%
+  filter(!is.na(date),
+         !(mother_age_group %in% c("Total", "Ignorada", "Menos de 15 anos")),
+         !str_detect(mother_age_group, " a "),
+         sex_children_born == "total") %>%
+  select(date, name_state, mother_age_group, total_births) %>%
+  mutate(age_mother = as.numeric(str_extract(mother_age_group, "[:digit:]+")),
+         total_births = ifelse(is.na(total_births), 0, total_births))
+
+tbl_avg_birth <- tbl1 %>%
+  group_by(date, name_state) %>%
+  summarise(avg_age_b = weighted.mean(age_mother, total_births, na.rm = T))
+```
+
+```{r}
+tbl2 <- data$weddings
+
+rm_age_female <- c(
+  "Total", "Idade ignorada", "Menos de 15 anos", "15 a 19 anos",
+  "20 a 24 anos", "25 a 29 anos", "30 a 34 anos", "35 a 39 anos"
+  )
+
+y <- c("40 a 44 anos", "40 a 44 anos")
+
+get_midpoint <- function(x) {
+  
+  x = str_remove(x, " anos")
+  x = as.numeric(unlist(str_split(x, " a ")))
+  x = x[1] + (x[2] - x[1]) / 2
+  
+  return(x)
+  
+}
+
+tbl2 <- tbl2 |> 
+  filter(!(age_female %in% rm_age_female)) |> 
+  summarise(
+    wedding = sum(total_weddings, na.rm = TRUE),
+    .by = c("date", "name_state", "age_female")
+    ) |> 
+  mutate(
+    age = case_when(
+      str_detect(age_female, "[0-9]{2} anos$") ~ as.numeric(str_extract(age_female, "[0-9]{2}")),
+      str_detect(age_female, " a ") ~ sapply(age_female, get_midpoint),
+      age_female == "65 anos ou mais" ~ 70
+    )
+  )
+
+tbl_avg_wedding <- tbl2 %>%
+  group_by(date, name_state) %>%
+  summarise(avg_age_w = weighted.mean(age, wedding))
+```
+
+```{r}
+total_weddings <- data$weddings |> 
+  filter(age_female == "Total") |> 
+  summarise(weddings = sum(total_weddings), .by = "date") |> 
+  mutate(ma = roll_mean(weddings, n = 12, fill = NA))
+
+total_pop <- data$data |> 
+  select(name_state, year, pop_adult) |> 
+  distinct() |> 
+  summarise(pop_brazil = sum(pop_adult), .by = "year")
+
+weddings <- total_weddings |> 
+  mutate(year = lubridate::year(date)) |> 
+  left_join(total_pop, by = "year") |> 
+  mutate(
+    w_rate = weddings / pop_brazil * 100000,
+    w_rate_ma = ma / pop_brazil * 100000
+    )
+```
+
+```{r}
+ggplot(weddings, aes(date)) +
+  geom_line(aes(y = weddings), color = colors[1], alpha = 0.6) +
+  geom_line(aes(y = ma), color = colors[1], linewidth = 1)
+
+ggplot(weddings, aes(date)) +
+  geom_line(aes(y = w_rate), color = colors[1], alpha = 0.6) +
+  geom_line(aes(y = w_rate_ma), color = colors[1], linewidth = 1)
+```
+
+```{r}
+#| eval: false
+tbl2 <- tbl2 %>%
+  group_by(date, name_state, age_female) %>%
+  summarise(wedding = sum(total_weddings, na.rm = T)) %>%
+  ungroup() %>%
+  mutate(ages = str_remove(age_female, " anos")) %>%
+  separate(ages, into = c("age_min", "age_max"), sep = " a ") %>%
+  mutate(age_max = ifelse(age_female == "65 anos ou mais", 70, age_max),
+         age_max = ifelse(age_female == "Menos de 15 anos", 15, age_max),
+         age_min = ifelse(age_female == "65 anos ou mais", 65, age_min),
+         age_min = ifelse(age_female == "Menos de 15 anos", 15, age_min),
+         age_min = as.numeric(age_min),
+         age_max = as.numeric(age_max),
+         midpoint = age_min + (age_max - age_min) / 2)
+
+tbl_avg_wedding <- tbl2 %>%
+  group_by(date, name_state) %>%
+  summarise(avg_age_w = weighted.mean(midpoint, wedding))
+```
+
+```{r}
+tbl_avg <- inner_join(tbl_avg_birth, tbl_avg_wedding, by = c("name_state", "date"))
+
+tbl_avg <- tbl_avg %>%
+  pivot_longer(cols = -c(date, name_state)) %>%
+  group_by(name_state, name) %>%
+  mutate(ma6 = roll_meanr(value, n = 12)) %>%
+  ungroup() %>%
+  mutate(
+    name_state = str_to_title(name_state),
+    name_state = factor(name_state, levels = levels(tbl_rates$name_state))
+  )
+```
+
+```{r}
+p1 <- ggplot(tbl_rates, aes(x = date, y = ma, colour = name)) +
+  geom_line(linewidth = 1) +
+  facet_wrap(~name_state) +
+  scale_colour_manual(
+    name = "",
+    values = colors,
+    labels = c("Births", "Weddings")
+  ) + 
+  labs(
+    title = "While wedding rates stabilize, birth rate falls",
+    subtitle = "12 month moving average shows steady decline in the birth rate. Wedding rates stay roughly equal until the Covid-19 pandemic.",
+    y = "Rate per 100.000",
+    x = NULL,
+    caption = "Source: IBGE"
+  ) + 
+  theme_vini
+```
+
+```{r}
+p2 <- ggplot(tbl_avg, aes(x = date, y = ma6, colour = name)) +
+  geom_line(size = 1) +
+  facet_wrap(~name_state) +
+  scale_y_continuous(
+    breaks = seq(24, 34, 2)) +
+  scale_colour_manual(
+    name = "Average age",
+    values = colors[c(1, 3)],
+    labels = c("Children", "Wedding")) +
+  labs(
+    title = "Women are having children and marrying at older ages",
+    subtitle = "Average age of wedding lags significantly behind even when including weddings from formerly divorced or widowed.",
+    x = NULL,
+    y = "Age",
+    caption = "Source: IBGE") +
+  theme_vini
+```
+
+```{r}
+p1
+```
+
+```{r}
+p2
+```
+
+```{r}
+weddings_year <- tbl2 |> 
+  mutate(year = lubridate::year(date)) |> 
+  summarise(wed_year = sum(wedding), .by = c("name_state", "year", "age")) |> 
+  filter(year == 2003 | year == 2021) |> 
+  summarise(age_avg = weighted.mean(age, wed_year), .by = c("name_state", "year"))
+
+tbl_weddings_compare <- weddings_year |> 
+  pivot_wider(id_cols = "name_state",
+              names_from = "year",
+              names_prefix = "age_",
+              values_from = "age_avg") |> 
+  mutate(
+    name_state = factor(name_state),
+    name_state = fct_reorder(name_state, age_2021)
+  ) |> 
+  pivot_longer(cols = -name_state)
+```
+
+```{r}
+ggplot(tbl_weddings_compare, aes(name_state, value, fill = name)) +
+  geom_line(aes(group = name_state), color = "gray30") +
+  geom_point(size = 3, shape = 21) +
+  coord_flip() +
+  theme_vini
+```
+
+```{r}
+library(sidrar)
+
+info_sidra(2759)
+```
