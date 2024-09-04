@@ -8,6 +8,7 @@
 
 <meta name="author" content="Vinicius Oike">
 <meta name="dcterms.date" content="2020-01-10">
+<meta name="description" content="Cada listra nesta imagem representa a temperatura de um ano desde o 1850 até o presente. A mensagem é bastante clara: o planeta está cada ano mais quente e é nos anos recentes que estão concentradas as maiores altas de temperatura. Neste post discuto como reproduzir esta visualização usando R.">
 
 <title>Vinicius Oike - Aquecimento Global</title>
 <style>
@@ -132,7 +133,11 @@ gtag('config', 'G-EJF8PGT67H', { 'anonymize_ip': true});
   </li>  
   <li class="nav-item">
     <a class="nav-link" href="../../../aboutme.html" rel="" target="">
- <span class="menu-text">Sobre</span></a>
+ <span class="menu-text">About</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../../../cv.html" rel="" target="">
+ <span class="menu-text">CV</span></a>
   </li>  
   <li class="nav-item">
     <a class="nav-link" href="../../../my_apps.html" rel="" target="">
@@ -168,10 +173,16 @@ gtag('config', 'G-EJF8PGT67H', { 'anonymize_ip': true});
   <div class="quarto-title-banner page-columns page-full">
     <div class="quarto-title column-body">
       <h1 class="title">Aquecimento Global</h1>
-                                <div class="quarto-categories">
+                  <div>
+        <div class="description">
+          Cada listra nesta imagem representa a temperatura de um ano desde o 1850 até o presente. A mensagem é bastante clara: o planeta está cada ano mais quente e é nos anos recentes que estão concentradas as maiores altas de temperatura. Neste post discuto como reproduzir esta visualização usando R.
+        </div>
+      </div>
+                          <div class="quarto-categories">
                 <div class="quarto-category">data-visualization</div>
                 <div class="quarto-category">tutorial-R</div>
                 <div class="quarto-category">repost</div>
+                <div class="quarto-category">ggplot2</div>
               </div>
                   </div>
   </div>
@@ -227,11 +238,11 @@ gtag('config', 'G-EJF8PGT67H', { 'anonymize_ip': true});
 <div class="sourceCode cell-code" id="cb1"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Carrega pacotes</span></span>
 <span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(ggplot2)</span>
 <span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(astsa)</span>
-<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Carrega a base de dados 'globtemp'</span></span>
-<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="fu">data</span>(<span class="st">"globtemp"</span>)</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Carrega a base de dados 'xglobtemp'</span></span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="fu">data</span>(<span class="st">"xglobtemp"</span>)</span>
 <span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a><span class="co"># Converte o objeto para data.frame</span></span>
-<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>df <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(<span class="at">ano =</span> <span class="fu">as.numeric</span>(<span class="fu">time</span>(globtemp)),</span>
-<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a> <span class="at">temp =</span> <span class="fu">as.numeric</span>(globtemp))</span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>df <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(<span class="at">ano =</span> <span class="fu">as.numeric</span>(<span class="fu">time</span>(xglobtemp)),</span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a> <span class="at">temp =</span> <span class="fu">as.numeric</span>(xglobtemp))</span>
 <span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a><span class="co"># Monta o gráfico</span></span>
 <span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>(<span class="at">data =</span> df, <span class="fu">aes</span>(<span class="at">x =</span> ano, <span class="at">y =</span> <span class="dv">0</span>, <span class="at">fill =</span> temp)) <span class="sc">+</span></span>
@@ -248,19 +259,19 @@ gtag('config', 'G-EJF8PGT67H', { 'anonymize_ip': true});
 </section>
 <section id="os-detalhes-do-código" class="level2">
 <h2 class="anchored" data-anchor-id="os-detalhes-do-código">Os detalhes do código</h2>
-<p>Vou explicar cada linha de código para ser didático. O R funciona, grosso modo, como um repositório de pacotes: cada pacote contem funções e, às vezes, bases de dados. O primeiro pacote que carrego é o <code>ggplot2</code>. Ele serve para fazer visualizações de dados. O pacote <code>astsa</code> traz várias funções para fazer análise de séries de tempo, mas eu carrego ele somente para usar a base de dados <code>globtemp</code>, que traz informação sobre a temperatura anual da terra coletada pela NASA.</p>
-<p>O objeto <code>globtemp</code> é uma série de tempo (um objeto da classe <code>ts</code>), que tem alguns atributos especiais. Um deles pode ser acesado pela função <code>time</code> que extrai um vetor numérico com as datas desta série de tempo. No código abaixo mostro os primeiros dez valores do <code>time(globtemp)</code>.</p>
+<p>Vou explicar cada linha de código para ser didático. O R funciona, grosso modo, como um repositório de pacotes: cada pacote contem funções e, às vezes, bases de dados. O primeiro pacote que carrego é o <code>ggplot2</code>. Ele serve para fazer visualizações de dados. O pacote <code>astsa</code> traz várias funções para fazer análise de séries de tempo, mas eu carrego ele somente para usar a base de dados <code>xglobtemp</code>, que traz informação sobre a temperatura anual da terra coletada pela NASA.</p>
+<p>O objeto <code>xglobtemp</code> é uma série de tempo (um objeto da classe <code>ts</code>), que tem alguns atributos especiais. Um deles pode ser acesado pela função <code>time</code> que extrai um vetor numérico com as datas desta série de tempo. No código abaixo mostro os primeiros dez valores do <code>time(xglobtemp)</code>.</p>
 <div class="cell" data-layout-align="center">
-<div class="sourceCode cell-code" id="cb2"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="fu">class</span>(globtemp)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb2"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="fu">class</span>(xglobtemp)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>[1] "ts"</code></pre>
 </div>
-<div class="sourceCode cell-code" id="cb4"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="fu">time</span>(globtemp)[<span class="dv">1</span><span class="sc">:</span><span class="dv">10</span>]</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb4"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="fu">time</span>(xglobtemp)[<span class="dv">1</span><span class="sc">:</span><span class="dv">10</span>]</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code> [1] 1880 1881 1882 1883 1884 1885 1886 1887 1888 1889</code></pre>
 </div>
 </div>
-<p>Para extrair somente os valores da série, uso a função <code>as.numeric</code>, que converte o vetor de <code>ts</code> para <code>numeric</code> (numérico). Este tipo de função é bastante comum já que frequentemente é preciso trocar a classe de um objeto. O objetivo destes primeiros passos é de inserir as informações do <code>globtemp</code> num <code>data.frame</code> em que a data aparece na primeira coluna e os valores da série são armazenados na segunda coluna. O procedimento pode parecer um tanto trabalhoso (e acho que é mesmo), mas é o jeito. Um <code>data.frame</code> é como uma tabela com dados. Este é um objeto bastante típico em análise de dados e é necessário para usar a função <code>ggplot</code> que vai fazer o gráfico. Abaixo pode-se ver as primeiras linhas desta tabela.</p>
+<p>Para extrair somente os valores da série, uso a função <code>as.numeric</code>, que converte o vetor de <code>ts</code> para <code>numeric</code> (numérico). Este tipo de função é bastante comum já que frequentemente é preciso trocar a classe de um objeto. O objetivo destes primeiros passos é de inserir as informações do <code>xglobtemp</code> num <code>data.frame</code> em que a data aparece na primeira coluna e os valores da série são armazenados na segunda coluna. O procedimento pode parecer um tanto trabalhoso (e acho que é mesmo), mas é o jeito. Um <code>data.frame</code> é como uma tabela com dados. Este é um objeto bastante típico em análise de dados e é necessário para usar a função <code>ggplot</code> que vai fazer o gráfico. Abaixo pode-se ver as primeiras linhas desta tabela.</p>
 <div class="cell" data-layout-align="center">
 <div class="sourceCode cell-code" id="cb6"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="fu">head</span>(df)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
