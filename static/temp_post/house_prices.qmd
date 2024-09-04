@@ -1,0 +1,295 @@
+---
+title: "Untitled"
+draft: true
+execute: 
+  eval: false
+---
+
+Existe uma percepção generalizada na população de que os preços dos imóveis no Brasil são muito caros. Isto pode ser resultado tanto de uma ignorância sobre a dinâmica do mercado como do [excesso de notícias sobre recordes de preços que se vê na imprensa](https://g1.globo.com/economia/noticia/2024/01/16/preco-do-aluguel-residencial-sobe-16percent-em-2023-tres-vezes-mais-que-a-inflacao-mostra-fipezap.ghtml). Também não faltam casos de regiões ou mesmo de ruas que, após significativo processo de revitalização, [apresentaram aumentos de preços muito acima da inflação](https://extra.globo.com/economia-e-financas/imoveis-usados-no-rio-precos-explodiram-em-2009-mostra-pesquisa-do-secovi-89071.html). De maneira geral, contudo, os dados apontam que [os preços dos imóveis no Brasil andaram de lado](https://einvestidor.estadao.com.br/investimentos/investir-em-imoveis-vale-a-pena/): em termos reais, isto é, descontando a inflação, o nível atual do preço dos imóveis está praticamente idêntico ao que se observava em 2010.
+
+A percepção de que os imóveis são caros no Brasil não é totalmente desprovida de embasamento. Como comentei em outro post, para o consumidor o preço da parcela do financiamento acaba sendo mais relevante do que o próprio preço do imóvel. Ou seja, a falta de manutenção do programa CVA durante seus últimos anos e o aumento das taxas de juros certamente [piorou a acessibilidade geral aos imóveis no Brasil](https://restateinsight.com/posts/general-posts/2023-08-juros-affordability/#acessibilidade-à-moradia).
+
+Em termos de preços, houve um aumento significativa dos preços dos imóveis no período da pandemia, alimentado pela baixa taxa de juros da época. Contudo, também houve um aumento significativo do preço dos insumos da construção civil assim como dos preços em geral da economia.
+
+Por fim, vale notar que boa parte do mundo desenvolvido enfrenta, há alguns anos, uma crise habitacional generalizada <https://www.oecd.org/housing/no-home-for-the-young.pdf>. O preço dos imóveis nos Estados Unidos recentemente superou, em termos reais, o nível mais alto que se observou no auge da Bolha Imobiliária. O país enfrenta um [nível recorde de moradores de rua](https://www.jchs.harvard.edu/blog/record-homelessness-amid-ongoing-affordability-crisis) e os indicadores de acessibilidade à moradia estão em mínimos históricos. Este mesmo cenário se repete em outros países como [Canadá](https://theconcordian.com/2024/02/housing-crisis-deepens-in-canada/), [Nova Zelândia](https://www.theguardian.com/world/2023/jul/08/new-zealand-housing-crisis-couch-surfing), [Reino Unido](https://www.ft.com/content/f21642d8-da2d-4e75-886e-2b7c1645f063), [Chile](https://www.globalpropertyguide.com/latin-america/chile/price-history) e muitos outros países.
+
+1.  **Evidência anedótica**. Quando se discute preços de imóveis é certo que aparecem casos específicos de regiões, bairros, ou ruas onde os preços dos imóveis aumentaram muito acima da inflação. Estes casos são reais, como foi, por exemplo,
+2.  **Ignorância sobre a dinâmica de preços**. Dificilmente se observa uma queda nominal do preço dos imóveis; mesmo em períodos de fraca demanda ou de crise, os proprietários de imóveis tendem a
+3.  Aumento dos juros e recency bias.
+4.  **A narrativa da Housing Crisis**. Narrativa parcialmente importada dos Estados Unidos e de boa parte do mundo desenvolvido
+
+```{r}
+library(realestatebr)
+library(tidyverse)
+library(showtext)
+
+font_add_google("IBM Plex Sans", "IBM Plex Sans")
+showtext_auto()
+
+theme_series <- theme_minimal(base_family = "IBM Plex Sans", base_size = 12) +
+  theme(
+    panel.grid.minor = element_blank(),
+    legend.position = "bottom"
+  )
+
+igmi <- get_rppi_igmi()
+ivar <- get_rppi_ivar(cached = TRUE)
+
+igmi <- igmi |> 
+  filter(name_muni == "Brasil") |> 
+  select(date, index)
+
+ivar <- ivar |> 
+  filter(name_muni == "Brazil") |> 
+  select(date, index)
+
+indexes = bind_rows(list("igmi" = igmi, "ivar" = ivar), .id = "name_series")
+
+last_obs = indexes |> 
+  summarise(last_obs = max(date), .by = "name_series") |> 
+  pull(last_obs) |> 
+  min()
+
+base = indexes |> 
+  mutate(ano = lubridate::year(date)) |> 
+  filter(ano == 2019) |> 
+  summarise(base_index = mean(index), .by = "name_series")
+
+comp_indexes = indexes |> 
+  filter(date >= as.Date("2019-01-01"), date <= last_obs) |> 
+  left_join(base, by = "name_series") |> 
+  mutate(new_index = index / base_index * 100)
+
+ggplot() +
+  geom_hline(yintercept = 100) +
+  geom_rect(
+    data = data.frame(x0 = as.Date("2020-03-01"), x1 = as.Date("2021-06-01"), y0 = -Inf, y1 = Inf),
+    aes(xmin = x0, xmax = x1, ymin = y0, ymax = y1),
+    alpha = 0.3
+  ) +
+  geom_line(
+    data = comp_indexes,
+    aes(x = date, y = new_index, color = name_series),
+    lwd = 1
+    ) +
+  scale_x_date(date_breaks = "1 year", date_labels = "%Y") +
+  scale_y_continuous(breaks = seq(90, 160, 10)) +
+  scale_color_manual(
+    name = "",
+    values = c("#006d77", "#83c5be"),
+    labels = c("Venda (IGMI-R)", "Aluguel (IVAR)")
+  ) +
+  labs(
+    title = "Descompasso entre Venda e Aluguel",
+    subtitle = "Índices de Preços Imobiliários de Venda e de Aluguel no Brasil (2019-2024)",
+    y = "",
+    x = NULL,
+    caption = "Fonte: Aluguel (IVAR, FGV), Venda (IGMI-R, Abecip/FGV)"
+  ) +
+  theme_series
+
+fipezap <- get_rppi_fipezap()
+
+fipezap <- fipezap |> 
+  filter(
+    name_muni == "Índice Fipezap",
+    market == "residential",
+    variable == "index",
+    rooms == "total"
+  ) |> 
+  select(date, rent_sale, value)
+  
+base <- fipezap |> 
+  mutate(ano = lubridate::year(date)) |> 
+  summarise(base_index = mean(value), .by = c("ano", "rent_sale")) |> 
+  filter(ano == 2019) |> 
+  select(-ano)
+
+fipezap <- fipezap |> 
+  left_join(base, by = c("rent_sale")) |> 
+  mutate(new_index = value / base_index * 100)
+
+fipe_changes <- fipezap |> 
+  group_by(rent_sale) |> 
+  mutate(
+    chg = new_index / lag(new_index) - 1,
+    acum12m = RcppRoll::roll_prodr(1 + chg, n = 12) - 1) |>
+  pivot_wider(
+    id_cols = "date",
+    names_from = "rent_sale",
+    values_from = c("chg", "acum12m"),
+    values_fn = ~.x * 100
+  ) |> 
+  mutate(
+    cycle = factor(case_when(
+      date >= as.Date("2014-06-01") & date <= as.Date("2016-12-01") ~ "Dilma Recession",
+      date >= as.Date("2020-05-01") & date <= as.Date("2021-03-01") ~ "Covid-19",
+      TRUE ~ "Normal"
+    ))
+  )
+
+ggplot(
+  fipe_changes,
+  aes(x = chg_sale, y = chg_rent)) +
+  geom_point(aes(color = cycle)) +
+  geom_smooth(method = "gam", se = FALSE) +
+  geom_hline(yintercept = 0) +
+  geom_vline(xintercept = 0) +
+  labs(
+    x = "Sales Prices (% change)",
+    y = "Rent Prices (% change)",
+    title = "Variations in Rent and Sales Prices",
+    subtitle = "Dashed line is a 45 degree line. Solid blue line is the fit a Generalized Additive Model."
+  ) +
+  scale_color_manual(
+    name = "Ciclo Economico",
+    values = c("#e76f51", "#e9c46a", "#264653")
+  ) +
+  theme_series
+
+dbreaks = as.character(c(2008, 2010, 2015, 2020, 2024))
+dbreaks = readr::parse_date(dbreaks, format = "%Y")
+
+ggplot(fipezap, aes(x = date, y = new_index, color = rent_sale)) +
+  geom_line(lwd = 1) +
+  geom_hline(yintercept = 100) +
+  scale_x_date(breaks = dbreaks, date_labels = "%Y") +
+  scale_color_manual(
+    name = "",
+    values = c("#83c5be", "#006d77"),
+    labels = c("Aluguel", "Venda")
+  ) +
+  labs(
+    title = "Descompasso entre Preços de Venda e de Aluguel",
+    subtitle = "Variação dos índices de preços residenciais de aluguel e de venda (anúncios).",
+    x = NULL,
+    y = "Índice (100 = 2019)",
+    caption = "Fonte: FipeZap"
+    ) +
+  theme_series
+
+p1 <- ggplot(fipezap, aes(x = date, y = new_index, color = rent_sale)) +
+  geom_line(lwd = 1) +
+  geom_hline(yintercept = 100) +
+  scale_x_date(breaks = dbreaks, date_labels = "%Y") +
+  scale_color_manual(
+    name = "",
+    values = c("#83c5be", "#006d77"),
+    labels = c("Aluguel", "Venda")
+  ) +
+  labs(x = NULL, y = "Índice (100 = 2019)", subtitle = "Índice (dinâmica)") +
+  theme_series
+
+fipezap = fipezap |> 
+  mutate(acum = value / first(value) * 100, .by = "rent_sale")
+
+p2 <- ggplot(fipezap, aes(date, acum, color = rent_sale)) +
+  geom_line(lwd = 1) +
+  geom_hline(yintercept = 100) +
+  scale_x_date(breaks = dbreaks, date_labels = "%Y") +
+  scale_color_manual(
+    name = "",
+    values = c("#83c5be", "#006d77"),
+    labels = c("Aluguel", "Venda")
+  ) +
+  labs(x = NULL, y = "Variação Acumulada (100 = jan/2008)", subtitle = "Valorização Acumulada") +
+  theme_series
+
+library(patchwork)
+
+panel <- p1 / p2 + plot_layout(guides = "collect")
+
+panel + plot_annotation(
+  title = "Descompasso entre Preços de Venda e de Aluguel",
+  subtitle = "Variação dos índices de preços residenciais de aluguel e de venda (anúncios)."
+  ) &
+  theme_series
+
+
+sale = window(sale, end = c(2013, 12))
+rent = window(rent, end = c(2013, 12))
+
+pp.sale = ur.pp(sale, model = "trend")
+pp.rent = ur.pp(rent, model = "trend")
+
+adf_sale = ur.df(sale, type = "trend", selectlags = "BIC")
+adf_rent = ur.df(rent, type = "none", selectlags = "BIC")
+
+summary(adf_sale)
+summary(adf_rent)
+
+model_lm = lm(sale ~ rent + time(sale))
+summary(model_lm)
+
+plot.ts(resid(model_lm))
+acf(resid(model_lm))
+
+vars::VARselect(cbind(sale, rent), lag.max = 12)
+
+coint_test <- ca.jo(cbind(sale, rent), ecdet = "const", K = 2)
+
+vecm_model = cajools(coint_test)
+
+summary(vecm_model)
+
+library(strucchange)
+
+tbl_fipe = fipezap |> 
+  pivot_wider(
+    id_cols = "date",
+    names_from = "rent_sale",
+    values_from = "new_index"
+  )
+
+tbl_fipe = tbl_fipe |> 
+  mutate(
+    sale_l1 = lag(sale),
+    rent_l1 = lag(rent),
+    sale_l12 = lag(sale, n = 12),
+    rent_l12 = lag(rent, n = 12)
+  )
+
+cusum_sale = efp(sale ~ sale_l1 + sale_l12, data = tbl_fipe, type = "RE")
+plot(cusum_sale)
+sctest(cusum_sale)
+bp_sale = breakpoints(sale ~ sale_l1 + sale_l12, data = tbl_fipe, breaks = 5)
+plot(bp_sale)
+bp_sale = breakpoints(sale ~ sale_l1 + sale_l12, data = tbl_fipe, breaks = 3)
+
+bp_date_sale <- tbl_fipe |> 
+  slice(bp_sale$breakpoints) |> 
+  pull(date)
+
+cusum_rent = efp(rent ~ rent_l1 + rent_l12, data = tbl_fipe, type = "OLS-CUSUM")
+
+sa_bp = breakpoints(rent ~ rent_l1 + rent_l12, data = tbl_fipe, breaks = 5)
+plot(sa_bp)
+
+bp_rent = breakpoints(rent ~ rent_l1 + rent_l12, data = tbl_fipe, breaks = 1)
+
+bp_date_rent <- tbl_fipe |> 
+  slice(bp_rent$breakpoints) |> 
+  pull(date)
+
+ggplot(tbl_fipe, aes(date, rent)) +
+  geom_line() +
+  geom_vline(xintercept = bp_date_rent)
+
+ggplot(tbl_fipe, aes(date, sale)) +
+  geom_line() +
+  geom_vline(xintercept = bp_date_sale)
+
+tbl_fipe = tbl_fipe |> 
+  mutate(
+    chg_rent = rent / dplyr::lag(rent) - 1,
+    chg_sale = sale / dplyr::lag(sale) - 1,
+    bp = factor(if_else(date >= as.Date("2019-01-01"), 1L, 0L))
+  )
+
+ggplot(tbl_fipe, aes(chg_rent, chg_sale, color = bp)) +
+  geom_point() +
+  geom_smooth(method = "lm", se = FALSE) +
+  scale_x_continuous(labels = scales::label_percent()) +
+  scale_y_continuous(labels = scales::label_percent())
+
+```
