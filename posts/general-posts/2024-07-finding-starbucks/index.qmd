@@ -1,0 +1,336 @@
+---
+title: "Finding All Starbucks in Brazil"
+date: "2024-03-23"
+categories: ['starbucks', 'web-scrapping', 'data-science', 'brazil', 'tutorial-R', 'finding']
+description: "In this post, I show how to find all Starbucks in Brazil using web scraping in R."
+execute: 
+  message: false
+  warning: false
+---
+
+# Starbucks
+
+## Web scraping
+
+Web scraping consists of extracting information from a web page. The difficulty or ease of extracting this information depends on how well the page is constructed. In more complex cases, the information may be behind a captcha or within an interactive panel that depends on user input.
+
+In this simple example, I will show how to find the locations of all Starbucks stores in Brazil. The full list of active Starbucks stores can be found on the [Starbucks Brasil website](https://starbucks.com.br/lojas). As usual, we will use the `tidyverse` along with the `rvest` and `xml2` packages.
+
+```{r libs}
+library(rvest)   # Used for web scraping and extracting HTML content
+library(xml2)    # Helps in working with XML and HTML data
+library(tidyverse)
+```
+
+### The website
+
+The full list of active Starbucks stores can be found on the [Starbucks Brasil website](https://starbucks.com.br/lojas). To read the page, we use read_html.
+
+```{r}
+url = "https://starbucks.com.br/lojas"
+page = xml2::read_html(url)   # Fetches the HTML content of the page
+```
+
+The "xpath" shows the path to a specific element on the page. For example, to find the Starbucks logo in the top-left corner of the page, we can use the following code:
+
+```{r}
+# Extracts the HTML element for the logo image
+page %>%
+  html_element(xpath = "/html/body/div[1]/div[1]/header/nav/div/div[1]/a/img")
+```
+
+To learn more about xpaths, you can consult [this cheatsheet](https://devhints.io/xpath).
+
+In general, on well-constructed pages, the name of elements will be quite self-explanatory. In the case above, the "alt" attribute already indicates that the object is the Starbucks logo, and the "src" directs to an image file in svg format called starbucks-nav-logo. Unfortunately, this won't always be the case. On some pages, elements can be quite confusing.
+
+To extract a specific attribute, we use the `html_attr` function.
+
+```{r}
+page %>%
+  html_element(
+    xpath = "/html/body/div[1]/div[1]/header/nav/div/div[1]/a/img"
+    ) %>%
+  # Extracts the "src" attribute (URL to the image)
+  html_attr("src")  
+```
+
+If you combine this last link with "www.starbucks.com.br", you should arrive at an image of the company's logo[^1].
+
+[^1]: <https://starbucks.com.br/public/img/icons/starbucks-nav-logo.svg>
+
+![Starbucks logo](https://starbucks.com.br/public/img/icons/starbucks-nav-logo.svg){width="30%" fig-align="center"}
+
+To find the big list of stores in the left panel, we will take advantage of the fact that the `div` holding this list has a unique class called `"place-list"`. It's easy to verify this directly in your browser. If you use Chrome, for instance, just right-click on the panel and click on Inspect.
+
+![](images/Screenshot%202024-03-23%20at%2015.20.37.png){fig-align="center"}
+
+![](images/Screenshot%202024-03-23%20at%2015.20.47.png){fig-align="center"}
+
+As I mentioned above, things aren't always well organized. Note that since we want to extract multiple elements and multiple (all) attributes, we use the variants: `html_elements` and `html_attrs`.
+
+```{r}
+list_attr <- page %>%
+  # Selects all divs under "place-list" that hold store info
+  html_elements(xpath = '//div[@class="place-list"]/div')  %>%
+  # Extracts all attributes of the selected elements
+  html_attrs()  
+```
+
+The extracted object is a list where each element is a text vector containing the following information. We have the store name, latitude/longitude, and the address.
+
+```{r}
+# Extracts the first store's information from the list
+pluck(list_attr, 1)
+```
+At this point, the web scraping process is complete. Once again, the process was easy because the data is well structured on the Starbucks page. Now, we just need to clean the data.
+
+## Data Cleaning
+
+I won't go in depth about the data cleaning process. Basically, we need to convert each element of the list into a `data.frame`, stack the results, and then adjust the data types of each column.
+
+```{r}
+# Convert the elements into data.frame
+dat <- map(list_attr, \(x) as.data.frame(t(x)))
+# Stack the results
+dat <- bind_rows(dat)
+
+clean_dat <- dat %>%
+  as_tibble() %>%
+  # Rename the columns
+  rename_with(~str_remove(.x, "data-")) %>%
+  rename(lat = latitude, lng = longitude) %>%
+  # Select the columns of interest
+  select(index, name, street, lat, lng) %>%
+  # Convert lat/lng to numeric
+  mutate(
+    lat = as.numeric(lat),
+    lng = as.numeric(lng),
+    index = as.numeric(index),
+    name = str_trim(name)
+    )
+```
+
+```{r}
+#| include: false
+clean_dat |> 
+  mutate(across(where(is.numeric), ~round(.x, 2))) |> 
+  DT::datatable(clean_dat)
+```
+
+## Map
+
+The table above is already in a pretty satisfactory format. We can check the data by building a simple map.
+
+```{r}
+library(sf)
+library(leaflet)
+
+starbucks <- st_as_sf(clean_dat, coords = c("lng", "lat"), crs = 4326, remove = FALSE)
+
+leaflet(starbucks) %>%
+  addTiles() %>%
+  addMarkers(label = ~name) %>%
+  addProviderTiles("CartoDB") %>%
+  setView(lng = -46.65590, lat = -23.561197, zoom = 12)
+```
+
+It's worth noting that data extracted via web scraping almost always contains some noise. In this case, the data seems relatively clean after a bit of processing. The addresses are not always very informative, like in the case of "Rodovia Hélio Smidt, S/N," but this happens because many stores are located inside hospitals, shopping malls, or airports.
+
+With this data, we can already perform interesting analyses. For example, we can find out that there are five Starbucks stores just on Avenida Paulista.
+
+```{r}
+starbucks %>%
+  filter(str_detect(street, "Avenida Paulista"))
+```
+
+We can also count the number of stores in each airport. Apparently, there are eight stores at Guarulhos Airport, which seems like quite a high number to me.
+
+```{r}
+starbucks %>%
+  st_drop_geometry() %>%
+  filter(str_detect(name, "Aeroporto")) %>%
+  mutate(
+    name_airport = str_remove(name, "de "),
+    name_airport = str_extract(name_airport, "(?<=Aeroporto )\\w+"),
+    name_airport = if_else(is.na(name_airport), "Confins", name_airport),
+    .before = "name"
+  ) %>%
+  count(name_airport, sort = TRUE)
+```
+
+Finally, we can note that many Starbucks stores are located inside shopping malls. A simple calculation shows that around 75 stores are located inside malls, close to 50% of the total units[^2].
+
+[^2]: Here, we are assuming that the "name" tag always includes the word "shopping" if the store is located inside a mall. This number might eventually be underestimated if there are stores inside malls that don't have the word "shopping" in their name. Strictly speaking, we also haven't verified whether the "shopping" tag is always associated with an active shopping mall.
+
+```{r}
+starbucks %>%
+  st_drop_geometry() %>%
+  filter(str_detect(name, "Shopping|shopping")) %>%
+  nrow()
+```
+
+# Building
+
+## Finding each city
+
+From this data, we can add more information. Using the `geobr` package, we can identify in which cities the stores are located.
+
+```{r}
+dim_city = geobr::read_municipality(showProgress = FALSE)
+dim_city = st_transform(dim_city, crs = 4326)
+sf::sf_use_s2(FALSE)
+
+starbucks = starbucks %>%
+  st_join(dim_city) %>%
+  relocate(c(name_muni, abbrev_state), .before = lat)
+```
+
+Now we can see which cities have the most Starbucks locations.
+
+```{r}
+starbucks %>%
+  st_drop_geometry() %>%
+  count(name_muni, abbrev_state, sort = TRUE) 
+```
+
+Ou seja, há mais Starbucks somente na Paulista do que em quase todas as demais cidades do Brasil.
+
+## Google Places
+
+### Adding information using Google Places API
+
+The Google [Places API](https://developers.google.com/maps/documentation/places/web-service/overview) allows access to data from Google Maps. The `googleway` package integrates this data into `R` already in tidy format.
+
+```{r}
+library(googleway)
+```
+
+I'll create a simple search to return all Starbucks locations in Brazil. A full search across the entire country would take too long, so I will use the coordinates I found via web scraping as a starting point.
+
+The function below searches for the term "starbucks" at all the points I provide. To simplify, the function returns only a few of the columns.
+
+```{r code-fun}
+# Function to grab starbucks info
+get_starbucks_info <- function(lat, lng) {
+  
+  # Search for 'Starbucks' using the provided latitude and longitude.
+  places = google_places(
+    search_string = "starbucks",   # Search term "starbucks"
+    location = c(lat, lng)         # Coordinates (lat and lng) for the search
+  )
+  
+  # Define the columns of interest to keep from the results
+  sel_cols = c(
+    "name",                        # Store name
+    "formatted_address",           # Store address
+    "lat",                         # Latitude
+    "lng",                         # Longitude
+    "rating",                      # Store rating
+    "user_ratings_total",          # Number of user ratings
+    "business_status"              # Business status (e.g., operational or closed)
+  )
+  
+  # Process the results and select the relevant columns
+  places$results %>%
+    tidyr::unnest("geometry") %>%   # Extract the nested 'geometry' field
+    tidyr::unnest("location") %>%   # Extract the nested 'location' field (lat and lng)
+    dplyr::select(dplyr::all_of(sel_cols))   # Select only the columns of interest
+}
+
+```
+
+O código abaixo roda a função acima em todos os 142 estabelecimentos, encontrados na página oficial do Starbucks Brasil.
+
+```{r code-fun2}
+#| eval: false
+# Remove geometry and keep only coordinates
+coords_starbucks <- starbucks %>%
+  st_drop_geometry() %>%
+  as_tibble() %>%
+  select(index, name, lat, lng)
+
+starbucks_info = purrr::map2(
+  coords_starbucks$lat,
+  coords_starbucks$lng,
+  get_starbucks_info
+  )
+
+dat <- starbucks_info %>%
+  bind_rows(.id = "search_id") %>%
+  distinct()
+```
+
+```{r import-dat-google}
+#| include: false
+dat = qs::qread(here::here("static/data/starbucks_gmaps.qs"))
+```
+
+To clean the data, I will keep only the active stores that contain "Starbucks" in their name. Additionally, I will pair the data with my web scraping dataset using `st_nearest_feature(x, y)`. This function finds the nearest point in `y` for each point in `x`.
+
+```{r}
+dat <- dat |> 
+  # Keep only stores with "Starbucks" in the name and that are operational
+  filter(str_detect(name, "Starbucks"), business_status == "OPERATIONAL") |> 
+  # Arrange the results by address
+  arrange(formatted_address)
+
+# Convert to a spatial data frame using longitude and latitude
+google_data <- dat %>%
+  # Set coordinate reference system to WGS 84 (EPSG:4326)
+  st_as_sf(coords = c("lng", "lat"), crs = 4326)  
+
+# Find the nearest Starbucks locations from the web scraping data (starbucks)
+# for each point in google_data
+inds <- st_nearest_feature(google_data, starbucks)
+
+# Extract the metadata of the nearest points from the web scraping data and
+# convert to a tibble
+metadata <- starbucks %>%
+  slice(inds) %>%
+  st_drop_geometry() %>%  # Remove spatial geometry
+  as_tibble()
+
+# Rename the columns in google_data and bind the metadata from the web scraping data
+google_data <- google_data |> 
+  rename(google_name = name, google_address = formatted_address) |> 
+  bind_cols(metadata)  # Combine google_data with the corresponding metadata
+```
+
+### Final Map
+
+The interactive map below shows all Starbucks locations in São Paulo. The color of each circle represents its rating, and the size of the circle represents the number of reviews. The units along the Avenida Paulista corridor, for example, have high average ratings and a large number of reviews. One of the worst-rated units seems to be the one near Mackenzie University, which has a rating of 2.1 and 15 reviews. In the Eastern Zone, the store at Shopping Aricanduva also has a slightly lower rating, 3.9 with 158 reviews.
+
+```{r map-overall}
+sp <- filter(google_data, name_muni == "São Paulo")
+
+sp <- sp |> 
+  mutate(
+    rad = findInterval(user_ratings_total, c(25, 100, 1000, 2500, 5000))*2 + 5
+  )
+
+pal <- colorNumeric("RdBu", domain = sp$rating)
+
+labels <- stringr::str_glue(
+  "<b> {sp$name} </b> <br>
+   <b> Rating </b>: {sp$rating} <br>
+   <b> No Ratings </b> {sp$user_ratings_total}"
+)
+
+labels <- lapply(labels, htmltools::HTML)
+
+leaflet(sp) |> 
+  addTiles() |> 
+  addCircleMarkers(
+    radius = ~rad,
+    color = ~pal(rating),
+    label = labels,
+    stroke = FALSE,
+    fillOpacity = 0.5
+  ) |> 
+  addLegend(pal = pal, values = ~rating) |> 
+  addProviderTiles("CartoDB")
+```
+
+# Conclusion
+
+Web scraping is a popular data extraction technique that allows us to quickly build interesting datasets. In this case, the process was quite simple, but as I mentioned, it can be much more complex.
