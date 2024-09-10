@@ -22,13 +22,19 @@ More recently, *recency bias has become a pervasive feature of online culture*. 
 
 For several different reasons, human's tend to put a greater weight onto more recent events when evaluating pretty much anything. This is partly due to how our memory works but sometimes is due to availability. When something new happens, social media is quickly extract all possible content from it and then moves on to the next thing.
 
-Recency bias even affects the awards season in movies.
-
 This cognitive bias had been widely studied across many disciplines including behavioral finance, psychology, and business studies.
+
+## Recency Bias in Movies?
+
+### The data
 
 ```{r}
 library(ggplot2)
 library(dplyr)
+library(tidyr)
+library(showtext)
+font_add_google("Raleway", "Raleway")
+showtext_auto()
 
 films <- qs::qread(here::here("static/data/greatest_movies.qs"))
 
@@ -53,27 +59,140 @@ dict <- tribble(
 films <- left_join(films, dict, by = "source")
 ```
 
+## Critics vs Public
+
+```{r}
+
+```
+
+```{r}
+imdb <- filter(films, source == "imdb")
+
+  
+```
+
 ```{r}
 films <- films |> 
   mutate(decade = year - (year %% 10))
 
 imdb <- filter(films, source == "imdb")
 
-ggplot(imdb, aes(as.factor(decade), rating)) +
-  geom_count()
+imdb_count <- count(imdb, decade)
 
-ggplot(imdb, aes(decade)) +
-  geom_bar(fill = "#deb522") +
+p1 <- ggplot(imdb_count, aes(decade, n)) +
+  geom_col(fill = "#deb522") +
+  geom_text(aes(y = n - 3, label = n), family = "Raleway") +
   geom_hline(yintercept = 0) +
-  theme_minimal()
-  
+  scale_x_continuous(
+    breaks = seq(1910, 2020, 10),
+    labels = \(x) paste0(substr(x, 3, 4), "'s"),
+    limits = c(1910, NA)) +
+  labs(
+    subtitle = "IMDB Top 250 (voted by general online public)",
+    x = NULL,
+    y = NULL
+  ) +
+  theme_minimal(base_family = "Raleway") +
+  theme(
+    panel.grid.minor = element_blank(),
+    panel.grid.major.x = element_blank()
+  )
+
+bfi <- filter(films, source == "bfi")
+
+bfi_count <- count(bfi, decade)
+
+p2 <- ggplot(bfi_count, aes(decade, n)) +
+  geom_col(fill = "#000000") +
+  geom_text(aes(y = n - 3, label = n), family = "Raleway", color = "white") +
+  geom_hline(yintercept = 0) +
+  scale_x_continuous(
+    breaks = seq(1910, 2020, 10),
+    labels = \(x) paste0(substr(x, 3, 4), "'s")) +
+  labs(
+    subtitle = "BFI Greatest Films (voted by movie critics)",
+    x = NULL,
+    y = NULL
+  ) +
+  theme_minimal(base_family = "Raleway") +
+  theme(
+    panel.grid.minor = element_blank(),
+    panel.grid.major.x = element_blank()
+  )
+
+library(patchwork)
+
+panel <- p1 / p2
+
+final_plot <- panel + plot_annotation(
+  title = "Are movie critics driven by nostalgia, while recency\nbias shapes the public's perspective?",
+  subtitle = "Year of release of the 250 'greatest films of all time' by decade.",
+  caption = "Source: IMDB (IMDB Top 250, April 2024), BFI (The Greatest Films of All Time, 2022)") &
+  theme(
+    plot.margin = margin(5, 10, 5, 10, "pt"),
+    plot.title = element_text(
+      size = 18,
+      family = "Raleway",
+      margin = margin(5.5, 0, 5.5, 10)),
+    plot.subtitle = element_text(
+      size = 12,
+      color = "gray20",
+      family = "Raleway",
+      margin = margin(2, 0, 5.5, 10)),
+    plot.caption = element_text(
+      family = "Raleway (@viniciusoike)",
+      size = 10,
+      color = 'gray30'
+    ),
+    axis.text.x = element_text(size = 12)
+  )
 ```
 
 ```{r}
-bfi <- filter(films, source == "bfi")
+final_plot
+```
 
-ggplot(bfi, aes(decade)) +
-  geom_bar(fill = "#000000")
+```{r}
+#| eval: false
+comp <- inner_join(
+  select(bfi, name_film, rank_bfi = rank), 
+  select(imdb, name_film, rank_imdb = rank),
+  by = "name_film"
+  )
+
+comp <- comp |> 
+  mutate(
+    diff = rank_bfi - rank_imdb,
+    abs_diff = abs(diff),
+    name_film = if_else(
+      stringr::str_detect(name_film, "^Dr\\. Strangelove"),
+      "Dr. Strangelove",
+      name_film,
+    ),
+    name_film = factor(name_film),
+    name_film = forcats::fct_reorder(name_film, -abs_diff)) |> 
+  arrange(desc(diff)) |> 
+  filter(abs_diff > 100 | abs_diff < 50)
+
+comp_long <- comp |> 
+  tidyr::pivot_longer(cols = rank_bfi:rank_imdb)
+
+ggplot(comp) +
+  geom_segment(
+    aes(x = name_film, xend = name_film, y = rank_bfi, yend = rank_imdb)
+    ) +
+  geom_point(
+    data = comp_long,
+    aes(x = name_film, y = value, color = name),
+    size = 3
+  ) +
+  scale_x_discrete(labels = \(x) stringr::str_wrap(x, 18)) +
+  coord_flip() +
+  theme_minimal(base_family = "Raleway", base_size = 10) +
+  theme(
+    axis.text.y = element_text(hjust = 1)
+  )
+
 ```
 
 ```{r}
