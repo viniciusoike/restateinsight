@@ -1,14 +1,17 @@
 ---
-title: ""
+title: "Line-4 Metro"
 date: "2024-07-10"
 categories: ["data-science", "finding", "sao-paulo", "subway", "web-scraping", "tutorial-R"]
-description: ""
-draft: true
+description: "In this post I show how to webscrape all publicly available information on passenger flow from the Line-4 Metro in São Paulo. This post is part of a larger series where I gather all data on the subway lines in São Paulo."
 execute: 
   eval: false
 ---
 
-# Subway data in São Paulo
+# Line-4 Metro Subway
+
+In this post I show how to webscrape all publicly available information on passenger flow from the Line-4 Metro in São Paulo. This post is part of a larger series where I gather all data on the subway lines in São Paulo.
+
+## Subway data in São Paulo
 
 Finding data on the subway lines in São Paulo is not easy. There are currently 5 subway lines in São Paulo, identified by number and color:
 
@@ -24,18 +27,32 @@ Finding data on the subway lines in São Paulo is not easy. There are currently 
 
 The first three lines are state-owned by the public company METRO. Line-4 is a PPP an privately operated by Via Quatro Mobilidade. Line-5 is also privately operated by ViaMobilidade.
 
-Gathering information
+# The Data
 
-# Downloading
+[Passenger flow information](https://www.viaquatro.com.br/linha-4-amarela/passageiros-transportados) is stored in a very unfriendly manner. Monthly passenger flow data is stored in excel tables that are stored in individual pdf files.
 
-Passenger flow information is stored in a very unfriendly manner.
+![](/static/images/spo_metro/webscrape/pdf_screen.png){fig-align="center"}
+
+Inside each pdf file there is a simple Excel-like table such as the one in the image below.
+
+![](/static/images/spo_metro/webscrape/pdf_example_easy.png){fig-align="center"}
+
+To extract this data we need to proceed in the following steps:
+
+1.  Webscrape the page to find all download links for each individual pdf.
+2.  Download all pdfs.
+3.  Import each pdf table, interpret the text and clean the data.
+4.  Compile datasets into meaningful tables.
+
+## Downloading
+
+We can use the `rvest` package to easily find and download all the pdf files.
 
 ```{r}
+# Libraries
 library(rvest)
 library(stringr)
 library(dplyr)
-library(readr)
-library(pdftools)
 
 import::from(xml2, read_html)
 import::from(here, here)
@@ -44,28 +61,37 @@ import::from(pdftools, pdf_text)
 import::from(purrr, map2, map_lgl)
 ```
 
+The chunk of code below finds the links to all pdf files.
+
 ```{r}
+# Site url
 url <- "https://www.viaquatro.com.br/linha-4-amarela/passageiros-transportados"
 
+# Parse the html
 page <- read_html(url)
 
+# Get download links
 pdf_links <- page %>%
   html_elements(xpath = "//article/ul/li/a") %>%
   html_attr("href")
-
+# Get the name of each pdf file
 pdf_names <- page %>%
   html_elements(xpath = "//article/ul/li/a") %>%
   html_attr("title")
 
 pdf_links <- pdf_links[str_detect(pdf_links, "\\.pdf$")]
 
+# Store links and names in a tibble
 params <- tibble(
   link = pdf_links,
   name = pdf_names
 )
 ```
 
+I save the title of each file and the link in a tibble. I also extract some useful information using regex.
+
 ```{r}
+# Use regex to extract information from file name
 params <- params |> 
   mutate(
     # Find variable name
@@ -82,7 +108,9 @@ params <- params |>
     ts_date = if_else(
       is.na(month_label),
       as.Date(str_c(year, "/01/01")),
-      parse_date(paste(year, month_label, "01", sep = "/"), format = "%Y/%B/%d", locale = locale("pt"))
+      parse_date(paste(year, month_label, "01", sep = "/"),
+                 format = "%Y/%B/%d",
+                 locale = locale("pt"))
     )
   )
 
@@ -91,142 +119,57 @@ params <- params |>
   arrange(variable)
 ```
 
-```{r}
-#> Baixar todos os pdfs do site
-
-#> Define a pasta onde os arquivos serão baixados
-fld <- here::here("static/data/raw/metro_sp/linha_4/")
-#> A 'base' da url do site
-baseurl <- "https://www.viaquatro.com.br"
-#> Define uma barra de progresso para acompanhar o resultado
-pb <- txtProgressBar(max = nrow(params), style = 3)
-
-#> Loop nas linhas da tabela 'params'
-for (i in 1:nrow(params)) {
-  
-  #> Pega a coluna 'name' da coluna atual e transforma o nome idiomático
-  name_file <- janitor::make_clean_names(params[["name"]][i])
-  #> Adiciona extensão .pdf
-  name_file <- paste0(name_file, ".pdf")
-  #> Define o path para baixar o arquivo
-  destfile <- here(fld, name_file)
-  
-  #> Verifica se o arquivo já existe na pasta de destino. Caso contrário baixa o pdf.
-  if (file.exists(destfile)) {
-    message(glue("File {name_file} already exists."))
-    i <- i + 1
-  } else {
-    message(glue("Downloading file {name_file}."))
-    #> Url para baixar o pdf
-    url <- paste0(baseurl, params[["link"]][i])
-    #> Faz o dowload do arquivo
-    download.file(url = url, destfile = destfile, mode = "wb", quiet = TRUE)
-    #> Por precaução define um breve timeout aleatório (1 seg + random)
-    Sys.sleep(1 + runif(1))
-  }
-
-  #> Atualiza a barra de progresso
-  setTxtProgressBar(pb, i)
-  
-}
-```
+The simple for-loop below downloads all pdf files locally. I include a progress bar, and a simple check to avoid downloading duplicate files. This check also comes in handy if something goes wrong internet-wise.
 
 ```{r}
-library(rvest)
-library(xml2)
-library(stringr)
-library(dplyr)
-library(tidyr)
-library(purrr)
-library(readr)
-library(here)
-library(pdftools)
+#> Download all pdf files
 
-url <- "https://www.viaquatro.com.br/linha-4-amarela/passageiros-transportados"
-
-page <- read_html(url)
-
-pdf_links <- page %>%
-  html_elements(xpath = "//article/ul/li/a") %>%
-  html_attr("href")
-
-pdf_names <- page %>%
-  html_elements(xpath = "//article/ul/li/a") %>%
-  html_attr("title")
-
-pdf_links <- pdf_links[str_detect(pdf_links, "\\.pdf$")]
-
-params <- tibble(
-  link = pdf_links,
-  name = pdf_names
-)
-
-mes <- lubridate::month(1:12, label = TRUE, abbr = FALSE, locale = "pt_BR")
-
-params <- params %>%
-  mutate(
-    # Find variable name
-    variable = str_extract(name, ".+(?= - [A-Z0-9])"),
-    # Remove excess whitespace
-    variable = str_replace_all(variable, "  ", " "),
-    # Get the date (either in 20xx or %B%Y format)
-    x1 = str_trim(str_extract(name, "(?<= - )[A-Z0-9].+")),
-    # Extract year number
-    year = as.numeric(str_extract(x1, "[0-9]{4}")),
-    # Extract month label (in portuguese)
-    month_label = str_extract(x1, "[[:alpha:]]+"),
-    # Convert to date
-    ts_date = if_else(
-      is.na(month_label),
-      as.Date(str_c(year, "/01/01")),
-      parse_date(paste(year, month_label, "01", sep = "/"), format = "%Y/%B/%d", locale = locale("pt"))
-    )
-  )
-
-params <- params |> 
-  arrange(ts_date) |> 
-  arrange(variable)
-
-#> Baixar todos os pdfs do site
-
-#> Define a pasta onde os arquivos serão baixados
 fld <- here("static/data/raw/metro_sp/linha_4/")
-#> A 'base' da url do site
 baseurl <- "https://www.viaquatro.com.br"
-#> Define uma barra de progresso para acompanhar o resultado
 pb <- txtProgressBar(max = nrow(params), style = 3)
 
-#> Loop nas linhas da tabela 'params'
+# Loop across params
 for (i in 1:nrow(params)) {
   
-  #> Pega a coluna 'name' da coluna atual e transforma o nome idiomático
+  # Define file name
   name_file <- janitor::make_clean_names(params[["name"]][i])
-  #> Adiciona extensão .pdf
+  # Add pdf extension
   name_file <- paste0(name_file, ".pdf")
-  #> Define o path para baixar o arquivo
+  # Crate file path
   destfile <- here(fld, name_file)
   
-  #> Verifica se o arquivo já existe na pasta de destino. Caso contrário baixa o pdf.
+  # Simple check:
+  # If downloaded file already exists, skip it
+  # If not, download the file
   if (file.exists(destfile)) {
     message(glue("File {name_file} already exists."))
     i <- i + 1
   } else {
     message(glue("Downloading file {name_file}."))
-    #> Url para baixar o pdf
+    # Link to the pdf file
     url <- paste0(baseurl, params[["link"]][i])
-    #> Faz o dowload do arquivo
+    # Download the file
     download.file(url = url, destfile = destfile, mode = "wb", quiet = TRUE)
-    #> Por precaução define um breve timeout aleatório (1 seg + random)
+    # For precaution defines a random time-interval between each download
     Sys.sleep(1 + runif(1))
   }
 
-  #> Atualiza a barra de progresso
   setTxtProgressBar(pb, i)
   
 }
 ```
 
-# Cleaning
+# Data Processing
+
+Extracting tables from pdf can be a challenging task. [In another post](https://restateinsight.com/posts/general-posts/2024-04-importando-pdf/) I showed how to import tables using the `pdftools` package. This package generally works very well but it fails if the table is saved as an image. In this case, the best approach is to use a deep-learning model or LLM that can recognize patterns in images.
+
+In our case, the older pdf files are stored as images of tables while the newer files are stored as text tables. This means we can use `pdftools` only for the more recent files.
+
+## Functions
+
+To facilitate the import and cleaning process I create several helper functions.
+
+### Importing pdfs
 
 ```{r}
 # Read pdf using pdf tools and convert to tibble
@@ -245,7 +188,11 @@ read_pdf <- function(path) {
   return(tbl)
   
 }
+```
 
+### Cleaning the tables
+
+```{r}
 # Helper function to extract numbers from text
 # Numbers use , as decimal mark and . as thousand mark
 get_numbers <- Vectorize(function(text) {
@@ -331,7 +278,11 @@ clean_pdf_station <- function(dat) {
   return(tbl)
   
 }
+```
 
+### Final function
+
+```{r}
 import_pdf <- function(path, type) {
   
   stopifnot(any(type %in% c("station", "passenger_entrance", "passenger_transported")))
@@ -353,11 +304,16 @@ import_pdf <- function(path, type) {
 }
 ```
 
-```{r}
-#| eval: false
-#> Define a pasta onde os arquivos serão baixados
-fld <- here::here("static/data/raw/metro_sp/linha_4")
+## Data Processing
 
+The code below imports all pdf files and cleans the data. I consolidate the information into two tables:
+
+1. Passengers - show total passenger flow metrics by month.
+2. Stations - shows total montlhy passenger flow by station.
+
+```{r}
+# Find path name to all downloaded pdfs
+fld <- here::here("static/data/raw/metro_sp/linha_4")
 path_pdfs <- list.files(fld, "\\.pdf$", full.names = TRUE)
 
 params <- tibble(
@@ -381,11 +337,6 @@ pdfs <- params |>
 valid_files <- pdfs |> 
   filter(map_lgl(file, is.data.frame))
 
-tbl_station <- valid_files |> 
-  filter(type == "station") |> 
-  reframe(bind_rows(file)) |> 
-  arrange(date)
-
 tbl_passengers <- valid_files |> 
   filter(type == "passenger_transported") |> 
   reframe(bind_rows(file)) |> 
@@ -397,6 +348,7 @@ tbl_onboarding <- valid_files |>
   reframe(bind_rows(file)) |> 
   arrange(date)
 
+# This pdf is wrong!
 tbl_onboarding_station <- tbl_onboarding |> 
   filter(!is.na(name_station)) |> 
   mutate(metric = "Média dos Dias Úteis")
@@ -405,46 +357,85 @@ tbl_onboarding <- tbl_onboarding |>
   filter(is.na(name_station)) |> 
   mutate(name_station = "Total")
 
-tbl1 <- bind_rows(
+tbl_passengers <- bind_rows(
   list(
     passenger_transported = tbl_passengers,
     passenger_entrance = tbl_onboarding
-    ),
+  ),
   .id = "variable")
+
+tbl_station <- valid_files |> 
+  filter(type == "station") |>
+  reframe(bind_rows(file)) |> 
+  arrange(date)
 ```
+
+```{r import-data}
+#| eval: true
+#| include: false
+library(gt)
+library(tidyverse)
+
+passenger <- read_csv(here::here("static/data/metro_sp_line_4.csv"))
+station <- read_csv(here::here("static/data/metro_sp_line_4_stations.csv"))
+```
+
+The `passenger` table shows various passenger flow metrics by month.
+
+```{r table-passenger}
+#| eval: true
+slice_tail(passenger, n = 10) |> 
+  gt() |> 
+  opt_stylize(style = 6)
+```
+
+The `station` table show total passenger flow by month (in thousands).
+
+```{r table-station}
+slice_tail(station, n = 11) |> 
+  gt() |> 
+  opt_stylize(style = 6)
+```
+
 
 # Visualizing
 
-```{r}
-tbl1 |> 
+A good way to check our results is to visualize the data. A more detailed visualization [can be found in my other post](https://restateinsight.com/posts/general-posts/2024-07-viz-metro-4/).
+
+### Total monthly passnger flow
+
+The plot below shows the total amount of monthly passengers transported by the Line-4 metro. Visually, the data seems coherent. The big drop in the series coincides with the restrictive measures imposed in the first semester of 2020 as a response to the Covid-19 pandemic.
+
+```{r plot-1}
+#| eval: true
+#| code-fold: true
+passenger |> 
   filter(variable == "passenger_transported", metric == "Total") |> 
   ggplot(aes(date, value)) +
   geom_line() +
-  geom_point()
-
-tbl1 |> 
-  filter(variable == "passenger_entrance", name_station != "Total")
-
-tbl_station |> 
-  filter(date >= as.Date("2019-01-01")) |> 
-  mutate(name_station = factor(name_station, levels = unique(tbl_station$name_station))) |> 
-  ggplot(aes(x = date, y = value)) +
-  geom_line() +
-  facet_wrap(vars(name_station), scales = "free_y")
-
-tbl_station |> 
-  filter(
-    date >= as.Date("2018-01-01"),
-    !name_station %in% c("São Paulo - Morumbi", "Vila Sônia")
-    ) |> 
-  summarise()
-
-
-
-tbl_station |> 
-  filter(date >= as.Date("2019-01-01")) |> 
-  mutate(name_station = factor(name_station, levels = unique(tbl_station$name_station))) |> 
-  ggplot(aes(x = date, y = value)) +
-  geom_line() +
-  facet_wrap(vars(name_station), scales = "free_y")
+  geom_point() +
+  theme_light()
 ```
+
+### Passenger flow by station
+
+The plot below shows the total amount of monthly passengers transported by the Line-4 metro by station. Visually, the data seems coherent. 
+
+```{r plot-2}
+#| eval: true
+#| code-fold: true
+station |> 
+  filter(date >= as.Date("2019-01-01")) |> 
+  mutate(name_station = factor(name_station, levels = unique(station$name_station))) |> 
+  ggplot(aes(x = date, y = value)) +
+  geom_line() +
+  facet_wrap(vars(name_station), scales = "free_y") +
+  theme_light()
+```
+
+# The data
+
+The final tables can be downloaded in the links below:
+
+* Passenger
+* Station
