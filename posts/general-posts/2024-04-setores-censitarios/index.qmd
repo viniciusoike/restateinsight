@@ -6,7 +6,6 @@ description: "Census tracts are the smallest administrative divisions that provi
 execute: 
   message: false
   warning: false
-draft: true
 ---
 
 ```{r, setup}
@@ -99,7 +98,9 @@ The data can be [downloaded from IBGE's website](https://www.ibge.gov.br/geocien
 
 ### geobr
 
-The package `geobr` (available for both Python and R) provides a convenient way to import census tracts directly into a session.
+The package `geobr` (available for both Python and R) provides a convenient way to import census tracts directly into a session. The example code below shows how to import the most recent shape file for São Paulo's census tracts[^1].
+
+[^1]: As of June 2024, the shape
 
 ```{r}
 #| eval: false
@@ -115,10 +116,10 @@ The 2010 census tracts offers a much richer set of variables including demograph
 
 ### Demographic data
 
-The maps below show basic demographic information from the 2022 Census highlighting the central district in Curitiba. For simplicity, I omit the color legend but darker shades of blue represent higher values, while lighter/whiter shades of blue represent lower values.
+The maps below show basic demographic information from the 2022 Census highlighting the central district in Curitiba. For simplicity, I omit the color legend but darker shades of blue represent higher values, while lighter/whiter shades of blue represent lower values. Technically, these are quintile maps, where the underlying numerical data was ordered and binned into five equal-sized groups.
 
 ```{r}
-#| include: false
+#| code-fold: true
 setores_centro <- cur_setores |> 
   # Administração Regional da Matriz
   filter(code_subdistrict == 41069020501) |> 
@@ -216,10 +217,6 @@ ggplot(curitiba_income) +
   )
 ```
 
-### General Characteristics
-
-As stated above, census tracts are designed to be areas that exhibit similar socioeconomic and demographic characteristics.
-
 # The 2022 Census
 
 Brazil's most recent demographic Census was delayed due to Covid-19 and governmental budget cuts. I wrote a post (in Portuguese) that [describes this turbulent context and how it might have affected the quality of the information collected](https://restateinsight.com/posts/general-posts/2023-10-censo-erros/).
@@ -249,6 +246,49 @@ tab_census %>%
   fmt_number(2:4, sep_mark = ".", decimals = 0) %>%
   gt_theme_538()
 ```
+
+## Higher Resolution
+
+An obvious improvement from the 2010 census tracts is the gain in spatial resolution. The maps below show the central area of Curitiba where there was a 33% increase in the number of total census tracts.
+
+```{r}
+#| out-width: 100%
+#| echo: false
+setores_centro_antigo <- cur_setores_2010 |> 
+  filter(code_subdistrict == 41069020501)
+
+m1 <- ggplot(setores_centro_antigo) +
+  geom_sf() +
+  ggtitle("2010 Tracts (343)") +
+  theme_void() +
+  theme(plot.title = element_text(hjust = 0.5))
+
+m2 <- ggplot(setores_centro) +
+  geom_sf() +
+  ggtitle("2022 Tracts (457)") +
+  theme_void() +
+  theme(plot.title = element_text(hjust = 0.5))
+
+m1 | m2
+```
+
+# Important considerations
+
+Some important considerations to keep in mind when working with census tracts.
+
+1.  Shape is not time consistent.
+2.  Number of census tracts varies.
+3.  Area of census tracts can be very different.
+
+**Census tracts follow the evolution of cities**. As cities grow in size and complexity, so do the shape and number of the tracts. In the 2010 Census, São Paulo had nearly 19.000 census tracts, in the most recent Census it had 27.600 tracts, a 45% increase. Note that the borders of the city remained unchanged during this period.
+
+**New census tracts aren't necessarily subsets of previously existing tracts**. This means that comparing census tracts through time is not so straightforward. A way to standardize census tracts is to "dissolve" them into a statistical grid and either (1) use this higher resolution grid directly; or (2) use the grid as an intermediary step to interpolate different census data into a common standard.
+
+**Census tracts can vary a lot in size**. It's a common practice to include large chunks of uninhabited land (e.g. public parks) into a single huge census tract. This means that creating "intensive" variables such as population density can be tricky in some cases.
+
+While the size of census tracts varies, the underlying demographic data can be much more well-behaved. The histograms below show the distribution of (1) total population and the (2) average number of persons per household among all census tracts in Curitiba. Population data is relatively normal-shaped, with a right skew; note that the distribution also has a small spike at zero, since there are several non-populated census tracts. To improve this visualization, I remove outliers from the second plot[^2].
+
+[^2]: Census tracts where there either 0 persons per household or more than 4 persons per household are considered outliers.
 
 ```{r}
 #| echo: false
@@ -293,49 +333,16 @@ p3 <- ggplot(filter(tab_curitiba, pop_dom > 0, pop_dom < 4), aes(x = pop_dom)) +
 p1 | p3
 ```
 
-## Higher Resolution
-
-An obvious improvement from the 2010 census tracts is the gain in spatial resolution. The maps below show the central area of Curitiba where there was a 33% increase in the number of total census tracts.
-
-```{r}
-#| out-width: 100%
-#| echo: false
-setores_centro_antigo <- cur_setores_2010 |> 
-  filter(code_subdistrict == 41069020501)
-
-m1 <- ggplot(setores_centro_antigo) +
-  geom_sf() +
-  ggtitle("2010 Tracts (343)") +
-  theme_void() +
-  theme(plot.title = element_text(hjust = 0.5))
-
-m2 <- ggplot(setores_centro) +
-  geom_sf() +
-  ggtitle("2022 Tracts (457)") +
-  theme_void() +
-  theme(plot.title = element_text(hjust = 0.5))
-
-m1 | m2
-```
-
-# Important considerations
-
-Some important considerations to keep in mind when working with census tracts.
-
-1.  Shape is not time consistent.
-2.  Number of census tracts varies.
-3.  Area of census tracts can be very different.
-
-Census tracts follow the evolution of cities. As cities grow in size and complexity, so do the shape and number of the tracts. In the 2010 Census, São Paulo had nearly 19.000 census tracts, in the most recent Census it had 27.600 tracts, a 45% increase. Note that the borders of the city remained unchanged during this period.
-
-**New census tracts aren't necessarily subsets of previously existing tracts**. This means that comparing census tracts through time is not so straightforward. A way to standardize census tracts is to "dissolve" them into a statistical grid and either (1) use this higher resolution grid directly; or (2) use the grid as an intermediary step to interpolate different census data into a common standard.
-
-**Census tracts can vary a lot in size**. It's a common practice to include large chunks of uninhabited land (e.g. public parks) into a single huge census tract. This means that creating "intensive" variables such as population density can be tricky in some cases.
-
 ## Dealing with spatial inconsistency
 
+A simple strategy to deal with census tracts' spatial inconsistency is to define a common spatial grid. This means choosing either a (1) grid of triangles; (2) grid of squares; or (3) grid of hexagons. In this example, I choose a simple squared grid.
+
+The maps below show the same Census population data in a squared 100x100m squared grid. While I omit the color legend of the plots, I scaled them equally as to make them directly comparable; also, darker shades of green indicate higher values, while ligher shades of green indicate lower values.
+
+The 2010 Census data was directly imported using the [`censobr`](https://ipeagit.github.io/censobr/) R package.
+
 ```{r}
-#| echo: false
+#| code-fold: true
 
 library(censobr)
 # Get demographic data for 2010 census
