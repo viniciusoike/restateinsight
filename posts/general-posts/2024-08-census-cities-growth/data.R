@@ -1,11 +1,3 @@
----
-title: "Censo 2022 - Cidades e Regiões Metropolitanas"
-draft: true
-execute: 
-  eval: false
----
-
-```{r}
 library(sidrar)
 library(dplyr)
 library(tidyr)
@@ -19,31 +11,6 @@ library(showtext)
 font_add_google("Lato", "Lato")
 showtext::showtext_auto()
 
-theme_vini <- theme_minimal(base_family = "Lato") +
-  theme(
-    panel.grid.minor = element_blank(),
-    plot.title = element_text(size = 18, color = "gray10"),
-    plot.subtitle = element_text(size = 10),
-    plot.caption = element_text(size = 8),
-    text = element_text(color = "gray40")
-    )
-
-```
-
-```{r}
-pop2022 <- get_sidra(4709, variable = 93, geo = "City")
-
-pop_series <- get_sidra(
-  136,
-  variable = 93,
-  period = "1991-2010",
-  geo = "City",
-  classific = c("c86"),
-  category = list(0)
-  )
-```
-
-```{r}
 clean_sidra <- function(df, name_value = "pop") {
   
   cols <- c("code_muni" = "municipio_codigo", "year" = "ano", x = "valor")
@@ -57,39 +24,59 @@ clean_sidra <- function(df, name_value = "pop") {
   
   
 }
-```
 
-```{r}
+theme_vini <- theme_minimal(base_family = "Lato") +
+  theme(
+    panel.grid.minor = element_blank(),
+    plot.title = element_text(size = 18, color = "gray10"),
+    plot.subtitle = element_text(size = 10),
+    plot.caption = element_text(size = 8),
+    text = element_text(color = "gray40")
+  )
+
+pop2022 <- get_sidra(4709, variable = 93, geo = "City")
+
+pop_series <- get_sidra(
+  136,
+  variable = 93,
+  period = "1991-2010",
+  geo = "City",
+  classific = c("c86"),
+  category = list(0)
+)
+
+# Shape files
+
+# Metro Regions
 metro_region <- read_metro_area(showProgress = FALSE)
 dim_metro <- as_tibble(st_drop_geometry(metro_region))
 dim_metro <- select(dim_metro, code_muni, name_metro)
 
+# Cities
 cities <- read_municipality(year = 2020, showProgress = FALSE)
 dim_city <- as_tibble(st_drop_geometry(cities))
 
+# Join dimension tables
 dim_city <- left_join(dim_city, dim_metro, by = "code_muni")
 
 #> Remove an exception: Murici is mapped into two different metro regions
 dim_city <- dim_city |> 
   filter(!(code_muni == 2705507 & name_metro == "RM da Zona da Mata"))
-```
 
-```{r}
+
 cpop_series <- clean_sidra(pop_series)
 cpop2022 <- clean_sidra(pop2022)
 
 census_pop <- rbind(cpop_series, cpop2022)
 census_pop <- left_join(census_pop, dim_city, by = "code_muni")
-```
 
-```{r}
 shorten_ride_names <- function(x) {
   
   ride_names <- c(
-  "RIDE - Região Integrada de Desenvolvimento do Distrito Federal e Entorno" = "RIDE DF",
-  "RIDE TERESINA - Região Integrada de Desenvolvimento da Grande Teresina" = "RIDE Teresina",
-  "RIDE Petrolina/Juazeiro Região Administrativa Integrada de Desenvolvimento do Polo Petrolina/PE e Juazeiro/BA" = "RIDE Petrolina/Juazeiro"
-)
+    "RIDE - Região Integrada de Desenvolvimento do Distrito Federal e Entorno" = "RIDE DF",
+    "RIDE TERESINA - Região Integrada de Desenvolvimento da Grande Teresina" = "RIDE Teresina",
+    "RIDE Petrolina/Juazeiro Região Administrativa Integrada de Desenvolvimento do Polo Petrolina/PE e Juazeiro/BA" = "RIDE Petrolina/Juazeiro"
+  )
   
   unname(ride_names[x])
   
@@ -105,25 +92,21 @@ tbl_pop_metro <- census_pop %>%
       str_detect(name_metro, "^RIDE"),
       shorten_ride_names(name_metro),
       name_metro
-      ),
+    ),
     name_metro = str_trim(name_metro, side = "both")
-    ) %>%
+  ) %>%
   summarise(
     total = sum(pop, na.rm = TRUE),
     state = paste(unique(abbrev_state), collapse = ", "),
     .by = c("year", "name_metro")
-    ) %>%
+  ) %>%
   arrange(year) %>%
   arrange(name_metro)
-```
 
-```{r}
 big_metros <- tbl_pop_metro %>%
   filter(year == 2022, total > 5*1e5) %>%
   pull(name_metro)
-```
 
-```{r}
 # Get only 500k cities and compute average geometric growth
 tbl_major <- tbl_pop_metro %>%
   filter(name_metro %in% big_metros) %>%
@@ -140,12 +123,10 @@ tbl_major_wide <- tbl_major %>%
     id_cols = c("name_metro", "state"),
     names_from = "year",
     values_from = c("total_round", "tcg")
-    ) %>%
+  ) %>%
   select(-tcg_1991) %>%
   arrange(desc(total_round_2022))
-```
 
-```{r}
 timeline <- tbl_major %>%
   summarise(
     TCG = list(na.omit(c(tcg * 100))),
@@ -182,75 +163,11 @@ gtable_cities <- tbl_major_wide %>%
       "#E63946", "#F1FAEE", "#CDEAE5", "#BBE2E1", "#A8DADC", "#90C3CD", "#77ABBD",
       "#457B9D", "#31587A", "#1D3557")
   )
-```
 
-```{r}
-pop_sul <- get_sidra(
-  4709,
-  variable = c(93, 10605),
-  geo = "City",
-  geo.filter = list("Region" = 4)
-  )
-```
 
-```{r}
-muni <- read_municipality(year = 2020, showProgress = FALSE)
-muni <- filter(muni, code_region == 4)
+gtable_cities
 
-state <- read_state(showProgress = FALSE)
-state <- filter(state, code_region == 4)
-```
 
-```{r}
-tbl_pop_sul <- pop_sul %>%
-  janitor::clean_names() %>%
-  select(
-    code_muni = municipio_codigo,
-    name_series = variavel,
-    value = valor
-  ) %>%
-  mutate(
-    code_muni = as.numeric(code_muni),
-    name_series = ifelse(str_detect(name_series, "^Pop"), "pop", "tgc")
-    ) %>%
-  pivot_wider(
-    id_cols = "code_muni",
-    names_from = "name_series",
-    values_from = "value")
-```
-
-```{r}
-muni <- left_join(muni, tbl_pop_sul, by = "code_muni")
-
-bks <- c(-2.23, -0.85, 0, 0.5, 1.2, 2.1, 3.5, 6.32)
-lvls <- findInterval(muni$tgc, bks, rightmost.closed = TRUE)
-fill_labels <- c(
-  "-2.22, -0.85", "-0.85, 0", "0, 0.5", "0.5, 1.2", "1.2, ")
-fill_labels <- paste(bks, bks[-1], sep = ",")
-fill_labels
-
-muni <- muni %>%
-  mutate(
-    group_tgc = classInt::classify_intervals(tgc, n = 7, style = "jenks")
-  )
-```
-
-```{r}
-ggplot() +
-  geom_sf(data = muni, aes(fill = as.factor(group_tgc)), color = "gray50") +
-  geom_sf(data = state, fill = NA, linewidth = 0.6) +
-  scale_fill_brewer(type = "div") +
-  theme_void()
-```
-
-```{r}
-dfsul <- as_tibble(st_drop_geometry(muni))
-
-ggplot(dfsul, aes(x = log(pop), y = tgc)) +
-  geom_point(aes(color = abbrev_state), alpha = 0.5)
-```
-
-```{r}
 # Domicílios particulares ocupados (total e média de moradores)
 domi22 <- get_sidra(4712, variable = c(381, 5930), geo = "City")
 
@@ -258,9 +175,7 @@ domi22 <- get_sidra(4712, variable = c(381, 5930), geo = "City")
 domi_series <- get_sidra(156, variable = 2048, geo = "City", period = "1991-2010")
 # Número médio de moradores (por domicílio particular ocupado)
 domi_media <- get_sidra(156, variable = 619, geo = "City", period = "1991-2010")
-```
 
-```{r}
 big_cities <- census_pop |> 
   filter(year == 2022, pop > 8 * 1e5) |> 
   pull(code_muni)
@@ -271,7 +186,7 @@ tab_big_cities <- census_pop |>
     chg_abs = pop - lag(pop),
     chg_rel = pop / lag(pop) - 1,
     .by = c("code_muni", "name_muni")
-    )
+  )
 
 tab_chg <- tab_big_cities |> 
   filter(year == 2022) |> 
@@ -300,9 +215,7 @@ p_pop <- ggplot(tab_chg, aes(x = name_muni, y = chg_abs / 1000)) +
     y = "Milhares de Habitantes",
     caption = "Fonte: CENSO 2022 (IBGE).") +
   theme_vini
-```
 
-```{r}
 breaks <- c(20000, 50000, 100000, 500000, 1000000)
 
 bb <- format(breaks, big.mark = ".", scientific = FALSE)
@@ -313,15 +226,15 @@ labels <- str_remove_all(labels, " ")
 labels <- c(
   "Menos de 20 mil", "20 a 50 mil", "50 a 100 mil", "100 a 500 mil",
   "500 mil a 1 milhão", "Mais de 1 milhão"
-  )
+)
 
 dflabel <- tibble(
   pop_group = 0:5,
   labels = c(
     "Menos de 20 mil", "20 a 50 mil", "50 a 100 mil", "100 a 500 mil",
     "500 mil a 1 milhão", "Mais de 1 milhão"
-    )
   )
+)
 
 cpop2022 <- cpop2022 |> 
   mutate(pop_group = findInterval(pop, breaks))
@@ -332,7 +245,7 @@ tab_cities <- census_pop |>
     chg_abs = pop - lag(pop),
     chg_rel = pop / lag(pop) - 1,
     .by = c("code_muni", "name_muni")
-    ) |> 
+  ) |> 
   left_join(select(cpop2022, code_muni, pop_group), by = "code_muni")
 
 tab_growth_cities <- tab_cities |> 
@@ -348,9 +261,7 @@ tab_growth_cities <- tab_cities |>
   ) |> 
   arrange(pop_group) |> 
   left_join(dflabel)
-```
 
-```{r}
 plot_growth <- 
   ggplot(tab_growth_cities, aes(x = as.factor(pop_group), y = share)) +
   geom_col(fill = "#1d3557") +
@@ -372,19 +283,17 @@ plot_growth <-
   theme(
     panel.grid = element_blank(),
     axis.text.y = element_text(size = 12, hjust = 0.5)
-    )
-```
+  )
 
-```{r}
 tab_growth_cities <- tab_growth_cities |> 
   mutate(
     name_label = c("Pequeno", "Pequeno", "Médio", "Médio", "Médio-Grande", "Mega-Cidades")
-    ) |> 
+  ) |> 
   select(name_label, labels, count, total_growth, total_wgt)
 
 col_names <- c(
   "Porte", "Habitantes", "Número", "Crescimento\ntotal", "Crescimento\nMédio (*)"
-  )
+)
 
 names(col_names) <- names(tab_growth_cities)
 
@@ -395,9 +304,7 @@ gt_growth <- tab_growth_cities %>%
   fmt_percent(5) %>%
   tab_caption("Crescimento populacional das cidades por porte.") %>%
   opt_stylize(style = 6)
-```
 
-```{r}
 cities_loss <- tab_cities |> 
   slice_min(chg_abs, n = 9) |> 
   pull(code_muni)
@@ -408,7 +315,7 @@ tab_losses <- census_pop |>
     chg_abs = pop - lag(pop),
     chg_rel = pop / lag(pop) - 1,
     .by = c("code_muni", "code_region")
-    ) |> 
+  ) |> 
   mutate(
     name_muni = if_else(name_muni == "Rio De Janeiro", "Rio de Janeiro", name_muni)
   )
@@ -432,14 +339,12 @@ ggplot(tab_losses, aes(x = year, y = chg_rel, fill = as.factor(code_region))) +
     panel.grid.major.x = element_blank(),
     strip.background = element_rect(fill = NA, color = "gray20")
   )
-```
 
-```{r}
 tab_states <- census_pop |> 
   summarise(
     total = sum(pop, na.rm = TRUE),
     .by = c("year", "code_state", "name_state")
-    ) |> 
+  ) |> 
   arrange(code_state) |> 
   mutate(
     chg_abs = total - lag(total),
@@ -463,7 +368,7 @@ state_chg <- state_chg %>%
     y = as.numeric(st_coordinates(st_centroid(.))[, 2]),
     repel = if_else(code_state %in% c(24:28, 53), 1L, 0L),
     group = findInterval(tgc, c(0.015, 0.5, 1, 1.5, 2))
-    )
+  )
 
 
 ggplot(state_chg) +
@@ -473,7 +378,7 @@ ggplot(state_chg) +
     aes(x = x, y = y, label = label),
     size = 3,
     family = "Lato"
-    ) +
+  ) +
   ggrepel::geom_label_repel(
     data = filter(state_chg, repel == 1),
     aes(x = x, y = y, label = label),
@@ -488,10 +393,7 @@ ggplot(state_chg) +
   ) +
   coord_sf(xlim = c(NA, -35)) +
   ggthemes::theme_map(base_family = "Lato")
-```
 
-```{r}
-#| eval: false
 ggplot(state_chg) +
   geom_sf(aes(fill = tgc)) +
   geom_label(
@@ -499,7 +401,7 @@ ggplot(state_chg) +
     aes(x = x, y = y, label = label),
     size = 3,
     family = "Lato"
-    ) +
+  ) +
   ggrepel::geom_label_repel(
     data = filter(state_chg, repel == 1),
     aes(x = x, y = y, label = label),
@@ -514,9 +416,7 @@ ggplot(state_chg) +
   ) +
   coord_sf(xlim = c(NA, -35)) +
   ggthemes::theme_map(base_family = "Lato")
-```
 
-```{r}
 unique(metro_region$name_metro)
 
 sel_metro <- c(
@@ -549,12 +449,10 @@ tab_city_metro <- census_pop |>
     names_from = "year",
     values_from = c("pop", "chg_rel", "tgc")
   )
-```
 
-```{r}
 cities_metro <- inner_join(cities, tab_city_metro, by = "code_muni")
 
-breaks <- BAMMtools::getJenksBreaks(dat$tgc_2022, k = 7)
+breaks <- BAMMtools::getJenksBreaks(cities_metro$tgc_2022, k = 7)
 breaks[3] <- 0
 # labels <- format(round(breaks * 100, 2), decimal.mark = ",")
 # labels <- paste(labels, labels[-1], sep = " a ")
@@ -562,13 +460,11 @@ breaks[3] <- 0
 
 labels <- c(
   "-0,55 a -0,20", "-0,20 a 0,00", "0,00 a 0,81", "0,81 a  1,22", 
-  "1,22 a 2,06", "2,06 a 4,79", "> 4,8%")
+  "1,22 a 2,06", "2,06 a 4,79", "> 4,8%"
+  )
 
 cities_metro <- cities_metro |> 
   dplyr::mutate(group = factor(findInterval(tgc_2022, breaks)))
-```
-
-```{r}
 
 plot_metro <- function(metro, size = 3, legend = FALSE) {
   
@@ -588,17 +484,17 @@ plot_metro <- function(metro, size = 3, legend = FALSE) {
       color = "gray20") +
     ggtitle(label = metro) +
     scale_fill_manual(
-    values = colors,
-    labels = labels
-  ) +
+      values = colors,
+      labels = labels
+    ) +
     ggthemes::theme_map(base_family = "Lato") +
     theme(
       plot.title = element_text(
         size = 18,
         hjust = 0.5,
         color = "gray10"
-        )
       )
+    )
   
   if (!legend) {
     plot <- plot + theme(legend.position = "none")
@@ -607,13 +503,13 @@ plot_metro <- function(metro, size = 3, legend = FALSE) {
   return(plot)
   
 }
-```
 
-```{r}
 plot_metro("Curitiba")
-```
 
-```{r}
+plot_metro("Porto Alegre")
+
+
+
 cities_shrink <- tab_big_cities |> 
   filter(year == 2022, chg_rel < 0) |> 
   pull(code_muni)
@@ -638,7 +534,7 @@ plot_cities_loss <-
   scale_x_continuous(
     breaks = c(1991, 2000, 2010, 2022),
     limits = c(NA, 2027)
-    ) +
+  ) +
   scale_y_continuous(labels = scales::label_percent()) +
   labs(
     title = "Queda no crescimento em grandes cidades",
@@ -648,27 +544,8 @@ plot_cities_loss <-
     caption = "Fonte: IBGE (CENSO, 1991, 2000, 2010, 2022)."
   ) +
   theme_vini
-```
 
-# Censo 2022
 
-```{r}
-p_pop
-```
-
-```{r}
-plot_cities_loss
-```
-
-```{r}
-plot_growth
-```
-
-```{r}
-gt_growth
-```
-
-```{r}
 tab_growth_cities %>%
   gt(id = "table_growth") %>%
   cols_label(.list = col_names) %>%
@@ -682,4 +559,3 @@ tab_growth_cities %>%
     table.border.top.width = px(3),
     table.font.size = 12
   )
-```
