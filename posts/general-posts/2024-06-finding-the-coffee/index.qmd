@@ -3,6 +3,8 @@ title: "Finding all The Coffee shops in Brazil"
 date: "2024-06-12"
 description: ""
 categories: ['data-science', 'web-scrapping', 'finding-all', 'tutorial-r', 'brasil']
+execute: 
+  eval: false
 draft: true
 ---
 
@@ -10,7 +12,7 @@ draft: true
 
 In this post, I'll show you how to map every The Coffee shop in Brazil in less time than it takes to brew a pot of coffee. All this from your laptop and without spending a dime.
 
-We'll use only R and a few packages to webscrape all addresses
+We'll use only `R` and a few packages to webscrape all addresses.
 
 ### What is The Coffee
 
@@ -22,44 +24,239 @@ The Coffee also strays away from the traditional friendly-neighborhood barista a
 
 The company was founded in Curitiba, at the southern part of Brazil, in 2018, and has expanded rapidly to 12 countries with over 200 shops. Their franchise model in part explains this strong expansion.
 
-Spatial analysis allows us to examine geographical patterns, relationships, and trends, providing valuable insights for businesses, urban planning, and research. Geocoding is the process of converting addresses into geographic coordinates
-
-Geocoding is a pivotal process in spatial analysis, converting textual location descriptions, such as addresses or place names, into geographic coordinates (latitude and longitude). At its core, geocoding translates a human-readable address (e.g., "Rua dos Bobos, 0, São Paulo, Brazil") into a precise point on a map. This process involves matching the input address with geographic data, usually from a reference database like Google Maps or OpenStreetMap, and outputting the corresponding coordinates.
-
-These coordinates are essential for placing locations on a map and performing further spatial analysis. Understanding the importance of geocoding helps frame the rest of the analysis and clarifies why it's a necessary first step.
-
-### Patterns in Coffee Shop Locations
-
-The distribution of coffee shops across Brazil is influenced by various factors, including population density, tourism, and regional economic activity. Major cities like São Paulo and Rio de Janeiro are expected to have a high concentration of coffee shops, catering to both locals and tourists.
-
-Coffee is deeply intertwined with Brazilian culture and economy. Brazil is not only the world's largest coffee producer but also has a vibrant coffee culture that spans from traditional cafes to modern specialty coffee shops. Coffee can be found ubiquitously from R\$1 to R\$20
-
-The Coffee, Starbucks, and other 2nd wave coffee shops
-
-### Strategic Insights for Businesses
-
-For coffee shop owners and entrepreneurs, understanding the spatial distribution of competitors is crucial for making informed decisions about where to open new locations. A map showing the density of coffee shops can highlight saturated markets where competition is fierce, as well as underserved areas that might represent untapped opportunities. Additionally, proximity to other amenities, such as universities, shopping centers, or public transportation, can influence the success of a coffee shop, making spatial analysis an essential tool for strategic planning.
-
-1.  Population density.
-2.  Average income.
-3.  Age demographics.
-4.  Proximity to points of interest (POI), e.g. universities, shopping centers, public transportation, etc.
-
-### Why use R?
-
-The R language offers numerous advantages:
-
-1.  It's free and has a rich and diverse collection of packages, tutorials, and reusable code.
-2.  
-
-We'll leverage the power of R, an open-source programming language that's widely used in data science. Using R offers numerous advantages: it’s free, the code can be reused and adapted to various contexts, and its strong emphasis on reproducibility ensures that your analyses can be replicated by others. We'll use the tidyverse, a collection of R packages designed for data manipulation, visualization, and analysis, to make the process efficient and straightforward.
-
-In this tutorial, we'll dive into spatial analysis using R, focusing on geocoding all coffee shops in Brazil.
-
 # Webscraping
 
 ## Setup
 
+```{r}
+library(dplyr)
+library(stringr)
+library(rvest)
+library(sf)
+library(leaflet)
+
+import::from(tidygeocoder, geocode)
+import::from(purrr, map, map2)
+import::from(tidyr, unnest)
+```
+
 ## Finding the data
 
-## 
+### The website
+
+![](/static/images/coffeeshops/tcf_site.png){fig-align="center"}
+
+![](/static/images/coffeeshops/tcf_inspect.png){fig-align="center"}
+
+### Using R
+
+```{r}
+# Base url 
+base_url <- "https://thecoffee.jp/shortcut/brasil"
+# Parse HTML
+page_list_brazil <- xml2::read_html(base_url)
+
+page_list_cities <- page_list_brazil |> 
+  html_elements(xpath = "//div/ul/li/a") |> 
+  html_attr("href")
+
+page_list_cities <- page_list_cities[str_detect(page_list_cities, "brasil/")]
+
+url_cities <- str_c(base_url, str_remove(page_list_cities, "shortcut/brasil/"))
+```
+
+```{r}
+scrape_the_coffee <- function(url) {
+  
+  # Parse the html
+  page <- xml2::read_html(url)
+  # Find the the name of the shop
+  coffee_shop_name <- page |> 
+    rvest::html_elements(xpath = "//div/ul/li/div/div/a/h4") |> 
+    rvest::html_text()
+  # Find the address of the shop
+  address_list <- page |> 
+    rvest::html_elements(xpath = "//div/ul/li/div/div/a/p") |> 
+    rvest::html_text()
+  # Remove shops that are not open yet
+  address_list <- address_list[!str_detect(address_list, "coming soon")]
+  street_name <- address_list[seq(1, length(address_list), 2)]
+  city_name <- address_list[2]
+  
+  full_address <- paste(street_name, city_name)
+
+  # Store results in a tibble
+  out <- tibble::tibble(
+    name = coffee_shop_name,
+    address = full_address,
+    street_name = street_name,
+    city_name = city_name
+  )
+  
+  return(out)
+
+}
+
+
+```
+
+```{r}
+# Scrape all cities
+coffee_locations <- map(url_cities, scrape_the_coffee)
+names(coffee_locations) <- url_cities
+dat <- bind_rows(coffee_locations, .id = "url")
+```
+
+```{r}
+pb <- txtProgressBar(min = 1, max = length(url_cities), style = 3)
+ls <- vector("list", length(url_cities))
+
+for (i in seq_along(url_cities)) {
+  
+  url <- url_cities[i]
+  current_city <- basename(url)
+  message("Scraping data for: ", current_city)
+  ls[[i]] <- scrape_the_coffee(url)
+  setTxtProgressBar(pb, i)
+  
+}
+```
+
+### Cleaning the data
+
+```{r}
+unnabreviate <- function() {
+  c("Av\\." = "Avenida",
+    "Al\\." = "Alameda",
+    "R\\."  = "Rua",
+    "Dr\\." = "Doutor",
+    "Visc\\." = "Visconde",
+    "Pres\\." = "Presidente",
+    "Mal\\." = "Marechal")
+}
+
+dat <- dat |> 
+  mutate(
+    city_name = str_remove(city_name, " - Brasil"),
+    address = str_replace_all(address, unnabreviate()),
+    country = "Brasil"
+    )
+```
+
+### Geocoding
+
+Geocoding the data is fairly straightforward. I use the Google Maps API to find the corresponding lat/lng pair for each address.
+
+```{r}
+# Geocode using Maps API
+coffee <- tidygeocoder::geocode(
+  dat,
+  address = address,
+  method = "google"
+  )
+
+# Convert to spatial data.frame
+shops <- st_as_sf(
+  coffee,
+  coords = c("long", "lat"),
+  crs = 4326,
+  remove = FALSE
+  )
+```
+
+## Results
+
+```{r}
+tab_count <- shops |> 
+  st_drop_geometry() |> 
+  count(city_name, sort = TRUE) |> 
+  mutate(share_brasil = n / sum(n)) |> 
+  head(10)
+
+gt(tab_count, caption = "The Coffee shops, major cities") |> 
+  cols_label(
+    city_name = "Cidade",
+    n = "Lojas",
+    share_brasil = "Share BR (%)"
+  ) |> 
+  fmt_percent(3) |> 
+  opt_stylize(style = 6) |> 
+  opt_table_font(font = google_font("Open Sans"))
+```
+
+```{r}
+leaflet(shops) %>%
+  addTiles() %>%
+  addMarkers(label = ~name) %>%
+  addProviderTiles("CartoDB") %>%
+  setView(lng = -46.65590, lat = -23.561197, zoom = 12)
+```
+
+```{r}
+cur_shops <- filter(shops, city_name == "Curitiba")
+
+get_ratings <- function(lat, lng) {
+  
+  location <- c(lat, lng)
+  places <- google_places("The Coffee", location = location, radius = 10)
+  res <- places$results
+  
+  subres <- res %>%
+    unnest(cols = "geometry") %>%
+    unnest(cols = "location") %>%
+    select(
+      business_status, name, formatted_address, rating, user_ratings_total,
+      lat, lng
+    )
+  
+}
+
+```
+
+```{r}
+ratings <- map2(cur_shops$lat, cur_shops$long, get_ratings)
+
+dat_ratings <- ratings |> 
+  bind_rows() |> 
+  distinct() |> 
+  filter(str_detect(name, "^The Coffee"))
+
+dat_ratings <- dat_ratings |> 
+  mutate(
+    street_name = str_extract(formatted_address, "^[^,]+"),
+    street_name = str_replace_all(street_name, unnabreviate()),
+    street_name = stringi::stri_trans_general(street_name, "latin-ascii"),
+    street_number = as.numeric(str_extract(formatted_address, "(?<=, )\\d+(?=\\b)"))
+  )
+
+cur_shops <- cur_shops |> 
+  rename(short_address = street_name) |> 
+  mutate(
+    street_name = str_extract(address, "^[^,]+"),
+    street_name = str_replace_all(street_name, unnabreviate()),
+    street_name = stringi::stri_trans_general(street_name, "latin-ascii"),
+    street_number = as.numeric(str_extract(address, "(?<=, )\\d+(?=\\b)"))
+  )
+
+cur_shops |> 
+  arrange(address) |> 
+  left_join(dat_ratings, by = c("street_name", "street_number")) |> 
+  filter(is.na(rating))
+
+dat_ratings$street_name
+
+subres <- st_as_sf(subres, coords = c("lng", "lat"), crs = 4326)
+
+# Mapa iterativo simples
+leaflet(subres) |> 
+  addTiles() |> 
+  addCircleMarkers(label = ~name) |> 
+  addProviderTiles("CartoDB")
+
+```
+
+## Merging with Census information
+
+```{r}
+
+```

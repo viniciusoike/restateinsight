@@ -72,7 +72,6 @@ for (i in seq_along(url_cities)) {
   
 }
 
-
 dat <- bind_rows(coffee_locations, .id = "url")
 
 unnabreviate <- function() {
@@ -92,7 +91,14 @@ dat <- dat |>
     country = "Brasil"
     )
 
-tab_count <- dat |> 
+coffee <- tidygeocoder::geocode(dat, address = address, method = "google")
+
+shops <- st_as_sf(coffee, coords = c("long", "lat"), crs = 4326, remove = FALSE)
+
+st_write(shops, here::here("static/data/coffeeshops_the_coffee.gpkg"))
+
+tab_count <- shops |> 
+  st_drop_geometry() |> 
   count(city_name, sort = TRUE) |> 
   mutate(share_brasil = n / sum(n)) |> 
   head(10)
@@ -106,10 +112,6 @@ gt(tab_count, caption = "The Coffee shops, major cities") |>
   fmt_percent(3) |> 
   opt_stylize(style = 6) |> 
   opt_table_font(font = google_font("Open Sans"))
-
-coffee <- tidygeocoder::geocode(dat, address = address, method = "google")
-
-shops <- st_as_sf(coffee, coords = c("long", "lat"), crs = 4326, remove = FALSE)
 
 cur_shops <- filter(shops, city_name == "Curitiba")
 
