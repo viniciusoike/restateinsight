@@ -1,17 +1,17 @@
 ---
 title: "Census Tracts in Brazil"
-date: "2024-04-18"
-categories: ['censo', 'brasil', 'sao-paulo', 'data-science', 'data-visualization', 'mapas', 'leaflet', 'ggplot2']
-description: ""
+date: "2024-06-14"
+categories: ['census', 'brazil', 'sao-paulo', 'data-science', 'data-visualization', 'maps', 'leaflet', 'ggplot2']
+description: "Census tracts are the smallest administrative divisions that provide socio-economic and demographic data. They are highly useful for statistical and spatial analysis, offering a robust and reliable set of information at a fine geographical scale."
 execute: 
   message: false
   warning: false
-  eval: false
 draft: true
 ---
 
 ```{r, setup}
-library(here)
+#| include: false
+# Packages
 library(sf)
 library(dplyr)
 library(leaflet)
@@ -19,110 +19,53 @@ library(ggplot2)
 library(gt)
 library(gtExtras)
 library(geobr)
-library(showtext)
-```
+library(patchwork)
 
-## Importing the data
+import::from(here, here)
 
-### Census Files
-
-```{r, import-data}
-
-file_dir <- "/Volumes/T7 Touch/github/tidyibge/data-raw/dados_setores_censitarios"
-
-dat <- data.table::fread(
- paste0(file_dir, "/Agregados_preliminares_por_setores_censitarios_BR.zip")
-)
-
-setores <- sf::st_read(paste0(file_dir, "/BR_Malha_Preliminar_2022.gpkg"))
-```
-
-### Data Dictionary
-
-An excel spreadsheet is available as a data dictionary at the IBGE website. Alternatively, the code below serves as a quick way to get this data into R.
-
-```{r}
-dict <- tibble(
-  name_variable = paste0("v000", 1:7),
-  desc_variable = c(
-    "Total de Pessoas", "Total de Domicilios", "Total de Domicilios Particulares",
-    "Total de Domicilios Coletivos", "Media de moradores em domicilios particulares ocupados",
-    "Percentual de domicilios imputados", "Total de domicilios particulares ocupados"),
-  short_name = c("pop", "dom", "dom_prt", "dom_col", "pop_dom", "share_dom_imput", "dom_prt_ocup")
-)
-
-rename_cols <- dict$name_variable
-names(rename_cols) <- dict$short_name
-
-vl_names <- c(
-  "code_tract" = "CD_SETOR",
-  "area_km2" = "AREA_KM2",
-  "code_region" = "CD_REGIAO",
-  "name_region" = "NM_REGIAO",
-  "code_state" = "CD_UF",
-  "name_state" = "NM_UF",
-  "code_muni" = "CD_MUN",
-  "name_muni" = "NM_MUN",
-  "code_district" = "CD_DIST",
-  "name_district" = "NM_DIST",
-  "code_subdistrict" = "CD_SUBDIST",
-  "name_subdistrict" = "NM_SUBDIST",
-  "code_microregion" = "CD_MICRO",
-  "name_microregion" = "NM_MICRO",
-  "code_mesoregion" = "CD_MESO",
-  "name_mesoregion" = "NM_MESO",
-  "code_immediate" = "CD_RGI",
-  "name_immediate" = "NM_RGI",
-  "code_intermediate" = "CD_RGINT",
-  "name_intermediate" = "NM_RGINT",
-  "code_urban_concentration" = "CD_CONCURB",
-  "name_urban_concentration" = "NM_CONCURB"
-)
-
-rename_cols <- c(rename_cols, vl_names)
-```
-
-Using the `rename_cols` vector we can easily rename all column names.
-
-```{r}
-dat <- dat %>%
-  rename(all_of(rename_cols)) %>%
-  select(
-    code_tract, code_muni, name_muni, code_region, name_region, code_state,
-    name_state, pop:dom_prt_ocup
+# Curitiba Census Tracts 2022
+cur_setores <- st_read(
+  here("static/data/census/cur_setores_2022.gpkg"),
+  quiet = TRUE
   )
 
-setores <- setores %>%
-  rename(any_of(rename_cols))
+# Curitiba Census Tracts 2010
+cur_setores_2010 <- st_read(
+  here("static/data/census/cur_setores_2010.gpkg"),
+  quiet = TRUE
+  )
+
+# spo_setores <- st_read(
+#   here("static/data/census/spo_setores_2022.gpkg"),
+#   quiet = TRUE
+# )
+# 
+# spo_setores_2010 <- st_read(
+#   here("static/data/census/spo_setores_2010.gpkg"),
+#   quiet = TRUE
+# )
 ```
 
-# Census Tracts
+# Understanding Census Tracts in Brazil
 
-Broadly speaking, census tracts are small areas that exhibit similar socioeconomic and demographic patterns. In major urban settings, these are usually small areas
+Census tracts are the smallest administrative division that present socioeconomic and demographic data. Broadly speaking, census tracts are **small areas that exhibit similar socioeconomic and demographic patterns.** [In another post](https://restateinsight.com/posts/general-posts/2024-04-brazil-shapes) I presented all of the Brazilian administrative and statistical subdivisions. Census tracts are small, usually much smaller than a neighborhood, but larger than a single block.
 
-```{r}
-setores2000 <- read_census_tract(code_tract = "all", year = 2000, showProgress = FALSE)
-setores2010 <- read_census_tract(code_tract = "all",year = 2010, showProgress = FALSE)
-```
+Census tracts are the strata used by National Bureau of Statistics and Geography (IBGE) in their decennial Census. The shape of each census tract usually respects administrative borders, land barriers, public spaces (parks, beaches, etc.), and follows the shape of roads, highways, or city blocks.
 
-```{r}
-sapply(list(setores2000, setores2010, setores), nrow)
+Census tracts also exhibit relatively **homogeneous socioeconomic and demographic characteristics**. This makes census tracts a very useful statistical tool in regression analysis and classification.
 
-sapply(list(setores2000, setores2010, setores), \(x) length(unique(x$code_muni)))
-```
+The map below shows the 2022 census tracts in Curitiba, a major city in the Southern part of Brazil.
 
 ```{r}
-curitiba_setores <- setores %>%
-  filter(code_muni == 4106902) %>%
+#| code-fold: true
+curitiba_setores <- cur_setores %>%
   mutate(across(pop:dom_prt_ocup, as.numeric)) %>%
   mutate(
     area_km2 = as.numeric(area_km2),
     pop_dens_area = pop / area_km2,
     pop_dens_hh = pop / dom_prt_ocup
   )
-```
 
-```{r}
 labels <- sprintf(
   "<b>Code Tract<b/>: %s <br>
   <b>Code Subdistrict<b/>: %s <br>
@@ -134,237 +77,375 @@ labels <- sprintf(
 
 labels <- lapply(labels, htmltools::HTML)
 
+# center <- curitiba_setores %>%
+#   summarise(geom = st_union(.)) %>%
+#   st_centroid() %>%
+#   st_coordinates()
+
+curitiba_center <- c("lng" = -49.28824, "lat" = -25.47788)
+
 leaflet(curitiba_setores) |> 
   addTiles() |> 
   addPolygons(weight = 2, fillColor = "gray80", color = "#feb24c", label = labels) |> 
-  addProviderTiles(provider = "CartoDB.Positron")
+  addProviderTiles(provider = "CartoDB.Positron") |> 
+  setView(curitiba_center[[1]], curitiba_center[[2]], zoom = 15)
 ```
 
-```{r}
-ggplot(curitiba_setores, aes(pop_dens_area, pop_dens_hh)) +
-  geom_jitter()
+## Getting the data
 
-ggplot(curitiba_setores, aes(log(pop_dens_area))) +
-  geom_histogram()
+### IBGE
 
-ggplot(curitiba_setores, aes(pop_dens_hh)) +
-  geom_histogram()
+The data can be [downloaded from IBGE's website](https://www.ibge.gov.br/geociencias/organizacao-do-territorio/malhas-territoriais/26565-malhas-de-setores-censitarios-divisoes-intramunicipais.html).
 
-breaks <- BAMMtools::getJenksBreaks(curitiba_setores$pop, k = 7)
+### geobr
 
-ggplot(curitiba_setores) +
-  geom_sf(aes(fill = pop)) +
-  scale_fill_fermenter(breaks = breaks, direction = 1, palette = "Spectral")
-```
-
-```{r}
-curitiba_subdistritos <- curitiba_setores %>%
-  group_by(code_subdistrict, name_subdistrict) %>%
-  summarise(across(pop:dom_prt_ocup, sum))
-
-ggplot(curitiba_subdistritos) +
-  geom_sf(aes(fill = pop))
-```
-
-```{r}
-
-
-curitiba_setores %>%
-  mutate(trunc_dens = if_else(pop_dens_hh >= 5, 5, pop_dens_hh)) %>%
-  ggplot(aes(fill = trunc_dens)) +
-  geom_sf() +
-  scale_fill_fermenter(breaks = c(1, 1.5, 2, 2.5, 3, 3.5, 4, 5), direction = 1)
-
-curitiba_setores %>%
-  filter(pop > 10, area_km2 < 2.5) %>%
-  ggplot(aes(log(area_km2 * 100), log(pop))) +
-  geom_point(shape = 21, color = "#219ebc") +
-  geom_smooth(method = "lm", se = FALSE, color = "#ffb703") +
-  theme_bw()
-
-ggplot(curitiba_setores, aes(x = area_km2, y = pop)) +
-  geom_point()
-
-curitiba_setores %>%
-  filter(pop > 10, area_km2 < 2.5, pop_dens_hh < 5) %>%
-  ggplot(aes(pop_dens_hh, log(pop_dens_area))) +
-  geom_point()
-
-curitiba_setores %>%
-  filter(pop > 10, area_km2 < 2.5, pop_dens_hh < 5) %>%
-  mutate(scaled_pop_dens_area = as.numeric(scale(log(pop_dens_area)))) %>%
-  ggplot() +
-  geom_sf(aes(fill = scaled_pop_dens_area)) +
-  scale_fill_fermenter(
-    palette = "RdBu",
-    direction = 1,
-    breaks = c(-3, -1.5, -1, 0, 1, 1.5, 3)
-    )
-```
+The package `geobr` (available for both Python and R) provides a convenient way to import census tracts directly into a session.
 
 ```{r}
 #| eval: false
-library(sf)
-library(tidyverse)
-
-dat <- read_csv2("/Volumes/T7 Touch/github/tidyibge/data-raw/dados_setores_censitarios/Agregados_preliminares_por_setores_censitarios_BR.zip")
-
-file_path <- "/Volumes/T7 Touch/github/tidyibge/data-raw/dados_setores_censitarios/BR_Malha_Preliminar_2022.zip"
-
-setores <- st_read("/Volumes/T7 Touch/github/tidyibge/data-raw/dados_setores_censitarios/BR_Malha_Preliminar_2022.gpkg")
-
-# V0001	numérico		Total de pessoas
-# V0002	numérico		Total de Domicílios (DPPO + DPPV + DPPUO + DPIO + DCCM + DCSM)
-# V0003	numérico		Total de Domicílios Particulares (DPPO + DPPV + DPPUO + DPIO)
-# V0004	numérico		Total de Domicílios Coletivos (DCCM + DCSM)
-# V0005	real		Média de moradores em Domicílios Particulares Ocupados (Total pessoas em Domicílios Particulares Ocupados / DPPO + DPIO)
-# V0006	real		Percentual de Domicílios Particulares Ocupados Imputados (Total DPO imputados / Total DPO)
-# V0007	numérico		Total de Domicílios Particulares Ocupados (DPPO + DPIO)
-
-
-dict <- tibble(
-  name_variable = paste0("v000", 1:7),
-  desc_variable = c(
-    "Total de Pessoas", "Total de Domicilios", "Total de Domicilios Particulares",
-    "Total de Domicilios Coletivos", "Media de moradores em domicilios particulares ocupados",
-    "Percentual de domicilios imputados", "Total de domicilios particulares ocupados"),
-  short_name = c("pop", "dom", "dom_prt", "dom_col", "pop_dom", "share_dom_imput", "dom_prt_ocup")
-)
-
-rename_cols <- dict$name_variable
-names(rename_cols) <- dict$short_name
-
-vl_names <- c(
-  "code_tract" = "CD_SETOR",
-  "area_km2" = "AREA_KM2",
-  "code_region" = "CD_REGIAO",
-  "name_region" = "NM_REGIAO",
-  "code_state" = "CD_UF",
-  "name_state" = "NM_UF",
-  "code_muni" = "CD_MUN",
-  "name_muni" = "NM_MUN",
-  "code_district" = "CD_DIST",
-  "name_district" = "NM_DIST",
-  "code_subdistrict" = "CD_SUBDIST",
-  "name_subdistrict" = "NM_SUBDIST",
-  "code_microregion" = "CD_MICRO",
-  "name_microregion" = "NM_MICRO",
-  "code_mesoregion" = "CD_MESO",
-  "name_mesoregion" = "NM_MESO",
-  "code_immediate" = "CD_RGI",
-  "name_immediate" = "NM_RGI",
-  "code_intermediate" = "CD_RGINT",
-  "name_intermediate" = "NM_RGINT",
-  "code_urban_concentration" = "CD_CONCURB",
-  "name_urban_concentration" = "NM_CONCURB"
-)
-
-rename_cols <- c(rename_cols, vl_names)
-
-dat <- dat %>%
-  rename(all_of(rename_cols)) %>%
-  select(
-    code_tract, code_muni, name_muni, code_region, name_region, code_state,
-    name_state, pop:dom_prt_ocup
-  )
-
-setores <- setores %>%
-  rename(any_of(rename_cols))
-
-
-# Curitiba ----------------------------------------------------------------
-
-
-curitiba_setores <- setores %>%
-  filter(code_muni == 3550308) %>%
-  mutate(across(pop:dom_prt_ocup, as.numeric)) %>%
-  mutate(
-    area_km2 = as.numeric(area_km2),
-    pop_dens_area = pop / area_km2,
-    pop_dens_hh = pop / dom_prt_ocup
-  )
-
-ggplot(curitiba_setores, aes(pop_dens_area, pop_dens_hh)) +
-  geom_jitter()
-
-ggplot(curitiba_setores, aes(log(pop_dens_area))) +
-  geom_histogram()
-
-ggplot(curitiba_setores, aes(pop_dens_hh)) +
-  geom_histogram()
-
-breaks <- BAMMtools::getJenksBreaks(curitiba_setores$pop, k = 7)
-
-ggplot(curitiba_setores) +
-  geom_sf(aes(fill = pop)) +
-  scale_fill_fermenter(breaks = breaks, direction = 1, palette = "Spectral")
-
-breaks <- BAMMtools::getJenksBreaks(curitiba_setores$pop_dens_hh, k = 7)
-
-ggplot(curitiba_setores) +
-  geom_sf(aes(fill = pop_dens_hh)) +
-  scale_fill_fermenter(breaks = breaks, direction = 1, palette = "Spectral")
-
-curitiba_setores %>%
-  arrange(desc(pop_dens_hh))
-
-curitiba_subdistritos <- curitiba_setores %>%
-  group_by(code_subdistrict, name_subdistrict) %>%
-  summarise(across(pop:dom_prt_ocup, sum))
-
-ggplot(curitiba_subdistritos) +
-  geom_sf(aes(fill = pop))
-
-curitiba_setores %>%
-  mutate(trunc_dens = if_else(pop_dens_hh >= 5, 5, pop_dens_hh)) %>%
-  ggplot(aes(fill = trunc_dens)) +
-  geom_sf() +
-  scale_fill_fermenter(breaks = c(1, 1.5, 2, 2.5, 3, 3.5, 4, 5), direction = 1)
-
-curitiba_setores %>%
-  filter(pop > 10, area_km2 < 2.5) %>%
-  ggplot(aes(log(area_km2 * 100), log(pop))) +
-  geom_point(shape = 21, color = "#219ebc") +
-  geom_smooth(method = "lm", se = FALSE, color = "#ffb703") +
-  theme_bw()
-
-ggplot(curitiba_setores, aes(x = area_km2, y = pop)) +
-  geom_point()
-
-curitiba_setores %>%
-  filter(pop > 10, area_km2 < 2.5, pop_dens_hh < 5) %>%
-  ggplot(aes(pop_dens_hh, log(pop_dens_area))) +
-  geom_point()
-
-curitiba_setores %>%
-  filter(pop > 10, area_km2 < 2.5, pop_dens_hh < 5) %>%
-  mutate(scaled_pop_dens_area = as.numeric(scale(log(pop_dens_area)))) %>%
-  ggplot() +
-  geom_sf(aes(fill = scaled_pop_dens_area)) +
-  scale_fill_fermenter(
-    palette = "RdBu",
-    direction = 1,
-    breaks = c(-3, -1.5, -1, 0, 1, 1.5, 3)
-    )
-
-mapview::mapview(curitiba_setores, zcol = "pop_dens_area")
-
-curitiba_setores %>%
-  arrange(desc(pop_dens_area))
-
-
-santos_setoers <- setores %>%
-  filter(code_muni == 3548500)
-
-
+# Import census tracts for São Paulo
+spo_tract <- geobr::read_census_tract(3550308, year = 2022)
 ```
 
-# Setores Censitários
+## Using census tracts
 
-## Panorama
+Census tracts come with a large variety of socioeconomic and demographic data. The 2022 Census currently only has a limited set of variables, that include total population and the total number of households. More data should be released in the future.
 
-## Algumas novidades
+The 2010 census tracts offers a much richer set of variables including demographic information on age, sex, and race as well as income and education. There is a clear trade-off however as this data is almost 15 years old.
 
-### Distritos em São Paulo
+### Demographic data
 
-### Maior resolução
+The maps below show basic demographic information from the 2022 Census highlighting the central district in Curitiba. For simplicity, I omit the color legend but darker shades of blue represent higher values, while lighter/whiter shades of blue represent lower values.
+
+```{r}
+#| include: false
+setores_centro <- cur_setores |> 
+  # Administração Regional da Matriz
+  filter(code_subdistrict == 41069020501) |> 
+  mutate(
+    pop = as.numeric(pop),
+    pop_quintile = ntile(pop, 5),
+    area_km2 = as.numeric(area_km2),
+    pop_dens = pop / area_km2 * 10,
+    pop_dens = ntile(pop_dens, 5),
+    pop_dom = ntile(pop_dom, 5)
+    )
+
+theme_map <- theme_void() +
+  theme(
+    legend.position = "none",
+    plot.title = element_text(size = 14, hjust = 0.5)
+  )
+
+m1 <- ggplot(setores_centro) +
+  geom_sf() +
+  ggtitle("Census tracts") +
+  theme_map
+
+m2 <- ggplot(setores_centro) +
+  geom_sf(aes(fill = pop_quintile), lwd = 0.15, color = "white") +
+  scale_fill_fermenter(direction = 1, breaks = 1:5) +
+  ggtitle("Population") +
+  theme_map
+
+m3 <- ggplot(setores_centro) +
+  geom_sf(aes(fill = pop_dens), lwd = 0.15, color = "white") +
+  ggtitle("Pop. Density") +
+  scale_fill_fermenter(direction = 1, breaks = 1:5) +
+  theme_map
+
+m4 <- ggplot(setores_centro) +
+  geom_sf(aes(fill = pop_dom), lwd = 0.15, color = "white") +
+  ggtitle("Persons per Household") +
+  scale_fill_fermenter(direction = 1, breaks = 1:5) +
+  theme_map
+```
+
+```{r}
+#| out-width: 100%
+#| echo: false
+
+panel <- ( m1 | m2 ) / ( m3 | m4 )
+
+panel + plot_annotation(title = "Curitiba")
+```
+
+### Household income per capita
+
+More sophisticated analysis can be made using census tracts, but - currently - this is only possible using 2010 data. The map below shows household income data at a census tract level for the entire city of Curitiba. The map shows higher levels of income in the city center and lower levels of income in the city's periphery.
+
+While the absolute values of income are certainly out of date, the overall spatial distribution of the data might still be similar. Since this maps uses deciles of income, instead of the actual income value, it can still communicate valuable information. This is, of course, a strong hypothesis that might be more or less valid in different contexts.
+
+```{r}
+#| include: false
+curitiba_income <- st_read(
+  here("static/data/census/example_income.gpkg"),
+  quiet = TRUE
+)
+
+curitiba_income <- curitiba_income |> 
+  mutate(decile = ntile(income_pc, 10))
+```
+
+```{r}
+#| code-fold: true
+curitiba_income <- curitiba_income |> 
+  mutate(decile = ntile(income_pc, 10))
+
+ggplot(curitiba_income) +
+  geom_sf(aes(fill = decile, color = decile)) +
+  scale_fill_fermenter(
+    name = "HH Income per capita (deciles)",
+    palette = "Spectral",
+    breaks = 1:10,
+    labels = c("Bottom 10%", rep("", 8), "Top 10%"),
+    na.value = "gray50",
+    direction = 1) +
+  scale_color_fermenter(
+    name = "HH Income per capita (deciles)",
+    palette = "Spectral",
+    breaks = 1:10,
+    labels = c("Bottom 10%", rep("", 8), "Top 10%"),
+    na.value = "gray50",
+    direction = 1) +
+  labs(title = "Curitiba: Household Income per capita (deciles)") +
+  ggthemes::theme_map() +
+  theme(
+    plot.title = element_text(size = 18, hjust = 0.5),
+    legend.position = c(0.9, 0.05)
+  )
+```
+
+### General Characteristics
+
+As stated above, census tracts are designed to be areas that exhibit similar socioeconomic and demographic characteristics.
+
+# The 2022 Census
+
+Brazil's most recent demographic Census was delayed due to Covid-19 and governmental budget cuts. I wrote a post (in Portuguese) that [describes this turbulent context and how it might have affected the quality of the information collected](https://restateinsight.com/posts/general-posts/2023-10-censo-erros/).
+
+There was a significant increase in the number of census tracts in Brazil. While the total number of cities barely changed, the total number of census tracts increased by more than 40%, reaching over 454 thousand.
+
+The table below summarizes the changes in the past 3 editions of the Census.
+
+```{r}
+#| echo: false
+tab_census <- tribble(
+  ~year, ~n_tract, ~n_city, ~pop,
+  2000, 254855, 1058, 169590693,
+  2010, 316545, 5565, 190755799,
+  2022, 454047, 5571, 203080756
+)
+
+tab_census %>%
+  select(year, n_city, n_tract, pop) %>%
+  gt() %>%
+  cols_label(
+    year = "Year",
+    n_tract = "Num. Census Tracts",
+    n_city = "Num. Cities",
+    pop = "Population"
+  ) %>%
+  fmt_number(2:4, sep_mark = ".", decimals = 0) %>%
+  gt_theme_538()
+```
+
+```{r}
+#| echo: false
+tab_curitiba <- as_tibble(st_drop_geometry(cur_setores))
+
+tab_curitiba <- tab_curitiba |> 
+  mutate(
+    name_short = stringr::str_replace(name_subdistrict, "Administração", "Adm."),
+    name_short = stringr::str_replace(name_short, "Regional", "Reg.")
+  )
+```
+
+```{r}
+#| echo: false
+p1 <- ggplot(tab_curitiba, aes(x = pop)) +
+  geom_histogram(color = "white", fill = "#045a8d", bins = 40) +
+  geom_hline(yintercept = 0) +
+  labs(x = NULL, y = NULL, title = "Population") +
+  theme_bw() +
+  theme(panel.grid.minor = element_blank())
+
+p2 <- ggplot(tab_curitiba, aes(x = dom)) +
+  geom_histogram(color = "white", fill = "#045a8d", bins = 40) +
+  geom_hline(yintercept = 0) +
+  labs(x = NULL, y = NULL, title = "Households") +
+  theme_bw() +
+  theme(panel.grid.minor = element_blank())
+
+p3 <- ggplot(filter(tab_curitiba, pop_dom > 0, pop_dom < 4), aes(x = pop_dom)) +
+  geom_histogram(color = "white", fill = "#045a8d", bins = 25) +
+  geom_hline(yintercept = 0) +
+  labs(x = NULL, y = NULL, title = "Avg. Persons per Household") +
+  theme_bw() +
+  theme(panel.grid.minor = element_blank())
+```
+
+```{r}
+#| out-width: 80%
+#| fig-pos: "center"
+#| fig-asp: 0.618
+#| echo: false
+p1 | p3
+```
+
+## Higher Resolution
+
+An obvious improvement from the 2010 census tracts is the gain in spatial resolution. The maps below show the central area of Curitiba where there was a 33% increase in the number of total census tracts.
+
+```{r}
+#| out-width: 100%
+#| echo: false
+setores_centro_antigo <- cur_setores_2010 |> 
+  filter(code_subdistrict == 41069020501)
+
+m1 <- ggplot(setores_centro_antigo) +
+  geom_sf() +
+  ggtitle("2010 Tracts (343)") +
+  theme_void() +
+  theme(plot.title = element_text(hjust = 0.5))
+
+m2 <- ggplot(setores_centro) +
+  geom_sf() +
+  ggtitle("2022 Tracts (457)") +
+  theme_void() +
+  theme(plot.title = element_text(hjust = 0.5))
+
+m1 | m2
+```
+
+# Important considerations
+
+Some important considerations to keep in mind when working with census tracts.
+
+1.  Shape is not time consistent.
+2.  Number of census tracts varies.
+3.  Area of census tracts can be very different.
+
+Census tracts follow the evolution of cities. As cities grow in size and complexity, so do the shape and number of the tracts. In the 2010 Census, São Paulo had nearly 19.000 census tracts, in the most recent Census it had 27.600 tracts, a 45% increase. Note that the borders of the city remained unchanged during this period.
+
+**New census tracts aren't necessarily subsets of previously existing tracts**. This means that comparing census tracts through time is not so straightforward. A way to standardize census tracts is to "dissolve" them into a statistical grid and either (1) use this higher resolution grid directly; or (2) use the grid as an intermediary step to interpolate different census data into a common standard.
+
+**Census tracts can vary a lot in size**. It's a common practice to include large chunks of uninhabited land (e.g. public parks) into a single huge census tract. This means that creating "intensive" variables such as population density can be tricky in some cases.
+
+## Dealing with spatial inconsistency
+
+```{r}
+#| echo: false
+
+library(censobr)
+# Get demographic data for 2010 census
+basico <- censobr::read_tracts(dataset = "Basico")
+# Get number of households (private)
+basico <- basico %>%
+  filter(code_muni == 4106902) %>%
+  select(code_tract, dom = V001) %>%
+  collect()
+# Join with census tract shape
+setores_centro_antigo <- left_join(setores_centro_antigo, basico, by = "code_tract")
+
+# Create a grid
+grid_centro <- setores_centro %>%
+  st_union() %>%
+  st_make_valid() %>%
+  st_transform(crs = 32722) %>%
+  st_make_grid(cellsize = 500) %>%
+  st_as_sf() %>%
+  st_transform(crs = 4674) %>%
+  mutate(gid = row_number(.))
+
+# Join census data with the new grid
+grid_2010 <- setores_centro_antigo %>%
+  select(dom) %>%
+  st_interpolate_aw(grid_centro, extensive = TRUE) 
+# Join 2020 census data with the new grid
+grid_2020 <- setores_centro %>%
+  select(dom_prt) %>%
+  st_interpolate_aw(grid_centro, extensive = TRUE)
+
+d1 <- grid_2010 %>%
+  st_centroid() %>%
+  st_join(grid_centro) %>%
+  st_drop_geometry() %>%
+  as_tibble() %>%
+  rename(dom_2010 = dom)
+
+d2 <- grid_2020 %>%
+  st_centroid() %>%
+  st_join(grid_centro) %>%
+  st_drop_geometry() %>%
+  as_tibble() %>%
+  rename(dom_2020 = dom_prt)
+
+full_grid <- grid_centro %>%
+  left_join(d1) %>%
+  left_join(d2)
+
+bbox <- setores_centro |> 
+  st_union() %>%
+  st_transform(crs = 32722) %>%
+  st_buffer(dist = 100) %>%
+  st_transform(crs = 4674) %>%
+  st_bbox()
+
+m3 <- full_grid %>%
+  mutate(
+    chg = (dom_2020 / dom_2010 - 1) * 100,
+    chg_bin = cut(chg, breaks = c(-Inf, 0, 50, 100, Inf))
+  )  %>%
+  st_make_valid() %>%
+  filter(!is.na(chg_bin)) %>%
+  ggplot() +
+  geom_sf(aes(fill = chg_bin), color = "white") +
+  scale_fill_brewer(palette = "Greens") +
+  guides(fill = "none") +
+  theme_void() +
+  theme(plot.title = element_text(hjust = 0.5))
+```
+
+```{r}
+#| echo: false
+m1 <- ggplot(setores_centro_antigo) +
+  geom_sf(aes(fill = sqrt(dom))) +
+  scale_fill_fermenter(palette = "Greens", breaks = c(0, 5, 10, 15, 20), direction = 1) +
+  ggtitle("Total Households (2010)") +
+  coord_sf(xlim = c(bbox[1], bbox[3]), ylim = c(bbox[2], bbox[4])) +
+  theme_map
+
+m2 <- ggplot(setores_centro) +
+  geom_sf(aes(fill = sqrt(dom_prt))) +
+  scale_fill_fermenter(palette = "Greens", breaks = c(0, 5, 10, 15, 20), direction = 1) +
+  ggtitle("Total Households (2022)") +
+  coord_sf(xlim = c(bbox[1], bbox[3]), ylim = c(bbox[2], bbox[4])) +
+  theme_map
+
+panel_sectors <- m1 | m2
+
+m1 <- ggplot(grid_2010) +
+  geom_sf(aes(fill = sqrt(dom)), color = "white") +
+  scale_fill_fermenter(palette = "Greens", breaks = c(0, 10, 20, 30, 45), direction = 1) +
+  guides(fill = "none") +
+  ggtitle("Total Households (2010)") +
+  coord_sf(xlim = c(bbox[1], bbox[3]), ylim = c(bbox[2], bbox[4])) +
+  theme_map
+
+m2 <- ggplot(grid_2020) +
+  geom_sf(aes(fill = sqrt(dom_prt)), color = "white") +
+  scale_fill_fermenter(palette = "Greens", breaks = c(0, 10, 20, 30, 45), direction = 1) +
+  guides(fill = "none") +
+  ggtitle("Total Households (2022)") +
+  coord_sf(xlim = c(bbox[1], bbox[3]), ylim = c(bbox[2], bbox[4])) +
+  theme_map
+
+panel_grid <- (m1 | m2)
+```
+
+```{r}
+#| echo: false
+#| out-width: 100%
+panel_sectors / panel_grid
+```

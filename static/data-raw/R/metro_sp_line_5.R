@@ -6,7 +6,7 @@ library(here)
 library(readr)
 library(purrr)
 
-year = 2018:2023
+year = 2018:2024
 url = "https://www.viamobilidade.com.br/nos/passageiros-transportados/linha-5-lilas?periodo={year}"
 url = str_glue(url)
 
@@ -80,10 +80,41 @@ links <- links |>
     # link = if_else(str_detect(link, "​ - "), URLencode(link), link)
     )
 
+to_yearmonth <- function(date) {
+  
+  stopifnot(inherits(date, "Date"))
+  
+  yy <- lubridate::year(date)
+  mm <- stringr::str_pad(lubridate::month(date), width = 2, side = "left", pad = "0")
+  
+  return(stringr::str_c(yy, mm))
+  
+}
+
+str_simplify <- function(x) {
+  
+  y <- stringi::stri_trans_general(x, id = "latin-ascii")
+  y <- stringr::str_replace_all(y, " ", "_")
+  y <- stringr::str_to_lower(y)
+  
+  return(y)
+  
+}
+
+links <- links |> 
+  mutate(
+    name_file_simplified = if_else(
+      x1 == "Média dia útil",
+      paste(to_yearmonth(ts_date), str_simplify(variable), str_simplify(x1), sep = "_"),
+      paste(to_yearmonth(ts_date), str_simplify(variable), sep = "_")
+    ),
+    name_file_simplified = paste0(name_file_simplified, ".pdf")
+  )
+
 #> Baixar todos os pdfs do site
 
 #> Define a pasta onde os arquivos serão baixados
-fld <- here::here("static/data/raw/metro_sp/linha_5/")
+fld <- here::here("static/data/raw/metro_sp/linha_5")
 #> A 'base' da url do site
 baseurl <- "https://www.viamobilidade.com.br"
 #> Define uma barra de progresso para acompanhar o resultado
@@ -93,11 +124,12 @@ errors <- c()
 for (i in 1:nrow(links)) {
   
   #> Pega a coluna 'name' da coluna atual e transforma o nome idiomático
-  name_file <- janitor::make_clean_names(links[["name_file"]][i])
+  # name_file <- janitor::make_clean_names(links[["name_file"]][i])
   #> Adiciona extensão .pdf
-  name_file <- paste0(name_file, ".pdf")
+  # name_file <- paste0(name_file, ".pdf")
   #> Define o path para baixar o arquivo
-  destfile <- here::here(fld, name_file)
+    name_file <- links[["name_file_simplified"]][[i]]
+    destfile <- here::here(fld, name_file)
   
   #> Verifica se o arquivo já existe na pasta de destino. Caso contrário baixa o pdf.
   if (file.exists(destfile)) {
@@ -364,6 +396,15 @@ tbl_station <- pdfs |>
 tbl_passengers <- pdfs |> 
   filter(type != "station") |> 
   reframe(bind_rows(dat))
+
+tbl_station <- tbl_station |> 
+  select(-source) |> 
+  select(date, year, name_station, value)
+
+tbl_passengers <- tbl_passengers |> 
+  rename(variable = source) |> 
+  mutate(name_station = "Total") |> 
+  select(variable, date, year, metric, value, name_station)
 
 write_csv(tbl_passengers, here("static/data/metro_sp_line_5.csv"))
 write_csv(tbl_station, here("static/data/metro_sp_line_5_stations.csv"))
