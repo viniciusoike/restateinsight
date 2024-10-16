@@ -1,11 +1,12 @@
 ---
 title: "Finding all The Coffee shops in Brazil"
-date: "2024-06-12"
-description: ""
+date: "2024-06-28"
+description: "In this post, I'll show you how to map every The Coffee shop in Brazil. I also show how to "
 categories: ['data-science', 'web-scrapping', 'finding-all', 'tutorial-r', 'brasil']
 execute: 
   eval: false
-draft: true
+  message: false
+  warning: false
 ---
 
 # Finding all The Coffee shops in Brazil
@@ -16,24 +17,30 @@ We'll use only `R` and a few packages to webscrape all addresses.
 
 ### What is The Coffee
 
-The Coffee is a Japanese-inspired chain of coffee shops with a distinct minimalist visual identity. Their street shops are small, clean, and extremely space-efficient, sometimes taking less than 20 m2. They offer a wide variety of high quality coffee at a premium price point.
-
-Similar to Starbucks, product customization is a major selling point. Customers can choose and replace pretty much everything in their drinks, from adding and additional espresso shot, requiring an additional pump of chocolate syrup. Unlike Starbucks, however, most The Coffee shops are strictly to-go, or offer only minimal seating capacity. The Coffee doesn't aim at becoming a 3rd place, where friends meet to share a cup of coffee, or work colleagues schedule a meeting.
-
-The Coffee also strays away from the traditional friendly-neighborhood barista and instead focuses on a more technological approach. Customers mainly interact with a tablet that displays the menu and all customization choices. Friendly chatter is an optional, as a customer can get in, get his coffee without exchaning any words with the barista.
+The Coffee is a Japanese-inspired chain of coffee shops with a distinct minimalist visual identity. Their street shops are small, clean, and extremely space-efficient, sometimes taking less than 20 m2. Most shops are for takeout only, with limited seating. They offer a wide variety of high quality coffee at a premium price point.
 
 The company was founded in Curitiba, at the southern part of Brazil, in 2018, and has expanded rapidly to 12 countries with over 200 shops. Their franchise model in part explains this strong expansion.
 
+<div>
+
+Similar to Starbucks, product customization is a major selling point. Customers can choose and replace pretty much everything in their drinks, from adding and additional espresso shot, requiring an additional pump of chocolate syrup. Unlike Starbucks, however, most The Coffee shops are strictly to-go, or offer only minimal seating capacity. The Coffee (usually) doesn't aim at becoming a 3rd place, where friends meet to share a cup of coffee, or work colleagues schedule a meeting. That said, there are exceptions and some shops do include tables and even
+
+The Coffee also strays away from the traditional friendly-neighborhood barista and instead focuses on a more technological approach. Customers mainly interact with a tablet that displays the menu and all customization choices. Friendly chatter is optional, as a customer can get in, get his coffee without exchanging any words with the barista.
+
+</div>
+
 # Webscraping
+
+We'll leverage the power of R, an open-source programming language that's widely used in data science. Using R offers numerous advantages: it’s free, the code can be reused and adapted to various contexts, and its strong emphasis on reproducibility ensures that your analyses can be replicated by others.
 
 ## Setup
 
 ```{r}
+#| eval: true
 library(dplyr)
 library(stringr)
 library(rvest)
 library(sf)
-library(leaflet)
 
 import::from(tidygeocoder, geocode)
 import::from(purrr, map, map2)
@@ -42,7 +49,11 @@ import::from(tidyr, unnest)
 
 ## Finding the data
 
+The data is extracted from [The Coffee's website](https://thecoffee.jp). There is no single recipe or approach for webscraping: each website is organized differently, though there are patterns. In the case of The Coffee, units are separated by country and city; additionally each unit is identified by a name and has an address
+
 ### The website
+
+The site presents every unit by country and city. The print below shows an example unit in Belo Horizonte, Brazil.
 
 ![](/static/images/coffeeshops/tcf_site.png){fig-align="center"}
 
@@ -50,11 +61,15 @@ import::from(tidyr, unnest)
 
 ### Using R
 
+The code below
+
 ```{r}
 # Base url 
 base_url <- "https://thecoffee.jp/shortcut/brasil"
 # Parse HTML
 page_list_brazil <- xml2::read_html(base_url)
+
+# Gets the urls for all cities in Brazil
 
 page_list_cities <- page_list_brazil |> 
   html_elements(xpath = "//div/ul/li/a") |> 
@@ -64,6 +79,8 @@ page_list_cities <- page_list_cities[str_detect(page_list_cities, "brasil/")]
 
 url_cities <- str_c(base_url, str_remove(page_list_cities, "shortcut/brasil/"))
 ```
+
+The code below is a function the scrapes the information of all shops for a given url of a city. The output is a simple `data.frame`.
 
 ```{r}
 scrape_the_coffee <- function(url) {
@@ -100,12 +117,18 @@ scrape_the_coffee <- function(url) {
 
 ```
 
+### Functional approach
+
+The simplest approach to implement this funtion is applying it over a vector with all urls for all cities. This approach is usually safer and quicker and can be scalled with parallel processing (e.g. `parallel::mclapply`).
+
 ```{r}
 # Scrape all cities
 coffee_locations <- map(url_cities, scrape_the_coffee)
 names(coffee_locations) <- url_cities
 dat <- bind_rows(coffee_locations, .id = "url")
 ```
+
+### Loop approach
 
 ```{r}
 pb <- txtProgressBar(min = 1, max = length(url_cities), style = 3)
@@ -118,6 +141,7 @@ for (i in seq_along(url_cities)) {
   message("Scraping data for: ", current_city)
   ls[[i]] <- scrape_the_coffee(url)
   setTxtProgressBar(pb, i)
+  Sys.sleep(runif(1, min = 1, max = 5))
   
 }
 ```
@@ -145,7 +169,7 @@ dat <- dat |>
 
 ### Geocoding
 
-Geocoding the data is fairly straightforward. I use the Google Maps API to find the corresponding lat/lng pair for each address.
+Geocoding the data is fairly straightforward. I use the Google Maps API via the `tidygeocoder` package to find the corresponding lat/lng pair for each address.
 
 ```{r}
 # Geocode using Maps API
@@ -167,6 +191,20 @@ shops <- st_as_sf(
 ## Results
 
 ```{r}
+#| eval: true
+#| echo: false
+library(gt)
+library(gtExtras)
+library(here)
+shops <- sf::st_read(
+  here::here("static/data/coffeeshops_the_coffee.gpkg"),
+  quiet = TRUE
+  )
+```
+
+```{r}
+#| echo: false
+#| eval: true
 tab_count <- shops |> 
   st_drop_geometry() |> 
   count(city_name, sort = TRUE) |> 
@@ -175,8 +213,8 @@ tab_count <- shops |>
 
 gt(tab_count, caption = "The Coffee shops, major cities") |> 
   cols_label(
-    city_name = "Cidade",
-    n = "Lojas",
+    city_name = "City",
+    n = "# Shops",
     share_brasil = "Share BR (%)"
   ) |> 
   fmt_percent(3) |> 
@@ -191,6 +229,10 @@ leaflet(shops) %>%
   addProviderTiles("CartoDB") %>%
   setView(lng = -46.65590, lat = -23.561197, zoom = 12)
 ```
+
+## Get Google Maps ratings
+
+[Starbucks post](https://restateinsight.com/posts/general-posts/2024-07-finding-starbucks/#google-places)
 
 ```{r}
 cur_shops <- filter(shops, city_name == "Curitiba")
@@ -211,9 +253,6 @@ get_ratings <- function(lat, lng) {
   
 }
 
-```
-
-```{r}
 ratings <- map2(cur_shops$lat, cur_shops$long, get_ratings)
 
 dat_ratings <- ratings |> 
@@ -228,35 +267,150 @@ dat_ratings <- dat_ratings |>
     street_name = stringi::stri_trans_general(street_name, "latin-ascii"),
     street_number = as.numeric(str_extract(formatted_address, "(?<=, )\\d+(?=\\b)"))
   )
+```
 
-cur_shops <- cur_shops |> 
-  rename(short_address = street_name) |> 
+```{r}
+#| eval: true
+#| echo: false
+
+library(leaflet)
+
+cur <- st_read(
+  here::here("static/data/coffeeshops_the_coffee_ratings.gpkg"),
+  quiet = TRUE
+)
+
+cur <- cur |> 
   mutate(
-    street_name = str_extract(address, "^[^,]+"),
-    street_name = str_replace_all(street_name, unnabreviate()),
-    street_name = stringi::stri_trans_general(street_name, "latin-ascii"),
-    street_number = as.numeric(str_extract(address, "(?<=, )\\d+(?=\\b)"))
+    rad = findInterval(user_ratings_total, c(50, 100, 400, 1000))*2 + 5
   )
 
-cur_shops |> 
-  arrange(address) |> 
-  left_join(dat_ratings, by = c("street_name", "street_number")) |> 
-  filter(is.na(rating))
+pal <- colorNumeric("RdBu", domain = cur$rating)
 
-dat_ratings$street_name
+labels <- stringr::str_glue(
+  "<b> {cur$name} </b> <br>
+   <b> Rating </b>: {cur$rating} <br>
+   <b> No Ratings </b> {cur$user_ratings_total}"
+)
 
-subres <- st_as_sf(subres, coords = c("lng", "lat"), crs = 4326)
+labels <- lapply(labels, htmltools::HTML)
 
-# Mapa iterativo simples
-leaflet(subres) |> 
+leaflet(cur) |> 
   addTiles() |> 
-  addCircleMarkers(label = ~name) |> 
+  addCircleMarkers(
+    radius = ~rad,
+    color = ~pal(rating),
+    label = labels,
+    stroke = FALSE,
+    fillOpacity = 0.5
+  ) |> 
+  addLegend(pal = pal, values = ~rating) |> 
   addProviderTiles("CartoDB")
 
 ```
 
 ## Merging with Census information
 
-```{r}
+The code below shows how to gather census tract data for each The Coffee shop. Census tracts are the smallest administrative division that present socioeconomic and demographic data.
 
+
+
+
+```{r}
+#| code-fold: true
+# Interpolation -------------------------------------------------------------
+
+## Functions ---------------------------------------------------------------
+
+# Creates a n minute walk isochrone around a point
+get_buffer <- function(point, radius = 5, simplified = FALSE) {
+  
+  stopifnot(length(radius) == 1 && is.numeric(radius))
+  
+  if (simplified) {
+    point |> 
+      sf::st_transform(crs = 31982) |> 
+      # Simplified assumption
+      sf::st_buffer(dist = ((1.5 - 1.2) / 2 + 1.2) * 60 * radius)
+  } else {
+    point |> 
+      sf::st_transform(crs = 31982) |> 
+      osrm::osrmIsochrone(breaks = radius, osrm.profile = "foot") |> 
+      nngeo::st_remove_holes()
+  }
+  
+}
+
+# Interpolates an area with census tracts and aggregates population and households
+interpolate_census <- function(census, target, variables = c("v0001", "v0003")) {
+
+  if (st_crs(census) != st_crs(target)) {
+    warning("CRS mismatch")
+    
+    census <- st_transform(census, crs = 31982)
+    target <- st_transform(target, crs = 31982)
+    
+  }
+
+  # Select variables
+  census <- dplyr::select(census, dplyr::all_of(variables))
+  # Interpolate areas
+  interp <- st_interpolate_aw(census, target, extensive = TRUE)
+  
+  return(interp)
+  
+}
+
+# Wrapper around get_buffer and interpolate_census
+find_population <- function(shop, census, radius = 5, simplified = FALSE) {
+  
+  # Compute a 5-minute isochrone around
+  buffer <- get_buffer(shop, radius, simplified)
+  interpolated <- suppressWarnings(interpolate_census(census, buffer))
+  
+  return(interpolated)
+  
+}
+
+## Interpolate -------------------------------------------------------------
+
+# Uniquely identifies each shop
+city_shops <- city_shops |> 
+  mutate(shop_id = row_number())
+
+# To improve speed convert the full census data to 31982
+city_census_utm <- st_transform(city_census, crs = 31982)
+
+city_shops_census <- parallel::mclapply(
+  split(city_shops, city_shops$shop_id),
+  \(x) find_population(x, census = city_census_utm)
+  )
+
+city_shops_census <- bind_rows(city_shops_census, .id = "shop_id")
+
+city_shops <- city_shops |> 
+  mutate(shop_id = as.character(shop_id)) |> 
+  left_join(st_drop_geometry(city_shops_census))
 ```
+
+```{r}
+#| eval: true
+#| echo: false
+source(here::here("posts/general-posts/2024-06-finding-the-coffee/interpolate_maps.R"))
+```
+
+```{r}
+#| eval: true
+#| echo: false
+#| out-width: 100%
+m0 | m1
+```
+
+```{r}
+#| eval: true
+#| echo: false
+#| out-width: 100%
+m2 | m3
+```
+
+

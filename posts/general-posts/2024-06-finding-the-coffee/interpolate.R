@@ -60,15 +60,15 @@ interpolate_census <- function(census, target, variables = c("v0001", "v0003")) 
   if (st_crs(census) != st_crs(target)) {
     warning("CRS mismatch")
     
-    census <- st_transform(census, crs = 31982)
-    target <- st_transform(target, crs = 31982)
+    census <- sf::st_transform(census, crs = 31982)
+    target <- sf::st_transform(target, crs = 31982)
     
   }
 
   # Select variables
   census <- dplyr::select(census, dplyr::all_of(variables))
   # Interpolate areas
-  interp <- st_interpolate_aw(census, target, extensive = TRUE)
+  interp <- sf::st_interpolate_aw(census, target, extensive = TRUE)
   
   return(interp)
   
@@ -107,9 +107,8 @@ city_shops <- city_shops |>
 
 st_write(city_shops, here::here("static/data/curitiba_tcf_interpolate.gpkg"))
 
-library(tmap)
-library(tmaptools)
-tmap_mode("view")
+city_shops <- st_read(here::here("static/data/curitiba_tcf_interpolate.gpkg"))
+
 
 code_shop <- 21
 
@@ -120,23 +119,30 @@ area <- get_buffer(sub_shop)
 area_rad <- st_transform(area, crs = 4326)
 area_rad <- st_make_valid(area_rad)
 
+census_map <- st_join(city_census_utm, st_buffer(area, dist = 250))
+
 sub_census <- st_join(city_census_utm, area)
 sub_census <- filter(sub_census, !is.na(isomin))
 sub_census <- st_transform(sub_census, 4326)
 sub_census <- st_make_valid(sub_census)
 
-tm_shape(sub_shop) +
-  tm_dots() +
-  tm_shape(area_rad) +
-  tm_polygons(alpha = 0.15, col = "darkgreen") +
-  tm_shape(sub_census) +
-  tm_fill(alpha = 0.5, col = "v0001", n = 3) +
-  tm_borders() +
-  tm_view(set.view = 14) +
-  tm_basemap(server = "CartoDB.Positron")
+# library(tmap)
+# library(tmaptools)
+# tmap_mode("view")
+# 
+# tm_shape(sub_shop) +
+#   tm_dots() +
+#   tm_shape(area_rad) +
+#   tm_polygons(alpha = 0.15, col = "darkgreen") +
+#   tm_shape(sub_census) +
+#   tm_fill(alpha = 0.5, col = "v0001", n = 3) +
+#   tm_borders() +
+#   tm_view(set.view = 14) +
+#   tm_basemap(server = "CartoDB.Positron")
 
 library(ggplot2)
 library(basemaps)
+library(patchwork)
 
 inter_areas <- st_intersection(area_rad, sub_census)
 
@@ -153,38 +159,125 @@ ext <- st_transform(ext, crs = 3857)
 
 area_rad <- st_transform(area_rad, crs = 3857)
 
-ggplot(area_rad) +
+breaks <- c(100, 200, 300, 400, 600, Inf)
+
+census_map <- census_map %>%
+  st_transform(crs = 3857) %>%
+  mutate(
+    cat = findInterval(v0001, breaks),
+    color = RColorBrewer::brewer.pal(6, "Greens")[cat + 1]
+    )
+
+sub_census <- st_transform(sub_census, crs = 3857)
+sub_census <- sub_census %>%
+  mutate(
+    cat = findInterval(v0001, breaks),
+    color = RColorBrewer::brewer.pal(6, "Greens")[cat + 1]
+    )
+
+inter_areas <- st_transform(inter_areas, crs = 3857)
+
+s1 <- sub_census %>%
+  mutate(area_total = as.numeric(st_area(.))) |> 
+  select(code_tract, cat_census = cat, v0001, area_total) |> 
+  st_drop_geometry()
+
+s2 <- inter_areas %>%
+  mutate(area_final = as.numeric(st_area(.))) |> 
+  select(code_tract, area_final)
+
+inter_census <- s2 |> 
+  left_join(s1) |> 
+  mutate(
+    share = area_final / area_total,
+    pop = v0001 * share,
+    cat = findInterval(pop, breaks),
+    color = RColorBrewer::brewer.pal(6, "Greens")[cat + 1]
+    )
+
+inter_census |> 
+  select(code_tract, share, cat_census, cat) |> 
+  arrange(desc(share))
+
+theme_map <- theme_void() +
+  theme(legend.position = "none")
+
+m0 <- ggplot(area_rad) +
   geom_sf(alpha = 0.5, fill = "gray50") +
   geom_sf(data = sub_shop, shape = 21) +
   coord_sf(
     xlim = c(limits_map[1], limits_map[3]),
     ylim = c(limits_map[2], limits_map[4])
+  ) + 
+  theme_map
+
+m1 <- ggplot(sub_census) +
+  geom_sf(aes(fill = v0001)) +
+  scale_fill_fermenter(palette = "Greens", direction = 1, breaks = c(300, 400, 500, 600)) +
+  coord_sf(
+    xlim = c(limits_map[1], limits_map[3]),
+    ylim = c(limits_map[2], limits_map[4])
+  )
+
+m1 <- ggplot() +
+  geom_sf(data = census_map, aes(fill = color), color = "white") +
+  geom_sf(data = sub_shop, shape = 21) +
+  scale_fill_identity() +
+  coord_sf(
+    xlim = c(limits_map[1], limits_map[3]),
+    ylim = c(limits_map[2], limits_map[4])
   ) +
-  scale_fill_identity()
+  theme_map
 
-sub_census <- st_transform(sub_census, crs = 3857)
-
-ggplot(sub_census) +
-  geom_sf(aes(fill = v0001)) +
-  scale_fill_distiller(palette = "Greens", direction = 1) +
+m2 <- ggplot() +
+  geom_sf(data = sub_census, aes(fill = v0001)) +
+  geom_sf(data = area_rad, alpha = 0.5, fill = "gray50") +
+  geom_sf(data = sub_shop, shape = 21) +
+  scale_fill_fermenter(palette = "Greens", direction = 1, breaks = c(200, 400, 500, 600)) +
   coord_sf(
     xlim = c(limits_map[1], limits_map[3]),
     ylim = c(limits_map[2], limits_map[4])
   )
 
-inter_areas <- st_transform(inter_areas, crs = 3857)
 
-sub_census %>%
-  mutate(area_total = st_area(.))
+m2 <- ggplot() +
+  geom_sf(data = sub_census, aes(fill = color), color = "white") +
+  geom_sf(data = area_rad, alpha = 0.5, fill = "gray50") +
+  geom_sf(data = sub_shop, shape = 21) +
+  scale_fill_identity() +
+  coord_sf(
+    xlim = c(limits_map[1], limits_map[3]),
+    ylim = c(limits_map[2], limits_map[4])
+  ) +
+  theme_map
 
-inter_areas %>%
-  mutate(area_final = st_area(.))
-
-
-ggplot(inter_areas) +
-  geom_sf(aes(fill = v0001)) +
-  scale_fill_distiller(palette = "Greens", direction = 1) +
+m3 <- ggplot() +
+  geom_sf(data = inter_census, aes(fill = pop)) +
+  scale_fill_fermenter(palette = "Greens", direction = 1, breaks = c(200, 400, 500, 600)) +
   coord_sf(
     xlim = c(limits_map[1], limits_map[3]),
     ylim = c(limits_map[2], limits_map[4])
   )
+
+m3 <- ggplot() +
+  geom_sf(data = inter_census, aes(fill = color), color = "white") +
+  geom_sf(data = area_rad, alpha = 0) + 
+  scale_fill_identity() +
+  coord_sf(
+    xlim = c(limits_map[1], limits_map[3]),
+    ylim = c(limits_map[2], limits_map[4])
+  ) +
+  theme_map
+
+(m0 | m1)
+(m2 | m3)
+
+library(tmap)
+library(tmaptools)
+tmap_mode("view")
+
+tm_shape(inter_census) +
+  tm_fill(col = "pop", popup.vars = c("pop", "v0001"))
+
+inter_census |> 
+  filter(cat == 0)

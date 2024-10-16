@@ -114,7 +114,7 @@ gt(tab_count, caption = "The Coffee shops, major cities") |>
   opt_table_font(font = google_font("Open Sans"))
 
 cur_shops <- filter(shops, city_name == "Curitiba")
-
+library(googleway)
 get_ratings <- function(lat, lng) {
   
   location <- c(lat, lng)
@@ -146,6 +146,12 @@ dat_ratings <- dat_ratings |>
     street_number = as.numeric(str_extract(formatted_address, "(?<=, )\\d+(?=\\b)"))
   )
 
+google_data <- dat_ratings %>%
+  st_as_sf(coords = c("lng", "lat"), crs = 4326)
+
+st_write(google_data, here::here("static/data/coffeeshops_the_coffee_ratings.gpkg"))
+
+
 cur_shops <- cur_shops |> 
   rename(short_address = street_name) |> 
   mutate(
@@ -168,4 +174,39 @@ subres <- st_as_sf(subres, coords = c("lng", "lat"), crs = 4326)
 leaflet(subres) |> 
   addTiles() |> 
   addCircleMarkers(label = ~name) |> 
+  addProviderTiles("CartoDB")
+
+dat_ratings %>%
+  arrange(-rating)
+
+google_data <- dat_ratings %>%
+  st_as_sf(coords = c("lng", "lat"), crs = 4326) 
+
+cur <- google_data
+
+cur <- cur |> 
+  mutate(
+    rad = findInterval(user_ratings_total, c(25, 100, 1000, 2500, 5000))*2 + 5
+  )
+
+pal <- colorNumeric("RdBu", domain = cur$rating)
+
+labels <- stringr::str_glue(
+  "<b> {cur$name} </b> <br>
+   <b> Rating </b>: {cur$rating} <br>
+   <b> No Ratings </b> {cur$user_ratings_total}"
+)
+
+labels <- lapply(labels, htmltools::HTML)
+
+leaflet(cur) |> 
+  addTiles() |> 
+  addCircleMarkers(
+    radius = ~rad,
+    color = ~pal(rating),
+    label = labels,
+    stroke = FALSE,
+    fillOpacity = 0.5
+  ) |> 
+  addLegend(pal = pal, values = ~rating) |> 
   addProviderTiles("CartoDB")
