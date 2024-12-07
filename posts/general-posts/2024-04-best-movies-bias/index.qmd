@@ -6,7 +6,6 @@ description: ""
 execute: 
   message: false
   warning: false
-  eval: false
 draft: true
 ---
 
@@ -20,9 +19,7 @@ More recently, *recency bias has become a pervasive feature of online culture*. 
 
 > *It's really convenient that all of the GOATs, of all sports, just happen to play and perform at their best during the first 20 years of the most recent century: just in time for you to watch them.*
 
-For several different reasons, human's tend to put a greater weight onto more recent events when evaluating pretty much anything. This is partly due to how our memory works but sometimes is due to availability. When something new happens, social media is quickly extract all possible content from it and then moves on to the next thing.
-
-This cognitive bias had been widely studied across many disciplines including behavioral finance, psychology, and business studies.
+For several different reasons, human's tend to put a greater weight onto more recent events when evaluating pretty much anything. This is partly due to how our memory works but sometimes is due to availability. When something new happens, social media is quickly extracts all possible content from it and then moves on to the next thing.
 
 ## Recency Bias in Movies?
 
@@ -62,13 +59,7 @@ films <- left_join(films, dict, by = "source")
 ## Critics vs Public
 
 ```{r}
-
-```
-
-```{r}
 imdb <- filter(films, source == "imdb")
-
-  
 ```
 
 ```{r}
@@ -103,7 +94,7 @@ bfi <- filter(films, source == "bfi")
 bfi_count <- count(bfi, decade)
 
 p2 <- ggplot(bfi_count, aes(decade, n)) +
-  geom_col(fill = "#000000") +
+  geom_col(fill = "#2166ac") +
   geom_text(aes(y = n - 3, label = n), family = "Raleway", color = "white") +
   geom_hline(yintercept = 0) +
   scale_x_continuous(
@@ -140,7 +131,7 @@ final_plot <- panel + plot_annotation(
       family = "Raleway",
       margin = margin(2, 0, 5.5, 10)),
     plot.caption = element_text(
-      family = "Raleway (@viniciusoike)",
+      family = "Raleway",
       size = 10,
       color = 'gray30'
     ),
@@ -153,14 +144,13 @@ final_plot
 ```
 
 ```{r}
-#| eval: false
-comp <- inner_join(
+tab <- inner_join(
   select(bfi, name_film, rank_bfi = rank), 
   select(imdb, name_film, rank_imdb = rank),
   by = "name_film"
   )
 
-comp <- comp |> 
+comp <- tab |> 
   mutate(
     diff = rank_bfi - rank_imdb,
     abs_diff = abs(diff),
@@ -170,13 +160,181 @@ comp <- comp |>
       name_film,
     ),
     name_film = factor(name_film),
-    name_film = forcats::fct_reorder(name_film, -abs_diff)) |> 
+    name_film = forcats::fct_reorder(name_film, -abs_diff),
+    is_critics = factor(if_else(diff < 0, 1L, 0L))) |> 
   arrange(desc(diff)) |> 
   filter(abs_diff > 100 | abs_diff < 50)
 
 comp_long <- comp |> 
   tidyr::pivot_longer(cols = rank_bfi:rank_imdb)
+```
 
+```{r}
+tab1 <- comp |> 
+  filter(abs_diff < 50) |> 
+  mutate(name_film = forcats::fct_reorder(name_film, rank_bfi)) |> 
+  arrange(name_film)
+
+tab1_long <- tab1 |> 
+  tidyr::pivot_longer(cols = rank_bfi:rank_imdb) |> 
+  mutate(
+    is_bfi = if_else(stringr::str_detect(name, "rank_bfi"), 1L, 0L),
+    is_bfi = factor(is_bfi)
+    )
+```
+
+```{r}
+colors <- c("#deb522", "#2166ac")
+
+ggplot(tab1) +
+  geom_segment(
+    aes(x = name_film, xend = name_film, y = rank_bfi, yend = rank_imdb)
+    ) +
+  geom_point(
+    data = tab1_long,
+    aes(x = name_film, y = value, color = is_bfi),
+    size = 2
+  ) +
+  geom_point(
+    data = tab1,
+    aes(x = name_film, y = -10, shape = is_critics, color = is_critics),
+    size = 2
+  ) +
+  annotate(
+    "label",
+    x = "Psycho",
+    y = 80,
+    label = "Psycho is acclaimed\nby both audiences\nand critics.",
+    label.size = 0,
+    size = 2,
+    family = "Raleway"
+  ) +
+  annotate(
+    "label",
+    x = "Metropolis",
+    y = 150,
+    label = "Metropolis is more\ncritics-favored.",
+    label.size = 0,
+    size = 2,
+    family = "Raleway"
+  ) +
+  annotate(
+    "label",
+    x = "Raging Bull",
+    y = 210,
+    label = "Ran is more\nfavored by the public.",
+    label.size = 0,
+    size = 2,
+    family = "Raleway"
+  ) +
+  scale_x_discrete(labels = \(x) stringr::str_wrap(x, 18)) +
+  scale_y_continuous(breaks = c(1, seq(50, 250, 50))) +
+  scale_color_manual(
+    name = "",
+    values = colors,
+    labels = c("IMDB", "BFI")
+    ) +
+  scale_shape_manual(values = c(2, 6)) +
+  guides(shape = "none") +
+  coord_flip() +
+  labs(
+    title = "",
+    subtitle = "Samples of movies ranked by BFI x IMDB\n\n",
+    x = NULL,
+    y = "Rank (less is higher)"
+  ) +
+  theme_minimal(base_family = "Raleway", base_size = 10) +
+  theme(
+    legend.position = c(0.08, 1.05),
+    legend.direction = "horizontal",
+    axis.text.y = element_text(hjust = 1)
+  )
+```
+
+```{r}
+tab2 <- comp |> 
+  filter(abs_diff > 100) |> 
+  mutate(name_film = forcats::fct_reorder(name_film, -rank_bfi)) |> 
+  arrange(name_film)
+
+tab2_long <- tab2 |> 
+  tidyr::pivot_longer(cols = rank_bfi:rank_imdb) |> 
+  mutate(
+    is_bfi = if_else(stringr::str_detect(name, "rank_bfi"), 1L, 0L),
+    is_bfi = factor(is_bfi)
+    )
+```
+
+```{r}
+colors <- c("#deb522", "#2166ac")
+
+ggplot(tab2) +
+  geom_segment(
+    aes(x = name_film, xend = name_film, y = rank_bfi, yend = rank_imdb)
+    ) +
+  geom_point(
+    data = tab2_long,
+    aes(x = name_film, y = value, color = is_bfi),
+    size = 2
+  ) +
+  geom_point(
+    data = tab2,
+    aes(x = name_film, y = -10, shape = is_critics, color = is_critics),
+    size = 2
+  ) +
+  annotate(
+    "label",
+    x = "Citizen Kane",
+    y = 170,
+    label = "Tokyo Story is the most 'divisive' movie.\nRanked 4th by the BFI and 211th by IMDB.",
+    label.size = 0,
+    size = 2,
+    family = "Raleway"
+  ) +
+  scale_x_discrete(labels = \(x) stringr::str_wrap(x, 18)) +
+  scale_y_continuous(breaks = c(1, seq(50, 250, 50))) +
+  scale_color_manual(
+    name = "",
+    values = colors,
+    labels = c("IMDB", "BFI")
+    ) +
+  scale_shape_manual(values = c(2, 6)) +
+  guides(shape = "none") +
+  coord_flip() +
+  labs(
+    title = "",
+    subtitle = "Samples of movies ranked by BFI x IMDB\n\n",
+    x = NULL,
+    y = "Rank (less is higher)"
+  ) +
+  theme_minimal(base_family = "Raleway", base_size = 10) +
+  theme(
+    legend.position = c(0.08, 1.05),
+    legend.direction = "horizontal",
+    axis.text.y = element_text(hjust = 1)
+  )
+```
+
+```{r}
+tab <- full_join(
+  select(bfi, name_film, rank_bfi = rank), 
+  select(imdb, name_film, rank_imdb = rank),
+  by = "name_film"
+  )
+
+tab |> 
+  filter(is.na(rank_imdb)) |> 
+  slice_min(rank_bfi, n = 20) |> 
+  select(name_film, rank = rank_bfi)
+
+tab |> 
+  filter(is.na(rank_bfi)) |> 
+  slice_min(rank_imdb, n = 20) |> 
+  select(name_film, rank = rank_imdb)
+```
+
+```{r}
+#| eval: true
 ggplot(comp) +
   geom_segment(
     aes(x = name_film, xend = name_film, y = rank_bfi, yend = rank_imdb)
