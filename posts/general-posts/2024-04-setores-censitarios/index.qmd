@@ -47,11 +47,13 @@ cur_setores_2010 <- st_read(
 
 # Understanding Census Tracts in Brazil
 
-Census tracts are the smallest administrative division that present socioeconomic and demographic data. Broadly speaking, census tracts are **small areas that exhibit similar socioeconomic and demographic patterns.** [In another post](https://restateinsight.com/posts/general-posts/2024-04-brazil-shapes) I presented all of the Brazilian administrative and statistical subdivisions. Census tracts are small, usually much smaller than a neighborhood, but larger than a single block.
+Census tracts are the smallest administrative areas for which socioeconomic and demographic data are available. Broadly speaking, census tracts are **small areas that exhibit similar socioeconomic and demographic patterns.** [In another post](https://restateinsight.com/posts/general-posts/2024-04-brazil-shapes), I presented all of the Brazilian administrative and statistical subdivisions.
 
-Census tracts are the strata used by National Bureau of Statistics and Geography (IBGE) in their decennial Census. The shape of each census tract usually respects administrative borders, land barriers, public spaces (parks, beaches, etc.), and follows the shape of roads, highways, or city blocks.
+Census tracts are the strata used by National Bureau of Statistics and Geography (IBGE) in their decennial Census. The shape of each census tract usually respects administrative borders, land barriers, public spaces (e.g. parks, beaches, etc.), and follows the shape of roads, highways, or city blocks.
 
-Census tracts also exhibit relatively **homogeneous socioeconomic and demographic characteristics**. This makes census tracts a very useful statistical tool in regression analysis and classification.
+Though they are typically small, **census tracts size vary**. Large plots of uninhabited land are commonly grouped into a single tract. In dense urban areas, census tracts are very small.
+
+Census tracts exhibit relatively **homogeneous socioeconomic and demographic characteristics**. This makes census tracts a very useful statistical tool in regression analysis and classification.
 
 The map below shows the 2022 census tracts in Curitiba, a major city in the Southern part of Brazil.
 
@@ -335,16 +337,29 @@ p1 | p3
 
 ## Dealing with spatial inconsistency
 
-A simple strategy to deal with census tracts' spatial inconsistency is to define a common spatial grid. This means choosing either a (1) grid of triangles; (2) grid of squares; or (3) grid of hexagons. In this example, I choose a simple squared grid.
+### Spatial interpolation
 
-The maps below show the same Census population data in a squared 100x100m squared grid. While I omit the color legend of the plots, I scaled them equally as to make them directly comparable; also, darker shades of green indicate higher values, while ligher shades of green indicate lower values.
+A simple strategy to deal with census tracts' spatial inconsistency is to **define a common spatial grid**. This means choosing either a (1) grid of triangles; (2) grid of squares; or (3) grid of hexagons. In this example, I choose a simple squared grid.
 
-The 2010 Census data was directly imported using the [`censobr`](https://ipeagit.github.io/censobr/) R package.
+The process of converting one set of data (stored in a particular shape) into another shape is called spatial interpolation. Spatial interpolation is also referred to as areal interpolation or dasymetric interpolation.
+
+Essentially, the problem we are tryting to solve is: **we have some data stored in a (big) shape and we wish to estimate the same data in another (smaller) shape**. In this case, we will dissolve population count data, stored in the shape of the 2010 census tracts and 2020 census tracts, into a finer squared grid.
+
+To convert the data from one shape to the other we implicitly assume that the **variable (population) is uniformly distributed over the shape's space**. That is, we assume that every single person is evenly distributed across each census tract. This assumption works well in small densely populated tracts, but doesn't hold as well in larger tracts.
+
+### Spatial grid for Census Data
+
+The maps below show the same Census household data in a squared 500x500m grid. While I omit the color legend of the plots, I scaled them equally as to make them directly comparable; also, darker shades of green indicate higher values, while lighter shades of green indicate lower values.
+
+The 2010 Census data was directly imported using the [`censobr`](https://ipeagit.github.io/censobr/) R package. To estimate a simple areal interpolation I use the [`areal`](https://cran.r-project.org/web/packages/areal/vignettes/areal.html) package. Executing the areal interpolation involves a few intermediary steps such as choosing a valid UTM CRS.
+
+The final result shows the **number of households in 2010 and 2022 in a common spatial grid**. This process can be replicated across the entire city to allow an easier comparison of the data.
 
 ```{r}
 #| code-fold: true
 
 library(censobr)
+library(areal)
 # Get demographic data for 2010 census
 basico <- censobr::read_tracts(dataset = "Basico")
 # Get number of households (private)
@@ -456,3 +471,15 @@ panel_grid <- (m1 | m2)
 #| out-width: 100%
 panel_sectors / panel_grid
 ```
+
+# Conclusion
+
+Census tracts are **small statistical areas that exhibit similar socioeconomic and demographic patterns**. They are useful for statistical and spatial analysis, offering a robust and reliable set of information at a fine geographical scale.
+
+Census tracts change through time, making it difficult to compare them. A workaround is to dissolve them into common spatial grid to facilitate comparisons.
+
+## Related posts
+
+-   [Statistical and administrative divisions of Brazil](https://restateinsight.com/posts/general-posts/2024-04-brazil-shapes)
+
+-   [Finding The Coffee shops in Brazil](https://restateinsight.com/posts/general-posts/2024-06-finding-the-coffee/#merging-with-census-information)
