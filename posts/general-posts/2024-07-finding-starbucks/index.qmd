@@ -2,7 +2,7 @@
 title: "Finding All Starbucks in Brazil"
 date: "2024-07-14"
 categories: ['starbucks', 'web-scrapping', 'data-science', 'brazil', 'tutorial-R', 'finding', 'english']
-description: "In this post, I show how to find all Starbucks in Brazil using web scraping in R. I also show how to use the Google Places API to add ratings information for all Starbucks units."
+description: "In this post, I show how to find all Starbucks in Brazil using web scraping in R. I also show how to use the Google Places API to add ratings information for all Starbucks units. Web scraping is useful in market studies to acquire information that isn't readily available."
 execute: 
   message: false
   warning: false
@@ -14,7 +14,9 @@ execute:
 
 Web scraping consists of extracting information from a web page. The difficulty or ease of extracting this information depends on how well the page is constructed. In more complex cases, the information may be behind a captcha or within an interactive panel that depends on user input.
 
-In this simple example, I will show how to find the locations of all Starbucks stores in Brazil. The full list of active Starbucks stores can be found on the [Starbucks Brasil website](https://starbucks.com.br/lojas). As usual, we will use the `tidyverse` along with the `rvest` and `xml2` packages.
+In this simple example, **I will show how to find the locations of all Starbucks stores in Brazil**. The full list of active Starbucks stores can be found on the [Starbucks Brasil website](https://starbucks.com.br/lojas). As usual, we will use the `tidyverse` along with the `rvest` and `xml2` packages.
+
+### Setup
 
 ```{r libs}
 library(rvest)   # Used for web scraping and extracting HTML content
@@ -27,8 +29,8 @@ library(tidyverse)
 The full list of active Starbucks stores can be found on the [Starbucks Brasil website](https://starbucks.com.br/lojas). To read the page, we use read_html.
 
 ```{r}
-url = "https://starbucks.com.br/lojas"
-page = xml2::read_html(url)   # Fetches the HTML content of the page
+url <- "https://starbucks.com.br/lojas"
+page <- xml2::read_html(url)   # Fetches the HTML content of the page
 ```
 
 The "xpath" shows the path to a specific element on the page. For example, to find the Starbucks logo in the top-left corner of the page, we can use the following code:
@@ -41,7 +43,7 @@ page %>%
 
 To learn more about xpaths, you can consult [this cheatsheet](https://devhints.io/xpath).
 
-In general, on well-constructed pages, the name of elements will be quite self-explanatory. In the case above, the "alt" attribute already indicates that the object is the Starbucks logo, and the "src" directs to an image file in svg format called starbucks-nav-logo. Unfortunately, this won't always be the case. On some pages, elements can be quite confusing.
+In general, on well-constructed pages, the name of elements will be quite self-explanatory. In the case above, the `alt` attribute already indicates that the object is the Starbucks logo, and the `src` links to an image file in `svg` format called `starbucks-nav-logo`. Unfortunately, this won't always be the case. On some pages, elements can be quite confusing.
 
 To extract a specific attribute, we use the `html_attr` function.
 
@@ -111,8 +113,10 @@ clean_dat <- dat %>%
     )
 ```
 
+The final dataset is presented below
+
 ```{r}
-#| include: false
+#| echo: false
 clean_dat |> 
   mutate(across(where(is.numeric), ~round(.x, 2))) |> 
   DT::datatable(clean_dat)
@@ -177,24 +181,22 @@ starbucks %>%
 From this data, we can add more information. Using the `geobr` package, we can identify in which cities the stores are located.
 
 ```{r}
-dim_city = geobr::read_municipality(showProgress = FALSE)
-dim_city = st_transform(dim_city, crs = 4326)
+dim_city <- geobr::read_municipality(showProgress = FALSE)
+dim_city <- st_transform(dim_city, crs = 4326)
 sf::sf_use_s2(FALSE)
 
-starbucks = starbucks %>%
+starbucks <- starbucks %>%
   st_join(dim_city) %>%
   relocate(c(name_muni, abbrev_state), .before = lat)
 ```
 
-Now we can see which cities have the most Starbucks locations.
+Now we can see which cities have the most Starbucks locations. São Paulo alone has more the 40 units.
 
 ```{r}
 starbucks %>%
   st_drop_geometry() %>%
   count(name_muni, abbrev_state, sort = TRUE) 
 ```
-
-Ou seja, há mais Starbucks somente na Paulista do que em quase todas as demais cidades do Brasil.
 
 ## Google Places
 
@@ -240,7 +242,7 @@ get_starbucks_info <- function(lat, lng) {
 
 ```
 
-O código abaixo roda a função acima em todos os 142 estabelecimentos, encontrados na página oficial do Starbucks Brasil.
+The code below uses `purrr` to iterate the `get_starbucks_info` function over the lat/lng pairs.
 
 ```{r code-fun2}
 #| eval: false
@@ -250,7 +252,7 @@ coords_starbucks <- starbucks %>%
   as_tibble() %>%
   select(index, name, lat, lng)
 
-starbucks_info = purrr::map2(
+starbucks_info <- purrr::map2(
   coords_starbucks$lat,
   coords_starbucks$lng,
   get_starbucks_info
@@ -263,7 +265,7 @@ dat <- starbucks_info %>%
 
 ```{r import-dat-google}
 #| include: false
-dat = qs::qread(here::here("static/data/starbucks_gmaps.qs"))
+dat <- qs::qread(here::here("static/data/starbucks_gmaps.qs"))
 ```
 
 To clean the data, I will keep only the active stores that contain "Starbucks" in their name. Additionally, I will pair the data with my web scraping dataset using `st_nearest_feature(x, y)`. This function finds the nearest point in `y` for each point in `x`.
@@ -299,14 +301,16 @@ google_data <- google_data |>
 
 ### Final Map
 
-The interactive map below shows all Starbucks locations in São Paulo. The color of each circle represents its rating, and the size of the circle represents the number of reviews. The units along the Avenida Paulista corridor, for example, have high average ratings and a large number of reviews. One of the worst-rated units seems to be the one near Mackenzie University, which has a rating of 2.1 and 15 reviews. In the Eastern Zone, the store at Shopping Aricanduva also has a slightly lower rating, 3.9 with 158 reviews.
+The interactive map below shows **all Starbucks locations in São Paulo**. The color of each circle represents its rating, and the size of the circle represents the number of reviews.
+
+The units along the Avenida Paulista corridor, for example, have high average ratings and a large number of reviews. One of the worst-rated units seems to be the one near Mackenzie University, which has a rating of 2.1 and 15 reviews. In the Eastern Zone, the store at Shopping Aricanduva also has a slightly lower rating, 3.9 with 158 reviews.
 
 ```{r map-overall}
 sp <- filter(google_data, name_muni == "São Paulo")
 
 sp <- sp |> 
   mutate(
-    rad = findInterval(user_ratings_total, c(25, 100, 1000, 2500, 5000))*2 + 5
+    rad = findInterval(user_ratings_total, c(25, 100, 1000, 2500, 5000)) * 2 + 5
   )
 
 pal <- colorNumeric("RdBu", domain = sp$rating)
@@ -334,4 +338,14 @@ leaflet(sp) |>
 
 # Conclusion
 
-Web scraping is a popular data extraction technique that allows us to quickly build interesting datasets. In this case, the process was quite simple, but as I mentioned, it can be much more complex.
+Web scraping is a popular data extraction technique that allows us to quickly **build interesting datasets that aren't readily available**. It's particularly useful in market studies.
+
+After gathering the addresses of all stores, we are able to **produce maps and visualize the spatial distribution of Starbucks' stores**. We can also enrich this data collecting more information from other sources such as the Google Maps API.
+
+Web scraping can be very challenging, but in this case it was fairly simple.
+
+## Related posts
+
+-   [Finding coffee shop in Brazil](https://restateinsight.com/posts/general-posts/2024-07-finding-coffee-shops/)
+
+-   [Finding all The Coffee shops in Brazil](https://restateinsight.com/posts/general-posts/2024-06-finding-the-coffee/)
