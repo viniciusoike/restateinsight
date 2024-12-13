@@ -8,9 +8,9 @@
 
 <meta name="author" content="Vinicius Oike">
 <meta name="dcterms.date" content="2024-06-28">
-<meta name="description" content="In this post, I’ll show you how to map every The Coffee shop in Brazil. I also show how to">
+<meta name="description" content="In this post, I show how to map every The Coffee shop in Brazil using web scraping and geocoding. I also show how to combine this information with Goolge Maps ratings and Census demographic data to produce valuable insights.">
 
-<title>Vinicius Oike - Finding all The Coffee shops in Brazil</title>
+<title>Vinicius Oike - Locating all The Coffee shops in Brazil</title>
 <style>
 code{white-space: pre-wrap;}
 span.smallcaps{font-variant: small-caps;}
@@ -202,10 +202,10 @@ cookieconsent.run({
 <header id="title-block-header" class="quarto-title-block default page-columns page-full">
   <div class="quarto-title-banner page-columns page-full">
     <div class="quarto-title column-body">
-      <h1 class="title">Finding all The Coffee shops in Brazil</h1>
+      <h1 class="title">Locating all The Coffee shops in Brazil</h1>
                   <div>
         <div class="description">
-          In this post, I’ll show you how to map every The Coffee shop in Brazil. I also show how to
+          In this post, I show how to map every The Coffee shop in Brazil using web scraping and geocoding. I also show how to combine this information with Goolge Maps ratings and Census demographic data to produce valuable insights.
         </div>
       </div>
                           <div class="quarto-categories">
@@ -264,9 +264,9 @@ cookieconsent.run({
   <li><a href="#geocoding" id="toc-geocoding" class="nav-link" data-scroll-target="#geocoding">Geocoding</a></li>
   </ul></li>
   <li><a href="#results" id="toc-results" class="nav-link" data-scroll-target="#results">Results</a></li>
+  </ul></li>
   <li><a href="#get-google-maps-ratings" id="toc-get-google-maps-ratings" class="nav-link" data-scroll-target="#get-google-maps-ratings">Get Google Maps ratings</a></li>
   <li><a href="#merging-with-census-information" id="toc-merging-with-census-information" class="nav-link" data-scroll-target="#merging-with-census-information">Merging with Census information</a></li>
-  </ul></li>
   </ul>
 </nav>
     </div>
@@ -297,13 +297,14 @@ cookieconsent.run({
 <h2 class="anchored" data-anchor-id="setup">Setup</h2>
 <div class="cell">
 <div class="sourceCode cell-code" id="cb1"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(dplyr)</span>
-<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(stringr)</span>
-<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(rvest)</span>
-<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(sf)</span>
-<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>import<span class="sc">::</span><span class="fu">from</span>(tidygeocoder, geocode)</span>
-<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>import<span class="sc">::</span><span class="fu">from</span>(purrr, map, map2)</span>
-<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a>import<span class="sc">::</span><span class="fu">from</span>(tidyr, unnest)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(leaflet)</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(stringr)</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(rvest)</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(sf)</span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>import<span class="sc">::</span><span class="fu">from</span>(tidygeocoder, geocode)</span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a>import<span class="sc">::</span><span class="fu">from</span>(purrr, map, map2)</span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a>import<span class="sc">::</span><span class="fu">from</span>(tidyr, unnest)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 </section>
 <section id="finding-the-data" class="level2">
@@ -325,7 +326,7 @@ cookieconsent.run({
 </section>
 <section id="using-r" class="level3">
 <h3 class="anchored" data-anchor-id="using-r">Using R</h3>
-<p>The code below</p>
+<p>The code below extracts the <code>url</code> related to every individual city in Brazil.</p>
 <div class="cell">
 <div class="sourceCode cell-code" id="cb2"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Base url </span></span>
 <span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>base_url <span class="ot">&lt;-</span> <span class="st">"https://thecoffee.jp/shortcut/brasil"</span></span>
@@ -342,7 +343,7 @@ cookieconsent.run({
 <span id="cb2-13"><a href="#cb2-13" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb2-14"><a href="#cb2-14" aria-hidden="true" tabindex="-1"></a>url_cities <span class="ot">&lt;-</span> <span class="fu">str_c</span>(base_url, <span class="fu">str_remove</span>(page_list_cities, <span class="st">"shortcut/brasil/"</span>))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
-<p>The code below is a function the scrapes the information of all shops for a given url of a city. The output is a simple <code>data.frame</code>.</p>
+<p>The code below is a function the scrapes the information of all shops for a given <code>url</code> of a city. The output is a simple <code>data.frame</code>.</p>
 <div class="cell">
 <div class="sourceCode cell-code" id="cb3"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>scrape_the_coffee <span class="ot">&lt;-</span> <span class="cf">function</span>(url) {</span>
 <span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>  </span>
@@ -378,30 +379,44 @@ cookieconsent.run({
 </section>
 <section id="functional-approach" class="level3">
 <h3 class="anchored" data-anchor-id="functional-approach">Functional approach</h3>
-<p>The simplest approach to implement this funtion is applying it over a vector with all urls for all cities. This approach is usually safer and quicker and can be scalled with parallel processing (e.g.&nbsp;<code>parallel::mclapply</code>).</p>
+<p>The simplest approach to implement this function is applying it over a vector with all <code>urls</code> for all cities. This means that the <code>scrape_the_coffee</code> function will be executed on each individual value of the <code>url_cities</code> text vector.</p>
+<p>This approach is usually quicker and can be scaled with parallel processing (e.g.&nbsp;<code>parallel::mclapply</code>). Speed, however, usually isn’t a top priority with web scraping and can even be a detriment as it might lead to an excess number of requests.</p>
+<p>It’s important to note that web scraping is liable to errors due to internet connection issues. As such it’s good practice to implement it in a error-prone fashion. The easiest way to do so in the functional approach is to wrap the function with <code>purrr::safely</code>. This way, errors don’t stop the function and are stored in a specific error class, making it easier to debug it afterwards.</p>
 <div class="cell">
 <div class="sourceCode cell-code" id="cb4"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Scrape all cities</span></span>
-<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>coffee_locations <span class="ot">&lt;-</span> <span class="fu">map</span>(url_cities, scrape_the_coffee)</span>
-<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a><span class="fu">names</span>(coffee_locations) <span class="ot">&lt;-</span> url_cities</span>
-<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a>dat <span class="ot">&lt;-</span> <span class="fu">bind_rows</span>(coffee_locations, <span class="at">.id =</span> <span class="st">"url"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a><span class="co"># Apply the scrape_the_coffee function over url_cities</span></span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a>safe_scrape_the_coffee <span class="ot">&lt;-</span> <span class="fu">safely</span>(scrape_the_coffee)</span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a>coffee_locations <span class="ot">&lt;-</span> <span class="fu">map</span>(url_cities, safe_scrape_the_coffee)</span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a><span class="co"># Name the list for convinience</span></span>
+<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a><span class="fu">names</span>(coffee_locations) <span class="ot">&lt;-</span> url_cities</span>
+<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a><span class="co"># Stack the results of the list into a single table</span></span>
+<span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a>dat <span class="ot">&lt;-</span> <span class="fu">bind_rows</span>(coffee_locations, <span class="at">.id =</span> <span class="st">"url"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 </section>
 <section id="loop-approach" class="level3">
 <h3 class="anchored" data-anchor-id="loop-approach">Loop approach</h3>
+<p>The code below shows how to implement the same procedure using a typical <code>for-loop</code> syntax. This approach is usually more intuitive and easier to follow. It’s generally better to use this approach in more complex web scrapping endeavors.</p>
+<p>For illustration purposes, I show how to add a progress bar to the loop and a timeout.</p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb5"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>pb <span class="ot">&lt;-</span> <span class="fu">txtProgressBar</span>(<span class="at">min =</span> <span class="dv">1</span>, <span class="at">max =</span> <span class="fu">length</span>(url_cities), <span class="at">style =</span> <span class="dv">3</span>)</span>
-<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>ls <span class="ot">&lt;-</span> <span class="fu">vector</span>(<span class="st">"list"</span>, <span class="fu">length</span>(url_cities))</span>
-<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> (i <span class="cf">in</span> <span class="fu">seq_along</span>(url_cities)) {</span>
-<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>  </span>
-<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a>  url <span class="ot">&lt;-</span> url_cities[i]</span>
-<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a>  current_city <span class="ot">&lt;-</span> <span class="fu">basename</span>(url)</span>
-<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a>  <span class="fu">message</span>(<span class="st">"Scraping data for: "</span>, current_city)</span>
-<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a>  ls[[i]] <span class="ot">&lt;-</span> <span class="fu">scrape_the_coffee</span>(url)</span>
-<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a>  <span class="fu">setTxtProgressBar</span>(pb, i)</span>
-<span id="cb5-11"><a href="#cb5-11" aria-hidden="true" tabindex="-1"></a>  <span class="fu">Sys.sleep</span>(<span class="fu">runif</span>(<span class="dv">1</span>, <span class="at">min =</span> <span class="dv">1</span>, <span class="at">max =</span> <span class="dv">5</span>))</span>
-<span id="cb5-12"><a href="#cb5-12" aria-hidden="true" tabindex="-1"></a>  </span>
-<span id="cb5-13"><a href="#cb5-13" aria-hidden="true" tabindex="-1"></a>}</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb5"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Define a progress bar</span></span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>pb <span class="ot">&lt;-</span> <span class="fu">txtProgressBar</span>(<span class="at">min =</span> <span class="dv">1</span>, <span class="at">max =</span> <span class="fu">length</span>(url_cities), <span class="at">style =</span> <span class="dv">3</span>)</span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>ls <span class="ot">&lt;-</span> <span class="fu">vector</span>(<span class="st">"list"</span>, <span class="fu">length</span>(url_cities))</span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> (i <span class="cf">in</span> <span class="fu">seq_along</span>(url_cities)) {</span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Get the current city</span></span>
+<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a>  url <span class="ot">&lt;-</span> url_cities[i]</span>
+<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a>  current_city <span class="ot">&lt;-</span> <span class="fu">basename</span>(url)</span>
+<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a>  <span class="fu">message</span>(<span class="st">"Scraping data for: "</span>, current_city)</span>
+<span id="cb5-11"><a href="#cb5-11" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Safely apply the scrape_the_coffee function</span></span>
+<span id="cb5-12"><a href="#cb5-12" aria-hidden="true" tabindex="-1"></a>  ls[[i]] <span class="ot">&lt;-</span> <span class="fu">try</span>(<span class="fu">scrape_the_coffee</span>(url))</span>
+<span id="cb5-13"><a href="#cb5-13" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Update progress bar</span></span>
+<span id="cb5-14"><a href="#cb5-14" aria-hidden="true" tabindex="-1"></a>  <span class="fu">setTxtProgressBar</span>(pb, i)</span>
+<span id="cb5-15"><a href="#cb5-15" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Small timeout to avoid problems</span></span>
+<span id="cb5-16"><a href="#cb5-16" aria-hidden="true" tabindex="-1"></a>  <span class="fu">Sys.sleep</span>(<span class="fu">runif</span>(<span class="dv">1</span>, <span class="at">min =</span> <span class="dv">1</span>, <span class="at">max =</span> <span class="dv">5</span>))</span>
+<span id="cb5-17"><a href="#cb5-17" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb5-18"><a href="#cb5-18" aria-hidden="true" tabindex="-1"></a>}</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 </section>
 <section id="cleaning-the-data" class="level3">
@@ -427,7 +442,7 @@ cookieconsent.run({
 </section>
 <section id="geocoding" class="level3">
 <h3 class="anchored" data-anchor-id="geocoding">Geocoding</h3>
-<p>Geocoding the data is fairly straightforward. I use the Google Maps API via the <code>tidygeocoder</code> package to find the corresponding lat/lng pair for each address.</p>
+<p>Geocoding is the process of finding a street address based on a latitude/longitude pair or vice-versa. Typically, we need to call an external provider for this. In this case, I use the Google Maps API via the <code>tidygeocoder</code> package to find the corresponding lat/lng pair for each address.</p>
 <div class="cell">
 <div class="sourceCode cell-code" id="cb7"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Geocode using Maps API</span></span>
 <span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>coffee <span class="ot">&lt;-</span> tidygeocoder<span class="sc">::</span><span class="fu">geocode</span>(</span>
@@ -448,27 +463,28 @@ cookieconsent.run({
 </section>
 <section id="results" class="level2">
 <h2 class="anchored" data-anchor-id="results">Results</h2>
+<p>The table below shows the final results of the web scraping and geocoding process.</p>
 <div class="cell">
 <div class="cell-output-display">
 
-<div id="gzfbrhkull" style="padding-left:0px;padding-right:0px;padding-top:10px;padding-bottom:10px;overflow-x:auto;overflow-y:auto;width:auto;height:auto;">
+<div id="dstgcfsayx" style="padding-left:0px;padding-right:0px;padding-top:10px;padding-bottom:10px;overflow-x:auto;overflow-y:auto;width:auto;height:auto;">
 <style>@import url("https://fonts.googleapis.com/css2?family=Open+Sans:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&display=swap");
-#gzfbrhkull table {
+#dstgcfsayx table {
   font-family: 'Open Sans', system-ui, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
-#gzfbrhkull thead, #gzfbrhkull tbody, #gzfbrhkull tfoot, #gzfbrhkull tr, #gzfbrhkull td, #gzfbrhkull th {
+#dstgcfsayx thead, #dstgcfsayx tbody, #dstgcfsayx tfoot, #dstgcfsayx tr, #dstgcfsayx td, #dstgcfsayx th {
   border-style: none;
 }
 
-#gzfbrhkull p {
+#dstgcfsayx p {
   margin: 0;
   padding: 0;
 }
 
-#gzfbrhkull .gt_table {
+#dstgcfsayx .gt_table {
   display: table;
   border-collapse: collapse;
   line-height: normal;
@@ -494,12 +510,12 @@ cookieconsent.run({
   border-left-color: #D3D3D3;
 }
 
-#gzfbrhkull .gt_caption {
+#dstgcfsayx .gt_caption {
   padding-top: 4px;
   padding-bottom: 4px;
 }
 
-#gzfbrhkull .gt_title {
+#dstgcfsayx .gt_title {
   color: #333333;
   font-size: 125%;
   font-weight: initial;
@@ -511,7 +527,7 @@ cookieconsent.run({
   border-bottom-width: 0;
 }
 
-#gzfbrhkull .gt_subtitle {
+#dstgcfsayx .gt_subtitle {
   color: #333333;
   font-size: 85%;
   font-weight: initial;
@@ -523,7 +539,7 @@ cookieconsent.run({
   border-top-width: 0;
 }
 
-#gzfbrhkull .gt_heading {
+#dstgcfsayx .gt_heading {
   background-color: #FFFFFF;
   text-align: center;
   border-bottom-color: #FFFFFF;
@@ -535,13 +551,13 @@ cookieconsent.run({
   border-right-color: #D3D3D3;
 }
 
-#gzfbrhkull .gt_bottom_border {
+#dstgcfsayx .gt_bottom_border {
   border-bottom-style: solid;
   border-bottom-width: 2px;
   border-bottom-color: #5F5F5F;
 }
 
-#gzfbrhkull .gt_col_headings {
+#dstgcfsayx .gt_col_headings {
   border-top-style: solid;
   border-top-width: 2px;
   border-top-color: #5F5F5F;
@@ -556,7 +572,7 @@ cookieconsent.run({
   border-right-color: #D3D3D3;
 }
 
-#gzfbrhkull .gt_col_heading {
+#dstgcfsayx .gt_col_heading {
   color: #FFFFFF;
   background-color: #0076BA;
   font-size: 100%;
@@ -576,7 +592,7 @@ cookieconsent.run({
   overflow-x: hidden;
 }
 
-#gzfbrhkull .gt_column_spanner_outer {
+#dstgcfsayx .gt_column_spanner_outer {
   color: #FFFFFF;
   background-color: #0076BA;
   font-size: 100%;
@@ -588,15 +604,15 @@ cookieconsent.run({
   padding-right: 4px;
 }
 
-#gzfbrhkull .gt_column_spanner_outer:first-child {
+#dstgcfsayx .gt_column_spanner_outer:first-child {
   padding-left: 0;
 }
 
-#gzfbrhkull .gt_column_spanner_outer:last-child {
+#dstgcfsayx .gt_column_spanner_outer:last-child {
   padding-right: 0;
 }
 
-#gzfbrhkull .gt_column_spanner {
+#dstgcfsayx .gt_column_spanner {
   border-bottom-style: solid;
   border-bottom-width: 2px;
   border-bottom-color: #5F5F5F;
@@ -608,11 +624,11 @@ cookieconsent.run({
   width: 100%;
 }
 
-#gzfbrhkull .gt_spanner_row {
+#dstgcfsayx .gt_spanner_row {
   border-bottom-style: hidden;
 }
 
-#gzfbrhkull .gt_group_heading {
+#dstgcfsayx .gt_group_heading {
   padding-top: 8px;
   padding-bottom: 8px;
   padding-left: 5px;
@@ -638,7 +654,7 @@ cookieconsent.run({
   text-align: left;
 }
 
-#gzfbrhkull .gt_empty_group_heading {
+#dstgcfsayx .gt_empty_group_heading {
   padding: 0.5px;
   color: #333333;
   background-color: #FFFFFF;
@@ -653,15 +669,15 @@ cookieconsent.run({
   vertical-align: middle;
 }
 
-#gzfbrhkull .gt_from_md > :first-child {
+#dstgcfsayx .gt_from_md > :first-child {
   margin-top: 0;
 }
 
-#gzfbrhkull .gt_from_md > :last-child {
+#dstgcfsayx .gt_from_md > :last-child {
   margin-bottom: 0;
 }
 
-#gzfbrhkull .gt_row {
+#dstgcfsayx .gt_row {
   padding-top: 8px;
   padding-bottom: 8px;
   padding-left: 5px;
@@ -680,7 +696,7 @@ cookieconsent.run({
   overflow-x: hidden;
 }
 
-#gzfbrhkull .gt_stub {
+#dstgcfsayx .gt_stub {
   color: #333333;
   background-color: #89D3FE;
   font-size: 100%;
@@ -693,7 +709,7 @@ cookieconsent.run({
   padding-right: 5px;
 }
 
-#gzfbrhkull .gt_stub_row_group {
+#dstgcfsayx .gt_stub_row_group {
   color: #333333;
   background-color: #FFFFFF;
   font-size: 100%;
@@ -707,15 +723,15 @@ cookieconsent.run({
   vertical-align: top;
 }
 
-#gzfbrhkull .gt_row_group_first td {
+#dstgcfsayx .gt_row_group_first td {
   border-top-width: 2px;
 }
 
-#gzfbrhkull .gt_row_group_first th {
+#dstgcfsayx .gt_row_group_first th {
   border-top-width: 2px;
 }
 
-#gzfbrhkull .gt_summary_row {
+#dstgcfsayx .gt_summary_row {
   color: #333333;
   background-color: #FFFFFF;
   text-transform: inherit;
@@ -725,16 +741,16 @@ cookieconsent.run({
   padding-right: 5px;
 }
 
-#gzfbrhkull .gt_first_summary_row {
+#dstgcfsayx .gt_first_summary_row {
   border-top-style: solid;
   border-top-color: #5F5F5F;
 }
 
-#gzfbrhkull .gt_first_summary_row.thick {
+#dstgcfsayx .gt_first_summary_row.thick {
   border-top-width: 2px;
 }
 
-#gzfbrhkull .gt_last_summary_row {
+#dstgcfsayx .gt_last_summary_row {
   padding-top: 8px;
   padding-bottom: 8px;
   padding-left: 5px;
@@ -744,7 +760,7 @@ cookieconsent.run({
   border-bottom-color: #5F5F5F;
 }
 
-#gzfbrhkull .gt_grand_summary_row {
+#dstgcfsayx .gt_grand_summary_row {
   color: #333333;
   background-color: #D5D5D5;
   text-transform: inherit;
@@ -754,7 +770,7 @@ cookieconsent.run({
   padding-right: 5px;
 }
 
-#gzfbrhkull .gt_first_grand_summary_row {
+#dstgcfsayx .gt_first_grand_summary_row {
   padding-top: 8px;
   padding-bottom: 8px;
   padding-left: 5px;
@@ -764,7 +780,7 @@ cookieconsent.run({
   border-top-color: #5F5F5F;
 }
 
-#gzfbrhkull .gt_last_grand_summary_row_top {
+#dstgcfsayx .gt_last_grand_summary_row_top {
   padding-top: 8px;
   padding-bottom: 8px;
   padding-left: 5px;
@@ -774,11 +790,11 @@ cookieconsent.run({
   border-bottom-color: #5F5F5F;
 }
 
-#gzfbrhkull .gt_striped {
+#dstgcfsayx .gt_striped {
   background-color: #EDF7FC;
 }
 
-#gzfbrhkull .gt_table_body {
+#dstgcfsayx .gt_table_body {
   border-top-style: solid;
   border-top-width: 2px;
   border-top-color: #5F5F5F;
@@ -787,7 +803,7 @@ cookieconsent.run({
   border-bottom-color: #5F5F5F;
 }
 
-#gzfbrhkull .gt_footnotes {
+#dstgcfsayx .gt_footnotes {
   color: #333333;
   background-color: #FFFFFF;
   border-bottom-style: none;
@@ -801,7 +817,7 @@ cookieconsent.run({
   border-right-color: #D3D3D3;
 }
 
-#gzfbrhkull .gt_footnote {
+#dstgcfsayx .gt_footnote {
   margin: 0px;
   font-size: 90%;
   padding-top: 4px;
@@ -810,7 +826,7 @@ cookieconsent.run({
   padding-right: 5px;
 }
 
-#gzfbrhkull .gt_sourcenotes {
+#dstgcfsayx .gt_sourcenotes {
   color: #333333;
   background-color: #FFFFFF;
   border-bottom-style: none;
@@ -824,7 +840,7 @@ cookieconsent.run({
   border-right-color: #D3D3D3;
 }
 
-#gzfbrhkull .gt_sourcenote {
+#dstgcfsayx .gt_sourcenote {
   font-size: 90%;
   padding-top: 4px;
   padding-bottom: 4px;
@@ -832,63 +848,63 @@ cookieconsent.run({
   padding-right: 5px;
 }
 
-#gzfbrhkull .gt_left {
+#dstgcfsayx .gt_left {
   text-align: left;
 }
 
-#gzfbrhkull .gt_center {
+#dstgcfsayx .gt_center {
   text-align: center;
 }
 
-#gzfbrhkull .gt_right {
+#dstgcfsayx .gt_right {
   text-align: right;
   font-variant-numeric: tabular-nums;
 }
 
-#gzfbrhkull .gt_font_normal {
+#dstgcfsayx .gt_font_normal {
   font-weight: normal;
 }
 
-#gzfbrhkull .gt_font_bold {
+#dstgcfsayx .gt_font_bold {
   font-weight: bold;
 }
 
-#gzfbrhkull .gt_font_italic {
+#dstgcfsayx .gt_font_italic {
   font-style: italic;
 }
 
-#gzfbrhkull .gt_super {
+#dstgcfsayx .gt_super {
   font-size: 65%;
 }
 
-#gzfbrhkull .gt_footnote_marks {
+#dstgcfsayx .gt_footnote_marks {
   font-size: 75%;
   vertical-align: 0.4em;
   position: initial;
 }
 
-#gzfbrhkull .gt_asterisk {
+#dstgcfsayx .gt_asterisk {
   font-size: 100%;
   vertical-align: 0;
 }
 
-#gzfbrhkull .gt_indent_1 {
+#dstgcfsayx .gt_indent_1 {
   text-indent: 5px;
 }
 
-#gzfbrhkull .gt_indent_2 {
+#dstgcfsayx .gt_indent_2 {
   text-indent: 10px;
 }
 
-#gzfbrhkull .gt_indent_3 {
+#dstgcfsayx .gt_indent_3 {
   text-indent: 15px;
 }
 
-#gzfbrhkull .gt_indent_4 {
+#dstgcfsayx .gt_indent_4 {
   text-indent: 20px;
 }
 
-#gzfbrhkull .gt_indent_5 {
+#dstgcfsayx .gt_indent_5 {
   text-indent: 25px;
 }
 </style>
@@ -945,10 +961,15 @@ cookieconsent.run({
 <span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">addMarkers</span>(<span class="at">label =</span> <span class="sc">~</span>name) <span class="sc">%&gt;%</span></span>
 <span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">addProviderTiles</span>(<span class="st">"CartoDB"</span>) <span class="sc">%&gt;%</span></span>
 <span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">setView</span>(<span class="at">lng =</span> <span class="sc">-</span><span class="fl">46.65590</span>, <span class="at">lat =</span> <span class="sc">-</span><span class="fl">23.561197</span>, <span class="at">zoom =</span> <span class="dv">12</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output-display">
+<div class="leaflet html-widget html-fill-item" id="htmlwidget-403d997187cd0360fbaa" style="width:100%;height:464px;"></div>
+<script type="application/json" data-for="htmlwidget-403d997187cd0360fbaa">{"x":{"options":{"crs":{"crsClass":"L.CRS.EPSG3857","code":null,"proj4def":null,"projectedBounds":null,"options":{}}},"calls":[{"method":"addTiles","args":["https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",null,null,{"minZoom":0,"maxZoom":18,"tileSize":256,"subdomains":"abc","errorTileUrl":"","tms":false,"noWrap":false,"zoomOffset":0,"zoomReverse":false,"opacity":1,"zIndex":1,"detectRetina":false,"attribution":"&copy; <a href=\"https://openstreetmap.org/copyright/\">OpenStreetMap<\/a>,  <a href=\"https://opendatacommons.org/licenses/odbl/\">ODbL<\/a>"}]},{"method":"addMarkers","args":[[-23.1244231,-26.9929179,-19.9361078,-19.9322668,-19.926884,-1.4574412,-1.4600842,-26.9213039,-15.7599133,-15.8362013,-15.8013678,-15.8277639,-15.7980407,-15.7398321,-15.8082697,-15.7730073,-15.7376916,-15.8369749,-15.8528298,-15.7497599,-15.8277639,-15.8073875,-15.8345749,-15.7376906,-15.8271753,-15.761358,-15.8005995,-15.7081709,-15.7429483,-22.8261187,-22.8475042,-23.009917,-22.9266965,-20.456356,-25.443726,-22.7176908,-29.9157517,-24.952304,-27.0701527,-21.2881702,-15.5901447,-25.4325733,-25.4348424,-25.4295068,-25.4257771,-25.412983,-25.4181542,-25.4357505,-25.4179311,-25.4358787,-25.4384534,-25.4129592,-25.4483536,-25.4305676,-25.4430439,-25.4303474,-25.4501054,-25.431107,-25.4452162,-25.4049823,-25.4321145,-25.4333644,-25.4176941,-25.4289674,-25.4431419,-25.4376472,-25.428732,-25.4339534,-25.4173969,-25.4090219,-27.5879733,-27.5879028,-27.5955852,-27.5931141,-27.4400051,-27.535128,-3.7349146,-3.7259974,-3.7361057,-3.7423881,-3.74169,-3.7881216,-3.7350579,-3.794939,-3.74646,-3.79578,-25.5475337,-16.6966204,-16.7079067,-26.2999118,-26.3033117,-7.1046039,-7.0810559,-7.225745,-21.7763534,-23.3302039,-23.3124841,-3.0941363,-3.0847158,-23.4185038,-23.4450541,-19.986742,-29.664618,-22.5123927,-25.0963718,-30.0291783,-30.0251399,-30.0253178,-30.0352498,-30.0846697,-30.0793103,-30.0293999,-30.0097908,-30.0469939,-21.7875606,-8.0369869,-8.0593925,-22.9845782,-22.955028,-22.9146132,-22.9118482,-22.9363519,-23.0067693,-22.9068334,-22.945887,-22.9855788,-22.9671506,-22.9825392,-23.0063374,-22.9626401,-12.9905434,-12.9941089,-13.010531,-29.686466,-23.6542273,-23.96697,-23.4739131,-23.6613139,-23.2042188,-23.5653724,-23.5618254,-23.6113214,-23.5764314,-23.609117,-23.5840787,-23.5565342,-23.6322618,-23.5875637,-23.5909564,-23.5454914,-23.5436571,-23.5505821,-23.6246829,-23.5673971,-23.5500944,-23.6051676,-23.5664967,-23.5572153,-23.5887031,-23.5952979,-23.622517,-23.5834336,-23.6231169,-23.5534632,-23.5698825,-23.5558562,-23.5359197,-23.6092136,-23.5980407,-23.535303,-23.5737875,-23.5852173,-23.5987246,-23.592759,-23.5414134,-23.5955387,-23.609839,-23.6298795,-23.6245782,-23.5933406,-23.524835,-23.5980159,-23.550539,-23.4989957,-23.5410242,-23.6038964,-23.5567225,-23.5448569,-23.6113354,-23.5799289,-23.5514298,-23.5470416,-5.0684632,-20.3356073,-20.3467973,-20.3000807,-20.3129165,-20.2587914,-20.2882919,-20.3113221],[-46.5575138,-48.6299565,-43.9338522,-43.9365114,-43.9488882,-48.5014736,-48.4885369,-49.0644263,-47.8805612,-48.0182719,-47.9253869,-47.9249014,-47.9200341,-47.8935382,-47.9063324,-47.8761631,-47.8966382,-48.032842,-47.8967714,-47.8400376,-47.9249014,-47.8976061,-48.0368701,-47.8966351,-47.9101552,-47.8973608,-47.8832681,-47.9148844,-47.9129177,-47.0723596,-47.0637067,-47.1411397,-47.0428133,-54.5948531,-49.5680509,-45.5653914,-51.1648462,-53.4584378,-52.6263143,-47.7460796,-56.1206767,-49.2811883,-49.277973,-49.2656496,-49.262779,-49.258002,-49.26875,-49.2871146,-49.2634846,-49.3265474,-49.2789454,-49.265482,-49.2852373,-49.2920062,-49.2908478,-49.324071,-49.2882425,-49.2488726,-49.2872565,-49.2509249,-49.2734886,-49.3007874,-49.2464684,-49.2938673,-49.2855899,-49.2827132,-49.2146097,-49.2893225,-49.2793103,-49.265494,-48.5428953,-48.5536938,-48.5500678,-48.5579083,-48.487742,-48.5095609,-38.4972288,-38.4975597,-38.4902251,-38.4867361,-38.47303,-38.4799297,-38.5660305,-38.4805629,-38.489269,-38.5002437,-54.5848937,-49.2803448,-49.272303,-48.8504405,-48.8495321,-34.8296745,-34.8390407,-39.3238646,-43.3478257,-51.1741306,-51.166836,-60.0226946,-60.0723846,-51.9334246,-51.9157547,-43.9480412,-51.1426243,-43.1774784,-50.159082,-51.2087924,-51.2020313,-51.1624681,-51.2109251,-51.2458384,-51.2473909,-51.2010689,-51.1880242,-51.2299552,-46.5650715,-34.9126229,-34.8704729,-43.2027296,-43.194872,-43.1664982,-43.2251114,-43.1898778,-43.3118233,-43.1772234,-43.182761,-43.2263112,-43.188284,-43.2155281,-43.310715,-43.2162787,-38.4569177,-38.45966,-38.511885,-53.8119896,-46.5357292,-46.3333603,-47.4295781,-46.5706508,-45.9091453,-46.6828327,-46.6707734,-46.6638544,-46.6870898,-46.694481,-46.6796213,-46.6869589,-46.7071436,-46.6725787,-46.6899811,-46.6491764,-46.6452916,-46.5650496,-46.6835302,-46.6497431,-46.6602269,-46.6701744,-46.6541557,-46.6349608,-46.6398553,-46.6866818,-46.6716239,-46.6379731,-46.6986074,-46.6616706,-46.6917274,-46.6752826,-46.6701257,-46.6976599,-46.6975513,-46.6747025,-46.6551705,-46.6817189,-46.6765001,-46.6826255,-46.6822878,-46.6802518,-46.667781,-46.7108395,-46.7037397,-46.6751444,-46.6993338,-46.6840122,-46.678806,-46.6255918,-46.7340229,-46.6423475,-46.6639597,-46.6610047,-46.698026,-46.6750197,-46.6557867,-46.6643149,-42.7925697,-40.2835896,-40.2858423,-40.2977608,-40.2879598,-40.2682685,-40.2911988,-40.291224],null,null,null,{"interactive":true,"draggable":false,"keyboard":true,"title":"","alt":"","zIndexOffset":0,"opacity":1,"riseOnHover":false,"riseOffset":250},null,null,null,null,["The Coffee Jardim Atibaia","The Coffee Av. Brasil 2241","The Coffee Rua Inconfidentes","The Coffee Praça da Liberdade","The Coffee Lourdes","The Coffee Cidade Velha","The Coffee Batista Campos","The Coffee Curt Hering","The Coffee Asa Norte","The Coffee Águas Claras","The Coffee Sudoeste 103","The Coffee Asa Sul","The Coffee Sudoeste 101","The Coffee CLN 116","The Coffee Edifício Sabin","The Coffee CLN 405","The Coffee 305 Norte","The Coffee Cosmopolitan","The Coffee Gilberto Salomão","The Coffee Lago Sul","The Coffee 108 Sul","The Coffee 414 Sul","The Coffee Parque Águas Claras","The Coffee CLN 114","The Coffee 212 Sul","The Coffee CEUB","The Coffee Carlton Tower","The Coffee 402 Sul","The Coffee Noroeste","The Coffee Barão Geraldo","The Coffee Shopping Dom Pedro","The Coffee Aeroporto Viracopos","The Coffee São Leopoldo Mandic","The Coffee Atrium","The Coffee City Center Outlet","The Coffee Parque Capivari","The Coffee Park Shopping Canoas","The Coffee Cascavel","The Coffee Pátio Shopping Chapecó","The Coffee Santa Maria Outlet","The Coffee Shopping Estação Cuiabá","The Coffee Prudente","The Coffee Comendador","The Coffee Marechal Deodoro","The Coffee Reitoria","The Coffee Moyses Marcondes","The Coffee Cândido de Abreu","The Coffee Praça Espanha","The Coffee João Gualberto","The Coffee Park Shop. Barigui","The Coffee Batel","The Coffee Min. Público - Mon","The Coffee Av. Iguaçu","The Coffee Champagnat Olist","The Coffee Pátio Batel","The Coffee Euro Import","The Coffee República Argentina 414","The Coffee Senador Souza Naves","The Coffee Praça do Japão","The Coffee Av. Paraná","The Coffee Palácio Avenida","The Coffee Padre Anchieta","The Coffee Augusto Stresser","The Coffee Mall Ucrânia","The Coffee DOC Castelo","The Coffee Nex Casa de Pedra","The Coffee Jockey Plaza","The Coffee Augusto Stellfeld","The Coffee Pilar Centro Médico","The Coffee Jardim","The Coffee Pátio Milano","The Coffee Esteves Júnior","The Coffee Vidal Ramos","The Coffee Top Market","The Coffee Jurerê","The Coffee Square SC (Pop-up)","The Coffee Aldeota","The Coffee Beira Mar","The Coffee Pátio Dom Luis","The Coffee Cocó","The Coffee Shopping Riomar","The Coffee Village WSTC","The Coffee Shopping Riomar Kennedy","The Coffee Washington Soares","The Coffee Verd Mall","The Coffee Glória Mall","The Coffee Almirante Barroso","The Coffee Vaca Brava","The Coffee Goiânia Shopping","The Coffee Rua Blumenau","The Coffee Mueller Joinville","The Coffee Manaíra","The Coffee Parahyba Mall","The Coffee Juazeiro do Norte","The Coffee Juiz de Fora","The Coffee Alameda Jardino","The Coffee Rua Belo Horizonte","The Coffee Amazonas Shopping","The Coffee Shopping Ponta Negra","The Coffee Avenida Raccanello","The Coffee Jardim Aclimação","The Coffee Edifício Concordia","The Coffee I Fashion Outlet Novo Hamburgo","The Coffee Pátio Petrópolis","The Coffee Ponta Grossa","The Coffee Av. Independência","The Coffee 24 de Outubro","The Coffee Iguatemi Porto Alegre","The Coffee Bom Fim","The Coffee Shopping Barra Sul","The Coffee Pontal Shopping","The Coffee Av. Goethe","The Coffee Sogipa (exclusivo para sócios do clube)","The Coffee Trend Orla","The Coffee Poços de Caldas","The Coffee Plaza Shopping","The Coffee Moinho Recife","The Coffee Ipanema","The Coffee Botafogo","The Coffee Aeroporto SDU - Bossa Nova Mall","The Coffee Shopping Tijuca","The Coffee Laranjeiras","The Coffee Metrô Jardim Oceânico Saída Praia","The Coffee Rio Branco","The Coffee Praia de Botafogo","The Coffee Leblon","The Coffee Copacabana","The Coffee Shopping Leblon","The Coffee Metrô Jardim Oceânico Saída Lagoa","The Coffee Jardim Botânico","The Coffee Pituba","The Coffee Praça Ana Lúcia","The Coffee Ondina","The Coffee Santa Maria","The Coffee Rua das Bandeiras","The Coffee Praça Independência","The Coffee Toyota Sorocaba","The Coffee Rudge Ramos","The Coffee Colinas Shopping","The Coffee Pinheiros","The Coffee Oscar Freire","The Coffee Moema","The Coffee Faria Lima","The Coffee Berrini","The Coffee Tabapuã","The Coffee Vila Madalena","The Coffee Verbo Divino","The Coffee Itaim II","The Coffee Jk Iguatemi","The Coffee Higienópolis","The Coffee República","The Coffee Tatuapé","The Coffee Brooklin","The Coffee Av. Paulista","The Coffee Angélica","The Coffee Moema Pássaros","The Coffee Alameda Jaú","The Coffee Japão Liberdade","The Coffee Vila Mariana","The Coffee Shopping Vila Olímpia","The Coffee Campo Belo","The Coffee Ana Rosa","The Coffee Shopping Morumbi","The Coffee Angélica II","The Coffee Faria Lima II","The Coffee Teodoro Sampaio","The Coffee Perdizes","The Coffee WTCSP","The Coffee Shopping Cidade Jardim","The Coffee Rua Campevas","The Coffee Av. Brigadeiro Luís Antônio","The Coffee Itaim","The Coffee Insper","The Coffee Vila Olímpia","The Coffee Alfonso Bovero","The Coffee Housi Faria Lima","The Coffee Shopping Ibirapuera","The Coffee Paseo Alto das Nações","The Coffee Parque da Cidade","The Coffee Vila Nova Conceição","The Coffee Vila Romana","The Coffee Julio Diniz","The Coffee Sumaré","The Coffee Santana","The Coffee Spark","The Coffee Luis Góis","The Coffee Cerqueira Cesar","The Coffee Vilaboim","The Coffee CENU","The Coffee Itacema","The Coffee Passeio Paulista","The Coffee Pacaembu","The Coffee Nossa Senhora de Fátima","The Coffee Praia da Costa","The Coffee Itapuã","The Coffee Praia do Canto","The Coffee Shopping Vitória","The Coffee Jardim Camburi","The Coffee Jardim Food Park","The Coffee Enseada"],{"interactive":false,"permanent":false,"direction":"auto","opacity":1,"offset":[0,0],"textsize":"10px","textOnly":false,"className":"","sticky":true},null]},{"method":"addProviderTiles","args":["CartoDB",null,null,{"errorTileUrl":"","noWrap":false,"detectRetina":false}]}],"limits":{"lat":[-30.0846697,-1.4574412],"lng":[-60.0723846,-34.8296745]},"setView":[[-23.561197,-46.6559],12,[]]},"evals":[],"jsHooks":[]}</script>
+</div>
 </div>
 </section>
-<section id="get-google-maps-ratings" class="level2">
-<h2 class="anchored" data-anchor-id="get-google-maps-ratings">Get Google Maps ratings</h2>
+</section>
+<section id="get-google-maps-ratings" class="level1">
+<h1>Get Google Maps ratings</h1>
 <p><a href="https://restateinsight.com/posts/general-posts/2024-07-finding-starbucks/#google-places">Starbucks post</a></p>
 <div class="cell">
 <div class="sourceCode cell-code" id="cb9"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>cur_shops <span class="ot">&lt;-</span> <span class="fu">filter</span>(shops, city_name <span class="sc">==</span> <span class="st">"Curitiba"</span>)</span>
@@ -986,13 +1007,13 @@ cookieconsent.run({
 </div>
 <div class="cell">
 <div class="cell-output-display">
-<div class="leaflet html-widget html-fill-item" id="htmlwidget-ad40750021efeee3d8c1" style="width:100%;height:464px;"></div>
-<script type="application/json" data-for="htmlwidget-ad40750021efeee3d8c1">{"x":{"options":{"crs":{"crsClass":"L.CRS.EPSG3857","code":null,"proj4def":null,"projectedBounds":null,"options":{}}},"calls":[{"method":"addTiles","args":["https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",null,null,{"minZoom":0,"maxZoom":18,"tileSize":256,"subdomains":"abc","errorTileUrl":"","tms":false,"noWrap":false,"zoomOffset":0,"zoomReverse":false,"opacity":1,"zIndex":1,"detectRetina":false,"attribution":"&copy; <a href=\"https://openstreetmap.org/copyright/\">OpenStreetMap<\/a>,  <a href=\"https://opendatacommons.org/licenses/odbl/\">ODbL<\/a>"}]},{"method":"addCircleMarkers","args":[[-25.4325732,-25.4348424,-25.4430439,-25.4376472,-25.4384237,-25.4339534,-25.4357532,-25.432109,-25.4431255,-25.430572,-25.4289674,-25.445209,-25.4090219,-25.4295421,-25.4351398,-25.4501064,-25.4258236,-25.417535,-25.4335315,-25.4180373,-25.4483892,-25.4311071,-25.4179311,-25.4128421,-25.4129983,-25.4176941,-25.428672,-25.40504,-25.4303474,-25.4681559],[-49.2811883,-49.277973,-49.29084779999999,-49.2827132,-49.2789094,-49.2893225,-49.2871215,-49.27350879999999,-49.2853708,-49.2920136,-49.2938673,-49.2872582,-49.265494,-49.2656275,-49.3167883,-49.2882057,-49.2627553,-49.2793946,-49.3009885,-49.2688903,-49.2852218,-49.2488726,-49.2634846,-49.26541539999999,-49.2579874,-49.2464684,-49.2147448,-49.250978,-49.324071,-49.2939267],[11,9,7,5,7,5,9,5,5,5,5,5,5,9,7,7,9,5,7,9,9,9,5,7,9,5,7,9,5,5],null,null,{"interactive":true,"className":"","stroke":false,"color":["#7FB7D7","#7FB7D7","#FBC7AD","#3E8BBF","#BBD9E9","#BBD9E9","#3E8BBF","#7FB7D7","#1E61A5","#BBD9E9","#E6EFF4","#BBD9E9","#053061","#7FB7D7","#FBC7AD","#3E8BBF","#7FB7D7","#FBC7AD","#AB162A","#7FB7D7","#3E8BBF","#1E61A5","#3E8BBF","#BBD9E9","#BBD9E9","#1E61A5","#3E8BBF","#3E8BBF","#67001F","#1E61A5"],"weight":5,"opacity":0.5,"fill":true,"fillColor":["#7FB7D7","#7FB7D7","#FBC7AD","#3E8BBF","#BBD9E9","#BBD9E9","#3E8BBF","#7FB7D7","#1E61A5","#BBD9E9","#E6EFF4","#BBD9E9","#053061","#7FB7D7","#FBC7AD","#3E8BBF","#7FB7D7","#FBC7AD","#AB162A","#7FB7D7","#3E8BBF","#1E61A5","#3E8BBF","#BBD9E9","#BBD9E9","#1E61A5","#3E8BBF","#3E8BBF","#67001F","#1E61A5"],"fillOpacity":0.5},null,null,null,null,["<b> The Coffee <\/b> <br>\n<b> Rating <\/b>: 4.7 <br>\n<b> No Ratings <\/b> 912","<b> The Coffee Comendador <\/b> <br>\n<b> Rating <\/b>: 4.7 <br>\n<b> No Ratings <\/b> 345","<b> The Coffee <\/b> <br>\n<b> Rating <\/b>: 4.3 <br>\n<b> No Ratings <\/b> 58","<b> The Coffee <\/b> <br>\n<b> Rating <\/b>: 4.8 <br>\n<b> No Ratings <\/b> 30","<b> The Coffee <\/b> <br>\n<b> Rating <\/b>: 4.6 <br>\n<b> No Ratings <\/b> 67","<b> The Coffee <\/b> <br>\n<b> Rating <\/b>: 4.6 <br>\n<b> No Ratings <\/b> 13","<b> The Coffee <\/b> <br>\n<b> Rating <\/b>: 4.8 <br>\n<b> No Ratings <\/b> 136","<b> The Coffee <\/b> <br>\n<b> Rating <\/b>: 4.7 <br>\n<b> No Ratings <\/b> 47","<b> The Coffee <\/b> <br>\n<b> Rating <\/b>: 4.9 <br>\n<b> No Ratings <\/b> 16","<b> The Coffee <\/b> <br>\n<b> Rating <\/b>: 4.6 <br>\n<b> No Ratings <\/b> 30","<b> The Coffee <\/b> <br>\n<b> Rating <\/b>: 4.5 <br>\n<b> No Ratings <\/b> 17","<b> The Coffee <\/b> <br>\n<b> Rating <\/b>: 4.6 <br>\n<b> No Ratings <\/b> 38","<b> The Coffee <\/b> <br>\n<b> Rating <\/b>: 5 <br>\n<b> No Ratings <\/b> 3","<b> The Coffee <\/b> <br>\n<b> Rating <\/b>: 4.7 <br>\n<b> No Ratings <\/b> 122","<b> The Coffee <\/b> <br>\n<b> Rating <\/b>: 4.3 <br>\n<b> No Ratings <\/b> 59","<b> The Coffee República Argentina <\/b> <br>\n<b> Rating <\/b>: 4.8 <br>\n<b> No Ratings <\/b> 82","<b> The Coffee <\/b> <br>\n<b> Rating <\/b>: 4.7 <br>\n<b> No Ratings <\/b> 111","<b> The Coffee <\/b> <br>\n<b> Rating <\/b>: 4.3 <br>\n<b> No Ratings <\/b> 9","<b> The Coffee <\/b> <br>\n<b> Rating <\/b>: 4 <br>\n<b> No Ratings <\/b> 71","<b> The Coffee <\/b> <br>\n<b> Rating <\/b>: 4.7 <br>\n<b> No Ratings <\/b> 120","<b> The Coffee <\/b> <br>\n<b> Rating <\/b>: 4.8 <br>\n<b> No Ratings <\/b> 146","<b> The Coffee <\/b> <br>\n<b> Rating <\/b>: 4.9 <br>\n<b> No Ratings <\/b> 139","<b> The Coffee <\/b> <br>\n<b> Rating <\/b>: 4.8 <br>\n<b> No Ratings <\/b> 36","<b> The Coffee <\/b> <br>\n<b> Rating <\/b>: 4.6 <br>\n<b> No Ratings <\/b> 79","<b> The Coffee <\/b> <br>\n<b> Rating <\/b>: 4.6 <br>\n<b> No Ratings <\/b> 281","<b> The Coffee <\/b> <br>\n<b> Rating <\/b>: 4.9 <br>\n<b> No Ratings <\/b> 27","<b> The Coffee <\/b> <br>\n<b> Rating <\/b>: 4.8 <br>\n<b> No Ratings <\/b> 64","<b> The Coffee <\/b> <br>\n<b> Rating <\/b>: 4.8 <br>\n<b> No Ratings <\/b> 110","<b> The Coffee <\/b> <br>\n<b> Rating <\/b>: 3.9 <br>\n<b> No Ratings <\/b> 11","<b> The Coffee <\/b> <br>\n<b> Rating <\/b>: 4.9 <br>\n<b> No Ratings <\/b> 43"],{"interactive":false,"permanent":false,"direction":"auto","opacity":1,"offset":[0,0],"textsize":"10px","textOnly":false,"className":"","sticky":true},null]},{"method":"addLegend","args":[{"colors":["#67001F , #AB162A 9.0909090909091%, #EC9373 27.2727272727273%, #FAEAE1 45.4545454545455%, #BBD9E9 63.6363636363636%, #3E8BBF 81.8181818181818%, #053061 100%, #053061 "],"labels":["4.0","4.2","4.4","4.6","4.8","5.0"],"na_color":null,"na_label":"NA","opacity":0.5,"position":"topright","type":"numeric","title":"rating","extra":{"p_1":0.09090909090909098,"p_n":1},"layerId":null,"className":"info legend","group":null}]},{"method":"addProviderTiles","args":["CartoDB",null,null,{"errorTileUrl":"","noWrap":false,"detectRetina":false}]}],"limits":{"lat":[-25.4681559,-25.40504],"lng":[-49.324071,-49.2147448]}},"evals":[],"jsHooks":[]}</script>
+<div class="leaflet html-widget html-fill-item" id="htmlwidget-6878cdd5e2378cfbdfcb" style="width:100%;height:464px;"></div>
+<script type="application/json" data-for="htmlwidget-6878cdd5e2378cfbdfcb">{"x":{"options":{"crs":{"crsClass":"L.CRS.EPSG3857","code":null,"proj4def":null,"projectedBounds":null,"options":{}}},"calls":[{"method":"addTiles","args":["https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",null,null,{"minZoom":0,"maxZoom":18,"tileSize":256,"subdomains":"abc","errorTileUrl":"","tms":false,"noWrap":false,"zoomOffset":0,"zoomReverse":false,"opacity":1,"zIndex":1,"detectRetina":false,"attribution":"&copy; <a href=\"https://openstreetmap.org/copyright/\">OpenStreetMap<\/a>,  <a href=\"https://opendatacommons.org/licenses/odbl/\">ODbL<\/a>"}]},{"method":"addCircleMarkers","args":[[-25.4325732,-25.4348424,-25.4430439,-25.4376472,-25.4384237,-25.4339534,-25.4357532,-25.432109,-25.4431255,-25.430572,-25.4289674,-25.445209,-25.4090219,-25.4295421,-25.4351398,-25.4501064,-25.4258236,-25.417535,-25.4335315,-25.4180373,-25.4483892,-25.4311071,-25.4179311,-25.4128421,-25.4129983,-25.4176941,-25.428672,-25.40504,-25.4303474,-25.4681559],[-49.2811883,-49.277973,-49.29084779999999,-49.2827132,-49.2789094,-49.2893225,-49.2871215,-49.27350879999999,-49.2853708,-49.2920136,-49.2938673,-49.2872582,-49.265494,-49.2656275,-49.3167883,-49.2882057,-49.2627553,-49.2793946,-49.3009885,-49.2688903,-49.2852218,-49.2488726,-49.2634846,-49.26541539999999,-49.2579874,-49.2464684,-49.2147448,-49.250978,-49.324071,-49.2939267],[11,9,7,5,7,5,9,5,5,5,5,5,5,9,7,7,9,5,7,9,9,9,5,7,9,5,7,9,5,5],null,null,{"interactive":true,"className":"","stroke":false,"color":["#7FB7D7","#7FB7D7","#FBC7AD","#3E8BBF","#BBD9E9","#BBD9E9","#3E8BBF","#7FB7D7","#1E61A5","#BBD9E9","#E6EFF4","#BBD9E9","#053061","#7FB7D7","#FBC7AD","#3E8BBF","#7FB7D7","#FBC7AD","#AB162A","#7FB7D7","#3E8BBF","#1E61A5","#3E8BBF","#BBD9E9","#BBD9E9","#1E61A5","#3E8BBF","#3E8BBF","#67001F","#1E61A5"],"weight":5,"opacity":0.5,"fill":true,"fillColor":["#7FB7D7","#7FB7D7","#FBC7AD","#3E8BBF","#BBD9E9","#BBD9E9","#3E8BBF","#7FB7D7","#1E61A5","#BBD9E9","#E6EFF4","#BBD9E9","#053061","#7FB7D7","#FBC7AD","#3E8BBF","#7FB7D7","#FBC7AD","#AB162A","#7FB7D7","#3E8BBF","#1E61A5","#3E8BBF","#BBD9E9","#BBD9E9","#1E61A5","#3E8BBF","#3E8BBF","#67001F","#1E61A5"],"fillOpacity":0.5},null,null,null,null,["<b> The Coffee <\/b> <br>\n<b> Rating <\/b>: 4.7 <br>\n<b> No Ratings <\/b> 912","<b> The Coffee Comendador <\/b> <br>\n<b> Rating <\/b>: 4.7 <br>\n<b> No Ratings <\/b> 345","<b> The Coffee <\/b> <br>\n<b> Rating <\/b>: 4.3 <br>\n<b> No Ratings <\/b> 58","<b> The Coffee <\/b> <br>\n<b> Rating <\/b>: 4.8 <br>\n<b> No Ratings <\/b> 30","<b> The Coffee <\/b> <br>\n<b> Rating <\/b>: 4.6 <br>\n<b> No Ratings <\/b> 67","<b> The Coffee <\/b> <br>\n<b> Rating <\/b>: 4.6 <br>\n<b> No Ratings <\/b> 13","<b> The Coffee <\/b> <br>\n<b> Rating <\/b>: 4.8 <br>\n<b> No Ratings <\/b> 136","<b> The Coffee <\/b> <br>\n<b> Rating <\/b>: 4.7 <br>\n<b> No Ratings <\/b> 47","<b> The Coffee <\/b> <br>\n<b> Rating <\/b>: 4.9 <br>\n<b> No Ratings <\/b> 16","<b> The Coffee <\/b> <br>\n<b> Rating <\/b>: 4.6 <br>\n<b> No Ratings <\/b> 30","<b> The Coffee <\/b> <br>\n<b> Rating <\/b>: 4.5 <br>\n<b> No Ratings <\/b> 17","<b> The Coffee <\/b> <br>\n<b> Rating <\/b>: 4.6 <br>\n<b> No Ratings <\/b> 38","<b> The Coffee <\/b> <br>\n<b> Rating <\/b>: 5 <br>\n<b> No Ratings <\/b> 3","<b> The Coffee <\/b> <br>\n<b> Rating <\/b>: 4.7 <br>\n<b> No Ratings <\/b> 122","<b> The Coffee <\/b> <br>\n<b> Rating <\/b>: 4.3 <br>\n<b> No Ratings <\/b> 59","<b> The Coffee República Argentina <\/b> <br>\n<b> Rating <\/b>: 4.8 <br>\n<b> No Ratings <\/b> 82","<b> The Coffee <\/b> <br>\n<b> Rating <\/b>: 4.7 <br>\n<b> No Ratings <\/b> 111","<b> The Coffee <\/b> <br>\n<b> Rating <\/b>: 4.3 <br>\n<b> No Ratings <\/b> 9","<b> The Coffee <\/b> <br>\n<b> Rating <\/b>: 4 <br>\n<b> No Ratings <\/b> 71","<b> The Coffee <\/b> <br>\n<b> Rating <\/b>: 4.7 <br>\n<b> No Ratings <\/b> 120","<b> The Coffee <\/b> <br>\n<b> Rating <\/b>: 4.8 <br>\n<b> No Ratings <\/b> 146","<b> The Coffee <\/b> <br>\n<b> Rating <\/b>: 4.9 <br>\n<b> No Ratings <\/b> 139","<b> The Coffee <\/b> <br>\n<b> Rating <\/b>: 4.8 <br>\n<b> No Ratings <\/b> 36","<b> The Coffee <\/b> <br>\n<b> Rating <\/b>: 4.6 <br>\n<b> No Ratings <\/b> 79","<b> The Coffee <\/b> <br>\n<b> Rating <\/b>: 4.6 <br>\n<b> No Ratings <\/b> 281","<b> The Coffee <\/b> <br>\n<b> Rating <\/b>: 4.9 <br>\n<b> No Ratings <\/b> 27","<b> The Coffee <\/b> <br>\n<b> Rating <\/b>: 4.8 <br>\n<b> No Ratings <\/b> 64","<b> The Coffee <\/b> <br>\n<b> Rating <\/b>: 4.8 <br>\n<b> No Ratings <\/b> 110","<b> The Coffee <\/b> <br>\n<b> Rating <\/b>: 3.9 <br>\n<b> No Ratings <\/b> 11","<b> The Coffee <\/b> <br>\n<b> Rating <\/b>: 4.9 <br>\n<b> No Ratings <\/b> 43"],{"interactive":false,"permanent":false,"direction":"auto","opacity":1,"offset":[0,0],"textsize":"10px","textOnly":false,"className":"","sticky":true},null]},{"method":"addLegend","args":[{"colors":["#67001F , #AB162A 9.0909090909091%, #EC9373 27.2727272727273%, #FAEAE1 45.4545454545455%, #BBD9E9 63.6363636363636%, #3E8BBF 81.8181818181818%, #053061 100%, #053061 "],"labels":["4.0","4.2","4.4","4.6","4.8","5.0"],"na_color":null,"na_label":"NA","opacity":0.5,"position":"topright","type":"numeric","title":"rating","extra":{"p_1":0.09090909090909098,"p_n":1},"layerId":null,"className":"info legend","group":null}]},{"method":"addProviderTiles","args":["CartoDB",null,null,{"errorTileUrl":"","noWrap":false,"detectRetina":false}]}],"limits":{"lat":[-25.4681559,-25.40504],"lng":[-49.324071,-49.2147448]}},"evals":[],"jsHooks":[]}</script>
 </div>
 </div>
 </section>
-<section id="merging-with-census-information" class="level2">
-<h2 class="anchored" data-anchor-id="merging-with-census-information">Merging with Census information</h2>
+<section id="merging-with-census-information" class="level1">
+<h1>Merging with Census information</h1>
 <p>The code below shows how to gather census tract data for each The Coffee shop. Census tracts are the smallest administrative division that present socioeconomic and demographic data.</p>
 <div class="cell">
 <details>
@@ -1073,18 +1094,6 @@ cookieconsent.run({
 </details>
 </div>
 <div class="cell">
-<div class="cell-output cell-output-stdout">
-<pre><code>Reading layer `curitiba_tcf_interpolate' from data source 
-  `/Users/viniciusoike/Documents/GitHub/restateinsight/static/data/curitiba_tcf_interpolate.gpkg' 
-  using driver `GPKG'
-Simple feature collection with 29 features and 11 fields
-Geometry type: POINT
-Dimension:     XY
-Bounding box:  xmin: -49.32655 ymin: -25.45011 xmax: -49.21461 ymax: -25.40498
-Geodetic CRS:  WGS 84</code></pre>
-</div>
-</div>
-<div class="cell">
 <div class="cell-output-display">
 <p><img src="index_files/figure-html/unnamed-chunk-15-1.png" class="img-fluid" style="width:100.0%"></p>
 </div>
@@ -1096,7 +1105,6 @@ Geodetic CRS:  WGS 84</code></pre>
 </div>
 
 
-</section>
 </section>
 
 </main> <!-- /main -->

@@ -1,32 +1,40 @@
 ---
-title: "The Greatest Films of All-time: another case of recency bias?"
+title: "The Greatest Films of All-time: what says the data?"
 date: "2024-04-17"
-categories: ['data-visualization', 'ggplot2', 'movies', 'bias']
+categories: ['data-visualization', 'ggplot2', 'movies']
 description: ""
 execute: 
   message: false
   warning: false
+  echo: false
 draft: true
 ---
 
-# Recency Bias
+# Movies rankings
 
-Recency bias is a well known cognitive bias, also known as memory bias. It describes the human tendency to attribute a greater importance to more recent events than to events that occurred further in time. This happens when travelers believe an airplane crash is more likely to occur after seeing news about an airplane accident; when investors believe the market will keep growing following a recent string of positive news; when swimmers believe that shark attacks will be more likely after watching a documentary about sharks.
+While some find it odd to rank movie tastes, I've always enjoyed "greatest of all times" lists. When not taken too literally, these lists provide a resourceful almanac of good movies, including classics, and culturally relevant movies. By construction, these lists will always be lacking and always be biased: it's a subjective evaluation of the best of the best films after all.
 
-More recently, *recency bias has become a pervasive feature of online culture*. In a never ending cycle of "the new is always better", social media influencers and the media more broadly are constantly claiming that this new thing is actually *the best thing of all time*. Public opinion is slowly but surely catching up to this in sports discussions, as GOAT (*greatest of all time*) discussion fatigue is increasing among fans.
+Traditionally, these lists were penned by movie critics or experts; more recently, however, there are several "greatest of all times" lists voted by the public. Perhaps the most well known of these is the Top 250 IMDB. As of December 2024, the top 250 films alone aggregate almost 180 million votes.
 
-![](images/Screenshot%202024-05-01%20at%2013.41.49.png){fig-align="center" width="500"}
+When comparing these lists, the ones made by critics and those voted by the broader public, one notices a kind "temporal bias" in the rankings. New movies, released in the past 10-15 years, rarely appear in prestigious lists such as the BFI's Greatest Films. In fact, in it's most recent edition, published in 2022, only 24 of the 264 films were released in the 21st Century (less than 10%). On the flip side, online rankings such as the Top 250 IMDB are flooded with new releases. Ignoring films released after 2022, almost 36% of the films featured in the Top 250 IMDB were released from 2001 to 2021.
 
-> *It's really convenient that all of the GOATs, of all sports, just happen to play and perform at their best during the first 20 years of the most recent century: just in time for you to watch them.*
+In this post I delve into the data to try to visualize these patterns. Are movie critics biased towards a certain period of cinema? Are new movies overrated? Are they underrated?
 
-For several different reasons, human's tend to put a greater weight onto more recent events when evaluating pretty much anything. This is partly due to how our memory works but sometimes is due to availability. When something new happens, social media is quickly extracts all possible content from it and then moves on to the next thing.
+## Rankings
 
-## Recency Bias in Movies?
+There are several "greatest movies of all time" lists. Comparing them directly is often impossible due to conflicting methodologies. For simplicity, I'll delve mostly into the Top 250 IMDB and the BFI Greatest Films of All Time. IMDB's ranking compiles the largest number of online votes and has a [relatively sturdy methodology for both its ratings and its rankings](https://help.imdb.com/article/imdb/track-movies-tv/ratings-faq/G67Y87TFYYP6TWAV?showReportContentLink=false&recentlyAuthenticated=true#). The BFI list compiles votes from academics, critics, curators, archivists, and programmers. Its most recent edition was published in 2022.
+
+The lists are relatively comparable in size: IMDB's has (obviously) 250 films while BFI's has 264. While BFI's list has ties, I ignore these to make comparisons simpler.
+
+In a latter part of the post I extend the analysis to other lists published by media outlets such as Variety and TimeOut and also to other online sites such as Letterboxd.
 
 ### The data
 
+Getting all the data involves mostly a lot of webscraping. More information on the data collection process can be found on my Github.
+
 ```{r}
 library(ggplot2)
+library(ggdist)
 library(dplyr)
 library(tidyr)
 library(showtext)
@@ -57,6 +65,8 @@ films <- left_join(films, dict, by = "source")
 ```
 
 ## Critics vs Public
+
+Looking at the data by decade seems to reveal a clear pattern. BFI's list peaks around the 1960's, while IMDB's list peaks around the 2000's. There's a small bump in the 1950's but nothing noteworthy.
 
 ```{r}
 imdb <- filter(films, source == "imdb")
@@ -116,7 +126,7 @@ library(patchwork)
 panel <- p1 / p2
 
 final_plot <- panel + plot_annotation(
-  title = "Are movie critics driven by nostalgia, while recency\nbias shapes the public's perspective?",
+  title = "The Greatest Films of All Time: critics x public",
   subtitle = "Year of release of the 250 'greatest films of all time' by decade.",
   caption = "Source: IMDB (IMDB Top 250, April 2024), BFI (The Greatest Films of All Time, 2022)") &
   theme(
@@ -182,6 +192,12 @@ tab1_long <- tab1 |>
     is_bfi = factor(is_bfi)
     )
 ```
+
+Going into greater details reveals some curious features about how these lists compare. Some films appear to be appreciated by both the public and the critics. Films like Kurosawa's Seven Samurai, Hitchcock's Psycho, and Coppola's The Godfather all rank highly in both lists.
+
+There are, of course, divergences: some films, like Metropolis (1927) and The Apartment (1960) are slightly favored by the BFI's critics; meanwhile, Ran (1985) and Modern Times (1936) are favored by the public. These divergences don't seem to correlate directly with the year of release of each movie or even with its director.
+
+Its important to note that rankings work in a counter-intuitive fashion to most graphics, since the best (highest-ranking) films are associated with lower numbers and appear on the left. To make reading the graphics easier, colors and symbols were used to identify which films ranked higher on each list.
 
 ```{r}
 colors <- c("#deb522", "#2166ac")
@@ -265,6 +281,10 @@ tab2_long <- tab2 |>
     )
 ```
 
+Looking even deeper into the discrepancies between the lists reveals an interesting trend. The movies on the top of the plot are overwhelmingly favored by the critics: these include Tokyo Story, Citizen Kane, Barry Lyndon, and The Third Man. Movies more to the bottom of the list are favorites of the public, including: Raiders of Lost Ark, The Matrix, Star Wars - New Hope, and Pulp Fiction.
+
+While year of release seems to play a significant role, one can also theorize that the content of these films plays a much larger one.
+
 ```{r}
 colors <- c("#deb522", "#2166ac")
 
@@ -315,41 +335,229 @@ ggplot(tab2) +
   )
 ```
 
+Finally, it's also important to note movies that appear exclusively in one list. These last two tables more clearly reflect the difference between critically appraised movies and favorites of the public.
+
+The best ranking films in BFI's list that don't appear at all in IMDB's list include The Rules of the Game (1939), Persona (1966), and Mulholland Drive (2001). This is definitely a very snobish list, but again, year of release doesn't seem to matter much.
+
 ```{r}
+library(gt)
 tab <- full_join(
-  select(bfi, name_film, rank_bfi = rank), 
-  select(imdb, name_film, rank_imdb = rank),
+  select(bfi, name_film, year, rank_bfi = rank), 
+  select(imdb, name_film, year, rank_imdb = rank),
   by = "name_film"
   )
 
 tab |> 
   filter(is.na(rank_imdb)) |> 
   slice_min(rank_bfi, n = 20) |> 
-  select(name_film, rank = rank_bfi)
+  select(name_film, year.x, rank = rank_bfi) |> 
+  gt() |> 
+  cols_label(
+    name_film = "Name",
+    year.x = "Year",
+    rank = "Rank (BFI)"
+  )
 
+```
+
+The best ranking films in IMDB's list that don't appear at all in BFI's list include The Lord of the Rings trilogy (2001-2003), The Shawshank Redemption (1994), and several Christopher Nolan movies. Outside of Lumet's 12 Angry Men (1957) most of this list heavily skewed to the 1990's onwards.
+
+```{r}
 tab |> 
   filter(is.na(rank_bfi)) |> 
   slice_min(rank_imdb, n = 20) |> 
-  select(name_film, rank = rank_imdb)
+  select(name_film, year.y, rank = rank_imdb) |> 
+  gt() |> 
+  cols_label(
+    name_film = "Name",
+    year.y = "Year",
+    rank = "Rank (IMDB)"
+  )
+```
+
+## Why the difference?
+
+## Recency bias or 'new is always better'
+
+### Recency Bias
+
+Recency bias is a well known cognitive bias, also known as memory bias. It describes the human tendency to attribute a greater importance to more recent events than to events that occurred further in time. This happens when travelers believe an airplane crash is more likely to occur after seeing news about an airplane accident; when investors believe the market will keep growing following a recent string of positive news; when swimmers believe that shark attacks will be more likely after watching a documentary about sharks.
+
+More recently, *recency bias has become a pervasive feature of online culture*. In a never ending cycle of "the new is always better", social media influencers and the media more broadly are constantly claiming that this new thing is actually *the best thing of all time*. Public opinion is slowly but surely catching up to this in sports discussions, as GOAT (*greatest of all time*) discussion fatigue is increasing among fans.
+
+![](images/Screenshot%202024-05-01%20at%2013.41.49.png){fig-align="center" width="500"}
+
+> *It's really convenient that all of the GOATs, of all sports, just happen to play and perform at their best during the first 20 years of the most recent century: just in time for you to watch them.*
+
+For several different reasons, human's tend to put a greater weight onto more recent events when evaluating pretty much anything. This is partly due to how our memory works but sometimes is due to availability. When something new happens, social media is quickly extracts all possible content from it and then moves on to the next thing.
+
+## Why the difference?
+
+```{r}
+sources <- c(
+  "criticker", "letterboxd", "imdb", "empire", "afi", "bfi", "timeout", "variety"
+  )
+
+labels_sources <- c(
+  "Top 250 Criticker", "Top 250 Letterboxd", "IMDb Top 250", "Empire 500 Greatest Movies",
+  "AFI 100 Greatest Films", "BFI Greatest Films", "Timeout Top 100", "Variety Top 100"
+)
+
+films_selection <- films |> 
+  filter(
+    year > 1900,
+    year <= 2020,
+    source %in% sources
+  ) |> 
+  mutate(
+    source = factor(source, levels = sources, labels = labels_sources)
+  )
+```
+
+Gathering data from other sources reveals more curious patterns. The plot below aggregates data from 8 different rankings: four of them voted by critics and four of them voted by the public[^1].
+
+[^1]: To be fair, Empire's list combines both critics and general public. The numbers however, skew it toward the public.
+
+```{r}
+df_decade <- tibble(
+  x = seq(1940, 2000, 20),
+  y = 1,
+  label = paste0(x, "'s")
+)
+
+p_compare <- ggplot(films_selection, aes(x = year)) +
+  geom_dots(aes(fill = list_type), linewidth = 0.1, dotsize = 1) +
+  geom_text(
+    data = df_decade,
+    aes(x = x + 5, y = y, label = label),
+    angle = 90,
+    size = 3,
+    family = "Raleway"
+  ) +
+  facet_wrap(vars(source), ncol = 4) +
+  scale_x_continuous(breaks = seq(1930, 2010, 10)) +
+  scale_y_continuous(expand = c(0, 0), limits = c(0, 1.15)) +
+  geom_hline(yintercept = 0) +
+  geom_vline(
+    xintercept = seq(1940, 2000, 20),
+    linetype = 2,
+    color = "gray30"
+  ) +
+  scale_fill_manual(values = rev(colors)) +
+  scale_color_manual(values = rev(colors)) +
+  guides(fill = "none", color = "none") +
+  labs(
+    title = "The greatest films of all time over the decades: critics x public",
+    subtitle = "Each dot represents a movie",
+    x = "Year of Release",
+    y = NULL
+  ) +
+  theme_minimal(base_family = "Raleway") +
+  theme(
+    panel.grid.minor = element_blank(),
+    panel.grid.major.x = element_line(linetype = 2),
+    panel.grid.major.y = element_blank(),
+    axis.text.y = element_blank(),
+    axis.text.x = element_text(angle = 90)
+  )
+
+p_compare
+```
+
+All four lists organized by critics present similar characteristics. They are shaped almost like a triangle with its vertex somewhere around the 1960's with a small outlier peak in the late 1990's. AFI's ranking differs slightly from this pattern exhibiting a relatively larger peak in the 1940's.
+
+The rankings voted by the public are much more scattered. Criticker's ranking is the most similar to the critics'. It has a large share of films in the late 1940's and 1950's, but fewer in the 1960's and 70's relative to the critics.
+
+IMDB's ranking, as seen previously, is heavily skewed to right, with several films from the 1990's and 2000's. Empire's ranking is similar in shape to IMDB's, almost resembling a ladder that peaks in 1999.
+
+Finally, Letterboxd's list seems to be a mixture of Criticker's 1950's bias with IMDB's 1990's bias.
+
+Similarly to the BFI x IMDB comparison, these lists aren't directly comparable. Most importantly, they were (1) published at different times[^2]; and (2) have different sample sizes[^3].
+
+[^2]: The Criticker (2022), Letterboxd (2022), IMDB (2024), TimeOut (2024), BFI (2022), and Variety (2022) lists are relatively comparable among themselves. Empire's ranking was published in 2008. AFI's ranking is more recent but doesn't include films released after the 2000's.
+
+[^3]: For some reason 250, and its multiples, is a favorite among the public and 100 is preferred by the critics.
+
+```{r}
+films_selection |> 
+  group_by(source) |> 
+  slice(1:100) |>
+  ungroup() |> 
+  count(name_film, sort = TRUE)
+  
 ```
 
 ```{r}
-#| eval: true
-ggplot(comp) +
-  geom_segment(
-    aes(x = name_film, xend = name_film, y = rank_bfi, yend = rank_imdb)
-    ) +
-  geom_point(
-    data = comp_long,
-    aes(x = name_film, y = value, color = name),
-    size = 3
-  ) +
-  scale_x_discrete(labels = \(x) stringr::str_wrap(x, 18)) +
-  coord_flip() +
-  theme_minimal(base_family = "Raleway", base_size = 10) +
-  theme(
-    axis.text.y = element_text(hjust = 1)
+compare_vectors <- function(x, y) {
+  
+  x1 <- x$name_film
+  x2 <- y$name_film
+  
+  if (length(x1) >= length(x2)) {
+    sum(x2 %in% x1[1:length(x2)]) / length(x2)
+  } else {
+    sum(x1 %in% x2[1:length(x1)]) / length(x1)
+  }
+  
+  # sum(x2 %in% x1) / length(x2)
+  # gespeR::rbo(x1, x2)
+  # intersect(x1, x2) / length(x2)
+  
+  # if (length(x1) > length(x2)) {
+  #   rbo_ext_uneven(x1, x2, p = 0.9)
+  # } else if (length(x1) == length(x2)) {
+  #   rbo_ext_even(x1, x2, p = 0.9)
+  #   } else {
+  #   NA
+  # }
+  
+  # if (length(x1) >= length(x2)) {
+  #   rbo_ext_even(x1[1:length(x2)], x2, p = 0.9)
+  # } else {
+  #   rbo_ext_even(x1, x2[1:length(x1)], p = 0.9)
+  # }
+  
+}
+
+rankings <- split(select(films_selection, name_film, rank), films_selection$source)
+  
+mt <- matrix(nrow = length(rankings), ncol = length(rankings))
+
+for (i in seq_along(rankings)) {
+  for (j in seq_along(rankings)) {
+    # message("Comparing ", names(rankings)[i], " with ", names(rankings)[j])
+    mt[i, j] <- compare_vectors(rankings[[i]], rankings[[j]])
+  }
+}
+
+colnames(mt) <- names(rankings)
+
+dat <- mt |> 
+  as.data.frame() |> 
+  as_tibble() |> 
+  mutate(name_row = names(rankings), .before = 0) |> 
+  pivot_longer(cols = -name_row, names_to = "name_col")
+
+sources <- c(
+  "criticker", "letterboxd", "imdb", "empire", "afi", "bfi", "timeout", "variety"
   )
+
+short_names <- c("Criticker", "LetterBoxd", "IMDB", "Empire", "AFI", "BFI", "Timeout",
+                 "Variety")
+
+dat <- dat |> 
+  mutate(
+    name_row = factor(name_row, levels = names(rankings), labels = short_names),
+    name_col = factor(name_col, levels = names(rankings), labels = short_names)
+  )
+
+dat <- dat |> 
+  mutate(value = if_else(value > 0.99, NA, value))
+
+ggplot(dat, aes(x = name_row, y = name_col)) +
+  geom_tile(aes(fill = value)) +
+  geom_text(aes(label = round(value * 100, 1))) +
+  scale_fill_fermenter(direction = 1, breaks = c(0, 0.2, 0.4, 0.6, 0.8))
 
 ```
 

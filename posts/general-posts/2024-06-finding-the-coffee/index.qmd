@@ -1,7 +1,7 @@
 ---
-title: "Finding all The Coffee shops in Brazil"
+title: "Locating all The Coffee shops in Brazil"
 date: "2024-06-28"
-description: "In this post, I'll show you how to map every The Coffee shop in Brazil. I also show how to "
+description: "In this post, I show how to map every The Coffee shop in Brazil using web scraping and geocoding. I also show how to combine this information with Goolge Maps ratings and Census demographic data to produce valuable insights."
 categories: ['data-science', 'web-scrapping', 'finding-all', 'tutorial-r', 'brasil']
 execute: 
   eval: false
@@ -9,7 +9,7 @@ execute:
   warning: false
 ---
 
-# Finding all The Coffee shops in Brazil
+# Locating all The Coffee shops in Brazil
 
 In this post, I'll show you how to map every The Coffee shop in Brazil in less time than it takes to brew a pot of coffee. All this from your laptop and without spending a dime.
 
@@ -38,6 +38,7 @@ We'll leverage the power of R, an open-source programming language that's widely
 ```{r}
 #| eval: true
 library(dplyr)
+library(leaflet)
 library(stringr)
 library(rvest)
 library(sf)
@@ -61,7 +62,7 @@ The site presents every unit by country and city. The print below shows an examp
 
 ### Using R
 
-The code below
+The code below extracts the `url` related to every individual city in Brazil.
 
 ```{r}
 # Base url 
@@ -80,7 +81,7 @@ page_list_cities <- page_list_cities[str_detect(page_list_cities, "brasil/")]
 url_cities <- str_c(base_url, str_remove(page_list_cities, "shortcut/brasil/"))
 ```
 
-The code below is a function the scrapes the information of all shops for a given url of a city. The output is a simple `data.frame`.
+The code below is a function the scrapes the information of all shops for a given `url` of a city. The output is a simple `data.frame`.
 
 ```{r}
 scrape_the_coffee <- function(url) {
@@ -113,34 +114,50 @@ scrape_the_coffee <- function(url) {
   return(out)
 
 }
-
-
 ```
 
 ### Functional approach
 
-The simplest approach to implement this funtion is applying it over a vector with all urls for all cities. This approach is usually safer and quicker and can be scalled with parallel processing (e.g. `parallel::mclapply`).
+The simplest approach to implement this function is applying it over a vector with all `urls` for all cities. This means that the `scrape_the_coffee` function will be executed on each individual value of the `url_cities` text vector.
+
+This approach is usually quicker and can be scaled with parallel processing (e.g. `parallel::mclapply`). Speed, however, usually isn't a top priority with web scraping and can even be a detriment as it might lead to an excess number of requests.
+
+It's important to note that web scraping is liable to errors due to internet connection issues. As such it's good practice to implement it in a error-prone fashion. The easiest way to do so in the functional approach is to wrap the function with `purrr::safely`. This way, errors don't stop the function and are stored in a specific error class, making it easier to debug it afterwards.
 
 ```{r}
 # Scrape all cities
-coffee_locations <- map(url_cities, scrape_the_coffee)
+
+# Apply the scrape_the_coffee function over url_cities
+safe_scrape_the_coffee <- safely(scrape_the_coffee)
+coffee_locations <- map(url_cities, safe_scrape_the_coffee)
+# Name the list for convinience
 names(coffee_locations) <- url_cities
+# Stack the results of the list into a single table
 dat <- bind_rows(coffee_locations, .id = "url")
 ```
 
 ### Loop approach
 
+The code below shows how to implement the same procedure using a typical `for-loop` syntax. This approach is usually more intuitive and easier to follow. It's generally better to use this approach in more complex web scrapping endeavors.
+
+For illustration purposes, I show how to add a progress bar to the loop and a timeout.
+
 ```{r}
+# Define a progress bar
 pb <- txtProgressBar(min = 1, max = length(url_cities), style = 3)
 ls <- vector("list", length(url_cities))
 
 for (i in seq_along(url_cities)) {
   
+  # Get the current city
   url <- url_cities[i]
   current_city <- basename(url)
   message("Scraping data for: ", current_city)
-  ls[[i]] <- scrape_the_coffee(url)
+  # Safely apply the scrape_the_coffee function
+  ls[[i]] <- try(scrape_the_coffee(url))
+  # Update progress bar
   setTxtProgressBar(pb, i)
+  # Small timeout to avoid problems
   Sys.sleep(runif(1, min = 1, max = 5))
   
 }
@@ -169,7 +186,7 @@ dat <- dat |>
 
 ### Geocoding
 
-Geocoding the data is fairly straightforward. I use the Google Maps API via the `tidygeocoder` package to find the corresponding lat/lng pair for each address.
+Geocoding is the process of finding a street address based on a latitude/longitude pair or vice-versa. Typically, we need to call an external provider for this. In this case, I use the Google Maps API via the `tidygeocoder` package to find the corresponding lat/lng pair for each address.
 
 ```{r}
 # Geocode using Maps API
@@ -189,6 +206,8 @@ shops <- st_as_sf(
 ```
 
 ## Results
+
+The table below shows the final results of the web scraping and geocoding process.
 
 ```{r}
 #| eval: true
@@ -223,6 +242,7 @@ gt(tab_count, caption = "The Coffee shops, major cities") |>
 ```
 
 ```{r}
+#| eval: true
 leaflet(shops) %>%
   addTiles() %>%
   addMarkers(label = ~name) %>%
@@ -230,7 +250,7 @@ leaflet(shops) %>%
   setView(lng = -46.65590, lat = -23.561197, zoom = 12)
 ```
 
-## Get Google Maps ratings
+# Get Google Maps ratings
 
 [Starbucks post](https://restateinsight.com/posts/general-posts/2024-07-finding-starbucks/#google-places)
 
@@ -309,12 +329,9 @@ leaflet(cur) |>
 
 ```
 
-## Merging with Census information
+# Merging with Census information
 
 The code below shows how to gather census tract data for each The Coffee shop. Census tracts are the smallest administrative division that present socioeconomic and demographic data.
-
-
-
 
 ```{r}
 #| code-fold: true
@@ -412,5 +429,3 @@ m0 | m1
 #| out-width: 100%
 m2 | m3
 ```
-
-
