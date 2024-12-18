@@ -8,6 +8,7 @@
 
 <meta name="author" content="Vinicius Oike">
 <meta name="dcterms.date" content="2024-04-17">
+<meta name="description" content="In this post I delve into the data to try to visualize patterns in movies rankings. Are movie critics biased towards a certain period of cinema? Are new movies overrated? Are they underrated? Movie rankings created by critics and the public show clear differences. Critics’ lists tend to be quite consistent and often favor older films. In contrast, rankings based on public online votes are also similar to each other, but generally give more weight to recent films.">
 
 <title>Vinicius Oike - The Greatest Films of All-time: what says the data?</title>
 <style>
@@ -156,7 +157,12 @@ cookieconsent.run({
   <div class="quarto-title-banner page-columns page-full">
     <div class="quarto-title column-body">
       <h1 class="title">The Greatest Films of All-time: what says the data?</h1>
-                                <div class="quarto-categories">
+                  <div>
+        <div class="description">
+          In this post I delve into the data to try to visualize patterns in movies rankings. Are movie critics biased towards a certain period of cinema? Are new movies overrated? Are they underrated? Movie rankings created by critics and the public show clear differences. Critics’ lists tend to be quite consistent and often favor older films. In contrast, rankings based on public online votes are also similar to each other, but generally give more weight to recent films.
+        </div>
+      </div>
+                          <div class="quarto-categories">
                 <div class="quarto-category">data-visualization</div>
                 <div class="quarto-category">ggplot2</div>
                 <div class="quarto-category">movies</div>
@@ -199,14 +205,18 @@ cookieconsent.run({
   <ul class="collapse">
   <li><a href="#the-data" id="toc-the-data" class="nav-link" data-scroll-target="#the-data">The data</a></li>
   </ul></li>
-  <li><a href="#critics-vs-public" id="toc-critics-vs-public" class="nav-link" data-scroll-target="#critics-vs-public">Critics vs Public</a></li>
-  <li><a href="#why-the-difference" id="toc-why-the-difference" class="nav-link" data-scroll-target="#why-the-difference">Why the difference?</a></li>
-  <li><a href="#recency-bias-or-new-is-always-better" id="toc-recency-bias-or-new-is-always-better" class="nav-link" data-scroll-target="#recency-bias-or-new-is-always-better">Recency bias or ‘new is always better’</a>
+  <li><a href="#critics-vs-public" id="toc-critics-vs-public" class="nav-link" data-scroll-target="#critics-vs-public">Critics vs Public</a>
   <ul class="collapse">
-  <li><a href="#recency-bias" id="toc-recency-bias" class="nav-link" data-scroll-target="#recency-bias">Recency Bias</a></li>
+  <li><a href="#recency-bias" id="toc-recency-bias" class="nav-link" data-scroll-target="#recency-bias">Recency bias?</a></li>
+  <li><a href="#convergence" id="toc-convergence" class="nav-link" data-scroll-target="#convergence">Convergence</a></li>
+  <li><a href="#divergence" id="toc-divergence" class="nav-link" data-scroll-target="#divergence">Divergence</a></li>
   </ul></li>
-  <li><a href="#why-the-difference-1" id="toc-why-the-difference-1" class="nav-link" data-scroll-target="#why-the-difference-1">Why the difference?</a></li>
+  <li><a href="#critics-x-public---2" id="toc-critics-x-public---2" class="nav-link" data-scroll-target="#critics-x-public---2">Critics x Public - 2</a>
+  <ul class="collapse">
+  <li><a href="#lists-inside-lists" id="toc-lists-inside-lists" class="nav-link" data-scroll-target="#lists-inside-lists">Lists inside lists</a></li>
   </ul></li>
+  </ul></li>
+  <li><a href="#conclusion" id="toc-conclusion" class="nav-link" data-scroll-target="#conclusion">Conclusion</a></li>
   </ul>
 </nav>
     </div>
@@ -220,7 +230,7 @@ cookieconsent.run({
 <h1>Movies rankings</h1>
 <p>While some find it odd to rank movie tastes, I’ve always enjoyed “greatest of all times” lists. When not taken too literally, these lists provide a resourceful almanac of good movies, including classics, and culturally relevant movies. By construction, these lists will always be lacking and always be biased: it’s a subjective evaluation of the best of the best films after all.</p>
 <p>Traditionally, these lists were penned by movie critics or experts; more recently, however, there are several “greatest of all times” lists voted by the public. Perhaps the most well known of these is the Top 250 IMDB. As of December 2024, the top 250 films alone aggregate almost 180 million votes.</p>
-<p>When comparing these lists, the ones made by critics and those voted by the broader public, one notices a kind “temporal bias” in the rankings. New movies, released in the past 10-15 years, rarely appear in prestigious lists such as the BFI’s Greatest Films. In fact, in it’s most recent edition, published in 2022, only 24 of the 264 films were released in the 21st Century (less than 10%). On the flip side, online rankings such as the Top 250 IMDB are flooded with new releases. Ignoring films released after 2022, almost 36% of the films featured in the Top 250 IMDB were released from 2001 to 2021.</p>
+<p>When comparing these lists, the ones made by critics and those voted by the broader public, one notices a kind “temporal bias” in the rankings. New movies, released in the past 10-15 years, rarely appear in prestigious lists such as the BFI’s Greatest Films. In fact, in it’s most recent edition, published in 2022, only 24 of the 264 films were released in the 21st Century (less than 10%). On the flip side, online rankings such as the Top 250 IMDB are flooded with new releases. Almost 36% of the films featured in the Top 250 IMDB were released from 2001 to 2021.</p>
 <p>In this post I delve into the data to try to visualize these patterns. Are movie critics biased towards a certain period of cinema? Are new movies overrated? Are they underrated?</p>
 <section id="rankings" class="level2">
 <h2 class="anchored" data-anchor-id="rankings">Rankings</h2>
@@ -229,54 +239,75 @@ cookieconsent.run({
 <p>In a latter part of the post I extend the analysis to other lists published by media outlets such as Variety and TimeOut and also to other online sites such as Letterboxd.</p>
 <section id="the-data" class="level3">
 <h3 class="anchored" data-anchor-id="the-data">The data</h3>
-<p>Getting all the data involves mostly a lot of webscraping. More information on the data collection process can be found on my Github.</p>
+<p>Getting all the data involves a lot of webscraping. More information on the data collection process can be found on <a href="https://github.com/viniciusoike/restateinsight/blob/main/static/data-raw/R/greatest_movie_lists.R">my Github</a>.</p>
 </section>
 </section>
 <section id="critics-vs-public" class="level2">
 <h2 class="anchored" data-anchor-id="critics-vs-public">Critics vs Public</h2>
+<section id="recency-bias" class="level3">
+<h3 class="anchored" data-anchor-id="recency-bias">Recency bias?</h3>
 <p>Looking at the data by decade seems to reveal a clear pattern. BFI’s list peaks around the 1960’s, while IMDB’s list peaks around the 2000’s. There’s a small bump in the 1950’s but nothing noteworthy.</p>
-<div class="cell">
+<div class="cell" data-layout-align="center">
 <div class="cell-output-display">
-<p><img src="index_files/figure-html/unnamed-chunk-4-1.png" class="img-fluid" width="672"></p>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="index_files/figure-html/unnamed-chunk-5-1.png" class="img-fluid figure-img" style="width:90.0%"></p>
+</figure>
 </div>
 </div>
+</div>
+<p>While one could argue that IMDB’s ranking suggests some level of <em>recency bias</em> among the public, the numbers might also be a reflection of (1) the age demographic of online voters; (2) the (lack of) availability of older films, specially in mainstream streaming services.</p>
+</section>
+<section id="convergence" class="level3">
+<h3 class="anchored" data-anchor-id="convergence">Convergence</h3>
 <p>Going into greater details reveals some curious features about how these lists compare. Some films appear to be appreciated by both the public and the critics. Films like Kurosawa’s Seven Samurai, Hitchcock’s Psycho, and Coppola’s The Godfather all rank highly in both lists.</p>
 <p>There are, of course, divergences: some films, like Metropolis (1927) and The Apartment (1960) are slightly favored by the BFI’s critics; meanwhile, Ran (1985) and Modern Times (1936) are favored by the public. These divergences don’t seem to correlate directly with the year of release of each movie or even with its director.</p>
 <p>Its important to note that rankings work in a counter-intuitive fashion to most graphics, since the best (highest-ranking) films are associated with lower numbers and appear on the left. To make reading the graphics easier, colors and symbols were used to identify which films ranked higher on each list.</p>
-<div class="cell">
+<div class="cell" data-layout-align="center">
 <div class="cell-output-display">
-<p><img src="index_files/figure-html/unnamed-chunk-7-1.png" class="img-fluid" width="672"></p>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="index_files/figure-html/unnamed-chunk-8-1.png" class="img-fluid figure-img" style="width:90.0%"></p>
+</figure>
 </div>
 </div>
+</div>
+</section>
+<section id="divergence" class="level3">
+<h3 class="anchored" data-anchor-id="divergence">Divergence</h3>
 <p>Looking even deeper into the discrepancies between the lists reveals an interesting trend. The movies on the top of the plot are overwhelmingly favored by the critics: these include Tokyo Story, Citizen Kane, Barry Lyndon, and The Third Man. Movies more to the bottom of the list are favorites of the public, including: Raiders of Lost Ark, The Matrix, Star Wars - New Hope, and Pulp Fiction.</p>
 <p>While year of release seems to play a significant role, one can also theorize that the content of these films plays a much larger one.</p>
-<div class="cell">
+<div class="cell" data-layout-align="center">
 <div class="cell-output-display">
-<p><img src="index_files/figure-html/unnamed-chunk-9-1.png" class="img-fluid" width="672"></p>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="index_files/figure-html/unnamed-chunk-10-1.png" class="img-fluid figure-img" style="width:90.0%"></p>
+</figure>
+</div>
 </div>
 </div>
 <p>Finally, it’s also important to note movies that appear exclusively in one list. These last two tables more clearly reflect the difference between critically appraised movies and favorites of the public.</p>
 <p>The best ranking films in BFI’s list that don’t appear at all in IMDB’s list include The Rules of the Game (1939), Persona (1966), and Mulholland Drive (2001). This is definitely a very snobish list, but again, year of release doesn’t seem to matter much.</p>
-<div class="cell">
+<div class="cell" data-layout-align="center">
 <div class="cell-output-display">
 
-<div id="ghhhfbnaax" style="padding-left:0px;padding-right:0px;padding-top:10px;padding-bottom:10px;overflow-x:auto;overflow-y:auto;width:auto;height:auto;">
-<style>#ghhhfbnaax table {
+<div id="xxcjuujgej" style="padding-left:0px;padding-right:0px;padding-top:10px;padding-bottom:10px;overflow-x:auto;overflow-y:auto;width:auto;height:auto;">
+<style>#xxcjuujgej table {
   font-family: system-ui, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
-#ghhhfbnaax thead, #ghhhfbnaax tbody, #ghhhfbnaax tfoot, #ghhhfbnaax tr, #ghhhfbnaax td, #ghhhfbnaax th {
+#xxcjuujgej thead, #xxcjuujgej tbody, #xxcjuujgej tfoot, #xxcjuujgej tr, #xxcjuujgej td, #xxcjuujgej th {
   border-style: none;
 }
 
-#ghhhfbnaax p {
+#xxcjuujgej p {
   margin: 0;
   padding: 0;
 }
 
-#ghhhfbnaax .gt_table {
+#xxcjuujgej .gt_table {
   display: table;
   border-collapse: collapse;
   line-height: normal;
@@ -302,12 +333,12 @@ cookieconsent.run({
   border-left-color: #D3D3D3;
 }
 
-#ghhhfbnaax .gt_caption {
+#xxcjuujgej .gt_caption {
   padding-top: 4px;
   padding-bottom: 4px;
 }
 
-#ghhhfbnaax .gt_title {
+#xxcjuujgej .gt_title {
   color: #333333;
   font-size: 125%;
   font-weight: initial;
@@ -319,7 +350,7 @@ cookieconsent.run({
   border-bottom-width: 0;
 }
 
-#ghhhfbnaax .gt_subtitle {
+#xxcjuujgej .gt_subtitle {
   color: #333333;
   font-size: 85%;
   font-weight: initial;
@@ -331,7 +362,7 @@ cookieconsent.run({
   border-top-width: 0;
 }
 
-#ghhhfbnaax .gt_heading {
+#xxcjuujgej .gt_heading {
   background-color: #FFFFFF;
   text-align: center;
   border-bottom-color: #FFFFFF;
@@ -343,13 +374,13 @@ cookieconsent.run({
   border-right-color: #D3D3D3;
 }
 
-#ghhhfbnaax .gt_bottom_border {
+#xxcjuujgej .gt_bottom_border {
   border-bottom-style: solid;
   border-bottom-width: 2px;
   border-bottom-color: #D3D3D3;
 }
 
-#ghhhfbnaax .gt_col_headings {
+#xxcjuujgej .gt_col_headings {
   border-top-style: solid;
   border-top-width: 2px;
   border-top-color: #D3D3D3;
@@ -364,7 +395,7 @@ cookieconsent.run({
   border-right-color: #D3D3D3;
 }
 
-#ghhhfbnaax .gt_col_heading {
+#xxcjuujgej .gt_col_heading {
   color: #333333;
   background-color: #FFFFFF;
   font-size: 100%;
@@ -384,7 +415,7 @@ cookieconsent.run({
   overflow-x: hidden;
 }
 
-#ghhhfbnaax .gt_column_spanner_outer {
+#xxcjuujgej .gt_column_spanner_outer {
   color: #333333;
   background-color: #FFFFFF;
   font-size: 100%;
@@ -396,15 +427,15 @@ cookieconsent.run({
   padding-right: 4px;
 }
 
-#ghhhfbnaax .gt_column_spanner_outer:first-child {
+#xxcjuujgej .gt_column_spanner_outer:first-child {
   padding-left: 0;
 }
 
-#ghhhfbnaax .gt_column_spanner_outer:last-child {
+#xxcjuujgej .gt_column_spanner_outer:last-child {
   padding-right: 0;
 }
 
-#ghhhfbnaax .gt_column_spanner {
+#xxcjuujgej .gt_column_spanner {
   border-bottom-style: solid;
   border-bottom-width: 2px;
   border-bottom-color: #D3D3D3;
@@ -416,11 +447,11 @@ cookieconsent.run({
   width: 100%;
 }
 
-#ghhhfbnaax .gt_spanner_row {
+#xxcjuujgej .gt_spanner_row {
   border-bottom-style: hidden;
 }
 
-#ghhhfbnaax .gt_group_heading {
+#xxcjuujgej .gt_group_heading {
   padding-top: 8px;
   padding-bottom: 8px;
   padding-left: 5px;
@@ -446,7 +477,7 @@ cookieconsent.run({
   text-align: left;
 }
 
-#ghhhfbnaax .gt_empty_group_heading {
+#xxcjuujgej .gt_empty_group_heading {
   padding: 0.5px;
   color: #333333;
   background-color: #FFFFFF;
@@ -461,15 +492,15 @@ cookieconsent.run({
   vertical-align: middle;
 }
 
-#ghhhfbnaax .gt_from_md > :first-child {
+#xxcjuujgej .gt_from_md > :first-child {
   margin-top: 0;
 }
 
-#ghhhfbnaax .gt_from_md > :last-child {
+#xxcjuujgej .gt_from_md > :last-child {
   margin-bottom: 0;
 }
 
-#ghhhfbnaax .gt_row {
+#xxcjuujgej .gt_row {
   padding-top: 8px;
   padding-bottom: 8px;
   padding-left: 5px;
@@ -488,7 +519,7 @@ cookieconsent.run({
   overflow-x: hidden;
 }
 
-#ghhhfbnaax .gt_stub {
+#xxcjuujgej .gt_stub {
   color: #333333;
   background-color: #FFFFFF;
   font-size: 100%;
@@ -501,7 +532,7 @@ cookieconsent.run({
   padding-right: 5px;
 }
 
-#ghhhfbnaax .gt_stub_row_group {
+#xxcjuujgej .gt_stub_row_group {
   color: #333333;
   background-color: #FFFFFF;
   font-size: 100%;
@@ -515,15 +546,15 @@ cookieconsent.run({
   vertical-align: top;
 }
 
-#ghhhfbnaax .gt_row_group_first td {
+#xxcjuujgej .gt_row_group_first td {
   border-top-width: 2px;
 }
 
-#ghhhfbnaax .gt_row_group_first th {
+#xxcjuujgej .gt_row_group_first th {
   border-top-width: 2px;
 }
 
-#ghhhfbnaax .gt_summary_row {
+#xxcjuujgej .gt_summary_row {
   color: #333333;
   background-color: #FFFFFF;
   text-transform: inherit;
@@ -533,16 +564,16 @@ cookieconsent.run({
   padding-right: 5px;
 }
 
-#ghhhfbnaax .gt_first_summary_row {
+#xxcjuujgej .gt_first_summary_row {
   border-top-style: solid;
   border-top-color: #D3D3D3;
 }
 
-#ghhhfbnaax .gt_first_summary_row.thick {
+#xxcjuujgej .gt_first_summary_row.thick {
   border-top-width: 2px;
 }
 
-#ghhhfbnaax .gt_last_summary_row {
+#xxcjuujgej .gt_last_summary_row {
   padding-top: 8px;
   padding-bottom: 8px;
   padding-left: 5px;
@@ -552,7 +583,7 @@ cookieconsent.run({
   border-bottom-color: #D3D3D3;
 }
 
-#ghhhfbnaax .gt_grand_summary_row {
+#xxcjuujgej .gt_grand_summary_row {
   color: #333333;
   background-color: #FFFFFF;
   text-transform: inherit;
@@ -562,7 +593,7 @@ cookieconsent.run({
   padding-right: 5px;
 }
 
-#ghhhfbnaax .gt_first_grand_summary_row {
+#xxcjuujgej .gt_first_grand_summary_row {
   padding-top: 8px;
   padding-bottom: 8px;
   padding-left: 5px;
@@ -572,7 +603,7 @@ cookieconsent.run({
   border-top-color: #D3D3D3;
 }
 
-#ghhhfbnaax .gt_last_grand_summary_row_top {
+#xxcjuujgej .gt_last_grand_summary_row_top {
   padding-top: 8px;
   padding-bottom: 8px;
   padding-left: 5px;
@@ -582,11 +613,11 @@ cookieconsent.run({
   border-bottom-color: #D3D3D3;
 }
 
-#ghhhfbnaax .gt_striped {
+#xxcjuujgej .gt_striped {
   background-color: rgba(128, 128, 128, 0.05);
 }
 
-#ghhhfbnaax .gt_table_body {
+#xxcjuujgej .gt_table_body {
   border-top-style: solid;
   border-top-width: 2px;
   border-top-color: #D3D3D3;
@@ -595,7 +626,7 @@ cookieconsent.run({
   border-bottom-color: #D3D3D3;
 }
 
-#ghhhfbnaax .gt_footnotes {
+#xxcjuujgej .gt_footnotes {
   color: #333333;
   background-color: #FFFFFF;
   border-bottom-style: none;
@@ -609,7 +640,7 @@ cookieconsent.run({
   border-right-color: #D3D3D3;
 }
 
-#ghhhfbnaax .gt_footnote {
+#xxcjuujgej .gt_footnote {
   margin: 0px;
   font-size: 90%;
   padding-top: 4px;
@@ -618,7 +649,7 @@ cookieconsent.run({
   padding-right: 5px;
 }
 
-#ghhhfbnaax .gt_sourcenotes {
+#xxcjuujgej .gt_sourcenotes {
   color: #333333;
   background-color: #FFFFFF;
   border-bottom-style: none;
@@ -632,7 +663,7 @@ cookieconsent.run({
   border-right-color: #D3D3D3;
 }
 
-#ghhhfbnaax .gt_sourcenote {
+#xxcjuujgej .gt_sourcenote {
   font-size: 90%;
   padding-top: 4px;
   padding-bottom: 4px;
@@ -640,67 +671,68 @@ cookieconsent.run({
   padding-right: 5px;
 }
 
-#ghhhfbnaax .gt_left {
+#xxcjuujgej .gt_left {
   text-align: left;
 }
 
-#ghhhfbnaax .gt_center {
+#xxcjuujgej .gt_center {
   text-align: center;
 }
 
-#ghhhfbnaax .gt_right {
+#xxcjuujgej .gt_right {
   text-align: right;
   font-variant-numeric: tabular-nums;
 }
 
-#ghhhfbnaax .gt_font_normal {
+#xxcjuujgej .gt_font_normal {
   font-weight: normal;
 }
 
-#ghhhfbnaax .gt_font_bold {
+#xxcjuujgej .gt_font_bold {
   font-weight: bold;
 }
 
-#ghhhfbnaax .gt_font_italic {
+#xxcjuujgej .gt_font_italic {
   font-style: italic;
 }
 
-#ghhhfbnaax .gt_super {
+#xxcjuujgej .gt_super {
   font-size: 65%;
 }
 
-#ghhhfbnaax .gt_footnote_marks {
+#xxcjuujgej .gt_footnote_marks {
   font-size: 75%;
   vertical-align: 0.4em;
   position: initial;
 }
 
-#ghhhfbnaax .gt_asterisk {
+#xxcjuujgej .gt_asterisk {
   font-size: 100%;
   vertical-align: 0;
 }
 
-#ghhhfbnaax .gt_indent_1 {
+#xxcjuujgej .gt_indent_1 {
   text-indent: 5px;
 }
 
-#ghhhfbnaax .gt_indent_2 {
+#xxcjuujgej .gt_indent_2 {
   text-indent: 10px;
 }
 
-#ghhhfbnaax .gt_indent_3 {
+#xxcjuujgej .gt_indent_3 {
   text-indent: 15px;
 }
 
-#ghhhfbnaax .gt_indent_4 {
+#xxcjuujgej .gt_indent_4 {
   text-indent: 20px;
 }
 
-#ghhhfbnaax .gt_indent_5 {
+#xxcjuujgej .gt_indent_5 {
   text-indent: 25px;
 }
 </style>
 <table class="gt_table" data-quarto-disable-processing="false" data-quarto-bootstrap="false">
+  <caption>Highest ranked BFI films not appearing on IMDB</caption>
   <thead>
     <tr class="gt_col_headings">
       <th class="gt_col_heading gt_columns_bottom_border gt_left" rowspan="1" colspan="1" scope="col" id="Name">Name</th>
@@ -754,21 +786,6 @@ cookieconsent.run({
     <tr><td headers="name_film" class="gt_row gt_left">Do the Right Thing</td>
 <td headers="year.x" class="gt_row gt_right">1989</td>
 <td headers="rank" class="gt_row gt_right">24</td></tr>
-    <tr><td headers="name_film" class="gt_row gt_left">Au hasard Balthazar</td>
-<td headers="year.x" class="gt_row gt_right">1966</td>
-<td headers="rank" class="gt_row gt_right">25</td></tr>
-    <tr><td headers="name_film" class="gt_row gt_left">The Night of the Hunter</td>
-<td headers="year.x" class="gt_row gt_right">1955</td>
-<td headers="rank" class="gt_row gt_right">26</td></tr>
-    <tr><td headers="name_film" class="gt_row gt_left">Shoah</td>
-<td headers="year.x" class="gt_row gt_right">1985</td>
-<td headers="rank" class="gt_row gt_right">27</td></tr>
-    <tr><td headers="name_film" class="gt_row gt_left">Daisies</td>
-<td headers="year.x" class="gt_row gt_right">1966</td>
-<td headers="rank" class="gt_row gt_right">28</td></tr>
-    <tr><td headers="name_film" class="gt_row gt_left">Portrait of a Lady on Fire</td>
-<td headers="year.x" class="gt_row gt_right">2019</td>
-<td headers="rank" class="gt_row gt_right">30</td></tr>
   </tbody>
   
   
@@ -777,26 +794,26 @@ cookieconsent.run({
 </div>
 </div>
 <p>The best ranking films in IMDB’s list that don’t appear at all in BFI’s list include The Lord of the Rings trilogy (2001-2003), The Shawshank Redemption (1994), and several Christopher Nolan movies. Outside of Lumet’s 12 Angry Men (1957) most of this list heavily skewed to the 1990’s onwards.</p>
-<div class="cell">
+<div class="cell" data-layout-align="center">
 <div class="cell-output-display">
 
-<div id="ckzgastflk" style="padding-left:0px;padding-right:0px;padding-top:10px;padding-bottom:10px;overflow-x:auto;overflow-y:auto;width:auto;height:auto;">
-<style>#ckzgastflk table {
+<div id="ixoorqmffd" style="padding-left:0px;padding-right:0px;padding-top:10px;padding-bottom:10px;overflow-x:auto;overflow-y:auto;width:auto;height:auto;">
+<style>#ixoorqmffd table {
   font-family: system-ui, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
-#ckzgastflk thead, #ckzgastflk tbody, #ckzgastflk tfoot, #ckzgastflk tr, #ckzgastflk td, #ckzgastflk th {
+#ixoorqmffd thead, #ixoorqmffd tbody, #ixoorqmffd tfoot, #ixoorqmffd tr, #ixoorqmffd td, #ixoorqmffd th {
   border-style: none;
 }
 
-#ckzgastflk p {
+#ixoorqmffd p {
   margin: 0;
   padding: 0;
 }
 
-#ckzgastflk .gt_table {
+#ixoorqmffd .gt_table {
   display: table;
   border-collapse: collapse;
   line-height: normal;
@@ -822,12 +839,12 @@ cookieconsent.run({
   border-left-color: #D3D3D3;
 }
 
-#ckzgastflk .gt_caption {
+#ixoorqmffd .gt_caption {
   padding-top: 4px;
   padding-bottom: 4px;
 }
 
-#ckzgastflk .gt_title {
+#ixoorqmffd .gt_title {
   color: #333333;
   font-size: 125%;
   font-weight: initial;
@@ -839,7 +856,7 @@ cookieconsent.run({
   border-bottom-width: 0;
 }
 
-#ckzgastflk .gt_subtitle {
+#ixoorqmffd .gt_subtitle {
   color: #333333;
   font-size: 85%;
   font-weight: initial;
@@ -851,7 +868,7 @@ cookieconsent.run({
   border-top-width: 0;
 }
 
-#ckzgastflk .gt_heading {
+#ixoorqmffd .gt_heading {
   background-color: #FFFFFF;
   text-align: center;
   border-bottom-color: #FFFFFF;
@@ -863,13 +880,13 @@ cookieconsent.run({
   border-right-color: #D3D3D3;
 }
 
-#ckzgastflk .gt_bottom_border {
+#ixoorqmffd .gt_bottom_border {
   border-bottom-style: solid;
   border-bottom-width: 2px;
   border-bottom-color: #D3D3D3;
 }
 
-#ckzgastflk .gt_col_headings {
+#ixoorqmffd .gt_col_headings {
   border-top-style: solid;
   border-top-width: 2px;
   border-top-color: #D3D3D3;
@@ -884,7 +901,7 @@ cookieconsent.run({
   border-right-color: #D3D3D3;
 }
 
-#ckzgastflk .gt_col_heading {
+#ixoorqmffd .gt_col_heading {
   color: #333333;
   background-color: #FFFFFF;
   font-size: 100%;
@@ -904,7 +921,7 @@ cookieconsent.run({
   overflow-x: hidden;
 }
 
-#ckzgastflk .gt_column_spanner_outer {
+#ixoorqmffd .gt_column_spanner_outer {
   color: #333333;
   background-color: #FFFFFF;
   font-size: 100%;
@@ -916,15 +933,15 @@ cookieconsent.run({
   padding-right: 4px;
 }
 
-#ckzgastflk .gt_column_spanner_outer:first-child {
+#ixoorqmffd .gt_column_spanner_outer:first-child {
   padding-left: 0;
 }
 
-#ckzgastflk .gt_column_spanner_outer:last-child {
+#ixoorqmffd .gt_column_spanner_outer:last-child {
   padding-right: 0;
 }
 
-#ckzgastflk .gt_column_spanner {
+#ixoorqmffd .gt_column_spanner {
   border-bottom-style: solid;
   border-bottom-width: 2px;
   border-bottom-color: #D3D3D3;
@@ -936,11 +953,11 @@ cookieconsent.run({
   width: 100%;
 }
 
-#ckzgastflk .gt_spanner_row {
+#ixoorqmffd .gt_spanner_row {
   border-bottom-style: hidden;
 }
 
-#ckzgastflk .gt_group_heading {
+#ixoorqmffd .gt_group_heading {
   padding-top: 8px;
   padding-bottom: 8px;
   padding-left: 5px;
@@ -966,7 +983,7 @@ cookieconsent.run({
   text-align: left;
 }
 
-#ckzgastflk .gt_empty_group_heading {
+#ixoorqmffd .gt_empty_group_heading {
   padding: 0.5px;
   color: #333333;
   background-color: #FFFFFF;
@@ -981,15 +998,15 @@ cookieconsent.run({
   vertical-align: middle;
 }
 
-#ckzgastflk .gt_from_md > :first-child {
+#ixoorqmffd .gt_from_md > :first-child {
   margin-top: 0;
 }
 
-#ckzgastflk .gt_from_md > :last-child {
+#ixoorqmffd .gt_from_md > :last-child {
   margin-bottom: 0;
 }
 
-#ckzgastflk .gt_row {
+#ixoorqmffd .gt_row {
   padding-top: 8px;
   padding-bottom: 8px;
   padding-left: 5px;
@@ -1008,7 +1025,7 @@ cookieconsent.run({
   overflow-x: hidden;
 }
 
-#ckzgastflk .gt_stub {
+#ixoorqmffd .gt_stub {
   color: #333333;
   background-color: #FFFFFF;
   font-size: 100%;
@@ -1021,7 +1038,7 @@ cookieconsent.run({
   padding-right: 5px;
 }
 
-#ckzgastflk .gt_stub_row_group {
+#ixoorqmffd .gt_stub_row_group {
   color: #333333;
   background-color: #FFFFFF;
   font-size: 100%;
@@ -1035,15 +1052,15 @@ cookieconsent.run({
   vertical-align: top;
 }
 
-#ckzgastflk .gt_row_group_first td {
+#ixoorqmffd .gt_row_group_first td {
   border-top-width: 2px;
 }
 
-#ckzgastflk .gt_row_group_first th {
+#ixoorqmffd .gt_row_group_first th {
   border-top-width: 2px;
 }
 
-#ckzgastflk .gt_summary_row {
+#ixoorqmffd .gt_summary_row {
   color: #333333;
   background-color: #FFFFFF;
   text-transform: inherit;
@@ -1053,16 +1070,16 @@ cookieconsent.run({
   padding-right: 5px;
 }
 
-#ckzgastflk .gt_first_summary_row {
+#ixoorqmffd .gt_first_summary_row {
   border-top-style: solid;
   border-top-color: #D3D3D3;
 }
 
-#ckzgastflk .gt_first_summary_row.thick {
+#ixoorqmffd .gt_first_summary_row.thick {
   border-top-width: 2px;
 }
 
-#ckzgastflk .gt_last_summary_row {
+#ixoorqmffd .gt_last_summary_row {
   padding-top: 8px;
   padding-bottom: 8px;
   padding-left: 5px;
@@ -1072,7 +1089,7 @@ cookieconsent.run({
   border-bottom-color: #D3D3D3;
 }
 
-#ckzgastflk .gt_grand_summary_row {
+#ixoorqmffd .gt_grand_summary_row {
   color: #333333;
   background-color: #FFFFFF;
   text-transform: inherit;
@@ -1082,7 +1099,7 @@ cookieconsent.run({
   padding-right: 5px;
 }
 
-#ckzgastflk .gt_first_grand_summary_row {
+#ixoorqmffd .gt_first_grand_summary_row {
   padding-top: 8px;
   padding-bottom: 8px;
   padding-left: 5px;
@@ -1092,7 +1109,7 @@ cookieconsent.run({
   border-top-color: #D3D3D3;
 }
 
-#ckzgastflk .gt_last_grand_summary_row_top {
+#ixoorqmffd .gt_last_grand_summary_row_top {
   padding-top: 8px;
   padding-bottom: 8px;
   padding-left: 5px;
@@ -1102,11 +1119,11 @@ cookieconsent.run({
   border-bottom-color: #D3D3D3;
 }
 
-#ckzgastflk .gt_striped {
+#ixoorqmffd .gt_striped {
   background-color: rgba(128, 128, 128, 0.05);
 }
 
-#ckzgastflk .gt_table_body {
+#ixoorqmffd .gt_table_body {
   border-top-style: solid;
   border-top-width: 2px;
   border-top-color: #D3D3D3;
@@ -1115,7 +1132,7 @@ cookieconsent.run({
   border-bottom-color: #D3D3D3;
 }
 
-#ckzgastflk .gt_footnotes {
+#ixoorqmffd .gt_footnotes {
   color: #333333;
   background-color: #FFFFFF;
   border-bottom-style: none;
@@ -1129,7 +1146,7 @@ cookieconsent.run({
   border-right-color: #D3D3D3;
 }
 
-#ckzgastflk .gt_footnote {
+#ixoorqmffd .gt_footnote {
   margin: 0px;
   font-size: 90%;
   padding-top: 4px;
@@ -1138,7 +1155,7 @@ cookieconsent.run({
   padding-right: 5px;
 }
 
-#ckzgastflk .gt_sourcenotes {
+#ixoorqmffd .gt_sourcenotes {
   color: #333333;
   background-color: #FFFFFF;
   border-bottom-style: none;
@@ -1152,7 +1169,7 @@ cookieconsent.run({
   border-right-color: #D3D3D3;
 }
 
-#ckzgastflk .gt_sourcenote {
+#ixoorqmffd .gt_sourcenote {
   font-size: 90%;
   padding-top: 4px;
   padding-bottom: 4px;
@@ -1160,67 +1177,68 @@ cookieconsent.run({
   padding-right: 5px;
 }
 
-#ckzgastflk .gt_left {
+#ixoorqmffd .gt_left {
   text-align: left;
 }
 
-#ckzgastflk .gt_center {
+#ixoorqmffd .gt_center {
   text-align: center;
 }
 
-#ckzgastflk .gt_right {
+#ixoorqmffd .gt_right {
   text-align: right;
   font-variant-numeric: tabular-nums;
 }
 
-#ckzgastflk .gt_font_normal {
+#ixoorqmffd .gt_font_normal {
   font-weight: normal;
 }
 
-#ckzgastflk .gt_font_bold {
+#ixoorqmffd .gt_font_bold {
   font-weight: bold;
 }
 
-#ckzgastflk .gt_font_italic {
+#ixoorqmffd .gt_font_italic {
   font-style: italic;
 }
 
-#ckzgastflk .gt_super {
+#ixoorqmffd .gt_super {
   font-size: 65%;
 }
 
-#ckzgastflk .gt_footnote_marks {
+#ixoorqmffd .gt_footnote_marks {
   font-size: 75%;
   vertical-align: 0.4em;
   position: initial;
 }
 
-#ckzgastflk .gt_asterisk {
+#ixoorqmffd .gt_asterisk {
   font-size: 100%;
   vertical-align: 0;
 }
 
-#ckzgastflk .gt_indent_1 {
+#ixoorqmffd .gt_indent_1 {
   text-indent: 5px;
 }
 
-#ckzgastflk .gt_indent_2 {
+#ixoorqmffd .gt_indent_2 {
   text-indent: 10px;
 }
 
-#ckzgastflk .gt_indent_3 {
+#ixoorqmffd .gt_indent_3 {
   text-indent: 15px;
 }
 
-#ckzgastflk .gt_indent_4 {
+#ixoorqmffd .gt_indent_4 {
   text-indent: 20px;
 }
 
-#ckzgastflk .gt_indent_5 {
+#ixoorqmffd .gt_indent_5 {
   text-indent: 25px;
 }
 </style>
 <table class="gt_table" data-quarto-disable-processing="false" data-quarto-bootstrap="false">
+  <caption>Highest ranked IMDB films not appearing on BFI</caption>
   <thead>
     <tr class="gt_col_headings">
       <th class="gt_col_heading gt_columns_bottom_border gt_left" rowspan="1" colspan="1" scope="col" id="Name">Name</th>
@@ -1274,21 +1292,6 @@ cookieconsent.run({
     <tr><td headers="name_film" class="gt_row gt_left">Dune: Part Two</td>
 <td headers="year.y" class="gt_row gt_right">2024</td>
 <td headers="rank" class="gt_row gt_right">21</td></tr>
-    <tr><td headers="name_film" class="gt_row gt_left">The Silence of the Lambs</td>
-<td headers="year.y" class="gt_row gt_right">1991</td>
-<td headers="rank" class="gt_row gt_right">24</td></tr>
-    <tr><td headers="name_film" class="gt_row gt_left">Saving Private Ryan</td>
-<td headers="year.y" class="gt_row gt_right">1998</td>
-<td headers="rank" class="gt_row gt_right">25</td></tr>
-    <tr><td headers="name_film" class="gt_row gt_left">City of God</td>
-<td headers="year.y" class="gt_row gt_right">2002</td>
-<td headers="rank" class="gt_row gt_right">26</td></tr>
-    <tr><td headers="name_film" class="gt_row gt_left">Life Is Beautiful</td>
-<td headers="year.y" class="gt_row gt_right">1997</td>
-<td headers="rank" class="gt_row gt_right">27</td></tr>
-    <tr><td headers="name_film" class="gt_row gt_left">The Green Mile</td>
-<td headers="year.y" class="gt_row gt_right">1999</td>
-<td headers="rank" class="gt_row gt_right">28</td></tr>
   </tbody>
   
   
@@ -1297,37 +1300,53 @@ cookieconsent.run({
 </div>
 </div>
 </section>
-<section id="why-the-difference" class="level2">
-<h2 class="anchored" data-anchor-id="why-the-difference">Why the difference?</h2>
 </section>
-<section id="recency-bias-or-new-is-always-better" class="level2">
-<h2 class="anchored" data-anchor-id="recency-bias-or-new-is-always-better">Recency bias or ‘new is always better’</h2>
-<section id="recency-bias" class="level3">
-<h3 class="anchored" data-anchor-id="recency-bias">Recency Bias</h3>
-<p>Recency bias is a well known cognitive bias, also known as memory bias. It describes the human tendency to attribute a greater importance to more recent events than to events that occurred further in time. This happens when travelers believe an airplane crash is more likely to occur after seeing news about an airplane accident; when investors believe the market will keep growing following a recent string of positive news; when swimmers believe that shark attacks will be more likely after watching a documentary about sharks.</p>
-<p>More recently, <em>recency bias has become a pervasive feature of online culture</em>. In a never ending cycle of “the new is always better”, social media influencers and the media more broadly are constantly claiming that this new thing is actually <em>the best thing of all time</em>. Public opinion is slowly but surely catching up to this in sports discussions, as GOAT (<em>greatest of all time</em>) discussion fatigue is increasing among fans.</p>
+<section id="critics-x-public---2" class="level2">
+<h2 class="anchored" data-anchor-id="critics-x-public---2">Critics x Public - 2</h2>
+<p>Gathering data from other sources reveals more curious patterns. The plot below aggregates data from 8 different rankings: four of them voted by critics and four of them voted by the public<a href="#fn1" class="footnote-ref" id="fnref1" role="doc-noteref"><sup>1</sup></a>. The latter are online polls voted by users and for simplicity are all shown in yellow; the former are polls voted by experts and critics and are shown in blue.</p>
+<div class="cell" data-layout-align="center">
+<div class="cell-output-display">
 <div class="quarto-figure quarto-figure-center">
 <figure class="figure">
-<p><img src="images/Screenshot 2024-05-01 at 13.41.49.png" class="img-fluid figure-img" width="500"></p>
+<p><img src="index_files/figure-html/unnamed-chunk-14-1.png" class="img-fluid figure-img" style="width:100.0%"></p>
 </figure>
 </div>
-<blockquote class="blockquote">
-<p><em>It’s really convenient that all of the GOATs, of all sports, just happen to play and perform at their best during the first 20 years of the most recent century: just in time for you to watch them.</em></p>
-</blockquote>
-<p>For several different reasons, human’s tend to put a greater weight onto more recent events when evaluating pretty much anything. This is partly due to how our memory works but sometimes is due to availability. When something new happens, social media is quickly extracts all possible content from it and then moves on to the next thing.</p>
-</section>
-</section>
-<section id="why-the-difference-1" class="level2">
-<h2 class="anchored" data-anchor-id="why-the-difference-1">Why the difference?</h2>
-<p>Gathering data from more sources reveals more curious patterns. The plot below aggregates data from 8 different sources: four of them voted by critics and four of them voted by the public<a href="#fn1" class="footnote-ref" id="fnref1" role="doc-noteref"><sup>1</sup></a>.</p>
-<p>All four lists organized by critics present similar characteristics. They are shaped almost like a triangle with its vertex somewhere around the 1960’s with a small outlier peak in the late 1990’s. AFI’s ranking differs slightly from this pattern exhibiting a relatively larger peak in the 1940’s</p>
+</div>
+</div>
+<p>All four lists organized by critics present similar characteristics. They are shaped almost like a triangle with its vertex somewhere around the 1960’s with a small outlier peak in the late 1990’s. AFI’s ranking differs slightly from this pattern exhibiting a relatively larger peak in the 1940’s.</p>
 <p>The rankings voted by the public are much more scattered. Criticker’s ranking is the most similar to the critics’. It has a large share of films in the late 1940’s and 1950’s, but fewer in the 1960’s and 70’s relative to the critics.</p>
 <p>IMDB’s ranking, as seen previously, is heavily skewed to right, with several films from the 1990’s and 2000’s. Empire’s ranking is similar in shape to IMDB’s, almost resembling a ladder that peaks in 1999.</p>
 <p>Finally, Letterboxd’s list seems to be a mixture of Criticker’s 1950’s bias with IMDB’s 1990’s bias.</p>
-<p>Similarly to the BFI x IMDB comparison, these lists aren’t directly comparable. Most importantly, they were (1) published at different times<a href="#fn2" class="footnote-ref" id="fnref2" role="doc-noteref"><sup>2</sup></a>; (2) have different sample sizes<a href="#fn3" class="footnote-ref" id="fnref3" role="doc-noteref"><sup>3</sup></a>. The Empire 500 Greatest movies</p>
-
-
+<section id="lists-inside-lists" class="level3">
+<h3 class="anchored" data-anchor-id="lists-inside-lists">Lists inside lists</h3>
+<p>Similarly to the BFI x IMDB comparison, these lists aren’t directly comparable. Most importantly, they were (1) published at different times<a href="#fn2" class="footnote-ref" id="fnref2" role="doc-noteref"><sup>2</sup></a>; and (2) have different sample sizes<a href="#fn3" class="footnote-ref" id="fnref3" role="doc-noteref"><sup>3</sup></a>.</p>
+<p>A simple way to compare the similarity between these lists is to count the overlaps in films. That is, how many films in list A are present in list B. To overcome the differences in sample size, I truncate the larger list by the smaller list size. When comparing, for instance, the Variety Top 100 with the IMDB Top 250, I simply truncate the IMDB list at 100.</p>
+<p>This should work well for most comparisons except for AFI and Empire. AFI’s ranking lists only American movies up to 2000; and Empire ranks movies only up until 2008.</p>
+<p>The plot below shows this simple measure of overlap where the number represents the percentage of overlap between a pair of lists. This means that 64.9% of the films listed on Criticker also appear on Letterboxd’s Top 250.</p>
+<div class="cell" data-layout-align="center">
+<div class="cell-output-display">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="index_files/figure-html/unnamed-chunk-15-1.png" class="img-fluid figure-img" style="width:90.0%"></p>
+</figure>
+</div>
+</div>
+</div>
+<p>Overall, the public rankings are most similar to other public rankings and dissimilar to critic’s rankings. Letterboxd has a high similarity with Criticker and IMDB and a low similarity with Variety and Timeout. Likewise, Variety’s list is most similar to AFI, BFI, and Timeout.</p>
 </section>
+</section>
+</section>
+<section id="conclusion" class="level1">
+<h1>Conclusion</h1>
+<p>This was mostly a “fun” post comparing lists of movie rankings.</p>
+<ul>
+<li><p><strong>Differences Between Critic and Public Rankings</strong>: Movie rankings created by critics and the public show clear differences. Critics’ lists tend to be quite consistent and often favor older films. In contrast, rankings based on public online votes are also similar to each other, but generally give more weight to recent films.</p></li>
+<li><p><strong>The Favoritism of Recent Movies in Public Rankings</strong>: Online public rankings tend to highlight newer movies, especially those from the 2000s. This trend may be influenced by the <strong>age demographic of voters</strong> and the greater availability of more recent movies in online streaming platforms relatively to older movies.</p></li>
+<li><p><strong>Experts, critics, and the Golden Age of Movies</strong>: Rankings by experts and critics are generally aligned, with similar films appearing in both lists. These rankings tend to include fewer recent releases, with most of the <strong>top films coming from the 1940s, 1960s, and 1970s</strong>.</p></li>
+<li><p><strong>Limitations</strong>: as noted above, only a handful of these lists are directly comparable. Each list has a different methodology and was published at different times. The online lists (IMDB, Criticker, and LetterBoxd) are the most comparable.</p></li>
+</ul>
+
+
 </section>
 
 
