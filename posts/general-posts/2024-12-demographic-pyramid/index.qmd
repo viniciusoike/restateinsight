@@ -1,0 +1,204 @@
+---
+title: "Demographic Pyramids in R"
+date: "2024-12-29"
+description: "Demographic pyramids are widely used in demographic analysis to visualize the structure of a population, providing valuable insights into trends like population growth, aging, and gender distribution. In this tutorial, we will demonstrate how to create demographic pyramids using R, leveraging the WPP 2024 dataset to analyze population structures in countries like Pakistan, Brazil, Japan, and Ireland."
+categories: ['ggplot2', 'data-visualization', 'english', 'tutorial-R']
+execute:
+  warnings: false
+  message: false
+draft: true
+---
+
+# Demographic Pyramids
+
+A **demographic pyramid** is a graphical representation of the age and gender distribution of a population. It typically shows the population in horizontal bars, with males represented on the left and females on the right. Each bar represents a specific age group, and the length of the bar indicates the number of people in that group. Demographic pyramids are widely used in demographic analysis to visualize the structure of a population, providing valuable insights into trends like population growth, aging, and gender distribution.
+
+These pyramids are crucial for understanding the socio-economic dynamics of a country, as they highlight the proportions of young versus older populations and reveal patterns related to fertility rates, life expectancy, and migration. By analyzing demographic pyramids, policymakers, businesses, and researchers can make informed decisions related to healthcare, education, and workforce planning. In this tutorial, we will demonstrate how to create demographic pyramids using R, leveraging the WPP 2024 dataset to analyze population structures in countries like Pakistan, Brazil, Japan, and Ireland.
+
+```{r}
+library(ggplot2)
+library(data.table)
+library(wpp2024)
+
+# remotes::install_github("PPgp/wpp2024")
+```
+
+```{r}
+data(popAge1dt)
+# Brazil, Ireland, Pakistan, Japan
+
+countries <- data.table(
+  country_code = c(392, 586, 372, 76),
+  name = c("Japan", "Pakistan", "Ireland", "Brazil")
+)
+
+sub <- popAge1dt[country_code %in% countries$country_code]
+```
+
+```{r}
+# Create age-group data.frames for merges
+df_age_group <- function(age_min = 0, age_max = 90, group_interval = 5) {
+  # Age-group auxiliary data.frames
+  group <- seq(age_min, age_max, group_interval)
+  interval <- findInterval(0:150, group, rightmost.closed = FALSE)
+  # Text labels for each group
+  label <- paste(group, (group - 1)[-1], sep = "-")
+  label[length(label)] <- paste0(age_max, "+")
+  age_label <- rep(label, each = group_interval)
+  age_label <- c(age_label, rep(paste0(age_max, "+"), 151 - length(age_label)))
+  # 5 year age groups 0-4 to 90+
+  age_group <- data.frame(
+    age = 0:150,
+    age_group = interval,
+    age_label = factor(age_label)
+    #age_label = factor(age_label, levels = age_label[order(interval)])
+  )
+  
+  age_group <- age_group |> 
+    dplyr::mutate(age_label = forcats::fct_reorder(age_label, age_group))
+  
+  return(age_group)
+}
+```
+
+```{r}
+sub50 <- sub[year == 1950 & country_code == 392]
+
+sub50
+```
+
+```{r}
+dim_age <- df_age_group(age_min = 0, age_max = 90, group_interval = 5)
+
+dim_age
+```
+
+```{r}
+jpn50 <- merge(sub50, dim_age, by = "age")
+
+# jpn50[, age_label := factor(age_label, levels = unique(jpn50$age_label))]
+```
+
+### Preparing the data
+
+```{r}
+long_jpn50 <- melt(
+  jpn50,
+  id.vars = "age",
+  measure.vars = c("popM", "popF"),
+  variable.name = "sex",
+  value.name = "pop"
+)
+
+long_jpn50[, trunc_age := age][age >= 100, trunc_pop := age]
+long_jpn50 <- long_jpn50[, .(trunc_pop = sum(pop)), by = c("trunc_age", "sex")]
+long_jpn50[, y := trunc_pop][sex == "popM", y := -trunc_pop]
+```
+
+### Minimal plot
+
+```{r}
+ggplot(long_jpn50, aes(x = trunc_age, y = y)) +
+  geom_col(aes(fill = sex, color = sex)) +
+  coord_flip() +
+  guides(fill = "none", color = "none") +
+  scale_x_continuous(
+    breaks = seq(0, 100, 10),
+    expand = c(0, 0)) +
+  scale_y_continuous(
+    breaks = seq(-1000, 1000, 250),
+    labels = abs(seq(-1000, 1000, 250))
+  )
+```
+
+```{r}
+colors <- c("#1B9E77", "#7570B3")
+
+p <- ggplot(long_jpn50, aes(x = trunc_age, y = y)) +
+  geom_col(aes(fill = sex, color = sex)) +
+  coord_flip() +
+  guides(fill = "none", color = "none") +
+  scale_x_continuous(
+    breaks = seq(0, 100, 10),
+    expand = c(0, 0)) +
+  scale_y_continuous(
+    breaks = seq(-1000, 1000, 250),
+    labels = abs(seq(-1000, 1000, 250))
+  )
+
+p + 
+  geom_hline(yintercept = 0) +
+  scale_color_manual(values = colors) +
+  scale_fill_manual(values = colors) +
+  theme_minimal(base_size = 14) +
+  theme(
+    panel.grid.minor = element_blank(),
+    panel.grid.major.x = element_line(linetype = 2)
+  )
+```
+
+```{r}
+m <- round(sum(jpn50$pop) / 2)
+y <- cumsum(jpn50$pop)
+dist <- y - m
+median_age <- sum(dist < 0)
+
+round(matrixStats::weightedMedian(jpn50$age, jpn50$pop))
+```
+
+```{r}
+#| eval: false
+[1] "#1B9E77" "#D95F02" "#7570B3" "#E7298A" "#66A61E"
+[6] "#E6AB02" "#A6761D" "#666666"
+```
+
+## Grouped data
+
+```{r}
+grouped_jpn50 <- jpn50[, .(pop_male = sum(popM), pop_female = sum(popF)), by = "age_label"]
+
+grouped_jpn50 <- melt(
+  grouped_jpn50,
+  id.vars = c("age_label"),
+  measure.vars = c("pop_male", "pop_female"),
+  variable.name = "sex",
+  value.name = "pop"
+  )
+
+grouped_jpn50[, share := pop / sum(pop), by = "sex"]
+grouped_jpn50[, share_total := pop / sum(pop)]
+
+grouped_jpn50[, y := pop][sex == "pop_male", y := -pop]
+grouped_jpn50[, y_share := share][sex == "pop_male", y_share := -share]
+grouped_jpn50[, y_share_total := share_total][sex == "pop_male", y_share := -share_total]
+```
+
+```{r}
+ggplot(grouped_jpn50, aes(x = age_label, y = y)) +
+  geom_col(aes(fill = sex)) +
+  coord_flip() +
+  guides(fill = "none")
+```
+
+```{r}
+jpn <- sub[year %in% c(1950, 1960, 1970, 1980) & country_code == 392]
+```
+
+```{r}
+jpn <- merge(jpn, dim_age, by = "age")
+jpn <- jpn[,
+           .(pop_male = sum(popM), pop_female = sum(popF)),
+           by = c("year", "age_label")]
+
+jpn <- melt(jpn, id.vars = c("year", "age_label"))
+
+jpn[, share := value / sum(value), by = c("year")]
+
+ggplot(jpn, aes())
+```
+
+### Colors
+
+<https://blog.datawrapper.de/gendercolor/>
+
+<https://infogram.com/blog/do-this-not-that-population-pyramid/>
