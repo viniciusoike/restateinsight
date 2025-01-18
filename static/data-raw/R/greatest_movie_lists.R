@@ -372,6 +372,7 @@ clean_abracine = abracine |>
 films <- list(
   afi = imdb_afi,
   bfi = imdb_bfi,
+  bfi_with_ties = clean_bfi,
   ebert = imdb_ebert,
   empire = imdb_empire,
   variety = imdb_variety,
@@ -383,7 +384,8 @@ films <- list(
   imdb = imdb_top250,
   rolling_stones_scifi = imdb_rs_scifi,
   letterboxd = clean_letterboxd,
-  criticker = clean_criticker
+  criticker = clean_criticker,
+  brazil = clean_abracine
   )
 
 dat <- bind_rows(films, .id = "source")
