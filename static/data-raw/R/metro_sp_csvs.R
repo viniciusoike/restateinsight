@@ -202,6 +202,18 @@ passengers <- passengers |>
     line_number, value
   )
 
+# Sanity checks
+
+count(passengers, variable) |> count(n)
+
+count(passengers, date, variable) |> count(n)
+
+count(passengers, date, variable, line_number) |> count(n)
+
+passengers |> 
+  filter(date == max(date)) |> 
+  count(line_name)
+
 write_csv(passengers, here::here("static/data/metro_sp_2021_2024.csv"))
 
 years <- 2021:2024
@@ -291,7 +303,7 @@ df_line <- df_line |>
   ) |> 
   arrange(name)
 
-read_csv_passengers <- function(path) {
+read_csv_passengers <- function(path, force_names = TRUE) {
 
   # dat <- read_delim(
   #   path,
@@ -304,23 +316,55 @@ read_csv_passengers <- function(path) {
   
   dat <- data.table::fread(
     path,
-    skip = 4,
+    skip = 5,
     na.strings = c("-", "0<b3>", "0\xb3"),
-    encoding = "Latin-1"
+    encoding = "Latin-1",
+    colClasses = "character"
   )
   
-  dat <- janitor::clean_names(dat)
+  if (force_names) {
+    
+    col_names <- c(
+      "demanda_milhares", "linha_1_azul", "linha_2_verde", "linha_3_vermelha",
+      "linha_5_lilas", "linha_15_prata", "rede"
+      )
+    
+    if (ncol(dat) == 16) {
+      data.table::setnames(dat, names(dat)[1:7], col_names)
+    } else {
+      data.table::setnames(dat, names(dat)[1:6], col_names[-5])
+    }
+    
+  } else {
+    dat <- janitor::clean_names(dat)
+  }
+
+  as_numeric_pt <- Vectorize(function(x) {
+    if (is.character(x)) {
+      as.numeric(gsub("\\.", "", x))
+    }
+  })
   
   dat <- dat |> 
-    mutate(across(2:last_col(), as.numeric)) |> 
+    # Remove lines where all values are missing
+    filter(!if_all(2:last_col(), ~ . == "")) |> 
+    # Extract only first 5 lines (might not work always)
+    slice(1:5) |> 
+    # Convert numbers
+    mutate(across(2:last_col(), as_numeric_pt)) |> 
+    # Remove columns where all values are missing
     select(where(~!all(is.na(.x))))
+  
+  # dat <- dat |> 
+  #   mutate(across(2:last_col(), as_numeric_pt)) |> 
+  #   select(where(~!all(is.na(.x))))
   
   return(dat)
   
 }
 
 stack_passengers <- function(ls, unite = TRUE, year = 2018) {
-
+browser()
   x <- c(
     "Total", "Média dos dias úteis", "Média dos Sábados", "Média dos Domingos",
     "Máxima Diária"
@@ -350,16 +394,38 @@ stack_passengers <- function(ls, unite = TRUE, year = 2018) {
   }
   
   #> Manually replace the 'demanda_milhares' column and convert to long
-  tbl <- tbl |> 
-    filter(!is.na(linha_1_azul)) |> 
-    distinct() |> 
-    mutate(variable = rep(x, 12), year = year) |> 
-    select(-demanda_milhares) |> 
-    pivot_longer(
-      cols = -c(variable, year, month),
-      names_to = "metro_line",
-      values_transform = as.numeric
-    )
+  
+  if (year == 2017) {
+    
+    tbl <- tbl |> 
+      filter(!is.na(linha_1_azul)) |> 
+      distinct() |> 
+      mutate(year = local(year)) |> 
+      rename(variable = demanda_milhares) |> 
+      pivot_longer(
+        cols = -c(variable, year, month),
+        names_to = "metro_line",
+        values_transform = as.numeric
+      )
+    
+  }
+  
+  if (year != 2017) {
+    
+    tbl <- tbl |> 
+      filter(!is.na(linha_1_azul)) |> 
+      distinct() |> 
+      mutate(variable = rep(x, 12), year = year) |> 
+      select(-demanda_milhares) |> 
+      pivot_longer(
+        cols = -c(variable, year, month),
+        names_to = "metro_line",
+        values_transform = as.numeric
+      )
+    
+  }
+  
+
   
   #> Parse date and select columns
   tbl <- tbl |> 
@@ -374,7 +440,7 @@ stack_passengers <- function(ls, unite = TRUE, year = 2018) {
 }
 
 import_passengers <- function(year = 2018, type = "transport") {
-
+  
   stopifnot(any(type %in% c("transport", "entry")))
   
   fld <- case_when(
@@ -423,6 +489,8 @@ import_passengers <- function(year = 2018, type = "transport") {
   
 }
 
+
+
 ## Entrada de passageiros por estacao --------------------------------------
 
 path = path_files[stringr::str_detect(path_files, "Entrada de Passageiros por Esta")]
@@ -437,6 +505,7 @@ df_station <- df_station |>
     name = if_else(is.na(name), "Março", name),
     name = factor(name, levels = mes),
     encoding = if_else(name %in% c("Junho", "Julho"), "UTF-8", "Latin-1")
+    #encoding = if_else(name %in% c("Junho", "Julho"), "UTF-8", "ISO-8859-1")
   ) |> 
   arrange(name)
 
@@ -512,10 +581,6 @@ files[!sapply(files, \(x) is.null(x$error))]
 
 read_csv_station(path_errors[1])
 
-files[[1]]$result
-
-
-
 
 ## Entrada de passageiros por estacao --------------------------------------
 
@@ -550,27 +615,27 @@ read_csv_stations_18 <- function(path, encoding) {
 
 files <- map2(df18$path, df18$encoding, read_csv_stations_18)
 
-tab <- files[[1]]$result
-
-tab[1:25, 1] |> print(n = 50)
-
-names(tab) <- c("x1", "y1", "x2", "y2", "x3", "y3", "x4", "y4", "x5", "y5")
-
-tab |> 
-  pivot_longer(
-    cols = everything(),
-    names_to = c(".value", "metro_line"),
-    names_pattern = "(.)(.)",
-    names_transform = ~stringr::str_replace(.x, "-", "_")
-  )
-
-tab |> 
-  pivot_longer(
-    cols = everything(),
-    names_to = c(".value", "metro_line"),
-    names_pattern = "(.*)_(.*)",
-    names_transform = ~stringr::str_replace(.x, "-", "_")
-  )
+# tab <- files[[1]]$result
+# 
+# tab[1:25, 1] |> print(n = 50)
+# 
+# names(tab) <- c("x1", "y1", "x2", "y2", "x3", "y3", "x4", "y4", "x5", "y5")
+# 
+# tab |> 
+#   pivot_longer(
+#     cols = everything(),
+#     names_to = c(".value", "metro_line"),
+#     names_pattern = "(.)(.)",
+#     names_transform = ~stringr::str_replace(.x, "-", "_")
+#   )
+# 
+# tab |> 
+#   pivot_longer(
+#     cols = everything(),
+#     names_to = c(".value", "metro_line"),
+#     names_pattern = "(.*)_(.*)",
+#     names_transform = ~stringr::str_replace(.x, "-", "_")
+#   )
 
 clean_csv_stations <- function(dat) {
   
@@ -702,6 +767,8 @@ passengers_entry <- passengers_entry |>
 
 # 2018-2020 --------------------------------------------------------------------
 
+import_passengers(year = 2017, type = "transport")
+
 transport_18 <- import_passengers(year = 2018, type = "transport")
 entry_18 <- import_passengers(year = 2018, type = "entry")
 transport_19 <- import_passengers(year = 2019, type = "transport")
@@ -720,7 +787,34 @@ metro <- bind_rows(
 stations <- map(2018:2020, import_stations)
 stations <- bind_rows(stations)
 
+transport_18 |> 
+  filter(metro_line == "linha_1_azul", variable == "Total")
+
+metro |> 
+  count(date, variable, metro_line)
+
+library(ggplot2)
+
+metro |> 
+  filter(variable == "Máxima Diária", name == "passengers_transport") |> 
+  ggplot(aes(date, value)) +
+  geom_point() +
+  facet_wrap(vars(metro_line))
+
+metro |> 
+  filter(name == "passengers_transport", metro_line == "linha_1_azul", variable == "Total") |> 
+  ggplot(aes(x = date, y = value)) +
+  geom_point()
+
+
+
+
+
+
 write_csv(metro, "static/data/metro_sp_2018_2020.csv") 
 write_csv(stations, "static/data/metro_sp_stations_2018_2020.csv") 
 
 import_stations(2019)
+
+
+read_csv_passengers(df_line$path[1])
