@@ -1,3 +1,6 @@
+# Downloads zip, csv, and pdf files from METRO SP
+# https://transparencia.metrosp.com.br/
+# Script should be followed by metro_sp_csvs.R and/or metro_sp_pdfs.R
 
 library(dplyr)
 library(stringr)
@@ -54,14 +57,16 @@ zipped_files <- params |>
 
 fld <- here("static/data/raw/metro_sp/metro")
 
-for (i in seq_along(zipped_files$url)) {
-  
-  download.file(
-    zipped_files$url[[i]],
-    destfile = here(fld, paste0(zipped_files$name_file[[i]], ".zip"))
-  )
-  
-}
+# Only needs to be downloaded once
+
+# for (i in seq_along(zipped_files$url)) {
+#   
+#   download.file(
+#     zipped_files$url[[i]],
+#     destfile = here(fld, paste0(zipped_files$name_file[[i]], ".zip"))
+#   )
+#   
+# }
 
 # Easier to unzip manually or using terminal
 list.files(fld, pattern = "\\.csv$", recursive = TRUE)
