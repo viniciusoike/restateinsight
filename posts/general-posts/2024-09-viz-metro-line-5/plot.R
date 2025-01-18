@@ -3,16 +3,16 @@ library(ggplot2)
 library(ggtext)
 library(sf)
 library(showtext)
-library(basemaps)
+# library(basemaps)
 
 import::from(here, here)
 import::from(tidyr, nest, unnest)
 import::from(forcats, fct_reorder)
 import::from(readr, read_csv)
-import::from(lubridate, `%m+%`, month)
+import::from(lubridate, `%m+%`, `%m-%`, month)
 import::from(stringr, str_wrap, str_remove)
 
-dat <- read_csv(here("static/data/metro_sp_line_5.csv"))
+dat <- read_csv(here("static/data/metro_sp.csv"))
 station <- read_csv(here("static/data/metro_sp_line_5_stations.csv"))
 
 font_add("Helvetica", "Helvetica.ttc")
@@ -21,7 +21,7 @@ font_add("Fira Code", "FiraCode-Regular.ttf")
 font_add_google("Fira Sans", "Fira Sans")
 showtext_auto()
 
-colors <- c("#e6bb3e")
+colors <- c("#9d4edd")
 
 theme_metro <- theme_minimal(base_family = "Fira Sans", base_size = 12) +
   theme(
@@ -35,53 +35,67 @@ theme_metro <- theme_minimal(base_family = "Fira Sans", base_size = 12) +
 
 # 1. Total Passenger Flow -------------------------------------------------
 
-# 23 de janeiro de 2018	Inauguração da Estação Higienópolis–Mackenzie[85][86]
+# 2018: Hospital Sao Paulo, Santa Cruz, Chacara Klabin
 # 4 de abril de 2018	Inauguração da Estação Oscar Freire[87][88]
 # 27 de outubro de 2018	Inauguração da Estação São Paulo–Morumbi
 # 17 de dezembro de 2021	Inauguração da Estação Vila Sônia
 
 ## Auxiliar data -----------------------------------------------------------
 
-
 df_labels <- tibble(
   date = c(
-    as.Date("2018-01-01"),
-    as.Date("2018-04-01"),
-    as.Date("2018-10-01"),
-    as.Date("2021-12-01"),
+    as.Date("2018-08-01"),
+    as.Date("2018-09-01"),
+    as.Date("2019-04-01"),
+    as.Date("2019-10-01"),
     as.Date("2024-06-01")
   ),
   date_label = c(
-    "Jan-18",
-    "Abr-18",
-    "Out-18",
-    "Dez-21",
+    "Ago-18",
+    "Set-18",
+    "Abr-19",
+    "Out-19",
     "Jun-24"
   ),
   label = c(
-    "Inauguração\nHigienópolis\nMackenzie",
-    "Inauguração\nOscar Freire\n",
-    "Inauguração\nSão Paulo\nMorumbi",
-    "Inauguração\nVila Sônia\n",
+    "ViaMobilidade\nassume operação\nda linha-5 Lilás",
+    "Inauguração\nHospital São Paulo\nSanta Cruz e\nChácara Klabin",
+    "Linha 5-Lilás\n é finalizada\napós entrega da\nestação Campo Belo",
+    "16,1 milhão\nde passageiros\ntransportados",
     "Aumento\nda tarifa\n(4,40 -> 5,00)"
   ),
   xtext = c(
-    as.Date("2018-01-01"),
-    as.Date("2018-04-01") %m+% months(4),
-    as.Date("2018-10-01") %m+% months(4),
-    as.Date("2021-12-01"),
+    as.Date("2018-08-01") %m+% months(-7),
+    as.Date("2018-09-01"),
+    as.Date("2019-04-01") %m+% months(5),
+    as.Date("2019-10-01") %m+% months(-7),
     as.Date("2024-06-01")
   ),
-  ytext = c(2000, 3000, 2000, 2000, 2000)
+  ytext = c(18500, 3500, 3500, 18500, 3500),
+  ytext_label = c(18500, 250, 250, 18500, 750),
+  yend_line = c(20000, 1750, 1750, 20000, 1750)
 )
 
 total_passengers <- dat |> 
-  filter(variable == "passenger_transported", metric == "Total") |> 
-  trendseries::add_trend()
+  filter(
+    variable == "transport",
+    metric == "total",
+    metro_line_num == 5
+    ) |> 
+  filter(!is.na(value)) |> 
+  summarise(
+    value = sum(value),
+    .by = names(dat)[-8]
+  )
+
+total_passengers <- trendseries::add_trend(total_passengers)
 
 df_labels <- inner_join(df_labels, total_passengers, by = "date")
 
 ## Plot --------------------------------------------------------------------
+
+total_passengers |> 
+  slice_max(value)
 
 base_plot <- ggplot() +
   geom_rect(
@@ -112,15 +126,26 @@ base_plot <- ggplot() +
   )
 
 plot_labels <- base_plot +
+  # Straight lines from points
   geom_segment(
     data = df_labels,
-    aes(x = date, xend = date, y = 1000, yend = value),
+    aes(x = date, xend = date, y = yend_line, yend = value),
     color = "gray20"
   ) +
+  # Horizontal lines (if needed)
   geom_segment(
-    data = slice(df_labels, 2:3),
-    aes(x = date, xend = date %m+% months(4), y = 1000, yend = 1000)
+    data = slice(df_labels, 3),
+    aes(x = date, xend = date %m+% months(6), y = 1750, yend = 1750)
   ) +
+  geom_segment(
+    data = slice(df_labels, 4),
+    aes(x = date, xend = date %m+% months(-6), y = 20000, yend = 20000)
+  ) +
+  geom_segment(
+    data = slice(df_labels, 1),
+    aes(x = date, xend = date %m+% months(-6), y = 20000, yend = 20000)
+  ) +
+  # Points to highlight
   geom_point(
     data = df_labels,
     aes(x = date, y = value),
@@ -129,22 +154,26 @@ plot_labels <- base_plot +
     color = "gray20",
     fill = colors
   ) +
+  # Date labels
   geom_label(
     data = df_labels,
     aes(x = date, y = ytext, label = date_label),
     size = 3,
     family = "Fira Code"
   ) +
-  geom_text(
+  # Text box labels
+  geom_label(
     data = df_labels,
-    aes(x = xtext, y = 100, label = label),
+    aes(x = xtext, y = ytext_label, label = label),
     size = 2,
     family = "Fira Code",
+    label.size = 0,
     hjust = 0.5
   ) +
+  # Covid text label
   geom_text(
     aes(x = as.Date("2021-10-13"),
-        y = 21000,
+        y = 20000,
         label = "Pandemia Covid-19\n(mar/20-mai/23)"),
     family = "Fira Sans",
     size = 3)
@@ -153,13 +182,14 @@ p_flow_total <- plot_labels +
   scale_x_date(date_breaks = "1 year", date_labels = "%Y") +
   scale_y_continuous(
     labels = scales::label_number(big.mark = ".", scale = 0.001),
-    breaks = seq(5000, 20000, 5000)) +
+    breaks = seq(5000, 20000, 5000),
+    limits = c(-1000, NA)) +
   labs(
-    title = "Total de Passageiros (Linha-4, Amarela)",
-    subtitle = "Numero total de passageiros transportados na linha-4 Amarela (incluindo baldeações) a cada mês.",
+    title = "Total de Passageiros (Linha-5, Lilás)",
+    subtitle = "Numero total de passageiros transportados na linha-5 Lilás (incluindo baldeações) a cada mês.",
     x = NULL,
     y = "Milhões",
-    caption = "Fonte: ViaQuatro. @viniciusoike"
+    caption = "Fonte: ViaMobilidade. @viniciusoike"
   ) +
   theme_metro
 
@@ -167,14 +197,24 @@ p_flow_total <- plot_labels +
 
 ## Auxiliar data -----------------------------------------------------------
 
+# Aggregate data (line-5 has info from Metro and ViaMobilidade)
 passenger <- dat |> 
-  filter(variable == "passenger_transported")
+  filter(
+    variable == "transport",
+    metro_line_num == 5
+  ) |> 
+  filter(!is.na(value)) |> 
+  # Aggregate by all variables except 'value'
+  summarise(
+    value = mean(value, na.rm = TRUE),
+    .by = names(dat)[-grep("value", names(dat))]
+  )
 
-# Compute pre-pandemic base line (avg. values 2018-2019)
+# Compute pre-pandemic base line (avg. values 2019)
 pre_pandemic_baseline <- passenger |> 
   mutate(month = month(date)) |> 
-  filter(year < 2020) |> 
-  summarise(base_index = mean(value), .by = c("metric", "month"))
+  filter(year == 2019) |> 
+  summarise(base_index = mean(value, na.rm = TRUE), .by = c("metric", "month"))
 
 # Join baseline with data and compute indexed values
 df1 <- passenger |> 
@@ -183,8 +223,8 @@ df1 <- passenger |>
   mutate(
     index = value / base_index * 100,
     cat = case_when(
-      metric == "Média dos Dias Úteis" ~ "Workday",
-      metric %in% c("Média dos Sábados", "Média dos Domingos") ~ "Weekend",
+      metric_label == "Média dos Dias Úteis" ~ "Workday",
+      metric_label %in% c("Média dos Sábados", "Média dos Domingos") ~ "Weekend",
       TRUE ~ NA_character_
     )) |> 
   filter(!is.na(cat)) |> 
@@ -217,7 +257,7 @@ p_flow <- ggplot(df1, aes(date, trend_stl, color = cat)) +
   labs(
     title = "Workday passenger flow is still down 10% from pre-pandemic values",
     subtitle = "Indexed average Line-4 Subway passenger flow for <b><span style='color:#2a9d8f'>weekdays</span></b> and <b><span style='color:#e76f51'>workdays</span></b>.",
-    y = "Index (100 = pre-pandemic average)",
+    y = "Index (100 = 2019 average)",
     x = NULL,
   ) +
   theme_metro +
@@ -250,23 +290,27 @@ rank_station <- station |>
 
 ## Plot -------------------------------------------------------------------
 
-p_rank_station <- 
-  ggplot(rank_station, aes(x = name_station, y = rolling_year)) +
+p_rank_station <- ggplot(
+  rank_station,
+  aes(x = name_station, y = rolling_year)) +
   geom_col(fill = colors) +
+  # Label: station name
   geom_text(
-    aes(y = 25, label = str_wrap(str_remove(name_station, " -"), 11)),
+    aes(y = 10, label = str_wrap(str_remove(name_station, " -"), 21)),
     size = 3,
     family = "Fira Sans",
     color = "black",
     hjust = 0
   ) +
+  # Label: number of passengers
   geom_text(
-    aes(y = rolling_year + 50,
+    aes(y = ifelse(rolling_year < 200, 231, rolling_year + 30),
         label = format(round(rolling_year), big.mark = ".")),
     family = "Fira Sans",
+    fontface = "bold",
     size = 3
   ) +
-  scale_y_continuous(expand = c(0, 0), limits = c(NA, 1800)) +
+  scale_y_continuous(expand = c(0, 0), limits = c(NA, 1200)) +
   coord_flip() +
   labs(
     title = "Station Ranking",
@@ -291,13 +335,13 @@ metro_line_future <- st_read(here("static/data/spo_metro_line_future.gpkg"))
 
 # Filter data for line-4
 metro_station <- metro_station |> 
-  filter(line_number == 4)
+  filter(line_number == 5)
 
 metro_line <- metro_line |> 
-  filter(line_number == 4)
+  filter(line_number == 5)
 
 metro_line_future <- metro_line_future |> 
-  filter(line_number == 4)
+  filter(line_number == 5)
 
 # Create a bounding box for the basemap
 ext <- metro_station |> 
@@ -313,9 +357,16 @@ ext <- metro_station |>
 
 p_basemap <- ggplot() +
   # Carto basemap
-  basemap_gglayer(ext = ext, map_service = "carto", map_type = "light") +
+  basemaps::basemap_gglayer(ext = ext, map_service = "carto", map_type = "light") +
   scale_fill_identity() + 
   coord_sf()
+
+metro_station <- metro_station |> 
+  mutate(
+    ytext = if_else(station_name %in% c("Hospital São Paulo", "Largo Treze"),
+                    -400,
+                    300)
+  )
 
 p_map <- p_basemap +
   geom_sf(data = st_transform(metro_station, 3857), color = colors) +
@@ -324,9 +375,9 @@ p_map <- p_basemap +
   geom_sf_label(
     data = st_transform(metro_station, 3857),
     aes(label = station_name),
+    nudge_y = metro_station$ytext,
     size = 2,
-    family = "Helvetica",
-    nudge_y = c(rep(250, 3), -300, rep(250, 9))) +
+    family = "Helvetica") +
   theme_void()
 
 # Export plots ------------------------------------------------------------
@@ -334,20 +385,20 @@ p_map <- p_basemap +
 showtext_opts(dpi = 300)
 showtext_auto()
 
-ggsave(here("static/images/spo_metro/line_4_map.png"), p_map)
+ggsave(here("static/images/spo_metro/line_5_map.png"), p_map)
 
 cowplot::save_plot(
-  here("static/images/spo_metro/line_4_overview.png"),
+  here("static/images/spo_metro/line_5_overview.png"),
   p_flow_total,
   base_height = 6)
 
 cowplot::save_plot(
-  here("static/images/spo_metro/line_4_pandemic.png"),
+  here("static/images/spo_metro/line_5_pandemic.png"),
   p_flow,
   base_height = 5)
 
 cowplot::save_plot(
-  here("static/images/spo_metro/line_4_station_ranking.png"),
+  here("static/images/spo_metro/line_5_station_ranking.png"),
   p_rank_station,
   base_height = 6
 )

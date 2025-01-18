@@ -139,6 +139,7 @@ for (i in 1:nrow(links)) {
     #> Url para baixar o pdf
     url <- paste0(baseurl, links[["link"]][i])
     #> Faz o dowload do arquivo
+    message(glue::glue("Downloading {name_file}."))
     try(x <- download.file(url = url, destfile = destfile, mode = "wb", quiet = TRUE))
     
     if (inherits(x, "try-error")) {

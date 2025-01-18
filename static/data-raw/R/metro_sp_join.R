@@ -71,7 +71,7 @@ metro4 <- metro4 |>
   select(all_of(sel_cols))
 
 metro5 <- metro5 |> 
-  rename(metric_label = metric, variable = source) |> 
+  rename(metric_label = metric) |> 
   mutate(
     variable = if_else(
       str_detect(variable, "transport"), "transport", "entrance"
