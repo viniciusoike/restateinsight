@@ -9,10 +9,26 @@ format:
 draft: true
 ---
 
+# Livro de Receitas
+
+```{r}
+knitr::opts_chunk$set(
+  out.width = "70%",
+  fig.align = "center",
+  fig.width = 7,
+  fig.asp = 0.618
+)
+```
+
+
 ```{r}
 library(ggplot2)
 library(dplyr)
+```
 
+## Colunas
+
+```{r}
 tbl <- diamonds |> 
   count(cut) |> 
   mutate(
@@ -26,6 +42,183 @@ tbl <- diamonds |>
     coltext = factor(if_else(cut == "Fair", 1L, 0L))
     )
 
+sub <- filter(tbl, cut != "Fair")
+```
+
+### Gráfico de colunas com texto
+
+::: {.panel-tabset}
+## Vertical
+
+```{r}
+ggplot(tbl, aes(x = cut, y = share)) +
+  geom_col() +
+  geom_text(aes(y = share + 2.5, label = label)) +
+  theme_minimal() +
+  theme(
+    axis.text.x = element_text(size = 12),
+    axis.text.y = element_blank(),
+    axis.title = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.grid.major = element_blank()
+  )
+```
+
+## Horizontal
+
+```{r}
+ggplot(tbl, aes(x = cut, y = share)) +
+  geom_col() +
+  geom_text(aes(y = share + 2.5, label = label)) +
+  theme_minimal() +
+  coord_flip() +
+  theme(
+    axis.text.x = element_blank(),
+    axis.text.y = element_text(size = 12),
+    axis.title = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.grid.major = element_blank()
+  )
+```
+
+:::
+
+::: {.panel-tabset}
+## Texto na base
+
+```{r}
+ggplot(sub, aes(x = cut, y = share)) +
+  geom_col() +
+  geom_text(aes(y = 2, label = label), color = "white") +
+  theme_minimal() +
+  theme(
+    axis.text.x = element_text(size = 12),
+    axis.text.y = element_blank(),
+    axis.title = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.grid.major = element_blank()
+  )
+```
+
+
+## Texto centralizado
+
+```{r}
+ggplot(sub, aes(x = cut, y = share)) +
+  geom_col() +
+  geom_text(
+    aes(label = label),
+    position = position_stack(vjust = 0.5),
+    color = "white"
+    ) +
+  theme_minimal() +
+  theme(
+    axis.text.x = element_text(size = 12),
+    axis.text.y = element_blank(),
+    axis.title = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.grid.major = element_blank()
+  )
+```
+
+## Texto no topo
+
+```{r}
+ggplot(sub, aes(x = cut, y = share)) +
+  geom_col() +
+  geom_text(
+    aes(y = share, label = label),
+    nudge_y = -2,
+    color = "white"
+    ) +
+  theme_minimal() +
+  theme(
+    axis.text.x = element_text(size = 12),
+    axis.text.y = element_blank(),
+    axis.title = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.grid.major = element_blank()
+  )
+```
+
+
+## Texto acima da barra
+
+```{r}
+ggplot(sub, aes(x = cut, y = share)) +
+  geom_col() +
+  geom_text(
+    aes(y = share, label = label),
+    nudge_y = 2,
+    color = "white"
+    ) +
+  theme_minimal() +
+  theme(
+    axis.text.x = element_text(size = 12),
+    axis.text.y = element_blank(),
+    axis.title = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.grid.major = element_blank()
+  )
+```
+
+:::
+
+
+
+
+### Gráfico de colunas com nomes acima das barras
+
+::: {.panel-tabset}
+## R
+
+``` {.r}
+fizz_buzz <- function(fbnums = 1:50) {
+  output <- dplyr::case_when(
+    fbnums %% 15 == 0 ~ "FizzBuzz",
+    fbnums %% 3 == 0 ~ "Fizz",
+    fbnums %% 5 == 0 ~ "Buzz",
+    TRUE ~ as.character(fbnums)
+  )
+  print(output)
+}
+```
+:::
+
+
+
+```{r}
+ggplot(sub, aes(x = cut)) +
+  geom_col(aes(y = share), fill = "#2a9d8f", width = 0.5) +
+  geom_text(
+    aes(x = cut, y = 0, label = cut),
+    hjust = 0,
+    nudge_x = 0.4,
+    fontface = "bold",
+    size = 5
+  ) +
+  geom_text(
+    aes(x = cut, y = ytext, label = label),
+    fontface = "bold"
+  ) +
+  scale_y_continuous(
+    name = "Proportion",
+    breaks = seq(0, 40, 10),
+    labels = \(x) paste0(x, "%"),
+    limits = c(0, 40),
+    expand = c(0, 0)
+  ) +
+  labs(x = NULL, y = NULL) +
+  coord_flip() +
+  theme_minimal(base_size = 12) +
+  theme(
+    axis.text = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.grid.major = element_blank(),
+  )
+```
+
+```{r}
 ggplot(tbl, aes(x = cut)) +
   geom_col(aes(y = share, fill = highlight), width = 0.5) +
   geom_text(
@@ -61,4 +254,42 @@ ggplot(tbl, aes(x = cut)) +
     plot.margin = margin(0.5, 0.75, 0.5, 0, unit = "cm")
   )
 
+```
+
+### Gráfico de colunas com nomes dentro das barras
+
+```{r}
+ggplot(tbl, aes(x = cut)) +
+  geom_col(aes(y = share, fill = highlight), width = 0.5) +
+  geom_text(
+    aes(x = cut, y = 0.5, label = cut),
+    hjust = 0,
+    fontface = "bold",
+    size = 5
+  ) +
+  geom_text(
+    aes(x = cut, y = ytext, label = label, color = coltext),
+    fontface = "bold"
+  ) +
+  scale_y_continuous(
+    name = "Proportion",
+    breaks = seq(0, 40, 10),
+    labels = \(x) paste0(x, "%"),
+    limits = c(0, 40),
+    expand = c(0, 0)
+  ) +
+  labs(x = "") +
+  scale_fill_manual(values = c("gray45", "#2a9d8f")) +
+  scale_color_manual(values = c("#ffffff", "#000000")) +
+  guides(fill = "none", color = "none") +
+  coord_flip() +
+  theme_minimal(base_size = 12) +
+  theme(
+    axis.text.y = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.grid.major = element_blank(),
+    axis.line.x = element_line(color = "gray80"),
+    axis.ticks.x = element_line(color = "gray80"),
+    plot.margin = margin(0.5, 0.75, 0.5, 0, unit = "cm")
+  )
 ```
