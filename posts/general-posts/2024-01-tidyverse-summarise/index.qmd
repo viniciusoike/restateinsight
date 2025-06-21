@@ -1,0 +1,452 @@
+---
+title: "O novo tidyverse: summarise"
+date: "2024-01-12"
+categories: ['data-science', 'tutorial-R', 'tidyverse']
+description: "Neste post ensino abordagens diferentes para agregar dados de maneira eficiente. Apresento também as novidades que o `dplyr` trouxe nos últimos anos como as funções tidyselectors, que ajudam a selecionar colunas com base em padrões lógicos."
+image: "/static/images/dplyr_logo.png" 
+image-alt: "/static/images/dplyr_logo.png"
+execute: 
+  message: false
+  warning: false
+draft: true
+---
+
+# Tidyverse
+
+O tidyverse é uma coleção poderosa de pacotes, voltados para a manipulação e limpeza de dados. Num outro post, discuti alguns [aspectos gerais da filosofia](https://restateinsight.com/posts/general-posts/2023-09-tidyverse/) destes pacotes que incluem a sua consistência sintática e o uso de [pipes](https://restateinsight.com/posts/general-posts/2023-09-pipes-in-r/). A filosofia geral do tidyverse toma muito emprestado da gramática. As funções têm nomes de verbos que costumam ser intuitivos e são encadeados via "pipes" que funcionam como conectivos numa frase. Em tese, isto torna o código mais legível e até mais didático.
+
+O tidyverse está em constante expansão, novas funcionalidades são criadas para melhorar a performance e capabilidade de suas funções. Assim, é importante atualizar nosso conhecimento destes pacotes periodicamente. Nesta série de posts vou focar nas funções principais dos pacotes `dplyr` e `tidyr`, voltados para a limpeza de dados.
+
+# Alguns verbos
+
+Essencialmente, o `dplyr` gira em torno de quatro grandes funções: `filter`, `select`, `mutate` e `summarise`. Estas funções fazem o grosso do trabalho de limpeza de dados: filtram linhas, selecionam colunas e transformam os dados. A tabela abaixo resume as principais funções do pacote.
+
+| Nome da Função | Tradução | O que faz |
+|------------------------|------------------------|------------------------|
+| `rename` | Renomear | Modifica o nome das colunas. |
+| `select` | Selecionar | Seleciona as colunas. |
+| `filter` | Filtrar | Filtra/seleciona as linhas segundo alguma condição. |
+| `arrange` | Arranjar/ordenar | Ordena as linhas (crescente/decrescente) segundo alguma variável. |
+| `mutate` | Mutar/transformar | Cria uma nova coluna a partir de outras colunas ou dados. |
+| `summarise` | Sumarizar/resumir | Aplica alguma função sobre as linhas. Cria uma tabela "resumo". |
+| `group_by` | Agrupar | Agrupa as linhas segundo alguma variável. |
+
+# summarise
+
+## O básico
+
+Os pacotes utilizados neste tutorial são listados abaixo.
+
+```{r}
+#| eval: true
+#| include: false
+
+library(kableExtra)
+
+print_table <- function(x) {
+  
+  x |> 
+    knitr::kable(
+      align = "c",
+      digits = 0,
+      format.args = list(big.mark = '.', decimal.mark = ",")
+      ) |> 
+    kableExtra::kable_styling(
+      full_width = FALSE,
+      bootstrap_options = c("condensed", "responsive", "hover", "striped")
+    )
+  }
+```
+
+```{r}
+#| eval: true
+library(dplyr)
+library(readr)
+```
+
+Para praticar as funções vamos utilizar uma tabela que traz informações sobre as cidades do Brasil.
+
+```{r}
+#| include: false
+#| eval: true
+dat <- readr::read_csv(here::here("static/data/cities_brazil.csv"))
+```
+
+```{r}
+#| eval: false
+dat <- readr::read_csv(
+  "https://github.com/viniciusoike/restateinsight/raw/main/static/data/cities_brazil.csv"
+  )
+```
+
+A função `summarise` (ou `summarize`) serve para agregar valores. Tipicamente, ela retorna uma única linha (por grupo) contendo estatísticas descritivas (e.g. média, desvio-padrão) sobre a base de dados.
+
+A sintaxe da função é bastante direta e similar à da função `mutate`:
+
+```{r}
+#| eval: false
+dados |>
+  summarise(coluna_nova = f(coluna))
+```
+
+onde `f()` designa alguma transformação que é feita sobre os dados. Em geral, esta transformação é uma operação matemática (`sum`, `prod`) ou estatística (`mean`, `sd`, `var`, etc.) que retorna um único valor.
+
+O código abaixo calcula a população total e a população média de todos os municípios do Brasil. A soma da população de todos os municípios é igual à soma da população brasileira.
+
+```{r}
+summarise(dat, total_pop = sum(population), avg_pop = mean(population))
+```
+
+## Grupos
+
+A função `summarise` sempre é aplicada dentro de grupos. No caso em que não há grupos, a expressão é aplicada para a tabela inteira, como no exemplo acima. Agrupar facilita a interpretação dos dados e, na maioria dos casos, retorna resultados mais úteis.
+
+O código abaixo mostra a população total e a população média em cada uma das grandes regiões brasilieras. Note que, apesar do uso da função `group_by`, a tabela final não é agrupada; assim, não é necessário usar `ungroup()` como, por exemplo, no caso da função `mutate`.
+
+```{r}
+dat |> 
+  group_by(name_region) |> 
+  summarise(
+    total_pop = sum(population),
+    avg_pop = mean(population)
+  )
+```
+
+Alternativamente, podemos usar a nova sintaxe (ainda em fase experimental) `.by = "grupo"` das seguintes maneiras:
+
+```{r}
+#| eval: false
+# Usando data-masking
+dat |> 
+  summarise(
+    total_pop = sum(population),
+    avg_pop = mean(population),
+    .by = name_region
+  )
+
+# Usando o nome do grupo como um vetor de texto
+dat |> 
+  summarise(
+    total_pop = sum(population),
+    avg_pop = mean(population),
+    .by = "name_region"
+  )
+```
+
+A principal vantagem desta sintaxe é permitir o uso de um vetor de texto para determinar o agrupamento dos dados. Isto facilita a **organização do código** e também simplifica o uso da função `summarise` em funções customizadas, como veremos mais adiante.
+
+O código abaixo cria uma variável binária que indica se o município apresentou crescimento populacional no último ano e apresenta a população total e a população média por região.
+
+```{r}
+# Vetor com o nome das colunas 'agrupadoras'
+group_cols <- c("code_region", "name_region", "is_growing")
+
+dat |> 
+  # Cria um indicador igual a 1 se a população da cidade está crescendo
+  mutate(is_growing = if_else(population_growth_rate > 0, 1L, 0L)) |> 
+  summarise(
+    total_pop = sum(population),
+    avg_pop = mean(population),
+    .by = group_cols
+  ) |> 
+  arrange(code_region, is_growing)
+
+```
+
+Os resultados finais, apresentados pela função `summarise` funcionam melhor quando são ordenados. Pode-se ter um ganho de eficiência ao ordenar as colunas após a agregação. Alternativamente, a base de dados pode ser organizada antes das agregrações, já que a função `summarise` preserva a ordem dos dados.
+
+```{r}
+#| eval: false
+
+# Menos eficiente
+# Ordena a tabela inteira (5570x22)
+dat |> 
+  # Reordena as linhas
+  arrange(code_region, is_growing) |> 
+  # Cria um indicador igual a 1 se a população da cidade está crescendo
+  mutate(is_growing = if_else(population_growth_rate > 0, 1L, 0L)) |> 
+  summarise(
+    total_pop = sum(population),
+    avg_pop = mean(population),
+    .by = group_cols
+  )
+
+# Mais eficiente
+# Ordena apenas a tabela resumida (10x5)
+dat |> 
+  # Cria um indicador igual a 1 se a população da cidade está crescendo
+  mutate(is_growing = if_else(population_growth_rate > 0, 1L, 0L)) |> 
+  summarise(
+    total_pop = sum(population),
+    avg_pop = mean(population),
+    .by = group_cols
+  )
+  # Reordena as linhas somente no final
+  arrange(code_region, is_growing)
+
+
+  
+```
+
+## Tranformando múltiplas colunas
+
+Os `tidyselectors` são uma importante inovação do `tidyverse` que permitem maior facilidade na escrita de códigos repetitivos. Imagine, por exemplo, que precisamos tirar algumas medidas estatísticas básicas, como a média e o desvio-padrão, de diversas colunas segundo algum grupo.
+
+No nosso exemplo, podemos querer resumir as várias medidas de PIB e valor adicionado por grande região. Olhando para a base de dados, temos 8 colunas ao todo. Como temos 2 métricas (média e desvio-padrão), vamos precisar de, pelo menos, 8x2=16 linhas de código para chegar no resultado desejado.
+
+```{r}
+names(dat)[15:22]
+```
+
+O código completo ficaria algo assim:
+
+```{r}
+#| eval: false
+dat |> 
+  group_by(name_region) |> 
+  summarise(
+    media_pib = mean(pib),
+    dp_pib = sd(pib),
+    media_pib_agriculture = mean(pib_agriculture),
+    dp_pib_agriculture = sd(pib_agriculture),
+    ...
+    media_pib_govmt_services = mean(pib_govmt_services),
+    dp_pib_govmt_services = sd(pib_govmt_services)
+    )
+```
+
+Podemos simplificar consideravelmente este processo usando a função `across` junto com a `summarise` de maneira similar como fizemos no caso da função `mutate`. A função `across` aplica uma lista de funções sobre uma seleção de colunas. Pode-se usar os `tidyselectors` (`starts_with()`, `contains()`, etc.) para facilitar a seleção das colunas.
+
+```{r}
+#| eval: false
+across(.cols = colunas, .fns = list("funcao_1" = f1(), "funcao_2" = f2()))
+```
+
+Não é necessário prover nomes para cada uma das funções, mas, em geral, isto facilita a interpretação do output, já que o nome da coluna resultante vai ser a concatenação do seu nome original com o nome da função.
+
+No caso abaixo, aproveito que as colunas estão em sequência e uso o operador `:`, que seleciona todas as colunas de `pib` até `pib_govmt_services`.
+
+```{r}
+#| eval: false
+# Passando os argumentos implicitamente e usando uma lista sem nomes
+dat |> 
+  group_by(name_region) |> 
+  summarise(across(pib:pib_govmt_services, list(mean, sd)))
+
+# Passando os argumentos implicitamente e usando uma lista com nomes
+dat |> 
+  group_by(name_region) |> 
+  summarise(across(pib:pib_govmt_services, list("media" = mean, "dp" = sd)))
+
+# Passando todos argumentos explicitamente e usando uma lista com nomes
+dat |> 
+  group_by(name_region) |> 
+  summarise(
+    across(
+      .cols = pib:pib_govmt_services,
+      .fns = list("media" = mean, "dp" = sd)
+      )
+    )
+```
+
+Também é possível prover a lista de funções separadamente, o que facilita a padronização do código.
+
+```{r}
+my_funs <- list(
+  "media" = mean,
+  "mediana" = median,
+  "dp" = sd,
+  "maximo" = max,
+  "minimo" = min
+  )
+
+dat |> 
+  group_by(name_region) |> 
+  summarise(across(pib:pib_govmt_services, my_funs)) |> 
+  select(1:6)
+```
+
+Como vimos nos exemplos acima, o nome da coluna, da tabela final, combina o *nome original da coluna* com a *função aplicada*, seguindo a lógica 'nome_coluna_nome_funcao'. Por isto que as colunas acima são "pib_media", "pib_mediana", etc. O argumento `.names` da função `across` permite maior controle sobre o nome final da coluna.
+
+```{r}
+# Modificando os nomes da tabela final
+dat |> 
+  group_by(name_region) |> 
+  summarise(across(starts_with("pib"), mean, .names = "media_{.col}"))
+
+# Comportamento padrão do argumento .names
+dat |> 
+  group_by(name_region) |> 
+  summarise(across(starts_with("pib"), mean, .names = "{.col}_{.fn}"))
+```
+
+Uma aplicação bastante útil desta sintaxe é verificar o número de observações ausentes (`NA`) contidas nos dados. O código abaixo mostra duas maneiras alternativas de chegar neste resultado. A primeira usa a sintaxe padrão do R para criar uma função anônima `\(x)`. A segunda forma é exclusiva do `tidyverse`.
+
+```{r}
+#| eval: false
+dat |> 
+  summarise(everything(), \(x) sum(is.na(x)))
+
+dat |> 
+  summarise(everything(), ~sum(is.na(.x)))
+```
+
+## Flexibilidade e escala
+
+A função `summarise` pode ser usada dentro de uma outra função para retornar certos valores tabelados. No exemplo abaixo, mostro como construir uma função que calcula diversas medidas estatísticas de uma variável segundo algum grupo. Neste caso, temos diversas medidas do PIB por grande região.
+
+```{r}
+resumir_dados <- function(dat, grupo, variavel) {
+  dat |> 
+    group_by({{ grupo }}) |> 
+    summarise(
+      minimo = min({{ variavel }}),
+      maximo = max({{ variavel }}),
+      media = mean({{ variavel }}),
+      dp = sd({{ variavel }}),
+      q25 = quantile({{ variavel }}, probs = .25),
+      q75 = quantile({{ variavel }}, probs = .75)
+    )
+}
+
+resumir_dados(dat, name_region, pib)
+```
+
+Esta nova função também pode ser aplicada dentro de um pipeline.
+
+```{r}
+#| eval: false 
+dat |> 
+  filter(name_region == "Nordeste") |> 
+  resumir_dados(name_state, population)
+```
+
+Podemos aproveitar o argumento `.by` para fazer uma versão mais flexível da função acima.
+
+```{r}
+#| eval: false
+resumir_dados_2 <- function(dat, grupos, variavel) {
+  dat |> 
+    summarise(
+      minimo = min({{ variavel }}),
+      maximo = max({{ variavel }}),
+      media = mean({{ variavel }}),
+      dp = sd({{ variavel }}),
+      q25 = quantile({{ variavel }}, probs = .25),
+      q75 = quantile({{ variavel }}, probs = .75),
+      .by = grupos
+    )
+}
+
+resumir_dados_2(dat, c("code_region", "name_region"), pib)
+```
+
+Por fim, podemos montar uma função ainda mais flexível que aceita o nome das colunas como texto.
+
+```{r}
+estat_descritivas <- list(
+  "media" = mean,
+  "desvio_padrão" = sd,
+  "Q_25" = \(z) quantile(z, probs = 0.25)
+)
+
+resumir_dados_3 <- function(dat, grupos, variaveis) {
+  
+  dat |> 
+    summarise(across(all_of(variaveis), estat_descritivas), .by = grupos)
+  
+}
+
+resumir_dados_3(dat, c("code_region", "name_region"), c("pib", "population"))
+```
+
+## Funções úteis
+
+Abaixo segue uma lista de funções úteis.
+
+```{r}
+#| eval: false
+tbl |> 
+  summarise(
+    # Medidas de centro
+    # Média aritmética
+    media = mean(pib),
+    # Mediana
+    med = median(pib),
+    # Média geométrica
+    gmean = mean(log(exp(pib))),
+    # Média artimética ponderada
+    wmean = weighted.mean(pib, pop),
+    
+    # Medidas de dispersão
+    # Desvio-padrão
+    dp = sd(pib),
+    # Variância
+    var_pib = var(pib),
+    # IQR - intervalo interquartílico
+    iqr_pib = IQR(pib),
+    # Quantil/percentil
+    q25 = quantile(pib, .25),
+    # MAD - desvio absoluto mediano
+    mad_pib = mad(pib),
+    
+    # Extremos
+    
+    # Mínimo
+    min_pib = min(pib),
+    # Máximo
+    max_pib = max(pib),
+    
+    # Contagem de frequência/observações
+    # Número de observações
+    count_obs = n(),
+    # Número de observações únicas
+    unique_obs = n_distinct(),
+    
+    # Agregados
+    # Colapse vetores de textos em um único
+    states = paste(abbrev_state, collapse = ", "),
+    # Colapsa 
+    states = paste(unique(abbrev_state), collapse = ", "),
+    # Soma simples
+    total = sum(pib),
+    # Produtório
+    total_prod = prod(1 + pib / 100)
+  )
+
+# Conta o número de observações ausentes (NAs) em todas as colunas
+tbl |> 
+  summarise(across(everything(), \(x) sum(is.na(x))))
+
+# Calcula o percentual de observações ausentes (NAs) em todas as colunas
+tbl |> 
+  summarise(across(everything(), \(x) sum(is.na(x)) / length(x) * 100))
+```
+
+## Resumindo
+
+Em resumo, a função `summarise` serve para agregar valores. Ela retorna uma única linha (por grupo) contendo estatísticas descritivas (e.g. média, desvio-padrão) sobre a base de dados. Ela é uma função útil para chegar em resultados finais, mostrar totais, médias, etc.
+
+Neste post vimos como:
+
+1.  Usar a função `summarise` em casos simples.
+
+2.  Usar a função `summarise` para aplicar funções sobre múltiplas colunas ao mesmo tempo, de maneira sistemática.
+
+3.  Como montar funções customizadas para aplicar diversas funções pré-selecionadas sobre bases de dados.
+
+# Outros posts da série
+
+-   [mutate](https://restateinsight.com/posts/general-posts/2024-01-tidyverse-mutate/)
+
+-   [filter](https://restateinsight.com/posts/general-posts/2024-01-tidyverse-filter/)
+
+-   [rename](https://restateinsight.com/posts/general-posts/2024-01-tidyverse-rename/)
+
+-   [select](https://restateinsight.com/posts/general-posts/2024-01-tidyverse-select/)
+
+## Veja também
+
+-   [Tidyselect](https://dplyr.tidyverse.org/reference/dplyr_tidy_select.html)
+
+-   [Tidyselect help](https://tidyselect.r-lib.org/reference/language.html)
