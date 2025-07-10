@@ -2,7 +2,7 @@
 <html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
 
 <meta charset="utf-8">
-<meta name="generator" content="quarto-1.3.450">
+<meta name="generator" content="quarto-1.6.42">
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
@@ -10,7 +10,7 @@
 <meta name="dcterms.date" content="2019-01-01">
 <meta name="description" content="Cursos de econometria em séries de tempo às vezes omitem o uso de MQO num contexto de séries de tempo. Neste post discuto um pouco da teoria e de aplicações no R.">
 
-<title>Vinicius Oike - Regressão Linear com Séries de Tempo</title>
+<title>Regressão Linear com Séries de Tempo – Vinicius Oike</title>
 <style>
 code{white-space: pre-wrap;}
 span.smallcaps{font-variant: small-caps;}
@@ -25,7 +25,7 @@ ul.task-list li input[type="checkbox"] {
 }
 /* CSS for syntax highlighting */
 pre > code.sourceCode { white-space: pre; position: relative; }
-pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span { line-height: 1.25; }
 pre > code.sourceCode > span:empty { height: 1.2em; }
 .sourceCode { overflow: visible; }
 code.sourceCode > span { color: inherit; text-decoration: inherit; }
@@ -36,7 +36,7 @@ div.sourceCode { overflow: auto; }
 }
 @media print {
 pre > code.sourceCode { white-space: pre-wrap; }
-pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+pre > code.sourceCode > span { display: inline-block; text-indent: -5em; padding-left: 5em; }
 }
 pre.numberSource code
   { counter-reset: source-line 0; }
@@ -72,17 +72,23 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <script src="../../../site_libs/quarto-html/tippy.umd.min.js"></script>
 <script src="../../../site_libs/quarto-html/anchor.min.js"></script>
 <link href="../../../site_libs/quarto-html/tippy.css" rel="stylesheet">
-<link href="../../../site_libs/quarto-html/quarto-syntax-highlighting.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<link href="../../../site_libs/quarto-html/quarto-syntax-highlighting-5087c06e2ffe3d95ca93e8976d161b84.css" rel="stylesheet" id="quarto-text-highlighting-styles">
 <script src="../../../site_libs/bootstrap/bootstrap.min.js"></script>
 <link href="../../../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
-<link href="../../../site_libs/bootstrap/bootstrap.min.css" rel="stylesheet" id="quarto-bootstrap" data-mode="light">
+<link href="../../../site_libs/bootstrap/bootstrap-7dc30f1ab594a131e698df19d89ecd88.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
 <script id="quarto-search-options" type="application/json">{
   "location": "navbar",
   "copy-button": false,
   "collapse-after": 3,
   "panel-placement": "end",
   "type": "overlay",
-  "limit": 20,
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "show-item-context": false,
   "language": {
     "search-no-results-text": "No results",
     "search-matching-documents-text": "matching documents",
@@ -91,6 +97,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
     "search-more-match-text": "more match in this document",
     "search-more-matches-text": "more matches in this document",
     "search-clear-button-title": "Clear",
+    "search-text-placeholder": "",
     "search-detached-cancel-button-title": "Cancel",
     "search-submit-button-title": "Submit",
     "search-label": "Search"
@@ -105,12 +112,38 @@ function gtag(){dataLayer.push(arguments);}
 gtag('js', new Date());
 gtag('config', 'G-EJF8PGT67H', { 'anonymize_ip': true});
 </script>
-
 <script src="../../../site_libs/kePrint-0.0.1/kePrint.js"></script>
 <link href="../../../site_libs/lightable-0.0.1/lightable.css" rel="stylesheet">
 
-  <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+  <script src="https://cdnjs.cloudflare.com/polyfill/v3/polyfill.min.js?features=es6"></script>
   <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script>
+
+<script type="text/javascript">
+const typesetMath = (el) => {
+  if (window.MathJax) {
+    // MathJax Typeset
+    window.MathJax.typeset([el]);
+  } else if (window.katex) {
+    // KaTeX Render
+    var mathElements = el.getElementsByClassName("math");
+    var macros = [];
+    for (var i = 0; i < mathElements.length; i++) {
+      var texText = mathElements[i].firstChild;
+      if (mathElements[i].tagName == "SPAN") {
+        window.katex.render(texText.data, mathElements[i], {
+          displayMode: mathElements[i].classList.contains('display'),
+          throwOnError: false,
+          macros: macros,
+          fleqn: false
+        });
+      }
+    }
+  }
+}
+window.Quarto = {
+  typesetMath
+};
+</script>
 
 <link rel="stylesheet" href="../../../styles.css">
 </head>
@@ -118,50 +151,58 @@ gtag('config', 'G-EJF8PGT67H', { 'anonymize_ip': true});
 <body class="nav-fixed">
 
 <div id="quarto-search-results"></div>
-  <header id="quarto-header" class="headroom fixed-top">
-    <nav class="navbar navbar-expand-lg navbar-dark ">
+  <header id="quarto-header" class="headroom fixed-top quarto-banner">
+    <nav class="navbar navbar-expand-lg " data-bs-theme="dark">
       <div class="navbar-container container-fluid">
-      <div class="navbar-brand-container">
+      <div class="navbar-brand-container mx-auto">
     <a class="navbar-brand" href="../../../index.html">
     <span class="navbar-title">Vinicius Oike</span>
     </a>
   </div>
             <div id="quarto-search" class="" title="Search"></div>
-          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" aria-expanded="false" aria-label="Toggle navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" role="menu" aria-expanded="false" aria-label="Toggle navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
   <span class="navbar-toggler-icon"></span>
 </button>
           <div class="collapse navbar-collapse" id="navbarCollapse">
             <ul class="navbar-nav navbar-nav-scroll ms-auto">
   <li class="nav-item">
-    <a class="nav-link" href="../../../blog.html" rel="" target="">
- <span class="menu-text">Blog</span></a>
+    <a class="nav-link" href="../../../blog.html"> 
+<span class="menu-text">Blog</span></a>
   </li>  
   <li class="nav-item">
-    <a class="nav-link" href="../../../aboutme.html" rel="" target="">
- <span class="menu-text">Sobre</span></a>
+    <a class="nav-link" href="../../../aboutme.html"> 
+<span class="menu-text">About</span></a>
   </li>  
   <li class="nav-item">
-    <a class="nav-link" href="../../../my_apps.html" rel="" target="">
- <span class="menu-text">Apps</span></a>
+    <a class="nav-link" href="../../../cv.html"> 
+<span class="menu-text">CV</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../../../my_apps.html"> 
+<span class="menu-text">Apps</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../../../press.html"> 
+<span class="menu-text">Press</span></a>
   </li>  
   <li class="nav-item compact">
-    <a class="nav-link" href="https://github.com/viniciusoike" rel="" target=""><i class="bi bi-github" role="img">
+    <a class="nav-link" href="https://github.com/viniciusoike"> <i class="bi bi-github" role="img">
 </i> 
- <span class="menu-text"></span></a>
+<span class="menu-text"></span></a>
   </li>  
   <li class="nav-item compact">
-    <a class="nav-link" href="https://twitter.com/viniciusoike" rel="" target=""><i class="bi bi-twitter" role="img">
+    <a class="nav-link" href="https://twitter.com/viniciusoike"> <i class="bi bi-twitter" role="img">
 </i> 
- <span class="menu-text"></span></a>
+<span class="menu-text"></span></a>
   </li>  
   <li class="nav-item">
-    <a class="nav-link" href="../../../archive.html" rel="" target="">
- <span class="menu-text">Archive</span></a>
+    <a class="nav-link" href="../../../archive.html"> 
+<span class="menu-text">Archive</span></a>
   </li>  
 </ul>
+          </div> <!-- /navcollapse -->
             <div class="quarto-navbar-tools">
 </div>
-          </div> <!-- /navcollapse -->
       </div> <!-- /container-fluid -->
     </nav>
 </header>
@@ -247,6 +288,7 @@ gtag('config', 'G-EJF8PGT67H', { 'anonymize_ip': true});
 
 
 
+
 <section id="introdução" class="level1">
 <h1>Introdução</h1>
 <p>[Este post foi originalmente escrito no início de 2019. Muitos dos pacotes apresentados aqui evoluíram bastante, mas acredito que o post original ainda tenha bastante valor didático para quem está iniciando seus estudos em econometria e R.]</p>
@@ -262,7 +304,7 @@ gtag('config', 'G-EJF8PGT67H', { 'anonymize_ip': true});
 <section id="pacotes" class="level1">
 <h1>Pacotes</h1>
 <div class="cell" data-layout-align="center">
-<details>
+<details class="code-fold">
 <summary>Code</summary>
 <div class="sourceCode cell-code" id="cb1"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Bases de dados</span></span>
 <span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(<span class="st">"AER"</span>)</span>
@@ -291,7 +333,6 @@ gtag('config', 'G-EJF8PGT67H', { 'anonymize_ip': true});
   \hat{PIB}_{t} = \underset{(0.00007)}{0.00264} + \underset{(0.06316)}{0.68428}C_{t}
 \]</span></p>
 <div class="cell" data-layout-align="center">
-
 <table style="text-align:center">
 <tbody><tr>
 <td colspan="2" style="border-bottom: 1px solid black">
@@ -419,12 +460,11 @@ F Statistic
 <sup><em></em></sup><em>p&lt;0.1; <sup><strong></strong></sup><strong>p&lt;0.05; <sup></sup></strong></em>p&lt;0.01
 </td>
 </tr>
-
 </tbody></table>
 </div>
 <p>Como há apenas duas séries podemos visualizar a sua relação num gráfico de dispersão ou mesmo num gráfico de linha.</p>
 <div class="cell" data-layout-align="center">
-<details>
+<details class="code-fold">
 <summary>Code</summary>
 <div class="sourceCode cell-code" id="cb2"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Scatterplot</span></span>
 <span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="fu">plot</span>(pib <span class="sc">~</span> cons, <span class="at">data =</span> dados)</span>
@@ -434,11 +474,11 @@ F Statistic
 <div class="cell-output-display">
 <div class="quarto-figure quarto-figure-center">
 <figure class="figure">
-<p><img src="index_files/figure-html/unnamed-chunk-6-1.png" class="img-fluid figure-img" style="width:90.0%"></p>
+<p><img src="index_files/figure-html/unnamed-chunk-6-1.png" class="img-fluid quarto-figure quarto-figure-center figure-img" style="width:90.0%"></p>
 </figure>
 </div>
 </div>
-<details>
+<details class="code-fold">
 <summary>Code</summary>
 <div class="sourceCode cell-code" id="cb3"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Gráfico de linha</span></span>
 <span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="fu">plot.ts</span>(pib)</span>
@@ -448,14 +488,14 @@ F Statistic
 <div class="cell-output-display">
 <div class="quarto-figure quarto-figure-center">
 <figure class="figure">
-<p><img src="index_files/figure-html/unnamed-chunk-6-2.png" class="img-fluid figure-img" style="width:90.0%"></p>
+<p><img src="index_files/figure-html/unnamed-chunk-6-2.png" class="img-fluid quarto-figure quarto-figure-center figure-img" style="width:90.0%"></p>
 </figure>
 </div>
 </div>
 </div>
 <p>Ainda que práticas, as funções base do R para visualização não são muito elegantes e há vários pacotes que oferecem opções mais interessantes. O popular pacote <code>ggplot2</code>, em particular, foi atualmente integrado ao pacote <code>forecast</code> nas funções <code>autoplot</code> e <code>autolayer</code>.</p>
 <div class="cell" data-layout-align="center">
-<details>
+<details class="code-fold">
 <summary>Code</summary>
 <div class="sourceCode cell-code" id="cb4"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>(dados, <span class="fu">aes</span>(<span class="at">x =</span> cons, <span class="at">y =</span> pib)) <span class="sc">+</span></span>
 <span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_point</span>() <span class="sc">+</span></span>
@@ -464,11 +504,11 @@ F Statistic
 <div class="cell-output-display">
 <div class="quarto-figure quarto-figure-center">
 <figure class="figure">
-<p><img src="index_files/figure-html/unnamed-chunk-7-1.png" class="img-fluid figure-img" style="width:90.0%"></p>
+<p><img src="index_files/figure-html/unnamed-chunk-7-1.png" class="img-fluid quarto-figure quarto-figure-center figure-img" style="width:90.0%"></p>
 </figure>
 </div>
 </div>
-<details>
+<details class="code-fold">
 <summary>Code</summary>
 <div class="sourceCode cell-code" id="cb5"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="fu">autoplot</span>(pib) <span class="sc">+</span></span>
 <span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">autolayer</span>(cons) <span class="sc">+</span></span>
@@ -477,20 +517,20 @@ F Statistic
 <div class="cell-output-display">
 <div class="quarto-figure quarto-figure-center">
 <figure class="figure">
-<p><img src="index_files/figure-html/unnamed-chunk-7-2.png" class="img-fluid figure-img" style="width:90.0%"></p>
+<p><img src="index_files/figure-html/unnamed-chunk-7-2.png" class="img-fluid quarto-figure quarto-figure-center figure-img" style="width:90.0%"></p>
 </figure>
 </div>
 </div>
 </div>
 <p>É sempre importante verificar a presença de autocorrelação nos resíduos do modelo - este problema é especialmente presente em contextos de séries de tempo.</p>
 <div class="cell" data-layout-align="center">
-<details>
+<details class="code-fold">
 <summary>Code</summary>
 <div class="sourceCode cell-code" id="cb6"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>u <span class="ot">&lt;-</span> <span class="fu">resid</span>(fit)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details>
 </div>
 <div class="cell" data-layout-align="center">
-<details>
+<details class="code-fold">
 <summary>Code</summary>
 <div class="sourceCode cell-code" id="cb7"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>forecast<span class="sc">::</span><span class="fu">ggAcf</span>(u)</span>
 <span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>forecast<span class="sc">::</span><span class="fu">ggPacf</span>(u)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
@@ -500,7 +540,7 @@ F Statistic
 <div class="cell-output-display">
 <div class="quarto-figure quarto-figure-center">
 <figure class="figure">
-<p><img src="index_files/figure-html/unnamed-chunk-10-1.png" class="img-fluid figure-img" style="width:90.0%"></p>
+<p><img src="index_files/figure-html/unnamed-chunk-10-1.png" class="img-fluid quarto-figure quarto-figure-center figure-img" style="width:90.0%"></p>
 </figure>
 </div>
 </div>
@@ -511,7 +551,7 @@ F Statistic
   \hat{u}_{t} = \alpha_{0} + \alpha_{1}C_{t} + \alpha_{2}\hat{u}_{t-1} + \alpha_{3}\hat{u}_{t-2} + \epsilon_{t}
 \]</span></p>
 <div class="cell" data-layout-align="center">
-<details>
+<details class="code-fold">
 <summary>Code</summary>
 <div class="sourceCode cell-code" id="cb8"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="fu">bgtest</span>(fit, <span class="at">order =</span> <span class="dv">2</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details>
@@ -526,7 +566,7 @@ LM test = 4.8858, df = 2, p-value = 0.08691</code></pre>
 <p>A tabela abaixo reporta o valor do teste para diversas ordens. Como se vê, não há evidências de que exista correlação serial nos resíduos do modelo. Caso houvesse autocorrelação, uma saída seria modelar os resíduos como um processo ARMA e estimar o modelo conjuntamente por máxima verossimilhança. Isto é, seria um modelo de <a href="https://pt.wikipedia.org/wiki/ARMA#Generaliza%C3%A7%C3%B5es">regressão linear com erros ARMA</a>.</p>
 <div class="cell" data-layout-align="center">
 <div class="cell-output-display">
-<table class="table table-bordered table-striped table-sm small" data-quarto-postprocess="true">
+<table class="table table-bordered table-striped caption-top table-sm small" data-quarto-postprocess="true">
 <thead>
 <tr class="header">
 <th style="text-align: center;" data-quarto-table-cell-role="th">Ordem da defasagem</th>
@@ -622,7 +662,7 @@ LM test = 4.8858, df = 2, p-value = 0.08691</code></pre>
 \]</span></p>
 <p>Temos duas opções para montar a variável <span class="math inline">\(t\)</span> : pode-se usar a função <code>time(x)</code> se <code>x</code> for um objeto da classe <code>ts</code> ou, de maneira mais geral, pode-se usar a função <code>seq_along(x)</code>.</p>
 <div class="cell" data-layout-align="center">
-<details>
+<details class="code-fold">
 <summary>Code</summary>
 <div class="sourceCode cell-code" id="cb10"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a>gdp <span class="ot">&lt;-</span> d[, <span class="st">"gdp"</span>]</span>
 <span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a>time_trend <span class="ot">&lt;-</span> <span class="fu">seq_along</span>(gdp)</span>
@@ -630,7 +670,6 @@ LM test = 4.8858, df = 2, p-value = 0.08691</code></pre>
 </details>
 </div>
 <div class="cell" data-layout-align="center">
-
 <table style="text-align:center">
 <tbody><tr>
 <td colspan="2" style="border-bottom: 1px solid black">
@@ -758,12 +797,11 @@ F Statistic
 <sup><em></em></sup><em>p&lt;0.1; <sup><strong></strong></sup><strong>p&lt;0.05; <sup></sup></strong></em>p&lt;0.01
 </td>
 </tr>
-
 </tbody></table>
 </div>
 <p>O gráfico abaixo mostra o ajuste com a linha de tendência em vermelho. Fica claro que os dados nas extremidades da série fogem bastante da tendência. Isto pode tanto ser indício de um mau ajuste, como de que o crescimento recente foi “acima da tendência”.</p>
 <div class="cell" data-layout-align="center">
-<details>
+<details class="code-fold">
 <summary>Code</summary>
 <div class="sourceCode cell-code" id="cb11"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="fu">autoplot</span>(gdp) <span class="sc">+</span></span>
 <span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">autolayer</span>(<span class="fu">fitted</span>(fit)) <span class="sc">+</span></span>
@@ -775,7 +813,7 @@ F Statistic
 <div class="cell-output-display">
 <div class="quarto-figure quarto-figure-center">
 <figure class="figure">
-<p><img src="index_files/figure-html/unnamed-chunk-15-1.png" class="img-fluid figure-img" style="width:90.0%"></p>
+<p><img src="index_files/figure-html/unnamed-chunk-15-1.png" class="img-fluid quarto-figure quarto-figure-center figure-img" style="width:90.0%"></p>
 </figure>
 </div>
 </div>
@@ -787,7 +825,7 @@ F Statistic
 <p>onde <span class="math inline">\(y_{t}^{\text{detrend}}\)</span> é a série sem tendência. Isto é particularmente útil quando estamos lidando com séries “tendência-estacionárias”, i.e., séries que se tornam estacionárias quando subtraímos a sua tendência. No caso da série do PIB há algum debate sobre como torná-la estacionária. Em geral, é mais comum tratá-la como “diferença-estacionária” e tirar a primeira diferença da série (implicitamente assumindo que ela possui uma raiz unitária). Contudo, há alguma evidência de que a série possa ser “tendência-estacionária” quando se considera uma tendência com quebra.</p>
 <p>De qualquer forma, para este modelo simples podemos facilmente computar a série sem tendência. Visualmente, a série não parece estacionária, mas seria necessário fazer algum teste formal para concluir isto com mais certeza.</p>
 <div class="cell" data-layout-align="center">
-<details>
+<details class="code-fold">
 <summary>Code</summary>
 <div class="sourceCode cell-code" id="cb12"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a>detrend <span class="ot">&lt;-</span> gdp <span class="sc">-</span> <span class="fu">fitted</span>(fit)</span>
 <span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a></span>
@@ -797,7 +835,7 @@ F Statistic
 <div class="cell-output-display">
 <div class="quarto-figure quarto-figure-center">
 <figure class="figure">
-<p><img src="index_files/figure-html/unnamed-chunk-16-1.png" class="img-fluid figure-img" style="width:90.0%"></p>
+<p><img src="index_files/figure-html/unnamed-chunk-16-1.png" class="img-fluid quarto-figure quarto-figure-center figure-img" style="width:90.0%"></p>
 </figure>
 </div>
 </div>
@@ -815,14 +853,13 @@ F Statistic
 \]</span></p>
 <p>O código abaixo estima justamente este modelo e os resultados são reportados na tabela.</p>
 <div class="cell" data-layout-align="center">
-<details>
+<details class="code-fold">
 <summary>Code</summary>
 <div class="sourceCode cell-code" id="cb13"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a>trend <span class="ot">&lt;-</span> <span class="fu">seq_along</span>(time_trend)</span>
 <span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a>fit_poly <span class="ot">&lt;-</span> <span class="fu">tslm</span>(gdp <span class="sc">~</span> <span class="fu">poly</span>(trend, <span class="dv">3</span>, <span class="at">raw =</span> <span class="cn">TRUE</span>))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details>
 </div>
 <div class="cell" data-layout-align="center">
-
 <table style="text-align:center">
 <tbody><tr>
 <td colspan="2" style="border-bottom: 1px solid black">
@@ -992,11 +1029,10 @@ F Statistic
 <sup><em></em></sup><em>p&lt;0.1; <sup><strong></strong></sup><strong>p&lt;0.05; <sup></sup></strong></em>p&lt;0.01
 </td>
 </tr>
-
 </tbody></table>
 </div>
 <div class="cell" data-layout-align="center">
-<details>
+<details class="code-fold">
 <summary>Code</summary>
 <div class="sourceCode cell-code" id="cb14"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a><span class="fu">autoplot</span>(gdp) <span class="sc">+</span></span>
 <span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">autolayer</span>(<span class="fu">fitted</span>(fit_poly)) <span class="sc">+</span></span>
@@ -1007,7 +1043,7 @@ F Statistic
 <div class="cell-output-display">
 <div class="quarto-figure quarto-figure-center">
 <figure class="figure">
-<p><img src="index_files/figure-html/unnamed-chunk-19-1.png" class="img-fluid figure-img" style="width:90.0%"></p>
+<p><img src="index_files/figure-html/unnamed-chunk-19-1.png" class="img-fluid quarto-figure quarto-figure-center figure-img" style="width:90.0%"></p>
 </figure>
 </div>
 </div>
@@ -1023,14 +1059,14 @@ F Statistic
 <div class="cell-output-display">
 <div class="quarto-figure quarto-figure-center">
 <figure class="figure">
-<p><img src="index_files/figure-html/unnamed-chunk-20-1.png" class="img-fluid figure-img" style="width:90.0%"></p>
+<p><img src="index_files/figure-html/unnamed-chunk-20-1.png" class="img-fluid quarto-figure quarto-figure-center figure-img" style="width:90.0%"></p>
 </figure>
 </div>
 </div>
 <div class="cell-output-display">
 <div class="quarto-figure quarto-figure-center">
 <figure class="figure">
-<p><img src="index_files/figure-html/unnamed-chunk-20-2.png" class="img-fluid figure-img" style="width:90.0%"></p>
+<p><img src="index_files/figure-html/unnamed-chunk-20-2.png" class="img-fluid quarto-figure quarto-figure-center figure-img" style="width:90.0%"></p>
 </figure>
 </div>
 </div>
@@ -1040,14 +1076,13 @@ F Statistic
 <h3 class="anchored" data-anchor-id="exemplo-tendência-e-sazonalidade-aditiva-na-produção-industrial">Exemplo: tendência e sazonalidade (aditiva) na produção industrial</h3>
 <p>O código abaixo estima um modelo como da equação acima para o índice de produção industrial mensal do FED. Os resultados estão apresentados na tabela. A regressão encontra efeitos significativos e positivos para os meses de junho, setembro e outubro.</p>
 <div class="cell" data-layout-align="center">
-<details>
+<details class="code-fold">
 <summary>Code</summary>
 <div class="sourceCode cell-code" id="cb15"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a><span class="fu">data</span>(prodn)</span>
 <span id="cb15-2"><a href="#cb15-2" aria-hidden="true" tabindex="-1"></a>fit <span class="ot">&lt;-</span> <span class="fu">tslm</span>(prodn <span class="sc">~</span> trend <span class="sc">+</span> season)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details>
 </div>
 <div class="cell" data-layout-align="center">
-
 <table style="text-align:center">
 <tbody><tr>
 <td colspan="2" style="border-bottom: 1px solid black">
@@ -1406,12 +1441,11 @@ F Statistic
 <sup><em></em></sup><em>p&lt;0.1; <sup><strong></strong></sup><strong>p&lt;0.05; <sup></sup></strong></em>p&lt;0.01
 </td>
 </tr>
-
 </tbody></table>
 </div>
 <p>Ao visualizar o ajuste dos dados vê-se também a limitação desta abordagem. Implicitamente se assume que o efeito sazonal é sempre o mesmo.</p>
 <div class="cell" data-layout-align="center">
-<details>
+<details class="code-fold">
 <summary>Code</summary>
 <div class="sourceCode cell-code" id="cb16"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a><span class="fu">autoplot</span>(prodn) <span class="sc">+</span></span>
 <span id="cb16-2"><a href="#cb16-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">autolayer</span>(<span class="fu">fitted</span>(fit)) <span class="sc">+</span></span>
@@ -1421,7 +1455,7 @@ F Statistic
 <div class="cell-output-display">
 <div class="quarto-figure quarto-figure-center">
 <figure class="figure">
-<p><img src="index_files/figure-html/unnamed-chunk-23-1.png" class="img-fluid figure-img" style="width:90.0%"></p>
+<p><img src="index_files/figure-html/unnamed-chunk-23-1.png" class="img-fluid quarto-figure quarto-figure-center figure-img" style="width:90.0%"></p>
 </figure>
 </div>
 </div>
@@ -1443,7 +1477,7 @@ T_{t} =  &amp; \frac{1}{2}[\frac{1}{4}(y_{t-2} + y_{t-1} + y_{t} + y_{t + 1}) + 
 \]</span></p>
 <p>Neste caso faço um filtro neste estilo para 12 meses.</p>
 <div class="cell" data-layout-align="center">
-<details>
+<details class="code-fold">
 <summary>Code</summary>
 <div class="sourceCode cell-code" id="cb17"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a>trend <span class="ot">=</span> <span class="fu">filter</span>(prodn, <span class="at">filter =</span> <span class="fu">c</span>(<span class="fl">0.5</span>, <span class="fu">rep_len</span>(<span class="dv">1</span>, <span class="dv">11</span>), <span class="fl">0.5</span>) <span class="sc">/</span> <span class="dv">12</span>)</span>
 <span id="cb17-2"><a href="#cb17-2" aria-hidden="true" tabindex="-1"></a></span>
@@ -1455,14 +1489,14 @@ T_{t} =  &amp; \frac{1}{2}[\frac{1}{4}(y_{t-2} + y_{t-1} + y_{t} + y_{t + 1}) + 
 <div class="cell-output-display">
 <div class="quarto-figure quarto-figure-center">
 <figure class="figure">
-<p><img src="index_files/figure-html/unnamed-chunk-24-1.png" class="img-fluid figure-img" style="width:90.0%"></p>
+<p><img src="index_files/figure-html/unnamed-chunk-24-1.png" class="img-fluid quarto-figure quarto-figure-center figure-img" style="width:90.0%"></p>
 </figure>
 </div>
 </div>
 </div>
 <p>Agora faz-se uma regressão sobre a série sem tendência. Da mesma forma como o modelo anterior, a sazonalidade é sempre igual ao longo do tempo então apresento apenas dois “ciclos” do ajuste.</p>
 <div class="cell" data-layout-align="center">
-<details>
+<details class="code-fold">
 <summary>Code</summary>
 <div class="sourceCode cell-code" id="cb18"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a>detrend <span class="ot">&lt;-</span> prodn <span class="sc">-</span> trend</span>
 <span id="cb18-2"><a href="#cb18-2" aria-hidden="true" tabindex="-1"></a>fit_season <span class="ot">&lt;-</span> <span class="fu">tslm</span>(detrend <span class="sc">~</span> season)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
@@ -1472,14 +1506,14 @@ T_{t} =  &amp; \frac{1}{2}[\frac{1}{4}(y_{t-2} + y_{t-1} + y_{t} + y_{t + 1}) + 
 <div class="cell-output-display">
 <div class="quarto-figure quarto-figure-center">
 <figure class="figure">
-<p><img src="index_files/figure-html/unnamed-chunk-26-1.png" class="img-fluid figure-img" style="width:90.0%"></p>
+<p><img src="index_files/figure-html/unnamed-chunk-26-1.png" class="img-fluid quarto-figure quarto-figure-center figure-img" style="width:90.0%"></p>
 </figure>
 </div>
 </div>
 </div>
 <p>Este tipo de decomposição também é conhecida como “decomposição clássica”. Apesar de simples e intuitiva, ela pode ser inadequada. Um tipo de decomposição mais sofisticada é a STL (<em>Seasonal Decomposition of Time Series by Loess</em>) que permite maior flexibilidade tanto na tendência como na sazonalidade, além de ser mais robusta a outliers.</p>
 <div class="cell" data-layout-align="center">
-<details>
+<details class="code-fold">
 <summary>Code</summary>
 <div class="sourceCode cell-code" id="cb19"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a><span class="fu">autoplot</span>(<span class="fu">stl</span>(prodn, <span class="at">s.window =</span> <span class="st">"periodic"</span>)) <span class="sc">+</span></span>
 <span id="cb19-2"><a href="#cb19-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_light</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
@@ -1487,7 +1521,7 @@ T_{t} =  &amp; \frac{1}{2}[\frac{1}{4}(y_{t-2} + y_{t-1} + y_{t} + y_{t + 1}) + 
 <div class="cell-output-display">
 <div class="quarto-figure quarto-figure-center">
 <figure class="figure">
-<p><img src="index_files/figure-html/unnamed-chunk-27-1.png" class="img-fluid figure-img" style="width:90.0%"></p>
+<p><img src="index_files/figure-html/unnamed-chunk-27-1.png" class="img-fluid quarto-figure quarto-figure-center figure-img" style="width:90.0%"></p>
 </figure>
 </div>
 </div>
@@ -1512,7 +1546,7 @@ T_{t} =  &amp; \frac{1}{2}[\frac{1}{4}(y_{t-2} + y_{t-1} + y_{t} + y_{t + 1}) + 
 <h2 class="anchored" data-anchor-id="exemplo-índice-de-produção-industrial">Exemplo: Índice de Produção Industrial</h2>
 <p>Para o exemplo abaixo uso o pacote <code>GetBCBData</code> para carregar a série do Índice de Produção Industrial (IPI).</p>
 <div class="cell" data-layout-align="center">
-<details>
+<details class="code-fold">
 <summary>Code</summary>
 <div class="sourceCode cell-code" id="cb20"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Baixa os dados</span></span>
 <span id="cb20-2"><a href="#cb20-2" aria-hidden="true" tabindex="-1"></a>ipi <span class="ot">&lt;-</span> <span class="fu">gbcbd_get_series</span>(<span class="dv">21859</span>, <span class="at">first.date =</span> <span class="fu">as.Date</span>(<span class="st">"2002-01-01"</span>))</span>
@@ -1526,14 +1560,14 @@ T_{t} =  &amp; \frac{1}{2}[\frac{1}{4}(y_{t-2} + y_{t-1} + y_{t} + y_{t + 1}) + 
 <div class="cell-output-display">
 <div class="quarto-figure quarto-figure-center">
 <figure class="figure">
-<p><img src="index_files/figure-html/unnamed-chunk-28-1.png" class="img-fluid figure-img" style="width:90.0%"></p>
+<p><img src="index_files/figure-html/unnamed-chunk-28-1.png" class="img-fluid quarto-figure quarto-figure-center figure-img" style="width:90.0%"></p>
 </figure>
 </div>
 </div>
 </div>
 <p>Pode-se visualizar a relação linear entre valores correntes e defasados do IPI usando a função <code>lag.plot</code>. Na imagem abaixo, cada quadrado mostra um gráfico de dispersão dos valores do IPI em <span class="math inline">\(t\)</span> contra os valores do IPI em <span class="math inline">\(t-k\)</span>. Alguns lags parecem não exibir muita relação como o lag 6. Já o primeiro e último lag parecem apresentar uma relação linear mais acentuada.</p>
 <div class="cell" data-layout-align="center">
-<details>
+<details class="code-fold">
 <summary>Code</summary>
 <div class="sourceCode cell-code" id="cb21"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb21-1"><a href="#cb21-1" aria-hidden="true" tabindex="-1"></a><span class="fu">gglagplot</span>(prod, <span class="dv">12</span>, <span class="at">do.lines =</span> <span class="cn">FALSE</span>, <span class="at">colour =</span> <span class="cn">FALSE</span>) <span class="sc">+</span></span>
 <span id="cb21-2"><a href="#cb21-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_light</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
@@ -1541,7 +1575,7 @@ T_{t} =  &amp; \frac{1}{2}[\frac{1}{4}(y_{t-2} + y_{t-1} + y_{t} + y_{t + 1}) + 
 <div class="cell-output-display">
 <div class="quarto-figure quarto-figure-center">
 <figure class="figure">
-<p><img src="index_files/figure-html/unnamed-chunk-29-1.png" class="img-fluid figure-img" style="width:90.0%"></p>
+<p><img src="index_files/figure-html/unnamed-chunk-29-1.png" class="img-fluid quarto-figure quarto-figure-center figure-img" style="width:90.0%"></p>
 </figure>
 </div>
 </div>
@@ -1552,7 +1586,7 @@ T_{t} =  &amp; \frac{1}{2}[\frac{1}{4}(y_{t-2} + y_{t-1} + y_{t} + y_{t + 1}) + 
 \]</span></p>
 <p>Para estimar este modelo no R há um pequeno inconveniente da função <code>lag</code> que, na verdade, funciona como um operador <em>foreward</em>. Além disso, agora a função base <code>lm</code> (e por conseguinte, também a função <code>tslm</code>) se prova um tanto inconveniente, pois ela não funciona bem com variáveis defasadas. Para usar a função <code>lm</code> seria necessário primeiro “emparelhar” as diferentes defasagens da série, isto é, seria necessário criar um <code>data.frame</code> (ou <code>ts</code>) em que cada coluna mostra os valores das defasagens escolhidas. Por motivo de completude, deixo um código de exemplo que faz isto. Na prática, vale mais a pena escolher alguma outra função como <code>dynlm::dynlm</code> ou <code>dyn::dyn$lm</code>. O código abaixo usa o <code>forecast::tslm</code>, mas nos exemplos seguintes uso o <code>dyn::dyn$lm</code>.</p>
 <div class="cell" data-layout-align="center">
-<details>
+<details class="code-fold">
 <summary>Code</summary>
 <div class="sourceCode cell-code" id="cb22"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb22-1"><a href="#cb22-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Exemplo usando forecast::tslm (tb funcionaria com stats::lm)</span></span>
 <span id="cb22-2"><a href="#cb22-2" aria-hidden="true" tabindex="-1"></a>df <span class="ot">&lt;-</span> <span class="fu">ts.intersect</span>(</span>
@@ -1565,7 +1599,7 @@ T_{t} =  &amp; \frac{1}{2}[\frac{1}{4}(y_{t-2} + y_{t-1} + y_{t} + y_{t + 1}) + 
 </div>
 <p>Pode-se contornar o problema da função <code>lag</code> definindo uma nova função, <code>L</code>, que funciona da maneira desejada. O código abaixo estima a regressão usando <code>dyn::dyn$lm</code>. A sintaxe dentro da função é praticamente idêntica à que vimos acima com as funções <code>lm</code> e <code>tslm</code>.</p>
 <div class="cell" data-layout-align="center">
-<details>
+<details class="code-fold">
 <summary>Code</summary>
 <div class="sourceCode cell-code" id="cb23"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb23-1"><a href="#cb23-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Define uma função L</span></span>
 <span id="cb23-2"><a href="#cb23-2" aria-hidden="true" tabindex="-1"></a>L <span class="ot">&lt;-</span> <span class="cf">function</span>(x, k) {<span class="fu">lag</span>(x, <span class="sc">-</span>k)}</span>
@@ -1574,7 +1608,6 @@ T_{t} =  &amp; \frac{1}{2}[\frac{1}{4}(y_{t-2} + y_{t-1} + y_{t} + y_{t + 1}) + 
 </div>
 <p>Os resultados da regressão acima estão resumidos na tabela abaixo.</p>
 <div class="cell" data-layout-align="center">
-
 <table style="text-align:center">
 <tbody><tr>
 <td colspan="2" style="border-bottom: 1px solid black">
@@ -1765,14 +1798,13 @@ F Statistic
 <sup><em></em></sup><em>p&lt;0.1; <sup><strong></strong></sup><strong>p&lt;0.05; <sup></sup></strong></em>p&lt;0.01
 </td>
 </tr>
-
 </tbody></table>
 </div>
 <p>Podemos combinar a informação de outros indicadores industriais para adicionar informação potencialmente relevante para nossa regressão. Neste exemplo, uso outros indicadores industriais para encontrar aqueles que “ajudam a explicar” o indicador geral.</p>
 <p>O código abaixo importa uma série de indicadores industriais e junta todos eles num único objeto <code>ts</code>.</p>
 <p>Os códigos utilizados são diretamente copiados do <a href="https://www3.bcb.gov.br/sgspub/localizarseries/localizarSeries.do?method=prepararTelaLocalizarSeries">sistema de séries temporais do BCB</a>.</p>
 <div class="cell" data-layout-align="center">
-<details>
+<details class="code-fold">
 <summary>Code</summary>
 <div class="sourceCode cell-code" id="cb24"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb24-1"><a href="#cb24-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Codigos das series do BACEN</span></span>
 <span id="cb24-2"><a href="#cb24-2" aria-hidden="true" tabindex="-1"></a>codigos_series <span class="ot">=</span> <span class="fu">c</span>(<span class="dv">21859</span>, <span class="dv">21861</span><span class="sc">:</span><span class="dv">21868</span>)</span>
@@ -1804,7 +1836,7 @@ F Statistic
 <div class="cell-output-display">
 <div class="quarto-figure quarto-figure-center">
 <figure class="figure">
-<p><img src="index_files/figure-html/unnamed-chunk-33-1.png" class="img-fluid figure-img" style="width:90.0%"></p>
+<p><img src="index_files/figure-html/unnamed-chunk-33-1.png" class="img-fluid quarto-figure quarto-figure-center figure-img" style="width:90.0%"></p>
 </figure>
 </div>
 </div>
@@ -1814,7 +1846,7 @@ F Statistic
   Transf_{t} = \beta_{0} + \beta_{1}Durav_{t - 1} + \beta_{2}Durav_{t - 12} + \beta_{3}Capital_{t - 1} + \beta_{4}Capital_{t - 6} + \beta_{5}Transf_{t - 1} + \alpha_{1}t + \sum_{k = 2}^{12}\alpha_{k}d_{k}
 \]</span></p>
 <div class="cell" data-layout-align="center">
-<details>
+<details class="code-fold">
 <summary>Code</summary>
 <div class="sourceCode cell-code" id="cb25"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb25-1"><a href="#cb25-1" aria-hidden="true" tabindex="-1"></a>fit <span class="ot">&lt;-</span> dyn<span class="sc">$</span><span class="fu">lm</span>(</span>
 <span id="cb25-2"><a href="#cb25-2" aria-hidden="true" tabindex="-1"></a>  transformacao <span class="sc">~</span> <span class="fu">L</span>(consumo_duraveis, <span class="dv">1</span>) <span class="sc">+</span> <span class="fu">L</span>(consumo_duraveis, <span class="dv">12</span>) <span class="sc">+</span></span>
@@ -1832,14 +1864,14 @@ F Statistic
 <div class="cell-output-display">
 <div class="quarto-figure quarto-figure-center">
 <figure class="figure">
-<p><img src="index_files/figure-html/unnamed-chunk-34-1.png" class="img-fluid figure-img" style="width:90.0%"></p>
+<p><img src="index_files/figure-html/unnamed-chunk-34-1.png" class="img-fluid quarto-figure quarto-figure-center figure-img" style="width:90.0%"></p>
 </figure>
 </div>
 </div>
 </div>
 <p>Olhando apenas para as observações mais recentes vemos que, com exceção do período da pandemia, o ajuste aos dados é relativamente satisfatório.</p>
 <div class="cell" data-layout-align="center">
-<details>
+<details class="code-fold">
 <summary>Code</summary>
 <div class="sourceCode cell-code" id="cb26"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb26-1"><a href="#cb26-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Filtra apenas as observações mais recentes, após jan/2015</span></span>
 <span id="cb26-2"><a href="#cb26-2" aria-hidden="true" tabindex="-1"></a>prod_recente <span class="ot">&lt;-</span> <span class="fu">window</span>(prod, <span class="at">start =</span> <span class="fu">c</span>(<span class="dv">2015</span>, <span class="dv">1</span>))</span>
@@ -1877,7 +1909,7 @@ Residual standard error: 4.66 on 88 degrees of freedom
 Multiple R-squared:  0.722, Adjusted R-squared:  0.6841 
 F-statistic: 19.05 on 12 and 88 DF,  p-value: &lt; 2.2e-16</code></pre>
 </div>
-<details>
+<details class="code-fold">
 <summary>Code</summary>
 <div class="sourceCode cell-code" id="cb28"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb28-1"><a href="#cb28-1" aria-hidden="true" tabindex="-1"></a><span class="fu">autoplot</span>(prod_recente) <span class="sc">+</span></span>
 <span id="cb28-2"><a href="#cb28-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">autolayer</span>(<span class="fu">fitted</span>(fit)) <span class="sc">+</span></span>
@@ -1887,7 +1919,7 @@ F-statistic: 19.05 on 12 and 88 DF,  p-value: &lt; 2.2e-16</code></pre>
 <div class="cell-output-display">
 <div class="quarto-figure quarto-figure-center">
 <figure class="figure">
-<p><img src="index_files/figure-html/unnamed-chunk-35-1.png" class="img-fluid figure-img" style="width:90.0%"></p>
+<p><img src="index_files/figure-html/unnamed-chunk-35-1.png" class="img-fluid quarto-figure quarto-figure-center figure-img" style="width:90.0%"></p>
 </figure>
 </div>
 </div>
@@ -1903,7 +1935,7 @@ F-statistic: 19.05 on 12 and 88 DF,  p-value: &lt; 2.2e-16</code></pre>
   \text{IPCA}_{t} = \beta_{0} + \beta_{1}\text{gcam}_{t} + \beta_{2}\text{g2013}_{t} + \beta_{3}\text{padm}_{t} + \text{dsaz} + \varepsilon_{t}
 \]</span></p>
 <div class="cell" data-layout-align="center">
-<details>
+<details class="code-fold">
 <summary>Code</summary>
 <div class="sourceCode cell-code" id="cb29"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb29-1"><a href="#cb29-1" aria-hidden="true" tabindex="-1"></a>ipca <span class="ot">&lt;-</span> <span class="fu">gbcbd_get_series</span>(<span class="dv">433</span>, <span class="at">first.date =</span> <span class="fu">as.Date</span>(<span class="st">"1995-01-01"</span>))</span>
 <span id="cb29-2"><a href="#cb29-2" aria-hidden="true" tabindex="-1"></a>ipca<span class="sc">$</span>ref.date <span class="ot">&lt;-</span> <span class="fu">as.Date</span>(ipca<span class="sc">$</span>ref.date, <span class="at">format =</span> <span class="st">"%d/%m/%Y"</span>)</span>
@@ -1913,7 +1945,7 @@ F-statistic: 19.05 on 12 and 88 DF,  p-value: &lt; 2.2e-16</code></pre>
 </details>
 </div>
 <div class="cell" data-layout-align="center">
-<details>
+<details class="code-fold">
 <summary>Code</summary>
 <div class="sourceCode cell-code" id="cb30"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb30-1"><a href="#cb30-1" aria-hidden="true" tabindex="-1"></a><span class="co"># dummy greve caminhoneiro</span></span>
 <span id="cb30-2"><a href="#cb30-2" aria-hidden="true" tabindex="-1"></a>greve_caminhao <span class="ot">&lt;-</span> <span class="fu">xts</span>(<span class="fu">rep</span>(<span class="dv">0</span>, <span class="fu">length</span>(ipca)), <span class="at">order.by =</span> <span class="fu">index</span>(ipca))</span>
@@ -1929,7 +1961,7 @@ F-statistic: 19.05 on 12 and 88 DF,  p-value: &lt; 2.2e-16</code></pre>
 </details>
 </div>
 <div class="cell" data-layout-align="center">
-<details>
+<details class="code-fold">
 <summary>Code</summary>
 <div class="sourceCode cell-code" id="cb31"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb31-1"><a href="#cb31-1" aria-hidden="true" tabindex="-1"></a>x <span class="ot">=</span> <span class="fu">cbind</span>(ipca, greve_caminhao, greve_2013, precos_adm)</span>
 <span id="cb31-2"><a href="#cb31-2" aria-hidden="true" tabindex="-1"></a>x <span class="ot">=</span> <span class="fu">ts</span>(<span class="fu">coredata</span>(x), <span class="at">start =</span> <span class="fu">c</span>(<span class="fu">year</span>(<span class="fu">index</span>(x))[<span class="dv">1</span>], <span class="fu">month</span>(<span class="fu">index</span>(x))[<span class="dv">1</span>]), <span class="at">frequency =</span> <span class="dv">12</span>)</span>
@@ -1955,7 +1987,7 @@ Coefficients:
        season8         season9        season10        season11        season12  
      -0.188698       -0.096823       -0.112448       -0.001198        0.083802  </code></pre>
 </div>
-<details>
+<details class="code-fold">
 <summary>Code</summary>
 <div class="sourceCode cell-code" id="cb33"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb33-1"><a href="#cb33-1" aria-hidden="true" tabindex="-1"></a>fit <span class="ot">&lt;-</span> dyn<span class="sc">$</span><span class="fu">lm</span>(ipca <span class="sc">~</span> <span class="fu">L</span>(ipca, <span class="dv">1</span>) <span class="sc">+</span> greve_caminhao <span class="sc">+</span> greve_2013 <span class="sc">+</span> precos_adm <span class="sc">+</span></span>
 <span id="cb33-2"><a href="#cb33-2" aria-hidden="true" tabindex="-1"></a>                     <span class="fu">as.factor</span>(<span class="fu">cycle</span>(ipca)))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
@@ -1963,7 +1995,6 @@ Coefficients:
 </div>
 <p>Na tabela abaixo omito os interceptos das dummies sazonais</p>
 <div class="cell" data-layout-align="center">
-
 <table style="text-align:center">
 <tbody><tr>
 <td colspan="2" style="border-bottom: 1px solid black">
@@ -2175,7 +2206,6 @@ F Statistic
 <sup><em></em></sup><em>p&lt;0.1; <sup><strong></strong></sup><strong>p&lt;0.05; <sup></sup></strong></em>p&lt;0.01
 </td>
 </tr>
-
 </tbody></table>
 </div>
 </section>
@@ -2193,7 +2223,7 @@ F Statistic
 <p>É relativamente simples prever os valores futuros de modelos de tendência e sazonalidade determinísticas. Como o adjetivo “determinístico” sugere sabe-se de antemão todos os valores que esta série vai exibir. O exemplo abaixo estima um modelo simples para a demanda por passagens aéreas (voos internacionais).</p>
 <p>Vale notar que não se costuma fazer previsões de longo prazo com este tipo de modelo, pois a hipótese de que a sazonalidade/tendência continua exatamente igual ao longo do tempo vai se tornando cada vez mais frágil. A curto prazo, contudo, pode ser razoável supor que este modelo linear simples ofereça uma boa aproximação da realidade.</p>
 <div class="cell" data-layout-align="center">
-<details>
+<details class="code-fold">
 <summary>Code</summary>
 <div class="sourceCode cell-code" id="cb34"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb34-1"><a href="#cb34-1" aria-hidden="true" tabindex="-1"></a>fit <span class="ot">&lt;-</span> <span class="fu">tslm</span>(AirPassengers <span class="sc">~</span> trend <span class="sc">+</span> season)</span>
 <span id="cb34-2"><a href="#cb34-2" aria-hidden="true" tabindex="-1"></a></span>
@@ -2203,7 +2233,7 @@ F Statistic
 <div class="cell-output-display">
 <div class="quarto-figure quarto-figure-center">
 <figure class="figure">
-<p><img src="index_files/figure-html/unnamed-chunk-42-1.png" class="img-fluid figure-img" style="width:90.0%"></p>
+<p><img src="index_files/figure-html/unnamed-chunk-42-1.png" class="img-fluid quarto-figure quarto-figure-center figure-img" style="width:90.0%"></p>
 </figure>
 </div>
 </div>
@@ -2213,7 +2243,7 @@ F Statistic
 <h2 class="anchored" data-anchor-id="exemplo-previsão-de-cenário">Exemplo: previsão de cenário</h2>
 <p>No caso da regressão acima do IPCA, pode-se estimar o impacto de uma nova greve dos caminhoneiros. [Mal sabiamos que em 2020 teriamos um evento extraordinário…].</p>
 <div class="cell" data-layout-align="center">
-<details>
+<details class="code-fold">
 <summary>Code</summary>
 <div class="sourceCode cell-code" id="cb35"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb35-1"><a href="#cb35-1" aria-hidden="true" tabindex="-1"></a>dummies <span class="ot">=</span> <span class="fu">cbind</span>(greve_caminhao, greve_2013, precos_adm)</span>
 <span id="cb35-2"><a href="#cb35-2" aria-hidden="true" tabindex="-1"></a>fit <span class="ot">&lt;-</span> <span class="fu">Arima</span>(ipca, <span class="at">order =</span> <span class="fu">c</span>(<span class="dv">1</span>, <span class="dv">0</span>, <span class="dv">0</span>), <span class="at">xreg =</span> <span class="fu">coredata</span>(dummies))</span>
@@ -2226,7 +2256,7 @@ F Statistic
 <div class="cell-output-display">
 <div class="quarto-figure quarto-figure-center">
 <figure class="figure">
-<p><img src="index_files/figure-html/unnamed-chunk-43-1.png" class="img-fluid figure-img" style="width:90.0%"></p>
+<p><img src="index_files/figure-html/unnamed-chunk-43-1.png" class="img-fluid quarto-figure quarto-figure-center figure-img" style="width:90.0%"></p>
 </figure>
 </div>
 </div>
@@ -2236,7 +2266,7 @@ F Statistic
 <h2 class="anchored" data-anchor-id="exemplo-variáveis-defasadas">Exemplo: variáveis defasadas</h2>
 <p>Pode ser um tanto difícil fazer previsões com modelos que usam informação de outras séries. Num modelo simples como <span class="math inline">\(y_{t} = \beta_{0} + \beta_{1}x_{t - 1}\)</span> para prever valores futuros de <span class="math inline">\(y_{t}\)</span> é preciso fazer previsõs para a série <span class="math inline">\(x_{t}\)</span>, pois, <span class="math inline">\(y_{t + 2}\)</span> é função linear de <span class="math inline">\(x_{t + 1}\)</span>. Há muitas maneiras de abordar este problema e eu provavelmente vou discutir mais sobre as alternativas num post futuro. O exemplo abaixo mostra como usar informação disponível de outras séries</p>
 <div class="cell" data-layout-align="center">
-<details>
+<details class="code-fold">
 <summary>Code</summary>
 <div class="sourceCode cell-code" id="cb36"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb36-1"><a href="#cb36-1" aria-hidden="true" tabindex="-1"></a>df_ajustada <span class="ot">&lt;-</span></span>
 <span id="cb36-2"><a href="#cb36-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ts.intersect</span>(<span class="at">transf =</span> series[, <span class="st">"transformacao"</span>],</span>
@@ -2253,7 +2283,7 @@ F Statistic
 </details>
 </div>
 <div class="cell" data-layout-align="center">
-<details>
+<details class="code-fold">
 <summary>Code</summary>
 <div class="sourceCode cell-code" id="cb37"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb37-1"><a href="#cb37-1" aria-hidden="true" tabindex="-1"></a><span class="fu">autoplot</span>(<span class="fu">forecast</span>(fit, sub), <span class="at">include =</span> <span class="dv">36</span>) <span class="sc">+</span></span>
 <span id="cb37-2"><a href="#cb37-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_light</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
@@ -2261,7 +2291,7 @@ F Statistic
 <div class="cell-output-display">
 <div class="quarto-figure quarto-figure-center">
 <figure class="figure">
-<p><img src="index_files/figure-html/unnamed-chunk-45-1.png" class="img-fluid figure-img" style="width:90.0%"></p>
+<p><img src="index_files/figure-html/unnamed-chunk-45-1.png" class="img-fluid quarto-figure quarto-figure-center figure-img" style="width:90.0%"></p>
 </figure>
 </div>
 </div>
@@ -2313,18 +2343,7 @@ window.document.addEventListener("DOMContentLoaded", function (event) {
     }
     return false;
   }
-  const clipboard = new window.ClipboardJS('.code-copy-button', {
-    text: function(trigger) {
-      const codeEl = trigger.previousElementSibling.cloneNode(true);
-      for (const childEl of codeEl.children) {
-        if (isCodeAnnotation(childEl)) {
-          childEl.remove();
-        }
-      }
-      return codeEl.innerText;
-    }
-  });
-  clipboard.on('success', function(e) {
+  const onCopySuccess = function(e) {
     // button target
     const button = e.trigger;
     // don't keep focus
@@ -2356,11 +2375,48 @@ window.document.addEventListener("DOMContentLoaded", function (event) {
     }, 1000);
     // clear code selection
     e.clearSelection();
+  }
+  const getTextToCopy = function(trigger) {
+      const codeEl = trigger.previousElementSibling.cloneNode(true);
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+  }
+  const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+    text: getTextToCopy
   });
-  function tippyHover(el, contentFn) {
+  clipboard.on('success', onCopySuccess);
+  if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+    const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+      text: getTextToCopy,
+      container: window.document.getElementById('quarto-embedded-source-code-modal')
+    });
+    clipboardModal.on('success', onCopySuccess);
+  }
+    var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+    var mailtoRegex = new RegExp(/^mailto:/);
+      var filterRegex = new RegExp("https::\/\/www\.restateinsight\.com");
+    var isInternal = (href) => {
+        return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+    }
+    // Inspect non-navigation links and adorn them if external
+ 	var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+    for (var i=0; i<links.length; i++) {
+      const link = links[i];
+      if (!isInternal(link.href)) {
+        // undo the damage that might have been done by quarto-nav.js in the case of
+        // links that we want to consider external
+        if (link.dataset.originalHref !== undefined) {
+          link.href = link.dataset.originalHref;
+        }
+      }
+    }
+  function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
     const config = {
       allowHTML: true,
-      content: contentFn,
       maxWidth: 500,
       delay: 100,
       arrow: false,
@@ -2370,8 +2426,17 @@ window.document.addEventListener("DOMContentLoaded", function (event) {
       interactive: true,
       interactiveBorder: 10,
       theme: 'quarto',
-      placement: 'bottom-start'
+      placement: 'bottom-start',
     };
+    if (contentFn) {
+      config.content = contentFn;
+    }
+    if (onTriggerFn) {
+      config.onTrigger = onTriggerFn;
+    }
+    if (onUntriggerFn) {
+      config.onUntrigger = onUntriggerFn;
+    }
     window.tippy(el, config); 
   }
   const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
@@ -2383,7 +2448,129 @@ window.document.addEventListener("DOMContentLoaded", function (event) {
       try { href = new URL(href).hash; } catch {}
       const id = href.replace(/^#\/?/, "");
       const note = window.document.getElementById(id);
-      return note.innerHTML;
+      if (note) {
+        return note.innerHTML;
+      } else {
+        return "";
+      }
+    });
+  }
+  const xrefs = window.document.querySelectorAll('a.quarto-xref');
+  const processXRef = (id, note) => {
+    // Strip column container classes
+    const stripColumnClz = (el) => {
+      el.classList.remove("page-full", "page-columns");
+      if (el.children) {
+        for (const child of el.children) {
+          stripColumnClz(child);
+        }
+      }
+    }
+    stripColumnClz(note)
+    if (id === null || id.startsWith('sec-')) {
+      // Special case sections, only their first couple elements
+      const container = document.createElement("div");
+      if (note.children && note.children.length > 2) {
+        container.appendChild(note.children[0].cloneNode(true));
+        for (let i = 1; i < note.children.length; i++) {
+          const child = note.children[i];
+          if (child.tagName === "P" && child.innerText === "") {
+            continue;
+          } else {
+            container.appendChild(child.cloneNode(true));
+            break;
+          }
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(container);
+        }
+        return container.innerHTML
+      } else {
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        return note.innerHTML;
+      }
+    } else {
+      // Remove any anchor links if they are present
+      const anchorLink = note.querySelector('a.anchorjs-link');
+      if (anchorLink) {
+        anchorLink.remove();
+      }
+      if (window.Quarto?.typesetMath) {
+        window.Quarto.typesetMath(note);
+      }
+      if (note.classList.contains("callout")) {
+        return note.outerHTML;
+      } else {
+        return note.innerHTML;
+      }
+    }
+  }
+  for (var i=0; i<xrefs.length; i++) {
+    const xref = xrefs[i];
+    tippyHover(xref, undefined, function(instance) {
+      instance.disable();
+      let url = xref.getAttribute('href');
+      let hash = undefined; 
+      if (url.startsWith('#')) {
+        hash = url;
+      } else {
+        try { hash = new URL(url).hash; } catch {}
+      }
+      if (hash) {
+        const id = hash.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note !== null) {
+          try {
+            const html = processXRef(id, note.cloneNode(true));
+            instance.setContent(html);
+          } finally {
+            instance.enable();
+            instance.show();
+          }
+        } else {
+          // See if we can fetch this
+          fetch(url.split('#')[0])
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.getElementById(id);
+            if (note !== null) {
+              const html = processXRef(id, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      } else {
+        // See if we can fetch a full url (with no hash to target)
+        // This is a special case and we should probably do some content thinning / targeting
+        fetch(url)
+        .then(res => res.text())
+        .then(html => {
+          const parser = new DOMParser();
+          const htmlDoc = parser.parseFromString(html, "text/html");
+          const note = htmlDoc.querySelector('main.content');
+          if (note !== null) {
+            // This should only happen for chapter cross references
+            // (since there is no id in the URL)
+            // remove the first header
+            if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+              note.children[0].remove();
+            }
+            const html = processXRef(null, note);
+            instance.setContent(html);
+          } 
+        }).finally(() => {
+          instance.enable();
+          instance.show();
+        });
+      }
+    }, function(instance) {
     });
   }
       let selectedAnnoteEl;
@@ -2427,6 +2614,7 @@ window.document.addEventListener("DOMContentLoaded", function (event) {
             }
             div.style.top = top - 2 + "px";
             div.style.height = height + 4 + "px";
+            div.style.left = 0;
             let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
             if (gutterDiv === null) {
               gutterDiv = window.document.createElement("div");
@@ -2452,6 +2640,32 @@ window.document.addEventListener("DOMContentLoaded", function (event) {
         });
         selectedAnnoteEl = undefined;
       };
+        // Handle positioning of the toggle
+    window.addEventListener(
+      "resize",
+      throttle(() => {
+        elRect = undefined;
+        if (selectedAnnoteEl) {
+          selectCodeLines(selectedAnnoteEl);
+        }
+      }, 10)
+    );
+    function throttle(fn, ms) {
+    let throttle = false;
+    let timer;
+      return (...args) => {
+        if(!throttle) { // first call gets through
+            fn.apply(this, args);
+            throttle = true;
+        } else { // all the others get throttled
+            if(timer) clearTimeout(timer); // cancel #2
+            timer = setTimeout(() => {
+              fn.apply(this, args);
+              timer = throttle = false;
+            }, ms);
+        }
+      };
+    }
       // Attach click handler to the DT
       const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
       for (const annoteDlNode of annoteDls) {
@@ -2513,7 +2727,10 @@ window.document.addEventListener("DOMContentLoaded", function (event) {
 </script>
 <script src="https://giscus.app/client.js" data-repo="viniciusoike/restateinsight" data-repo-id="R_kgDOJ9Lnfw" data-category="General" data-category-id="" data-mapping="title" data-reactions-enabled="1" data-emit-metadata="0" data-input-position="top" data-theme="light" data-lang="en" crossorigin="anonymous" async="">
 </script>
+<input type="hidden" id="giscus-base-theme" value="light">
+<input type="hidden" id="giscus-alt-theme" value="dark">
 </div> <!-- /content -->
+
 
 
 

@@ -1,0 +1,105 @@
+---
+title: "index"
+format: html
+draft: true
+---
+
+```{r}
+library(dplyr)
+library(stringr)
+import::from(sidrar, get_sidra)
+
+get_info <- function(code_region) {
+  get_sidra(
+    9930,
+    variable = 381,
+    category = list(c("c63"), c("c125")),
+    geo = "State",
+    geo.filter = list("Region" = code_region)
+    )
+}
+
+dat <- lapply(1:5, get_info)
+dat <- bind_rows(dat)
+dat <- as_tibble(dat)
+dat
+```
+
+```{r}
+dat <- dat |> 
+  janitor::clean_names()
+```
+
+```{r}
+ibge9930 <- dat |> 
+  rename(
+    code_state = unidade_da_federacao_codigo,
+    name_state = unidade_da_federacao,
+    year = ano,
+    value = valor,
+    variable = variavel,
+    code_variable = variavel_codigo,
+    house_dwellings = numero_de_comodos,
+    code_house_ownership = condicao_de_ocupacao_do_domicilio_codigo,
+    house_ownership = condicao_de_ocupacao_do_domicilio,
+    house_type = tipo_de_domicilio,
+    code_house_type = tipo_de_domicilio_codigo
+  ) |> 
+  select(
+    code_state, name_state, code_variable, variable, value,
+    house_dwellings, code_house_ownership, house_ownership,
+    code_house_type, house_type
+  ) |> 
+  mutate(across(starts_with("code"), as.numeric))
+
+get_unique_pairs <- function(dat, x, y) {
+  
+  dat |> 
+    count({{x}}, {{y}}) |> 
+    arrange({{x}}) |> 
+    select(-n)
+  
+}
+
+ibge9930 <- ibge9930 |> 
+  mutate(
+    house_rooms = if_else(house_dwellings == "Total", "total", str_extract(house_dwellings, ".+(?= cô)")),
+    house_rooms_num = case_when(
+      house_rooms == "total" ~ NA,
+      house_rooms %in% c("6 a 9") ~ 7,
+      TRUE ~ as.numeric(house_rooms)
+    ),
+    house_rooms_trunc = if_else(house_rooms_num > 4, 4, house_rooms_num)
+  )
+
+dim_ownership <- get_unique_pairs(ibge9930, code_house_ownership, house_ownership)
+dim_type <- get_unique_pairs(ibge9930, code_house_type, house_type)
+
+dim_type |> 
+  rename(
+    house_type_ibge = house_type
+  ) |> 
+  mutate(
+    house_type = case_when(
+      house_type_ibge == "Total" ~ "total",
+      house_type_ibge == "Apartamento" ~ "apartment",
+      house_type_ibge == "Casa" ~ "house",
+      TRUE ~ "other"
+    )
+  )
+
+ibge9930 |> 
+  count(code_house_ownership, house_ownership) |> 
+  arrange(code_house_ownership) |> 
+  select(-n) |> 
+  mutate()
+
+dat |> 
+  count(condicao_de_ocupacao_do_domicilio_codigo, condicao_de_ocupacao_do_domicilio)
+
+# dat |> 
+#   count(tipo_de_domicilio_codigo, tipo_de_domicilio) |> 
+#   select(-n) |> 
+#   mutate(tipo_de_domicilio_codigo = )
+#   arrange(tipo_de_domicilio_codigo)
+```

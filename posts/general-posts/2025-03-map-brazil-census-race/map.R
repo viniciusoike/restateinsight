@@ -107,6 +107,46 @@ summarise_tables <- function(x) {
 # Create all summary tables at once
 tbls <- lapply(pop_summary, summarise_tables)
 
+poprace_interm <- tbls$intermediate |> 
+  tidyr::pivot_wider(
+    id_cols = "code_intermediate",
+    names_from = "race_label",
+    values_from = c("total", "prop")
+    )
+
+dim_interm <- dim_inter |> 
+  select(code_intermediate, name_intermediate) |> 
+  distinct() |> 
+  summarise(
+    name = first(name_intermediate),
+    cities = paste(name_intermediate, collapse = ", "),
+    .by = "code_intermediate"
+  )
+
+dim_state <- geobr::read_state()
+dim_state <- as_tibble(sf::st_drop_geometry(dim_state))
+
+dim_interm <- dim_interm |> 
+  mutate(code_state = as.numeric(str_sub(code_intermediate, 1, 2))) |> 
+  left_join(select(dim_state, code_state, abbrev_state)) |> 
+  select(code_state, abbrev_state, code_intermediate, name, cities)
+
+tbl_poprace <- left_join(dim_interm, poprace_interm, by = "code_intermediate")
+
+library(gt)
+library(gtExtras)
+
+tbl_poprace %>%
+  select(abbrev_state, name, cities, total_Branca, prop_Branca, total_Parda, prop_Parda,
+         total_Preta, prop_Preta, total_Indígena, prop_Indígena, total_Amarela, prop_Amarela) %>%
+  gt() %>%
+  fmt_number(starts_with("total"), decimals = 0, sep_mark = ".") %>%
+  fmt_percent(starts_with("prop"), decimals = 1, dec_mark = ",") %>%
+  gt_theme_pff()
+
+gt(tbl_poprace)
+
+
 # Find the highest share within each intermediate region
 
 top_inter <- tbls$intermediate |> 

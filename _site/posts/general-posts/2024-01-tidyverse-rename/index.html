@@ -2,7 +2,7 @@
 <html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
 
 <meta charset="utf-8">
-<meta name="generator" content="quarto-1.3.450">
+<meta name="generator" content="quarto-1.6.42">
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
@@ -10,7 +10,7 @@
 <meta name="dcterms.date" content="2024-01-08">
 <meta name="description" content="Neste post ensino abordagens diferentes para renomear colunas de maneira eficiente. Apresento também algumas das inovações que o pacote dplyr lançou nos últimos anos como as funções auxiliares all_of e any_of.">
 
-<title>Vinicius Oike - O novo tidyverse: rename</title>
+<title>O novo tidyverse: rename – Vinicius Oike</title>
 <style>
 code{white-space: pre-wrap;}
 span.smallcaps{font-variant: small-caps;}
@@ -25,7 +25,7 @@ ul.task-list li input[type="checkbox"] {
 }
 /* CSS for syntax highlighting */
 pre > code.sourceCode { white-space: pre; position: relative; }
-pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span { line-height: 1.25; }
 pre > code.sourceCode > span:empty { height: 1.2em; }
 .sourceCode { overflow: visible; }
 code.sourceCode > span { color: inherit; text-decoration: inherit; }
@@ -36,7 +36,7 @@ div.sourceCode { overflow: auto; }
 }
 @media print {
 pre > code.sourceCode { white-space: pre-wrap; }
-pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+pre > code.sourceCode > span { display: inline-block; text-indent: -5em; padding-left: 5em; }
 }
 pre.numberSource code
   { counter-reset: source-line 0; }
@@ -72,17 +72,23 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <script src="../../../site_libs/quarto-html/tippy.umd.min.js"></script>
 <script src="../../../site_libs/quarto-html/anchor.min.js"></script>
 <link href="../../../site_libs/quarto-html/tippy.css" rel="stylesheet">
-<link href="../../../site_libs/quarto-html/quarto-syntax-highlighting.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<link href="../../../site_libs/quarto-html/quarto-syntax-highlighting-5087c06e2ffe3d95ca93e8976d161b84.css" rel="stylesheet" id="quarto-text-highlighting-styles">
 <script src="../../../site_libs/bootstrap/bootstrap.min.js"></script>
 <link href="../../../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
-<link href="../../../site_libs/bootstrap/bootstrap.min.css" rel="stylesheet" id="quarto-bootstrap" data-mode="light">
+<link href="../../../site_libs/bootstrap/bootstrap-7dc30f1ab594a131e698df19d89ecd88.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
 <script id="quarto-search-options" type="application/json">{
   "location": "navbar",
   "copy-button": false,
   "collapse-after": 3,
   "panel-placement": "end",
   "type": "overlay",
-  "limit": 20,
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "show-item-context": false,
   "language": {
     "search-no-results-text": "No results",
     "search-matching-documents-text": "matching documents",
@@ -91,6 +97,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
     "search-more-match-text": "more match in this document",
     "search-more-matches-text": "more matches in this document",
     "search-clear-button-title": "Clear",
+    "search-text-placeholder": "",
     "search-detached-cancel-button-title": "Cancel",
     "search-submit-button-title": "Submit",
     "search-label": "Search"
@@ -113,50 +120,58 @@ gtag('config', 'G-EJF8PGT67H', { 'anonymize_ip': true});
 <body class="nav-fixed">
 
 <div id="quarto-search-results"></div>
-  <header id="quarto-header" class="headroom fixed-top">
-    <nav class="navbar navbar-expand-lg navbar-dark ">
+  <header id="quarto-header" class="headroom fixed-top quarto-banner">
+    <nav class="navbar navbar-expand-lg " data-bs-theme="dark">
       <div class="navbar-container container-fluid">
-      <div class="navbar-brand-container">
+      <div class="navbar-brand-container mx-auto">
     <a class="navbar-brand" href="../../../index.html">
     <span class="navbar-title">Vinicius Oike</span>
     </a>
   </div>
             <div id="quarto-search" class="" title="Search"></div>
-          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" aria-expanded="false" aria-label="Toggle navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" role="menu" aria-expanded="false" aria-label="Toggle navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
   <span class="navbar-toggler-icon"></span>
 </button>
           <div class="collapse navbar-collapse" id="navbarCollapse">
             <ul class="navbar-nav navbar-nav-scroll ms-auto">
   <li class="nav-item">
-    <a class="nav-link" href="../../../blog.html" rel="" target="">
- <span class="menu-text">Blog</span></a>
+    <a class="nav-link" href="../../../blog.html"> 
+<span class="menu-text">Blog</span></a>
   </li>  
   <li class="nav-item">
-    <a class="nav-link" href="../../../aboutme.html" rel="" target="">
- <span class="menu-text">Sobre</span></a>
+    <a class="nav-link" href="../../../aboutme.html"> 
+<span class="menu-text">About</span></a>
   </li>  
   <li class="nav-item">
-    <a class="nav-link" href="../../../my_apps.html" rel="" target="">
- <span class="menu-text">Apps</span></a>
+    <a class="nav-link" href="../../../cv.html"> 
+<span class="menu-text">CV</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../../../my_apps.html"> 
+<span class="menu-text">Apps</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../../../press.html"> 
+<span class="menu-text">Press</span></a>
   </li>  
   <li class="nav-item compact">
-    <a class="nav-link" href="https://github.com/viniciusoike" rel="" target=""><i class="bi bi-github" role="img">
+    <a class="nav-link" href="https://github.com/viniciusoike"> <i class="bi bi-github" role="img">
 </i> 
- <span class="menu-text"></span></a>
+<span class="menu-text"></span></a>
   </li>  
   <li class="nav-item compact">
-    <a class="nav-link" href="https://twitter.com/viniciusoike" rel="" target=""><i class="bi bi-twitter" role="img">
+    <a class="nav-link" href="https://twitter.com/viniciusoike"> <i class="bi bi-twitter" role="img">
 </i> 
- <span class="menu-text"></span></a>
+<span class="menu-text"></span></a>
   </li>  
   <li class="nav-item">
-    <a class="nav-link" href="../../../archive.html" rel="" target="">
- <span class="menu-text">Archive</span></a>
+    <a class="nav-link" href="../../../archive.html"> 
+<span class="menu-text">Archive</span></a>
   </li>  
 </ul>
+          </div> <!-- /navcollapse -->
             <div class="quarto-navbar-tools">
 </div>
-          </div> <!-- /navcollapse -->
       </div> <!-- /container-fluid -->
     </nav>
 </header>
@@ -235,6 +250,7 @@ gtag('config', 'G-EJF8PGT67H', { 'anonymize_ip': true});
 
 
 
+
 <section id="tidyverse" class="level1">
 <h1>Tidyverse</h1>
 <p>O tidyverse é uma coleção poderosa de pacotes, voltados para a manipulação e limpeza de dados. Num outro post, discuti alguns <a href="https://restateinsight.com/posts/general-posts/2023-09-tidyverse/">aspectos gerais da filosofia</a> destes pacotes que incluem a sua consistência sintática e o uso de <a href="https://restateinsight.com/posts/general-posts/2023-09-pipes-in-r/">pipes</a>. O tidyverse está em constante expansão, novas funcionalidades são criadas para melhorar a performance e capabilidade de suas funções. Assim, é importante atualizar nosso conhecimento destes pacotes periodicamente. Nesta série de posts vou focar nas funções principais dos pacotes <code>dplyr</code> e <code>tidyr</code>, voltados para a limpeza de dados.</p>
@@ -242,7 +258,7 @@ gtag('config', 'G-EJF8PGT67H', { 'anonymize_ip': true});
 <section id="alguns-verbos" class="level1">
 <h1>Alguns verbos</h1>
 <p>Essencialmente, o <code>dplyr</code> gira em torno de quatro grandes funções: <code>filter</code>, <code>select</code>, <code>mutate</code> e <code>summarise</code>. Estas funções fazem o grosso do trabalho de limpeza de dados: filtram linhas, selecionam colunas e transformam os dados. A tabela abaixo resume as principais funções do pacote.</p>
-<table class="table">
+<table class="caption-top table">
 <colgroup>
 <col style="width: 20%">
 <col style="width: 20%">
@@ -312,7 +328,6 @@ gtag('config', 'G-EJF8PGT67H', { 'anonymize_ip': true});
 </div>
 <div class="cell">
 <div class="cell-output-display">
-
 <div id="iozzgsaxed" style="padding-left:0px;padding-right:0px;padding-top:10px;padding-bottom:10px;overflow-x:auto;overflow-y:auto;width:auto;height:auto;">
 <style>#iozzgsaxed table {
   font-family: system-ui, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
@@ -753,51 +768,63 @@ gtag('config', 'G-EJF8PGT67H', { 'anonymize_ip': true});
   text-indent: 25px;
 }
 </style>
-<table class="gt_table" data-quarto-disable-processing="false" data-quarto-bootstrap="false">
-  <thead>
-    <tr class="gt_col_headings">
-      <th class="gt_col_heading gt_columns_bottom_border gt_right" rowspan="1" colspan="1" scope="col" id="Nível Territorial (Código)">Nível Territorial (Código)</th>
-      <th class="gt_col_heading gt_columns_bottom_border gt_left" rowspan="1" colspan="1" scope="col" id="Nível Territorial">Nível Territorial</th>
-      <th class="gt_col_heading gt_columns_bottom_border gt_right" rowspan="1" colspan="1" scope="col" id="Unidade de Medida (Código)">Unidade de Medida (Código)</th>
-      <th class="gt_col_heading gt_columns_bottom_border gt_left" rowspan="1" colspan="1" scope="col" id="Unidade de Medida">Unidade de Medida</th>
-      <th class="gt_col_heading gt_columns_bottom_border gt_right" rowspan="1" colspan="1" scope="col" id="Valor">Valor</th>
-    </tr>
-  </thead>
-  <tbody class="gt_table_body">
-    <tr><td headers="Nível Territorial (Código)" class="gt_row gt_right">1</td>
-<td headers="Nível Territorial" class="gt_row gt_left">Brasil</td>
-<td headers="Unidade de Medida (Código)" class="gt_row gt_right">38</td>
-<td headers="Unidade de Medida" class="gt_row gt_left">Reais</td>
-<td headers="Valor" class="gt_row gt_right">1525.48</td></tr>
-    <tr><td headers="Nível Territorial (Código)" class="gt_row gt_right gt_striped">1</td>
-<td headers="Nível Territorial" class="gt_row gt_left gt_striped">Brasil</td>
-<td headers="Unidade de Medida (Código)" class="gt_row gt_right gt_striped">38</td>
-<td headers="Unidade de Medida" class="gt_row gt_left gt_striped">Reais</td>
-<td headers="Valor" class="gt_row gt_right gt_striped">915.79</td></tr>
-    <tr><td headers="Nível Territorial (Código)" class="gt_row gt_right">1</td>
-<td headers="Nível Territorial" class="gt_row gt_left">Brasil</td>
-<td headers="Unidade de Medida (Código)" class="gt_row gt_right">38</td>
-<td headers="Unidade de Medida" class="gt_row gt_left">Reais</td>
-<td headers="Valor" class="gt_row gt_right">609.69</td></tr>
-    <tr><td headers="Nível Territorial (Código)" class="gt_row gt_right gt_striped">1</td>
-<td headers="Nível Territorial" class="gt_row gt_left gt_striped">Brasil</td>
-<td headers="Unidade de Medida (Código)" class="gt_row gt_right gt_striped">30</td>
-<td headers="Unidade de Medida" class="gt_row gt_left gt_striped">Número-índice</td>
-<td headers="Valor" class="gt_row gt_right gt_striped">763.46</td></tr>
-    <tr><td headers="Nível Territorial (Código)" class="gt_row gt_right">1</td>
-<td headers="Nível Territorial" class="gt_row gt_left">Brasil</td>
-<td headers="Unidade de Medida (Código)" class="gt_row gt_right">30</td>
-<td headers="Unidade de Medida" class="gt_row gt_left">Número-índice</td>
-<td headers="Valor" class="gt_row gt_right">693.71</td></tr>
-    <tr><td headers="Nível Territorial (Código)" class="gt_row gt_right gt_striped">1</td>
-<td headers="Nível Territorial" class="gt_row gt_left gt_striped">Brasil</td>
-<td headers="Unidade de Medida (Código)" class="gt_row gt_right gt_striped">30</td>
-<td headers="Unidade de Medida" class="gt_row gt_left gt_striped">Número-índice</td>
-<td headers="Valor" class="gt_row gt_right gt_striped">962.09</td></tr>
-  </tbody>
-  
-  
+
+<table class="gt_table caption-top table table-sm table-striped small" data-quarto-postprocess="true" data-quarto-disable-processing="false" data-quarto-bootstrap="false">
+<thead>
+<tr class="gt_col_headings header">
+<th id="Nível Territorial (Código)" class="gt_col_heading gt_columns_bottom_border gt_right" data-quarto-table-cell-role="th" scope="col">Nível Territorial (Código)</th>
+<th id="Nível Territorial" class="gt_col_heading gt_columns_bottom_border gt_left" data-quarto-table-cell-role="th" scope="col">Nível Territorial</th>
+<th id="Unidade de Medida (Código)" class="gt_col_heading gt_columns_bottom_border gt_right" data-quarto-table-cell-role="th" scope="col">Unidade de Medida (Código)</th>
+<th id="Unidade de Medida" class="gt_col_heading gt_columns_bottom_border gt_left" data-quarto-table-cell-role="th" scope="col">Unidade de Medida</th>
+<th id="Valor" class="gt_col_heading gt_columns_bottom_border gt_right" data-quarto-table-cell-role="th" scope="col">Valor</th>
+</tr>
+</thead>
+<tbody class="gt_table_body">
+<tr class="odd">
+<td class="gt_row gt_right" headers="Nível Territorial (Código)">1</td>
+<td class="gt_row gt_left" headers="Nível Territorial">Brasil</td>
+<td class="gt_row gt_right" headers="Unidade de Medida (Código)">38</td>
+<td class="gt_row gt_left" headers="Unidade de Medida">Reais</td>
+<td class="gt_row gt_right" headers="Valor">1525.48</td>
+</tr>
+<tr class="even">
+<td class="gt_row gt_right gt_striped" headers="Nível Territorial (Código)">1</td>
+<td class="gt_row gt_left gt_striped" headers="Nível Territorial">Brasil</td>
+<td class="gt_row gt_right gt_striped" headers="Unidade de Medida (Código)">38</td>
+<td class="gt_row gt_left gt_striped" headers="Unidade de Medida">Reais</td>
+<td class="gt_row gt_right gt_striped" headers="Valor">915.79</td>
+</tr>
+<tr class="odd">
+<td class="gt_row gt_right" headers="Nível Territorial (Código)">1</td>
+<td class="gt_row gt_left" headers="Nível Territorial">Brasil</td>
+<td class="gt_row gt_right" headers="Unidade de Medida (Código)">38</td>
+<td class="gt_row gt_left" headers="Unidade de Medida">Reais</td>
+<td class="gt_row gt_right" headers="Valor">609.69</td>
+</tr>
+<tr class="even">
+<td class="gt_row gt_right gt_striped" headers="Nível Territorial (Código)">1</td>
+<td class="gt_row gt_left gt_striped" headers="Nível Territorial">Brasil</td>
+<td class="gt_row gt_right gt_striped" headers="Unidade de Medida (Código)">30</td>
+<td class="gt_row gt_left gt_striped" headers="Unidade de Medida">Número-índice</td>
+<td class="gt_row gt_right gt_striped" headers="Valor">763.46</td>
+</tr>
+<tr class="odd">
+<td class="gt_row gt_right" headers="Nível Territorial (Código)">1</td>
+<td class="gt_row gt_left" headers="Nível Territorial">Brasil</td>
+<td class="gt_row gt_right" headers="Unidade de Medida (Código)">30</td>
+<td class="gt_row gt_left" headers="Unidade de Medida">Número-índice</td>
+<td class="gt_row gt_right" headers="Valor">693.71</td>
+</tr>
+<tr class="even">
+<td class="gt_row gt_right gt_striped" headers="Nível Territorial (Código)">1</td>
+<td class="gt_row gt_left gt_striped" headers="Nível Territorial">Brasil</td>
+<td class="gt_row gt_right gt_striped" headers="Unidade de Medida (Código)">30</td>
+<td class="gt_row gt_left gt_striped" headers="Unidade de Medida">Número-índice</td>
+<td class="gt_row gt_right gt_striped" headers="Valor">962.09</td>
+</tr>
+</tbody>
 </table>
+
 </div>
 </div>
 </div>
@@ -811,7 +838,6 @@ gtag('config', 'G-EJF8PGT67H', { 'anonymize_ip': true});
 </div>
 <div class="cell">
 <div class="cell-output-display">
-
 <div id="layxvkljtw" style="padding-left:0px;padding-right:0px;padding-top:10px;padding-bottom:10px;overflow-x:auto;overflow-y:auto;width:auto;height:auto;">
 <style>#layxvkljtw table {
   font-family: system-ui, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
@@ -1252,51 +1278,63 @@ gtag('config', 'G-EJF8PGT67H', { 'anonymize_ip': true});
   text-indent: 25px;
 }
 </style>
-<table class="gt_table" data-quarto-disable-processing="false" data-quarto-bootstrap="false">
-  <thead>
-    <tr class="gt_col_headings">
-      <th class="gt_col_heading gt_columns_bottom_border gt_right" rowspan="1" colspan="1" scope="col" id="Nível Territorial (Código)">Nível Territorial (Código)</th>
-      <th class="gt_col_heading gt_columns_bottom_border gt_left" rowspan="1" colspan="1" scope="col" id="Nível Territorial">Nível Territorial</th>
-      <th class="gt_col_heading gt_columns_bottom_border gt_right" rowspan="1" colspan="1" scope="col" id="Unidade de Medida (Código)">Unidade de Medida (Código)</th>
-      <th class="gt_col_heading gt_columns_bottom_border gt_left" rowspan="1" colspan="1" scope="col" id="Unidade de Medida">Unidade de Medida</th>
-      <th class="gt_col_heading gt_columns_bottom_border gt_right" rowspan="1" colspan="1" scope="col" id="valor">valor</th>
-    </tr>
-  </thead>
-  <tbody class="gt_table_body">
-    <tr><td headers="Nível Territorial (Código)" class="gt_row gt_right">1</td>
-<td headers="Nível Territorial" class="gt_row gt_left">Brasil</td>
-<td headers="Unidade de Medida (Código)" class="gt_row gt_right">38</td>
-<td headers="Unidade de Medida" class="gt_row gt_left">Reais</td>
-<td headers="valor" class="gt_row gt_right">1525.48</td></tr>
-    <tr><td headers="Nível Territorial (Código)" class="gt_row gt_right gt_striped">1</td>
-<td headers="Nível Territorial" class="gt_row gt_left gt_striped">Brasil</td>
-<td headers="Unidade de Medida (Código)" class="gt_row gt_right gt_striped">38</td>
-<td headers="Unidade de Medida" class="gt_row gt_left gt_striped">Reais</td>
-<td headers="valor" class="gt_row gt_right gt_striped">915.79</td></tr>
-    <tr><td headers="Nível Territorial (Código)" class="gt_row gt_right">1</td>
-<td headers="Nível Territorial" class="gt_row gt_left">Brasil</td>
-<td headers="Unidade de Medida (Código)" class="gt_row gt_right">38</td>
-<td headers="Unidade de Medida" class="gt_row gt_left">Reais</td>
-<td headers="valor" class="gt_row gt_right">609.69</td></tr>
-    <tr><td headers="Nível Territorial (Código)" class="gt_row gt_right gt_striped">1</td>
-<td headers="Nível Territorial" class="gt_row gt_left gt_striped">Brasil</td>
-<td headers="Unidade de Medida (Código)" class="gt_row gt_right gt_striped">30</td>
-<td headers="Unidade de Medida" class="gt_row gt_left gt_striped">Número-índice</td>
-<td headers="valor" class="gt_row gt_right gt_striped">763.46</td></tr>
-    <tr><td headers="Nível Territorial (Código)" class="gt_row gt_right">1</td>
-<td headers="Nível Territorial" class="gt_row gt_left">Brasil</td>
-<td headers="Unidade de Medida (Código)" class="gt_row gt_right">30</td>
-<td headers="Unidade de Medida" class="gt_row gt_left">Número-índice</td>
-<td headers="valor" class="gt_row gt_right">693.71</td></tr>
-    <tr><td headers="Nível Territorial (Código)" class="gt_row gt_right gt_striped">1</td>
-<td headers="Nível Territorial" class="gt_row gt_left gt_striped">Brasil</td>
-<td headers="Unidade de Medida (Código)" class="gt_row gt_right gt_striped">30</td>
-<td headers="Unidade de Medida" class="gt_row gt_left gt_striped">Número-índice</td>
-<td headers="valor" class="gt_row gt_right gt_striped">962.09</td></tr>
-  </tbody>
-  
-  
+
+<table class="gt_table caption-top table table-sm table-striped small" data-quarto-postprocess="true" data-quarto-disable-processing="false" data-quarto-bootstrap="false">
+<thead>
+<tr class="gt_col_headings header">
+<th id="Nível Territorial (Código)" class="gt_col_heading gt_columns_bottom_border gt_right" data-quarto-table-cell-role="th" scope="col">Nível Territorial (Código)</th>
+<th id="Nível Territorial" class="gt_col_heading gt_columns_bottom_border gt_left" data-quarto-table-cell-role="th" scope="col">Nível Territorial</th>
+<th id="Unidade de Medida (Código)" class="gt_col_heading gt_columns_bottom_border gt_right" data-quarto-table-cell-role="th" scope="col">Unidade de Medida (Código)</th>
+<th id="Unidade de Medida" class="gt_col_heading gt_columns_bottom_border gt_left" data-quarto-table-cell-role="th" scope="col">Unidade de Medida</th>
+<th id="valor" class="gt_col_heading gt_columns_bottom_border gt_right" data-quarto-table-cell-role="th" scope="col">valor</th>
+</tr>
+</thead>
+<tbody class="gt_table_body">
+<tr class="odd">
+<td class="gt_row gt_right" headers="Nível Territorial (Código)">1</td>
+<td class="gt_row gt_left" headers="Nível Territorial">Brasil</td>
+<td class="gt_row gt_right" headers="Unidade de Medida (Código)">38</td>
+<td class="gt_row gt_left" headers="Unidade de Medida">Reais</td>
+<td class="gt_row gt_right" headers="valor">1525.48</td>
+</tr>
+<tr class="even">
+<td class="gt_row gt_right gt_striped" headers="Nível Territorial (Código)">1</td>
+<td class="gt_row gt_left gt_striped" headers="Nível Territorial">Brasil</td>
+<td class="gt_row gt_right gt_striped" headers="Unidade de Medida (Código)">38</td>
+<td class="gt_row gt_left gt_striped" headers="Unidade de Medida">Reais</td>
+<td class="gt_row gt_right gt_striped" headers="valor">915.79</td>
+</tr>
+<tr class="odd">
+<td class="gt_row gt_right" headers="Nível Territorial (Código)">1</td>
+<td class="gt_row gt_left" headers="Nível Territorial">Brasil</td>
+<td class="gt_row gt_right" headers="Unidade de Medida (Código)">38</td>
+<td class="gt_row gt_left" headers="Unidade de Medida">Reais</td>
+<td class="gt_row gt_right" headers="valor">609.69</td>
+</tr>
+<tr class="even">
+<td class="gt_row gt_right gt_striped" headers="Nível Territorial (Código)">1</td>
+<td class="gt_row gt_left gt_striped" headers="Nível Territorial">Brasil</td>
+<td class="gt_row gt_right gt_striped" headers="Unidade de Medida (Código)">30</td>
+<td class="gt_row gt_left gt_striped" headers="Unidade de Medida">Número-índice</td>
+<td class="gt_row gt_right gt_striped" headers="valor">763.46</td>
+</tr>
+<tr class="odd">
+<td class="gt_row gt_right" headers="Nível Territorial (Código)">1</td>
+<td class="gt_row gt_left" headers="Nível Territorial">Brasil</td>
+<td class="gt_row gt_right" headers="Unidade de Medida (Código)">30</td>
+<td class="gt_row gt_left" headers="Unidade de Medida">Número-índice</td>
+<td class="gt_row gt_right" headers="valor">693.71</td>
+</tr>
+<tr class="even">
+<td class="gt_row gt_right gt_striped" headers="Nível Territorial (Código)">1</td>
+<td class="gt_row gt_left gt_striped" headers="Nível Territorial">Brasil</td>
+<td class="gt_row gt_right gt_striped" headers="Unidade de Medida (Código)">30</td>
+<td class="gt_row gt_left gt_striped" headers="Unidade de Medida">Número-índice</td>
+<td class="gt_row gt_right gt_striped" headers="valor">962.09</td>
+</tr>
+</tbody>
 </table>
+
 </div>
 </div>
 </div>
@@ -1311,7 +1349,6 @@ gtag('config', 'G-EJF8PGT67H', { 'anonymize_ip': true});
 </div>
 <div class="cell">
 <div class="cell-output-display">
-
 <div id="kduqhthctx" style="padding-left:0px;padding-right:0px;padding-top:10px;padding-bottom:10px;overflow-x:auto;overflow-y:auto;width:auto;height:auto;">
 <style>#kduqhthctx table {
   font-family: system-ui, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
@@ -1752,51 +1789,63 @@ gtag('config', 'G-EJF8PGT67H', { 'anonymize_ip': true});
   text-indent: 25px;
 }
 </style>
-<table class="gt_table" data-quarto-disable-processing="false" data-quarto-bootstrap="false">
-  <thead>
-    <tr class="gt_col_headings">
-      <th class="gt_col_heading gt_columns_bottom_border gt_right" rowspan="1" colspan="1" scope="col" id="Nível Territorial (Código)">Nível Territorial (Código)</th>
-      <th class="gt_col_heading gt_columns_bottom_border gt_left" rowspan="1" colspan="1" scope="col" id="nivel_territorial">nivel_territorial</th>
-      <th class="gt_col_heading gt_columns_bottom_border gt_right" rowspan="1" colspan="1" scope="col" id="code_unit">code_unit</th>
-      <th class="gt_col_heading gt_columns_bottom_border gt_left" rowspan="1" colspan="1" scope="col" id="Unidade de Medida">Unidade de Medida</th>
-      <th class="gt_col_heading gt_columns_bottom_border gt_right" rowspan="1" colspan="1" scope="col" id="valor">valor</th>
-    </tr>
-  </thead>
-  <tbody class="gt_table_body">
-    <tr><td headers="Nível Territorial (Código)" class="gt_row gt_right">1</td>
-<td headers="nivel_territorial" class="gt_row gt_left">Brasil</td>
-<td headers="code_unit" class="gt_row gt_right">38</td>
-<td headers="Unidade de Medida" class="gt_row gt_left">Reais</td>
-<td headers="valor" class="gt_row gt_right">1525.48</td></tr>
-    <tr><td headers="Nível Territorial (Código)" class="gt_row gt_right gt_striped">1</td>
-<td headers="nivel_territorial" class="gt_row gt_left gt_striped">Brasil</td>
-<td headers="code_unit" class="gt_row gt_right gt_striped">38</td>
-<td headers="Unidade de Medida" class="gt_row gt_left gt_striped">Reais</td>
-<td headers="valor" class="gt_row gt_right gt_striped">915.79</td></tr>
-    <tr><td headers="Nível Territorial (Código)" class="gt_row gt_right">1</td>
-<td headers="nivel_territorial" class="gt_row gt_left">Brasil</td>
-<td headers="code_unit" class="gt_row gt_right">38</td>
-<td headers="Unidade de Medida" class="gt_row gt_left">Reais</td>
-<td headers="valor" class="gt_row gt_right">609.69</td></tr>
-    <tr><td headers="Nível Territorial (Código)" class="gt_row gt_right gt_striped">1</td>
-<td headers="nivel_territorial" class="gt_row gt_left gt_striped">Brasil</td>
-<td headers="code_unit" class="gt_row gt_right gt_striped">30</td>
-<td headers="Unidade de Medida" class="gt_row gt_left gt_striped">Número-índice</td>
-<td headers="valor" class="gt_row gt_right gt_striped">763.46</td></tr>
-    <tr><td headers="Nível Territorial (Código)" class="gt_row gt_right">1</td>
-<td headers="nivel_territorial" class="gt_row gt_left">Brasil</td>
-<td headers="code_unit" class="gt_row gt_right">30</td>
-<td headers="Unidade de Medida" class="gt_row gt_left">Número-índice</td>
-<td headers="valor" class="gt_row gt_right">693.71</td></tr>
-    <tr><td headers="Nível Territorial (Código)" class="gt_row gt_right gt_striped">1</td>
-<td headers="nivel_territorial" class="gt_row gt_left gt_striped">Brasil</td>
-<td headers="code_unit" class="gt_row gt_right gt_striped">30</td>
-<td headers="Unidade de Medida" class="gt_row gt_left gt_striped">Número-índice</td>
-<td headers="valor" class="gt_row gt_right gt_striped">962.09</td></tr>
-  </tbody>
-  
-  
+
+<table class="gt_table caption-top table table-sm table-striped small" data-quarto-postprocess="true" data-quarto-disable-processing="false" data-quarto-bootstrap="false">
+<thead>
+<tr class="gt_col_headings header">
+<th id="Nível Territorial (Código)" class="gt_col_heading gt_columns_bottom_border gt_right" data-quarto-table-cell-role="th" scope="col">Nível Territorial (Código)</th>
+<th id="nivel_territorial" class="gt_col_heading gt_columns_bottom_border gt_left" data-quarto-table-cell-role="th" scope="col">nivel_territorial</th>
+<th id="code_unit" class="gt_col_heading gt_columns_bottom_border gt_right" data-quarto-table-cell-role="th" scope="col">code_unit</th>
+<th id="Unidade de Medida" class="gt_col_heading gt_columns_bottom_border gt_left" data-quarto-table-cell-role="th" scope="col">Unidade de Medida</th>
+<th id="valor" class="gt_col_heading gt_columns_bottom_border gt_right" data-quarto-table-cell-role="th" scope="col">valor</th>
+</tr>
+</thead>
+<tbody class="gt_table_body">
+<tr class="odd">
+<td class="gt_row gt_right" headers="Nível Territorial (Código)">1</td>
+<td class="gt_row gt_left" headers="nivel_territorial">Brasil</td>
+<td class="gt_row gt_right" headers="code_unit">38</td>
+<td class="gt_row gt_left" headers="Unidade de Medida">Reais</td>
+<td class="gt_row gt_right" headers="valor">1525.48</td>
+</tr>
+<tr class="even">
+<td class="gt_row gt_right gt_striped" headers="Nível Territorial (Código)">1</td>
+<td class="gt_row gt_left gt_striped" headers="nivel_territorial">Brasil</td>
+<td class="gt_row gt_right gt_striped" headers="code_unit">38</td>
+<td class="gt_row gt_left gt_striped" headers="Unidade de Medida">Reais</td>
+<td class="gt_row gt_right gt_striped" headers="valor">915.79</td>
+</tr>
+<tr class="odd">
+<td class="gt_row gt_right" headers="Nível Territorial (Código)">1</td>
+<td class="gt_row gt_left" headers="nivel_territorial">Brasil</td>
+<td class="gt_row gt_right" headers="code_unit">38</td>
+<td class="gt_row gt_left" headers="Unidade de Medida">Reais</td>
+<td class="gt_row gt_right" headers="valor">609.69</td>
+</tr>
+<tr class="even">
+<td class="gt_row gt_right gt_striped" headers="Nível Territorial (Código)">1</td>
+<td class="gt_row gt_left gt_striped" headers="nivel_territorial">Brasil</td>
+<td class="gt_row gt_right gt_striped" headers="code_unit">30</td>
+<td class="gt_row gt_left gt_striped" headers="Unidade de Medida">Número-índice</td>
+<td class="gt_row gt_right gt_striped" headers="valor">763.46</td>
+</tr>
+<tr class="odd">
+<td class="gt_row gt_right" headers="Nível Territorial (Código)">1</td>
+<td class="gt_row gt_left" headers="nivel_territorial">Brasil</td>
+<td class="gt_row gt_right" headers="code_unit">30</td>
+<td class="gt_row gt_left" headers="Unidade de Medida">Número-índice</td>
+<td class="gt_row gt_right" headers="valor">693.71</td>
+</tr>
+<tr class="even">
+<td class="gt_row gt_right gt_striped" headers="Nível Territorial (Código)">1</td>
+<td class="gt_row gt_left gt_striped" headers="nivel_territorial">Brasil</td>
+<td class="gt_row gt_right gt_striped" headers="code_unit">30</td>
+<td class="gt_row gt_left gt_striped" headers="Unidade de Medida">Número-índice</td>
+<td class="gt_row gt_right gt_striped" headers="valor">962.09</td>
+</tr>
+</tbody>
 </table>
+
 </div>
 </div>
 </div>
@@ -2206,18 +2255,7 @@ window.document.addEventListener("DOMContentLoaded", function (event) {
     }
     return false;
   }
-  const clipboard = new window.ClipboardJS('.code-copy-button', {
-    text: function(trigger) {
-      const codeEl = trigger.previousElementSibling.cloneNode(true);
-      for (const childEl of codeEl.children) {
-        if (isCodeAnnotation(childEl)) {
-          childEl.remove();
-        }
-      }
-      return codeEl.innerText;
-    }
-  });
-  clipboard.on('success', function(e) {
+  const onCopySuccess = function(e) {
     // button target
     const button = e.trigger;
     // don't keep focus
@@ -2249,11 +2287,48 @@ window.document.addEventListener("DOMContentLoaded", function (event) {
     }, 1000);
     // clear code selection
     e.clearSelection();
+  }
+  const getTextToCopy = function(trigger) {
+      const codeEl = trigger.previousElementSibling.cloneNode(true);
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+  }
+  const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+    text: getTextToCopy
   });
-  function tippyHover(el, contentFn) {
+  clipboard.on('success', onCopySuccess);
+  if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+    const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+      text: getTextToCopy,
+      container: window.document.getElementById('quarto-embedded-source-code-modal')
+    });
+    clipboardModal.on('success', onCopySuccess);
+  }
+    var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+    var mailtoRegex = new RegExp(/^mailto:/);
+      var filterRegex = new RegExp("https::\/\/www\.restateinsight\.com");
+    var isInternal = (href) => {
+        return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+    }
+    // Inspect non-navigation links and adorn them if external
+ 	var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+    for (var i=0; i<links.length; i++) {
+      const link = links[i];
+      if (!isInternal(link.href)) {
+        // undo the damage that might have been done by quarto-nav.js in the case of
+        // links that we want to consider external
+        if (link.dataset.originalHref !== undefined) {
+          link.href = link.dataset.originalHref;
+        }
+      }
+    }
+  function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
     const config = {
       allowHTML: true,
-      content: contentFn,
       maxWidth: 500,
       delay: 100,
       arrow: false,
@@ -2263,8 +2338,17 @@ window.document.addEventListener("DOMContentLoaded", function (event) {
       interactive: true,
       interactiveBorder: 10,
       theme: 'quarto',
-      placement: 'bottom-start'
+      placement: 'bottom-start',
     };
+    if (contentFn) {
+      config.content = contentFn;
+    }
+    if (onTriggerFn) {
+      config.onTrigger = onTriggerFn;
+    }
+    if (onUntriggerFn) {
+      config.onUntrigger = onUntriggerFn;
+    }
     window.tippy(el, config); 
   }
   const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
@@ -2276,7 +2360,129 @@ window.document.addEventListener("DOMContentLoaded", function (event) {
       try { href = new URL(href).hash; } catch {}
       const id = href.replace(/^#\/?/, "");
       const note = window.document.getElementById(id);
-      return note.innerHTML;
+      if (note) {
+        return note.innerHTML;
+      } else {
+        return "";
+      }
+    });
+  }
+  const xrefs = window.document.querySelectorAll('a.quarto-xref');
+  const processXRef = (id, note) => {
+    // Strip column container classes
+    const stripColumnClz = (el) => {
+      el.classList.remove("page-full", "page-columns");
+      if (el.children) {
+        for (const child of el.children) {
+          stripColumnClz(child);
+        }
+      }
+    }
+    stripColumnClz(note)
+    if (id === null || id.startsWith('sec-')) {
+      // Special case sections, only their first couple elements
+      const container = document.createElement("div");
+      if (note.children && note.children.length > 2) {
+        container.appendChild(note.children[0].cloneNode(true));
+        for (let i = 1; i < note.children.length; i++) {
+          const child = note.children[i];
+          if (child.tagName === "P" && child.innerText === "") {
+            continue;
+          } else {
+            container.appendChild(child.cloneNode(true));
+            break;
+          }
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(container);
+        }
+        return container.innerHTML
+      } else {
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        return note.innerHTML;
+      }
+    } else {
+      // Remove any anchor links if they are present
+      const anchorLink = note.querySelector('a.anchorjs-link');
+      if (anchorLink) {
+        anchorLink.remove();
+      }
+      if (window.Quarto?.typesetMath) {
+        window.Quarto.typesetMath(note);
+      }
+      if (note.classList.contains("callout")) {
+        return note.outerHTML;
+      } else {
+        return note.innerHTML;
+      }
+    }
+  }
+  for (var i=0; i<xrefs.length; i++) {
+    const xref = xrefs[i];
+    tippyHover(xref, undefined, function(instance) {
+      instance.disable();
+      let url = xref.getAttribute('href');
+      let hash = undefined; 
+      if (url.startsWith('#')) {
+        hash = url;
+      } else {
+        try { hash = new URL(url).hash; } catch {}
+      }
+      if (hash) {
+        const id = hash.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note !== null) {
+          try {
+            const html = processXRef(id, note.cloneNode(true));
+            instance.setContent(html);
+          } finally {
+            instance.enable();
+            instance.show();
+          }
+        } else {
+          // See if we can fetch this
+          fetch(url.split('#')[0])
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.getElementById(id);
+            if (note !== null) {
+              const html = processXRef(id, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      } else {
+        // See if we can fetch a full url (with no hash to target)
+        // This is a special case and we should probably do some content thinning / targeting
+        fetch(url)
+        .then(res => res.text())
+        .then(html => {
+          const parser = new DOMParser();
+          const htmlDoc = parser.parseFromString(html, "text/html");
+          const note = htmlDoc.querySelector('main.content');
+          if (note !== null) {
+            // This should only happen for chapter cross references
+            // (since there is no id in the URL)
+            // remove the first header
+            if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+              note.children[0].remove();
+            }
+            const html = processXRef(null, note);
+            instance.setContent(html);
+          } 
+        }).finally(() => {
+          instance.enable();
+          instance.show();
+        });
+      }
+    }, function(instance) {
     });
   }
       let selectedAnnoteEl;
@@ -2320,6 +2526,7 @@ window.document.addEventListener("DOMContentLoaded", function (event) {
             }
             div.style.top = top - 2 + "px";
             div.style.height = height + 4 + "px";
+            div.style.left = 0;
             let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
             if (gutterDiv === null) {
               gutterDiv = window.document.createElement("div");
@@ -2345,6 +2552,32 @@ window.document.addEventListener("DOMContentLoaded", function (event) {
         });
         selectedAnnoteEl = undefined;
       };
+        // Handle positioning of the toggle
+    window.addEventListener(
+      "resize",
+      throttle(() => {
+        elRect = undefined;
+        if (selectedAnnoteEl) {
+          selectCodeLines(selectedAnnoteEl);
+        }
+      }, 10)
+    );
+    function throttle(fn, ms) {
+    let throttle = false;
+    let timer;
+      return (...args) => {
+        if(!throttle) { // first call gets through
+            fn.apply(this, args);
+            throttle = true;
+        } else { // all the others get throttled
+            if(timer) clearTimeout(timer); // cancel #2
+            timer = setTimeout(() => {
+              fn.apply(this, args);
+              timer = throttle = false;
+            }, ms);
+        }
+      };
+    }
       // Attach click handler to the DT
       const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
       for (const annoteDlNode of annoteDls) {
@@ -2406,7 +2639,10 @@ window.document.addEventListener("DOMContentLoaded", function (event) {
 </script>
 <script src="https://giscus.app/client.js" data-repo="viniciusoike/restateinsight" data-repo-id="R_kgDOJ9Lnfw" data-category="General" data-category-id="" data-mapping="title" data-reactions-enabled="1" data-emit-metadata="0" data-input-position="top" data-theme="light" data-lang="en" crossorigin="anonymous" async="">
 </script>
+<input type="hidden" id="giscus-base-theme" value="light">
+<input type="hidden" id="giscus-alt-theme" value="dark">
 </div> <!-- /content -->
+
 
 
 
