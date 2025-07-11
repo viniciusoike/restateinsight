@@ -3,325 +3,223 @@ title: "Razão de Dependência nos Estados do Brasil"
 date: "2024-04-04"
 description: ""
 categories: ['data-visualization', 'ggplot2', 'censo', 'brasil', 'demografia']
+format:
+  html:
+    toc: false
+    fig-format: svg
 execute: 
   message: false
   warning: false
-  eval: false
-draft: true
+  echo: false
 ---
 
-```{r, setup}
-library(sf)
-library(dplyr)
-library(tidyr)
-library(gt)
-library(gtExtras)
-font_add_google("Lato", "Lato")
-showtext_auto()
-```
-
 ```{r}
-state_border = geobr::read_state(showProgress = FALSE)
-dim_state = as_tibble(st_drop_geometry(state_border))
+files <- readr::read_rds(here::here("posts/general-posts/2024-04-states-tdr/files.rds"))
 ```
-
-```{r}
-codes = c(93070, 93084:93098, 49108, 49109, 60040, 60041, 6653)
-
-tab_population = sidrar::get_sidra(
-  9514,
-  variable = 93,
-  geo = "State",
-  classific = "c287",
-  category = list(codes)
-  )
-```
-
-```{r}
-tab_pop <- tab_population |> 
-  janitor::clean_names() |> 
-  as_tibble() |> 
-  filter(sexo == "Total", forma_de_declaracao_da_idade == "Total") |> 
-  select(
-    code_state = unidade_da_federacao_codigo,
-    age_group = idade,
-    count = valor
-    )
-
-tab_pop <- tab_pop |> 
-  mutate(
-    code_state = as.numeric(code_state),
-    age_min = as.numeric(str_extract(age_group, "\\d+")),
-    age_group = factor(age_group),
-    age_group = fct_reorder(age_group, age_min),
-    age_ibge = case_when(
-      age_min < 15 ~ "young",
-      age_min >= 15 & age_min < 65 ~ "adult",
-      age_min >= 65 ~ "elder"
-    ),
-    factor(age_ibge, levels = c("young", "adult", "elder"))
-  )
-
-pop_state <- tab_pop %>%
-  summarise(
-    total = sum(count), .by = c("age_ibge", "code_state")
-  ) %>%
-  pivot_wider(
-    id_cols = "code_state",
-    names_from = "age_ibge",
-    values_from = "total"
-    ) %>%
-  mutate(
-    dre = elder / adult,
-    dry = young / adult,
-    tdr = dre + dry
-  )
-
-tab_pop_state <- left_join(dim_state, pop_state, by = "code_state")
-pop <- left_join(state_border, pop_state, by = "code_state")
-```
-
-```{r}
-pal <- colorNumeric("Blues", pop$tdr)
-
-leaflet() |> 
-  addTiles() |> 
-  addPolygons()
-```
-
-
-
-```{r}
-dep_biclass <- bi_class(pop, dre, dry, dim = 3, style = "quantile")
-
-p_map <- ggplot(dep_biclass) +
-  geom_sf(
-    aes(fill = bi_class),
-    color = "white",
-    lwd = 0.2,
-    show.legend = FALSE
-    ) +
-  coord_sf(xlim = c(NA, -35)) +
-  bi_scale_fill(pal = "GrPink", dim = 3) +
-  bi_theme()
-
-p_legend <- bi_legend(
-  pal = "GrPink",
-  dim = 3,
-  xlab = "Idoso (%)",
-  ylab = "Jovem (%)",
-  size = 8
-  )
-
-map_states <- p_map + inset_element(p_legend, 0, 0.1, 0.35, 0.45)
-
-plot_map <- map_states + plot_annotation(
-  title = "Razão de Dependência",
-  subtitle = "Razão de dependência jovem e idosa no Brasil (2022)."
-) &
-  theme(
-    plot.title = element_text(size = 18, family = "Lato", hjust = 0.5),
-    plot.subtitle = element_text(family = "Lato", hjust = 0.5)
-  )
-```
-
-```{r, gt-population}
-tab <- tab_pop_state |> 
-  mutate(population = young + adult + elder) |>
-  mutate(across(dre:tdr, ~.x * 100)) |> 
-  select(name_state, dre, dry, tdr, population) |> 
-  arrange(desc(tdr))
-
-table_population <- gt(tab) |> 
-  cols_label(
-    name_state = "Nome UF",
-    dre = "Idoso",
-    dry = "Jovem",
-    tdr = "Total",
-    population = "População"
-  ) |> 
-  tab_spanner(label = "Razão de Dependência", 2:4) |> 
-  fmt_number(2:4, decimals = 1, dec_mark = ",") |> 
-  fmt_number(5, decimals = 0, sep_mark = ".") |> 
-  opt_stylize(style = 6) |> 
-  opt_table_font(font = google_font("Questrial"))
-```
-
-```{r, funs-state-pop}
-get_population <- function(state) {
-  
-  tab_population = sidrar::get_sidra(
-    9514,
-    variable = 93,
-    geo = "State",
-    geo.filter = list("State" = state)
-  )
-  
-  return(tab_population)
-  
-}
-
-clean_population <- function(dat, group_var) {
-  
-  tab_pop = dat |> 
-    janitor::clean_names() |> 
-    tidyr::as_tibble() |> 
-    dplyr::filter(
-      sexo != "Total",
-      forma_de_declaracao_da_idade == "Total",
-      idade_codigo %in% codes) |> 
-    dplyr::select(
-      code_state = unidade_da_federacao_codigo,
-      age_group = idade,
-      sex = sexo,
-      count = valor
-      )
-
-  tab_pop <- tab_pop |> 
-   dplyr::mutate(
-      code_state = as.numeric(code_state),
-      age_min = as.numeric(stringr::str_extract(age_group, "\\d+")),
-      age_group = factor(age_group),
-      age_group = forcats::fct_reorder(age_group, age_min),
-      sex = factor(sex,
-                   levels = c("Homens", "Mulheres"),
-                   labels = c("Masculino", "Feminino")
-                   )
-    ) |> 
-    dplyr::mutate(share = count / sum(count) * 100, .by = "sex") |> 
-    dplyr::mutate(share = dplyr::if_else(sex == "Masculino", -share, share))
-  
-  return(tab_pop)
-  
-}
-```
-
-```{r, params-state-pop}
-states <- c(13, 22, 43, 42)
-ls_population <- lapply(states, get_population)
-ls_population <- lapply(ls_population, clean_population)
-dat_pop <- bind_rows(ls_population)
-```
-
-```{r, plot-pyramid}
-sub <- dplyr::filter(dat_pop, code_state %in% states)
-
-sub <- sub |> 
-  mutate(
-    age_group_lump = if_else(age_min >= 80, "80 ou mais", age_group),
-    age_group_lump = str_remove(age_group_lump, " anos"),
-    age_group_lump = factor(age_group_lump),
-    age_group_lump = fct_reorder(age_group_lump, age_min),
-    .by = "code_state"
-    )
-
-sub <- left_join(sub, dim_state, by = "code_state")
-
-plot_pyramid <- ggplot(sub, aes(x = age_group_lump, y = share, fill = sex)) +
-  geom_col(alpha = 0.9) +
-  geom_hline(yintercept = 0) +
-  coord_flip() +
-  facet_wrap(vars(name_state)) +
-  scale_fill_manual(values = c("#e76f51", "#2a9d8f")) +
-  labs(
-    title = "Pirâmides demográficas",
-    subtitle = "",
-    x = NULL,
-    y = "(%)") +
-  guides(fill = "none") +
-  theme_minimal(base_family = "Lato", base_size = 10) +
-  theme(
-    panel.grid.minor = element_blank(),
-    axis.text.y = element_text(hjust = 0.5)
-  )
-```
-
-```{r, get-demographic-indicators}
-demographic <- get_sidra(7360, variable = 10609:10612, geo = "State")
-
-tab_demographic <- demographic %>%
-  janitor::clean_names() %>%
-  as_tibble() %>%
-  select(
-    code_state = unidade_da_federacao_codigo,
-    year = ano_2,
-    variable = variavel,
-    value = valor
-  ) %>%
-  mutate(year = as.numeric(year), code_state = as.numeric(code_state))
-
-tab_demographic_state <- left_join(tab_demographic, dim_state, by = "code_state")
-
-demographic <- get_sidra(7360, variable = 10609:10612, geo = "Region")
-
-tab_demographic <- demographic %>%
-  janitor::clean_names() %>%
-  as_tibble() %>%
-  select(
-    code_region = grande_regiao_codigo,
-    year = ano_2,
-    variable = variavel,
-    value = valor
-  ) %>%
-  mutate(year = as.numeric(year), code_region = as.numeric(code_region))
-
-dim_region <- distinct(dim_state, code_region, name_region)
-
-tab_demographic_region <- left_join(tab_demographic, dim_region, by = "code_region")
-```
-
-```{r, gt-table-region}
-table_region <- tab_demographic_region %>%
-  filter(year %in% seq(2010, 2060, 5), variable == "Razão de dependência total") %>%
-  pivot_wider(id_cols = "name_region", names_from = "year", values_from = "value") %>%
-  gt() %>%
-  cols_label(name_region = "Região") |> 
-  fmt_number(2:12, decimals = 1) |> 
-  opt_stylize(style = 6) |> 
-  opt_table_font(font = google_font("Questrial"))
-```
-
-```{r, plot-proj-region}
-plot_proj <- tab_demographic_region %>%
-  filter(variable != "Índice de envelhecimento") %>%
-  ggplot(aes(year, value, color = variable)) +
-  geom_line(lwd = 1) +
-  scale_color_manual(
-    name = "",
-    values = c("#264653", "#2a9d8f", "#e76f51"),
-    labels = c("RDI", "RDJ", "RDT")) +
-  facet_wrap(vars(name_region)) +
-  labs(
-    x = NULL,
-    y = NULL,
-    title = "Razão de Dependência Brasil",
-    subtitle = "Evolução da Razão de Dependência no Brasil 2000-2060",
-    caption = "Fonte: IBGE (Projeções da População)") +
-  theme_minimal(base_family = "Lato") +
-  theme(
-    panel.grid.minor = element_blank(),
-    legend.position = "top",
-    strip.text = element_text(size = 10),
-    axis.text.x = element_text(angle = 90)
-    )
-```
-
 
 # Razão de Dependência nos Estados do Brasil
 
-A razão de dependência mede a proporção da população que depende, num sentido amplo, do trabalho da população economicamente ativa. No Brasil, o IBGE define a Razão de Dependência Total (RDT), como a razão entre o número de jovens e idosos e o número de adultos (em idade de trabalhar). Como critério de corte, define-se jovem como uma pessoa com até 14 anos e idoso como uma pessoa com 65 anos ou mais.
+O envelhecimento populacional do Brasil parece ter entrado apenas recentemente no debate público. A discussão em torna de reforma previdenciária de 2017-18 trouxe à tona a trajetória de envelhecimento da população; o debate, contudo, acabou sendo excessivamente politizado e marcado por erros conceituais simples, como a [confusão entre expectativa de vida e expectativa de sobrevida](https://agenciabrasil.ebc.com.br/politica/noticia/2016-11/expectativa-de-vida-ao-nascer-nao-e-dado-adequado-para-discutir-previdencia).
 
-Formalmente, define-se a RDT como:
+Mais recentemente, o debate demográfico voltou à discussão após a surpreendente redução da população observada no [Censo de 2022](https://restateinsight.com/posts/general-posts/2023-10-censo-erros/). Também houve um significativo aumento do [índice de envelhecimento da população](https://restateinsight.com/posts/general-posts/2023-11-wz-census-ages/). Contudo, os sinais da desaceleração demográfica brasileira já estavam presentes há mais tempo. A taxa de fecundidade brasileira, que era de 6,3 filhos/mulher em 1960, caiu para 2,4 já em 2000 e atualmente está em 1,6 — valor bastante abaixo da taxa de resposição e próximo de países como França e Estados Unidos.
+
+O Brasil atravessa um momento único em sua história demográfica, experimentando simultaneamente o auge de sua população jovem e o início de um envelhecimento populacional acelerado. Com quase 100 milhões de habitantes entre 12 e 43 anos - as gerações Z e Millennials - o país dispõe da maior concentração de jovens de sua história, representando quase metade da população nacional. Paradoxalmente, as baixas taxas de fecundidade e o aumento de casais sem filhos indicam que esta será também a última grande geração jovem brasileira. Os números mais recentes da ONU projetam que a população idosa do Brasil deve crescer de 30 milhões para 50 milhões até 2050.
+
+Esta transição demográfica revela profundas disparidades regionais que espelham diferentes estágios de desenvolvimento socioeconômico. Enquanto o Norte mantém altas taxas de natalidade e baixa mortalidade, caracterizando uma população jovem em expansão, o Sul e Sudeste já apresentam baixas taxas de natalidade combinadas com alta mortalidade, sinalizando sociedades envelhecidas com transição demográfica avançada. O Índice de Envelhecimento nacional saltou de 13,9 para 55,2 entre 1991 e 2022, mas com variações regionais extremas - desde municípios amazônicos com predominância jovem até áreas do Sul onde já há mais idosos que jovens. Esta heterogeneidade demográfica representa tanto uma janela de oportunidade histórica quanto um desafio de planejamento que exigirá políticas públicas regionalizadas e coordenadas para aproveitar o bônus demográfico atual e preparar o país para uma sociedade crescentemente envelhecida.
+
+### A Maior Geração de Jovens e o Envelhecimento
+
+------------------------------------------------------------------------
+
+O Brasil está num momento singular na sua transição demográfica. Ao mesmo tempo em que a população está envelhecendo e menos pessoas estão nascendo, temos a [maior geração de jovens da nossa história](https://restateinsight.com/posts/general-posts/2024-05-generations-brazil/).
+
+::: {.grid}
+::: {.g-col-4}
+Quase metade da população brasileira, atualmente, tem entre 12 e 43 anos. Conhecidas como Geração-Z e Millenialls, estes jovens e jovens-adultos somam quase 100 milhões de habitantes.
+
+A baixa taxa de fecundidade e o aumento de casais sem filhos, contudo, indica que haverá menos jovens no futuro. Os maiores de 60 anos representam cerca de 30 milhões (15% da população), mas devem somar 50 milhões já em 2050.
+:::
+::: {.g-col-8}
+![](/_site/posts/general-posts/2024-05-generations-brazil/index_files/figure-html/unnamed-chunk-6-1.png){width="100%" fig-align='right'}
+:::
+:::
+
+::: {.column-margin}
+As gerações no gráfico seguem a definição do Beresford Research. Segundo o estudo, os Millenials (Geração Y) são aqueles nascidos entre 1981-96 enquanto a Geração-Z são aqueles nascidos entre 1997-2012.
+:::
+
+::: {.grid}
+::: {.g-col-4}
+O envelhecimento da população é uma realidade nacional, como mostra a evolução do Índice de Envelhecimento (IE) de 13,9 em 1991 para 55,2 em 2022 - um crescimento de quase 300% em três décadas.
+
+A distribuição espacial revela forte contraste regional: o Norte mantém-se predominantemente jovem com IE entre 25-50, enquanto o Sul e o Sudeste apresentam índices mais elevados. O Nordeste exibe padrão heterogêneo - o interior ainda apresenta população mais jovem, mas a faixa litorânea já demonstra envelhecimento.
+
+Santa Catarina destaca-se como exceção no Sul, mantendo índices moderados devido ao intenso fluxo migratório de adultos em idade produtiva atraídos pelas oportunidades econômicas do estado. No Centro-Oeste, observa-se um padrão misto, com o Distrito Federal e áreas urbanas apresentando maior envelhecimento.
+:::
+::: {.g-col-8}
+![](/_site/posts/general-posts/2024-04-wz-age-index/index_files/figure-html/unnamed-chunk-2-1.svg){width="100%" fig-align='right'}
+:::
+:::
+
+::: {.column-margin}
+O Índice de Envelhecimento (IE) é definido como a razão entre idosos e jovens da seguinte forma:
 
 $$
-\text{RDT} = \frac{\text{Idade}\leq14 \, \lor \, \text{Idade} \geq 65}{\text{Idade} >14 \, \land \, \text{Idade} < 65}
+\text{Ind} = 100\times\frac{\text{P}_{\text{jovem}}}{\text{P}_{\text{idosa}}}
 $$
 
-Adicionalmente, também pode-se definir a Razão de Dependência Jovem (RDJ) e a Razão de Dependência Idosa (RDI)
+onde $\text{P}_{\text{jovem}}$ é o número de habitantes com até 14 anos de idade e $\text{P}_{\text{idosa}}$ é o número de habitantes com 65 anos ou mais. Valores menores que 100 indicam que há mais jovens do que idosos e vice-versa.
+
+Como se vê no mapa, há municípios onde o IE ultrapassa 100, indicando que ali há mais idosos do que jovens.
+:::
 
 
-# Histórico e Projeções
+::: {.grid}
+
+::: {.g-col-4}
+O mapa das taxas brutas de natalidade (TBN) e mortalidade (TBM) por mil habitantes revela dois padrões demográficos distintos no Brasil.
+
+A região Norte (tons azuis) apresenta alta natalidade e baixa mortalidade, caracterizando uma população jovem em expansão. O Sul e partes do Sudeste exibem o padrão oposto  - baixa natalidade e alta mortalidade - indicando regiões com transição demográfica avançada e população envelhecida.
 
 
+:::
+
+::: {.g-col-8}
+![](/_site/posts/general-posts/2024-03-maps-birth-deaths/index_files/figure-html/map-biclass-uf-1.png){width="100%" fig-align='right'}
+:::
+
+:::
+
+::: column-margin
+A Taxa Bruta de Natalidade (TBN) é o número de nascidos vivos em relação à população total. Formalmente,
+$$
+\text{TBN} = \frac{\text{N}}{\text{P}} \times 1000
+$$
+onde N é o número de nascimentos em um ano e P é a população total no meio do período. Analogamente, define-se a Taxa Bruta de Mortalidade (TBM) como:
+$$
+\text{TBM} = \frac{\text{O}}{\text{P}} \times 1000
+$$
+onde O é o número de óbitos. Ambas as taxas são expressas por mil habitantes.
+:::
+
+Esta janela demográfica representa tanto uma oportunidade quanto um desafio de planejamento. Com quase 100 milhões de jovens atualmente no país, o Brasil dispõe de um potencial produtivo e inovador sem precedentes, mas que não se repetirá nas próximas décadas.
+
+O contraste regional - com o Norte ainda experimentando crescimento populacional enquanto o Sul e Sudeste aceleram o envelhecimento - exige políticas públicas diferenciadas e coordenadas. O sucesso em aproveitar este momento único dependerá da capacidade de investir na qualificação desta geração, criar oportunidades de trabalho e renda, e simultaneamente preparar o país para uma sociedade crescentemente envelhecida.
+
+### Razão de Dependência
+
+------------------------------------------------------------------------
+
+A razão de dependência mede a proporção da população que depende, num sentido amplo, do trabalho da população economicamente ativa. No Brasil, o IBGE define a Razão de Dependência Total (RDT), como a razão entre o número de jovens e idosos e o número de adultos (em idade de trabalhar).
+
+::: column-margin
+Formalmente, define-se a Razão de Dependência Total (RDT) como:
+
+$$
+\text{RDT} = \frac{\text{P}_{\text{jovem}} + \text{P}_{\text{idosa}}}{\text{PEA}}
+$$
+
+onde PEA é a população economicamente ativa. Como critério de corte, define-se *jovem* a pessoa com até 14 anos e *idoso* a pessoa com 65 anos ou mais.
+
+Analogamente, define-se a Razão de Dependência Jovem (RDJ) e a Razão de Dependência Idosa (RDI) como:
+
+$$
+\begin{align}
+\text{RDJ} & = \frac{\text{P}_{\text{jovem}}}{\text{PEA}} \\
+\text{RDI} & = \frac{\text{P}_{\text{idosa}}}{\text{PEA}}
+\end{align}
+$$
+:::
+
+A elevação da RDT representa um desafio nacional, porém com origens regionais distintas: enquanto algumas regiões enfrentam alta dependência devido ao excesso de jovens, outras lidam com o peso crescente da população idosa.
+
+**Grandes Regiões**
+<br>
+
+::: {.grid}
+
+::: {.g-col-4}
+As regiões Sul e Norte ilustram os contrastes demográficos do Brasil. Apesar de estarem atualmente em situações demográficas opostas, ambas as regiões convergem para padrões similares em 2060, com RDI elevada e superior à RDJ.
+
+O Sul vai liderar o envelhecimento nacional, com sua RDI crescendo de 15 para 45 entre 2000-2060. A região já experimenta o ponto de inflexão demográfico por volta de 2025-2030, quando terá mais idosos dependentes que jovens -- reflexo de décadas de baixa fecundidade e maior longevidade.
+
+O Norte parte da situação oposta: alta dependência jovem (RDJ de 50) e baixa dependência idosa (RDI de 8). Contudo, a região enfrenta a transformação mais dramática do país: a RDJ despenca para 25 enquanto a RDI quintuplica para 40, com o ponto de inflexão ocorrendo em 2040-2045.
+:::
+
+::: {.g-col-8}
+```{r}
+#| out-width: '100%'
+files$proj
+```
+
+```{r}
+files$table_region
+```
+
+:::
+
+:::
+
+Todas as regiões brasileiras enfrentarão desafios similares do envelhecimento populacional, exigindo adaptações coordenadas nos sistemas de saúde, previdência e políticas públicas. A partir de 2050, a RDT passa de 50 em todas as regiões
+
+### Padrões Regionais 
+
+------------------------------------------------------------------------
+Há três perfis demográficos regionais bem definidos no Brasil: estados jovens, estados em transição e estados envelhecidos.
+
+::: {.grid}
+
+::: {.g-col-5}
+Os estados do Norte do Brasil, como Amazonas e Acre apresentam RDJ elevado e RDI baixo (azul-claro), indicando sociedades jovens onde a pressão sobre a PEA vem de crianças e adolescentes. Estados como São Paulo e Paraná mostram o padrão oposto (vermelho-escuro) caracterizando populações envelhecidas.
+
+O Nordeste e o Centro-Oeste exibem combinações variadas, com estados como Piauí e Minas Gerais apresentando RDJ e RDI equilibradas, indicando populações em plena transição demográfica. O Distrito Federal destaca-se como exceção regional, mantendo baixas dependências em ambas as categorias devido ao perfil migratório seletivo.
+:::
+
+::: {.g-col-7}
+```{r}
+#| out-width: "100%"
+#| fig-width: 6
+#| fig-height: 6
+#| out-height: 450px
+files$map
+```
+
+:::
+
+:::
+
+
+::: {.grid}
+
+::: {.g-col-5}
+
+As pirâmides etárias revelam perfis demográficos contrastantes entre os estados brasileiros. O Amazonas exemplifica a região Norte com estrutura jovem - baixa RDI (8,9) e alta RDJ (40,9) - enquanto o Rio Grande do Sul representa o extremo oposto, liderando o envelhecimento nacional com RDI de 20,6 e RDJ de apenas 25,6.
+
+Santa Catarina constitui exceção no Sul, mantendo a menor RDI entre os estados do Sul e Sudeste devido ao influxo migratório de adultos em idade produtiva, que compensa sua baixa população jovem. O Piauí ilustra o Nordeste em transição, com pirâmide já apresentando base estreitada e topo expandido, sinalizando o início da mudança demográfica.
+
+:::
+
+::: {.g-col-7}
+
+```{r}
+#| fig-width: 5.5
+#| fig-height: 6
+#| out-width: "100%"
+files$pyramid
+```
+:::
+
+:::
+
+
+
+
+
+
+### Anexo: Tabela Completa por Estado
+
+```{r}
+files$table_population
+```
 
 
