@@ -11,6 +11,67 @@ import::from(sidrar, get_sidra)
 font_add_google("Lato", "Lato")
 showtext_auto()
 
+gt_theme_simple <- function(dat) {
+  fmt_table <- dat |>
+    opt_table_font(font = "DIN Alternate") |>
+    tab_options(
+      column_labels.background.color = "#fefefe",
+      data_row.padding = px(4),
+      column_labels.font.size = px(16),
+      table.font.size = px(14),
+      table.font.color = "#374151",
+
+      column_labels.border.top.style = "solid",
+      column_labels.border.top.width = px(2),
+      column_labels.border.top.color = "#1B365D",
+      column_labels.border.bottom.style = "solid",
+      column_labels.border.bottom.width = px(1),
+      column_labels.border.bottom.color = "#E5E7EB",
+
+      # Row styling
+      row.striping.include_table_body = TRUE,
+      row.striping.background_color = "#FAFBFC",
+
+      # Borders
+      table.border.bottom.style = "solid",
+      table.border.bottom.width = px(2),
+      table.border.bottom.color = "#1B365D",
+      # Source notes
+      source_notes.font.size = px(10),
+      source_notes.border.lr.style = "none",
+      source_notes.padding = px(10)
+    ) %>%
+    tab_style(
+      style = list(
+        cell_text(color = "#fefefe", weight = "bold"),
+        cell_fill(color = "#1B365D")
+      ),
+      locations = cells_column_labels()
+    ) %>%
+    # Style spanners
+    tab_style(
+      style = list(
+        cell_text(weight = "bold", color = "#fefefe"),
+        cell_fill(color = "#1B365D")
+      ),
+      locations = cells_column_spanners()
+    ) %>%
+    tab_style(
+      style = cell_borders(
+        sides = c("top", "bottom"),
+        color = "#E5E7EB",
+        weight = px(1)
+      ),
+      locations = cells_body()
+    ) %>%
+    tab_style(
+      style = list(
+        cell_text(color = "#6B7280")
+      ),
+      location = cells_source_notes()
+    )
+}
+
 state_border = geobr::read_state(showProgress = FALSE)
 dim_state = as_tibble(st_drop_geometry(state_border))
 
@@ -69,15 +130,33 @@ tab_pop_state <- left_join(dim_state, pop_state, by = "code_state")
 pop <- left_join(state_border, pop_state, by = "code_state")
 
 
-pal <- colorNumeric("Blues", pop$tdr)
+# pal <- colorNumeric("Blues", pop$tdr)
+# bins <- quantile(pop$tdr, probs = seq(0, 1, 0.2))
+# bins <- BAMMtools::getJenksBreaks(pop$tdr, k = 6)
 
-bins <- quantile(pop$tdr, probs = seq(0, 1, 0.2))
-bins <- BAMMtools::getJenksBreaks(pop$tdr, k = 6)
-pal <- colorBin(
+pal_tdr <- colorBin(
   palette = as.character(MetBrewer::met.brewer("Hokusai2", 5)),
   domain = pop$tdr,
-  bins = bins
+  bins = BAMMtools::getJenksBreaks(pop$tdr, k = 6)
 )
+
+pal_rdi <- colorBin(
+  palette = as.character(MetBrewer::met.brewer("Hokusai2", 5)),
+  domain = pop$dre,
+  bins = BAMMtools::getJenksBreaks(pop$dre, k = 6)
+)
+
+pal_rdj <- colorBin(
+  palette = as.character(MetBrewer::met.brewer("Hokusai2", 5)),
+  domain = pop$dry,
+  bins = BAMMtools::getJenksBreaks(pop$dry, k = 6)
+)
+
+# pal <- colorBin(
+#   palette = as.character(MetBrewer::met.brewer("Hokusai2", 5)),
+#   domain = pop$tdr,
+#   bins = bins
+# )
 
 labels <- sprintf(
   "<b>RDT<b/>: %s <br>
@@ -93,9 +172,10 @@ labels <- lapply(labels, htmltools::HTML)
 map <- leaflet(pop) |>
   addTiles() |>
   addPolygons(
+    group = "RDT (Total)",
+    fillColor = ~ pal_tdr(tdr),
     weight = 2,
     color = "white",
-    fillColor = ~ pal(tdr),
     fillOpacity = 0.9,
     highlightOptions = highlightOptions(
       color = "#e09351",
@@ -107,16 +187,74 @@ map <- leaflet(pop) |>
     labelOptions = labelOptions(
       style = list("font-weight" = "normal", "font-family" = "Fira Code")
     )
-  ) |>
+  ) %>%
+  addPolygons(
+    group = "RDJ (Jovem)",
+    fillColor = ~ pal_rdj(dry),
+    weight = 2,
+    color = "white",
+    fillOpacity = 0.9,
+    highlightOptions = highlightOptions(
+      color = "#e09351",
+      weight = 10,
+      fillOpacity = 0.8,
+      bringToFront = TRUE
+    ),
+    label = labels,
+    labelOptions = labelOptions(
+      style = list("font-weight" = "normal", "font-family" = "Fira Code")
+    )
+  ) %>%
+  addPolygons(
+    group = "RDI (Idoso)",
+    fillColor = ~ pal_rdi(dre),
+    weight = 2,
+    color = "white",
+    fillOpacity = 0.9,
+    highlightOptions = highlightOptions(
+      color = "#e09351",
+      weight = 10,
+      fillOpacity = 0.8,
+      bringToFront = TRUE
+    ),
+    label = labels,
+    labelOptions = labelOptions(
+      style = list("font-weight" = "normal", "font-family" = "Fira Code")
+    )
+  ) %>%
   addLegend(
-    pal = pal,
+    pal = pal_tdr,
     values = ~tdr,
     labFormat = labelFormat(digits = 1),
     title = "RDT (2022)",
-    position = "bottomright"
-  ) |>
+    position = "bottomright",
+    group = "RDT (Total)"
+  ) %>%
+  addLegend(
+    pal = pal_rdj,
+    values = ~dry,
+    labFormat = labelFormat(digits = 1),
+    title = "RDJ (2022)",
+    position = "bottomright",
+    group = "RDJ (Jovem)"
+  ) %>%
+  addLegend(
+    pal = pal_rdi,
+    values = ~dre,
+    labFormat = labelFormat(digits = 1),
+    title = "RDI (2022)",
+    position = "bottomright",
+    group = "RDI (Idoso)"
+  ) %>%
+  addLayersControl(
+    overlayGroups = c("RDT (Total)", "RDJ (Jovem)", "RDI (Idoso)"),
+    options = layersControlOptions(collapsed = FALSE)
+  ) %>%
   addProviderTiles(providers$CartoDB) |>
-  setView(lng = -53.1873, lat = -10.58913, zoom = 4)
+  setView(lng = -53.1873, lat = -10.58913, zoom = 4) %>%
+  groupOptions(group = "RDT (Total)", zoomLevels = 4) %>%
+  groupOptions(group = "RDJ (Jovem)", zoomLevels = c(1, 18)) %>%
+  groupOptions(group = "RDI (Idoso)", zoomLevels = c(1, 18))
 
 
 library(biscale)
@@ -417,6 +555,7 @@ plot_proj <-
 export <- list(
   table_region = table_region,
   table_population = table_population,
+  leaflet = map,
   map = plot_map,
   proj = plot_proj,
   pyramid = plot_pyramid
@@ -424,5 +563,5 @@ export <- list(
 
 readr::write_rds(
   export,
-  here::here("posts/general-posts/2024-04-states-tdr/files.rds")
+  here::here("posts/general-posts/2025-07-demografia-brasil/files.rds")
 )
