@@ -74,12 +74,22 @@ pop_state <- tab_pop %>%
 tab_pop_state <- left_join(dim_state, pop_state, by = "code_state")
 pop <- left_join(state_border, pop_state, by = "code_state")
 
-bins <- quantile(pop$tdr, probs = seq(0, 1, 0.2))
-bins <- BAMMtools::getJenksBreaks(pop$tdr, k = 6)
-pal <- colorBin(
+pal_tdr <- colorBin(
   palette = as.character(MetBrewer::met.brewer("Hokusai2", 5)),
   domain = pop$tdr,
-  bins = bins
+  bins = BAMMtools::getJenksBreaks(pop$tdr, k = 6)
+)
+
+pal_rdi <- colorBin(
+  palette = as.character(MetBrewer::met.brewer("Hokusai2", 5)),
+  domain = pop$dre,
+  bins = BAMMtools::getJenksBreaks(pop$dre, k = 6)
+)
+
+pal_rdj <- colorBin(
+  palette = as.character(MetBrewer::met.brewer("Hokusai2", 5)),
+  domain = pop$dry,
+  bins = BAMMtools::getJenksBreaks(pop$dry, k = 6)
 )
 
 labels <- sprintf(
@@ -93,32 +103,92 @@ labels <- sprintf(
 
 labels <- lapply(labels, htmltools::HTML)
 
-map <- leaflet(pop) %>%
-  addTiles() %>%
+map <- leaflet(pop) |>
+  addTiles() |>
   addPolygons(
+    group = "RDT (Total)",
+    fillColor = ~ pal_tdr(tdr),
     weight = 2,
     color = "white",
-    fillColor = ~pal(tdr),
     fillOpacity = 0.9,
     highlightOptions = highlightOptions(
       color = "#e09351",
       weight = 10,
       fillOpacity = 0.8,
-      bringToFront = TRUE),
+      bringToFront = TRUE
+    ),
+    label = labels,
+    labelOptions = labelOptions(
+      style = list("font-weight" = "normal", "font-family" = "Fira Code")
+    )
+  ) %>%
+  addPolygons(
+    group = "RDJ (Jovem)",
+    fillColor = ~ pal_rdj(dry),
+    weight = 2,
+    color = "white",
+    fillOpacity = 0.9,
+    highlightOptions = highlightOptions(
+      color = "#e09351",
+      weight = 10,
+      fillOpacity = 0.8,
+      bringToFront = TRUE
+    ),
+    label = labels,
+    labelOptions = labelOptions(
+      style = list("font-weight" = "normal", "font-family" = "Fira Code")
+    )
+  ) %>%
+  addPolygons(
+    group = "RDI (Idoso)",
+    fillColor = ~ pal_rdi(dre),
+    weight = 2,
+    color = "white",
+    fillOpacity = 0.9,
+    highlightOptions = highlightOptions(
+      color = "#e09351",
+      weight = 10,
+      fillOpacity = 0.8,
+      bringToFront = TRUE
+    ),
     label = labels,
     labelOptions = labelOptions(
       style = list("font-weight" = "normal", "font-family" = "Fira Code")
     )
   ) %>%
   addLegend(
-    pal = pal,
+    pal = pal_tdr,
     values = ~tdr,
     labFormat = labelFormat(digits = 1),
     title = "RDT (2022)",
-    position = "bottomright"
+    position = "bottomright",
+    group = "RDT (Total)"
   ) %>%
-  addProviderTiles(providers$CartoDB) %>%
-  setView(lng = center[1], lat = center[2], zoom = 4)
+  addLegend(
+    pal = pal_rdj,
+    values = ~dry,
+    labFormat = labelFormat(digits = 1),
+    title = "RDJ (2022)",
+    position = "bottomright",
+    group = "RDJ (Jovem)"
+  ) %>%
+  addLegend(
+    pal = pal_rdi,
+    values = ~dre,
+    labFormat = labelFormat(digits = 1),
+    title = "RDI (2022)",
+    position = "bottomright",
+    group = "RDI (Idoso)"
+  ) %>%
+  addLayersControl(
+    overlayGroups = c("RDT (Total)", "RDJ (Jovem)", "RDI (Idoso)"),
+    options = layersControlOptions(collapsed = FALSE)
+  ) %>%
+  addProviderTiles(providers$CartoDB) |>
+  setView(lng = -53.1873, lat = -15.58913, zoom = 4) %>%
+  groupOptions(group = "RDT (Total)", zoomLevels = 4) %>%
+  groupOptions(group = "RDJ (Jovem)", zoomLevels = c(1, 18)) %>%
+  groupOptions(group = "RDI (Idoso)", zoomLevels = c(1, 18))
 ```
 
 # Razão de Dependência no Brasil
