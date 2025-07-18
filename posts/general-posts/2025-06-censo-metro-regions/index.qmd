@@ -1,9 +1,11 @@
 ---
-title: "O crescimento das Regiões Metropolitanas segundo o Censo 2022"
+title: "O crescimento das Regiões Metropolitanas Brasileiras"
 date: "2025-06-15"
 categories: ["censo", "brasil", "cidades", "demografia", "data-visualization"]
-description: " "
-format: html
+description: ""
+format:
+  html:
+    toc: false
 execute:
   message: false
   warning: false
@@ -15,12 +17,14 @@ draft: true
 library(dplyr)
 library(gt)
 library(gtExtras)
+library(ggplot2)
 ```
 
 ```{r}
-tables <- qs::qread(
-  here::here("posts/general-posts/2025-06-censo-metro-regions/table.qs")
-)
+
+dirpath <- here::here("posts/general-posts/2025-06-censo-metro-regions/")
+tables <- qs::qread(here::here(dirpath, "table.qs"))
+plots <- readr::read_rds(here::here(dirpath, "plots.rds"))
 
 metro <- tables$metro
 metro_wide <- tables$metro_wide
@@ -34,7 +38,14 @@ timeline <- metro %>%
   )
 
 col_names <- c(
-  "Região Metro", "Estado", "1991", "2000", "2010", "2022", "1991/2000", "2000/2010",
+  "Região Metro",
+  "Estado",
+  "1991",
+  "2000",
+  "2010",
+  "2022",
+  "1991/2000",
+  "2000/2010",
   "2010/2022"
 )
 
@@ -60,11 +71,121 @@ gtable_cities <- metro_wide %>%
     domain = seq(-0.005, 0.03, 0.005),
     #domain = c(min(metro_wide$tcg_2022), 0, max(metro_wide$tcg_2022)),
     palette = c(
-      "#E63946", "#F1FAEE", "#CDEAE5", "#BBE2E1", "#A8DADC", "#90C3CD", "#77ABBD",
-      "#457B9D", "#31587A", "#1D3557")
+      "#E63946",
+      "#F1FAEE",
+      "#CDEAE5",
+      "#BBE2E1",
+      "#A8DADC",
+      "#90C3CD",
+      "#77ABBD",
+      "#457B9D",
+      "#31587A",
+      "#1D3557"
+    )
   )
 ```
+
+## **As Mudanças Demográficas nas Regiões Metropolitanas Brasileiras**
+
+Os resultados do Censo 2022 trouxeram à tona um fenômeno que tem gerado intensos debates sobre o futuro demográfico do Brasil: pela primeira vez em décadas, algumas das principais regiões metropolitanas do país registraram redução populacional ou crescimento próximo de zero. Para melhor compreender esta transformação, vale analisar os dados em uma perspectiva histórica e regional.
+
+## Resumo
+
+-   **Desaceleração generalizada**. Praticamente todas as grandes metrópoles brasileiras registram queda nas taxas de crescimento populacional nas últimas décadas
+
+-   **Crescimento negativo em grandes centros**. Rio de Janeiro (-0,13%), Salvador (-0,35%), Porto Alegre (-0,03%), AU do Sul/Rio Grande do Sul (-0,08%) e Belém (-0,11%) apresentam retração populacional
+
+-   **São Paulo em forte desaceleração**. A maior metrópole do país viu seu crescimento cair de 1,47% (anos 90) para apenas 0,4% (2010-2022)
+
+-   **Florianópolis e Santa Catarina em destaque**. A RM de Florianópolis registrou o maior crescimento entre as capitais estaduais de 2,28%. Outros eixos de SC também cresceram acima da média brasileira como Chapecó (1,63%), a Foz do Rio Itajaí (3%), o Vale do Itajaí (1,54%) a Região do Norte/Nordeste Catarinense (1,48%) e a Região Carbonífera (1,23%).
+
+-   **Cidades médias superam metrópoles**: Várias RMs menores crescem mais que as tradicionais - Norte/Nordeste Catarinense (1,48%), RIDE Petrolina/Juazeiro (1,52%), AU de Jundiaí (1,46%). O processo sugere desconcentração urbana com forte crescimento em polos regionais do Sul, Nordeste interior e Centro-Oeste.
+
+------------------------------------------------------------------------
 
 ```{r}
 gtable_cities
 ```
+
+## O Contexto da Desaceleração Demográfica
+
+------------------------------------------------------------------------
+
+Os dados mostram um cenário de clara desaceleração do crescimento populacional nas principais regiões metropolitanas brasileiras. São Paulo, que manteve taxas de crescimento de 1,47% ao ano na década de 1990, viu esse ritmo cair para 0,88% entre 2000-2010 e apenas 0,40% no período mais recente. O Rio de Janeiro apresenta situação ainda mais dramática, com crescimento negativo de -0,13% entre 2010-2022, indicando efetiva redução populacional.
+
+### Diferentes Dinâmicas Regionais
+
+A análise dos dados revela padrões regionais distintos que refletem as transformações econômicas e sociais do país. No **Sudeste**, observa-se uma clara desaceleração: além de São Paulo e Rio de Janeiro, mesmo regiões tradicionalmente dinâmicas como Campinas (0,96%) e Vale do Paraíba (0,78%) apresentam crescimento modesto. Belo Horizonte mantém algum dinamismo (0,42%), mas bem abaixo dos padrões históricos.
+
+O **Sul** apresenta o cenário mais heterogêneo do país. Enquanto Porto Alegre encolhe (-0,03%), regiões como Florianópolis (2,28%) lideram o crescimento nacional. Cidades médias como Chapecó (1,63%), Maringá (1,34%) e a região Carbonífera de Santa Catarina (1,23%) demonstram forte vitalidade econômica, refletindo o dinamismo do agronegócio e da indústria regional.
+
+No **Centro-Oeste**, todas as regiões metropolitanas mantêm crescimento positivo. Goiânia (1,39%) e a RIDE-DF (1,06%) se beneficiam da expansão do agronegócio e do setor público, enquanto o Vale do Rio Cuiabá (1,09%) reflete o boom do agronegócio mato-grossense.
+
+O **Nordeste** mostra sinais de consolidação urbana, com crescimento moderado na maioria das capitais – Fortaleza (0,33%), Recife (0,09%) e Natal (0,57%) - mas retração em Salvador (-0,35%). Destaca-se o crescimento de Campina Grande (0,56%) e centros regionais menores.
+
+A **Região Norte** mantém dinamismo demográfico, com Manaus (1,05%) liderando, seguida por Belém que, diferentemente das outras grandes metrópoles, apresenta retração populacional (-0,11%), sinalizando possível saturação urbana mesmo na região de maior crescimento populacional do país.
+
+### O Crescimento das Cidades Médias e Novos Polos Econômicos
+
+Um dos aspectos mais notáveis dos dados é o dinamismo das cidades médias e regiões não-metropolitanas tradicionais. Foz do Rio Itajaí lidera com impressionantes 3,00% de crescimento anual.
+
+Florianópolis emerge como a capital de maior crescimento (2,28%), consolidando-se como polo tecnológico e de qualidade de vida. No interior catarinense, o dinamismo se repete: Chapecó (1,63%), Vale do Itajaí (1,54%), Norte/Nordeste Catarinense (1,48%) e região Carbonífera (1,23%) demonstram a vitalidade econômica diversificada do estado.
+
+::: {.panel-tabset}
+
+## Número de Cidades
+
+```{r}
+#| echo: false
+#| fig-align: "center"
+#| out-width: 80%
+plots$cities
+```
+
+## Crescimento Médio
+```{r}
+#| echo: false
+#| fig-align: "center"
+#| out-width: 80%
+plots$growth
+```
+
+## Crescimento Total (ganho pop.)
+```{r}
+#| echo: false
+#| fig-align: "center"
+#| out-width: 80%
+plots$total_growth
+```
+
+:::
+
+O fenômeno se estende para outras regiões: no Nordeste, a RIDE Petrolina/Juazeiro (1,52%) e o Cariri cearense (0,89%) mostram o potencial do interior nordestino. Em São Paulo, além de Sorocaba (1,16%), destaca-se a AU de Jundiaí (1,46%). No Paraná, Maringá (1,34%) e Cascavel (1,07%) refletem a força do agronegócio.
+
+Regiões antes periféricas ganham protagonismo: Macapá (0,79%) no Amapá, Grande São Luís (0,76%) no Maranhão, e até pequenas aglomerações como Contestado (0,58%) em Santa Catarina mostram que o crescimento populacional está se redistribuindo amplamente pelo território nacional.
+
+Esse padrão sugere uma reconfiguração profunda do sistema urbano brasileiro, onde fatores como qualidade de vida, custos menores, oportunidades econômicas setoriais e conectividade digital permitem que **cidades médias e polos regionais compitam efetivamente com as grandes metrópoles na atração de população e investimentos**.
+
+### Nuances regionais: o caso de Belo Horizonte
+
+A RM de Belo Horizonte ilustra um processo de redistribuição populacional. Enquanto a capital mineira registrou perda populacional de quase 60 mil habitantes, passando de 2,375 milhões para 2,316 milhões entre 2010 e 2022 (queda de -0,21%), a população da região metropolitana como um todo cresceu 0,42% ao ano no mesmo período. Em termos absolutos, a RM de Belo Horizonte ganhou pouco mais de 300 mil habitantes (crescimento de 5,6%).
+<br>
+
+```{r}
+#| echo: false
+map <- readRDS(here::here(
+  "posts/general-posts/2025-06-censo-metro-regions/leaflet_map.rds"
+))
+
+map
+```
+
+<br>
+
+Esta migração intra-metropolitana, onde a **população migra da capital para as periferias**, pode apontar uma busca por melhor qualidade de vida, menores custos habitacionais e novas oportunidades. Este tipo de movimentação também pode sinalizar uma **saturação da capital**, resultado de várias causas, incluindo: aumento da violência urbana, saturação da infraestrutura viária, aumento do custo de vida, piora na qualidade e oferta de serviços públicos. No caso de BH, parte deste processo se deve ao[Plano Diretor excessivamente restritivo da cidade, que dificulta a expansão imobiliária na cidade](https://caosplanejado.com/belo-horizonte-o-caminho-para-a-recuperacao/)[^1].
+
+[^1]: A perda de 60 mil habitantes no município entre 2010 e 2022, segundo dados do último Censo realizado pelo IBGE, é o resultado de uma política urbana deliberada. Leis de uso do solo restringem o potencial de construção dos terrenos, inviabilizando a ampliação do estoque imobiliário para sustentar a demanda de crescimento populacional e renda, principalmente nas áreas centrais, causando a dispersão da população e a planificação do seu perfil de densidade.
+
+**Nova Lima** foi a cidade que mais se beneficiou deste processo migratório. A cidade registrou crescimento explosivo de 2,71% ao ano, saltando de 80.998 para 111.697 habitantes - um aumento de quase 38% em apenas 12 anos. A cidade tem localização estratégia, próxima à região Centro-Sul da capital mineira, facilitando o deslocamento para regiões com empregos de alta qualidade. Além disso, a cidade possui código de obras mais flexível, permitindo maior verticalização e adensamento populacional.
+
+O padrão se repete em outros municípios da região: São José da Lapa (2,32%), Mateus Leme (2,59%), Igarapé (2,31%) e Itatiaiuçu (2,25%) apresentam crescimento robusto, evidenciando que o dinamismo metropolitano se deslocou para a periferia. Mesmo municípios menores como Florestal (1,66%) e Fortuna de Minas (1,12%) participam desse processo de redistribuição.
