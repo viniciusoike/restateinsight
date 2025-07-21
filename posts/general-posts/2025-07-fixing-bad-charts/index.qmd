@@ -1,7 +1,9 @@
 ---
 title: "Melhorando gráficos ruins"
-description: ""
-categories: ["data-visualization", "ggplot2", "data-science", "tutorial-R"]
+date: "2025-07-15"
+description: "Fazer o gráfico certo não é tarefa fácil e é um processo de aprendizado contínuo. Neste post, reviso algumas visualizações antigas e mostro como melhorá-las, usando princípios modernos do design de informação. Pequenos detalhes somados fazem uma grande diferença na hora de contar uma história com dados."
+image: ""
+categories: ["data-visualization", "ggplot2", "data-science", "tutorial-R", "brasil", "LAPOP"]
 format:
   html:
     default-image-extension: svg
@@ -13,7 +15,18 @@ draft: true
 
 # Melhorando visualizações
 
-## LaPop
+Neste post analiso alguns gráficos antigos que fiz e tento melhorá-los. Os gráficos são parte de um projeto pessoal antigo, que não chegou a ser publicado. Na época, queria analisar os dados do [AmericasBarometer LAPOP](https://www.vanderbilt.edu/lapop/about-americasbarometer.php), um questionário anual sobre opiniões a respeito da democracia na América Latina. Em particular, a edição de 2017 fez perguntas sobre o impeachment de Dilma Rouseff.
+
+De maneira geral, os principais problemas que notei nos meus gráficos antigos foram:
+1. Uso excessivo de linhas de grade.
+2. Uso inconsistente de cores.
+3. Informações textuais ruins: títulos confusos, barras sem rótulos, etc.
+
+Vou entrar em detalhes sobre os problemas e correções feitos em cada um dos gráficos abaixo.
+
+## Dados
+
+Os dados da LAPOP podem ser baixados [aqui](http://datasets.americasbarometer.org/database/index.php#). Vou usar os dados da edição de 2016/17. Como os dados estão em formato `.dta` (Stata) é necessário usar o pacote {haven} para importar os dados.
 
 ```{r data-import}
 #| include: false
@@ -21,6 +34,10 @@ lapop <- haven::read_dta(here::here("static/data/Lapop2017_Brasil.dta"))
 ```
 
 ## Setup
+
+### Pacotes
+
+Os principais pacotes para seguir este post são: {dplyr}, {ggplot2}, {ggtext} e {ragg}. Os demais pacotes ajudam na manipulação de dados.
 
 ```{r libs}
 library(dplyr)
@@ -34,27 +51,43 @@ import::from(forcats, fct_rev)
 import::from(rlang, enquo, as_name)
 ```
 
+### Funções
+
+Para refazer os gráficos, monto algumas funções simples que limpam e formatam os dados.
+
 ```{r data_clean_funs}
 #| code-fold: true
+
+# Vetor com tradução de alguns termos que aparecem
+# frequentemente nas respostas
 xconv <- c(
-  "Melhor" = "Better", "Igual" = "Same", "Pior" = "Worse",
+  "Melhor" = "Better",
+  "Igual" = "Same",
+  "Pior" = "Worse",
   "Muito satisfeito(a)" = "Very Satisfied",
   "Um pouco satisfeito(a)" = "Somewhat Satisfied",
   "Um pouco insatisfeito(a)" = "Somewhat Dissatisfied",
-  "Muito insatisfeito(a)" = "Very Dissatisfied")
+  "Muito insatisfeito(a)" = "Very Dissatisfied"
+  )
 
 prep_data <- function(var, translate = TRUE, tidy = TRUE) {
   
   dat <- lapop %>%
+    # Conta o número de obsevações segundo o peso amostral
     count({{ var }}, wt = wt) %>%
+    # Remove observações vazias
     filter(!is.na({{ var }})) %>%
+    # Calcula o share de cada resposta
     mutate(share = n / sum(n) * 100) %>%
+    # Convert as respostas numéricas em texto (i.e. 1 -> Sim, 2 -> Não)
     as_factor()
   
+  # Opção para traduzir as respostas
   if (translate) {
     dat[[1]] <- forcats::fct_recode(dat[[1]], !!!xconv)
   }
   
+  # Opção para facilitar o agrupamento dos dados posteriormente
   if (tidy) {
     
     swap_names <- rlang::as_name(rlang::enquo(var))
@@ -71,10 +104,15 @@ prep_data <- function(var, translate = TRUE, tidy = TRUE) {
   
 }
 
+# Função para formatar números
 format_num <- \(x, k = 1) {
   format(round(x, k), big.mark = ".", decimal.mark = ",")
 }
 ```
+
+### Elementos dos gráficos
+
+Por fim, vou usar uma paleta de cores padronizada, algumas fontes e um tema padrão nas visualizações.
 
 ```{r theme_elements}
 #| code-fold: true
@@ -107,6 +145,10 @@ theme_barplot <- theme_minimal(base_family = font_text) +
   )
 ```
 
+### Nota
+
+---
+
 Eu não possuo mais o código original, que usei para fazer os gráficos. Contudo, no processo de refazê-los, eu percebi que os números representados estão equivocados[^1]. Os gráficos novos fazem os ajustes necessários para chegar nos valores corretos.
 
 [^1]: Como referência, a LaPop usa uma amostra estratificada que exige o uso de pesos amostrais para estimar estatísticas descritivas. Mais detalhes podem ser vistos na [metodologia da pesquisa](http://datasets.americasbarometer.org/database/files/1077186017Brazil_AmericasBarometer_Tech_Info_2016_17_W_092217.pdf). Como os gráficos estão fazendo análises simples (mesmo ano, mesmo país) basta usar os pesos da coluna `wt` na contagem dos dados. No R, isto pode ser feito mais formalmente usando o pacote `survey` e `svydesign(ids = ~upm, weights = ~wt, strata = ~estratopri, data = lapop)` quando o cálculo de intervalos de confiança é necessário. Quando é preciso apenas a estimativa pontual, pode-se usar alternativas como `dplyr::count(variavel, weight = wt)`.
@@ -115,7 +157,7 @@ Eu não possuo mais o código original, que usei para fazer os gráficos. Contud
 
 ## Gráficos originais
 
-O primeiro gráfico mostra a avaliação dos brasileiros a respeito da condição da economia nos últimos doze meses. Os entrevistados tinham três respostas possíveis: a economia está pior, igual ou melhor do que estava há doze meses atrás.
+O primeiro gráfico mostra a avaliação dos brasileiros a respeito da condição da economia nos últimos doze meses. Os entrevistados tinham três respostas possíveis: a economia está (1) pior; (2) igual; ou (3) melhor do que estava há doze meses atrás.
 
 Vale notar que o estudo foi feito em 2016/17, quando o Brasil ainda estava em recessão econômica.
 
@@ -155,6 +197,8 @@ tab <- bind_rows(
   .id = "group")
 ```
 
+## Resultado
+
 ```{r fun-plot-barplot}
 #| code-fold: true
 plot_barplot <- function(type = c("sequential", "qualitative")) {
@@ -193,8 +237,6 @@ plot_barplot <- function(type = c("sequential", "qualitative")) {
   
 }
 ```
-
-## Resultado
 
 O novo gráfico combina os dois originais para reforçar o insight principal. Colocando os dados, lado a lado, fica mais evidente a discrepância entre as percepções individual e coletiva da economia.
 
@@ -242,9 +284,9 @@ Quando há poucos grupos (dois ou três), o uso de escalas sequenciais me parece
 
 -   **Fonte mais clara** que melhora a legibilidade em diferentes dispositivos.
 
-## Antes e Depois
+### Antes e Depois
 
-------------------------------------------------------------------------
+---
 
 :::: panel-tabset
 ## Antes
@@ -266,13 +308,15 @@ plot_barplot("sequential")
 
 # Satisfação com a Vida
 
-O próximo gráfico mostra
+O próximo gráfico mostra o nível de satisfação individual com a própria vida. Há quatro respostas possíveis: (1) muito satisfeito; (2) pouco satisfeito; (3) pouco insatisfeito; e (4) muito insatisfeito.
 
-O gráfico abaixo é bastante simples, mas repete os mesmos erros do anterior: cores inconsistentes, linhas de grade em excesso e falta de rótulos de dados.
+O gráfico é bastante simples, mas repete os mesmos erros do anterior: cores inconsistentes, linhas de grade em excesso e falta de rótulos de dados.
 
 ![](/static/images/bad_charts/01satisfacao_com_a_vida.png){fig-align="center" width="65%"}
 
-De maneira geral, o gráfico tem os seguintes problemas:
+### Problemas
+
+---
 
 -   **Cores inadequadas** - Cada coluna tem uma cor diferente, mesmo representando a mesma variável (e.g. percentual de respondentes). Além disso, a escolha das cores sugere que as colunas representam grupos ou classes diferentes, quando isto não é verdade.
 
@@ -295,7 +339,7 @@ stvida <- stvida %>%
 
 ## Resultado
 
-O gráfico final é bastante simples. Essencialmente, eu reduzi o ruído visual, diminuindo o uso de cores e de linhas de grade. As colunas horizontais facilitam a leitura dos dados.
+O gráfico final continua simples, mas apresenta as informações de maneira mais elegante e direta. Essencialmente, eu reduzi o ruído visual, diminuindo o uso de cores e de linhas de grade. As colunas horizontais facilitam a leitura dos dados.
 
 É possível omitir inteiramente as linhas de grade, e vejo isto sendo frequentemente feito em contextos de negócios e consultoria. Contudo, para contextos acadêmicos suprimir inteiramente as linhas dos eixos pode ser mal-visto.
 
@@ -369,6 +413,38 @@ plot_grid
 ```
 :::
 
+
+### Melhorias
+
+-   **Barras horizontais** facilitam a leitura dos títulos dos eixos. Além disso, os valores das colunas estão sinalizados, auxiliando na interpretação dos dados.
+
+-   **Título direto**, que passa a mensagem do gráfico imediatamente. Subtítulo substitui a pergunta original por um texto mais simples e leve. Pergunta original está indicada no rodapé.
+
+-   **Fundo neutro, cores simples e sem linhas de grade**. Resultado é uma visualização elegante.
+
+-   **Fonte mais clara** que melhora a legibilidade em diferentes dispositivos.
+
+### Antes e Depois
+
+---
+
+:::: panel-tabset
+## Antes
+
+![](/static/images/bad_charts/01satisfacao_com_a_vida.png){fig-align="center" width="65%"}
+
+## Depois
+
+```{r plot-stvida-nogrid-comp}
+#| out-width: 80%
+#| fig-align: 'center'
+#| echo: false
+
+plot_no_grid
+```
+::::
+
+
 # Impeachment
 
 O gráfico abaixo mostra o percentual de brasileiros que considera o impeachment de um presidente justificado (ou não) em diferentes contextos. As barras mostram o percentual de respostas (sim ou não) para cada uma das três perguntas.
@@ -377,19 +453,22 @@ Esta visualização compartilha muito dos problemas da último gráfico: título
 
 ![](/static/images/bad_charts/04impeachment.png){fig-align="center" width="65%"}
 
-De maneira geral, o gráfico tem os seguintes problemas:
+## Problemas
 
--   **Ausência de rótulos de dados** - Não há percentuais exatos nas barras, impossibilitando leitura precisa dos valores
 
--   **Legenda** - A legenda está na parte inferior e poderia estar melhor integrada.
+-   **Ausência de rótulos de dados** - Não há percentuais nas barras, dificultando a interpretação dos dados.
 
--   **Cores contraditórias** - Verde para "Sim" (apoio ao impeachment) pode confundir, já que verde geralmente indica algo positivo. Vale notar que as cores usadas são as cores padrão do {ggplot2} o que pode indicar um "gráfico amador" para quem tem maior familiaridade com R.
+-   **Legenda** - A legenda poderia estar melhor integrada ao gráfico.
 
--   **Título confuso** - Não comunica insight; parece uma frase inacabada.
+-   **Cores contraditórias** - Verde para "Sim" (apoio ao impeachment) pode confundir, já que verde geralmente indica algo positivo. Vale notar que as cores usadas são as cores padrão do {ggplot2} o que pode sugerir um "gráfico amador" para quem tem maior familiaridade com R.
+
+-   **Título confuso** - Não comunica insight algum; parece uma frase inacabada.
 
 -   **Fundo bege desnecessário** - Adiciona ruído visual sem função.
 
 -   **Ordem não intuitiva** - As categorias não seguem uma lógica clara de ordenação.
+
+-   **Uso excessivo de linhas de eixo (grid lines)** - Há muitas linhas desnecessárias no fundo do gráfico. Além disso, as linhas verticais cortam e atravessam as colunas o que é visualmente desagradável.
 
 ## Data Prep
 
@@ -490,17 +569,31 @@ plot_impeach <- ggplot(impeach, aes(name_var, share, fill = name_label)) +
 plot_impeach
 ```
 
-Aproveitando o fato de que o gráfico aborda um tema político, eu explorei as cores e o posicionamento dos dados, com intuito de tornar a leitura dos dados mais imediata.
+Aproveitando o fato de que o gráfico aborda um tema político, eu explorei as cores e o posicionamento dos dados para tornar a sua leitura mais intuitiva.
 
 Como há apenas duas opções de resposta, eu decidi omitir a legenda de cores genérica ("Sim" e "Não") e usar caixas de texto com cores sugestivas para explicar o gráfico naturalmente. O gráfico está agora na horizontal, o que facilita a leitura do texto dos eixos e torna a interpretação do gráfico mais intuitiva: esquerda x direita (ao invés de baixo x cima).
 
 No contexto do impeachment da ex-presidente Dilma Roussef, acredito que faça sentido representar o seu apoio (i.e. contra o impeachment) com barras vermelhas (mesma cor do seu partido) e à esquerda (alinhamento ideológico).
 
-O título agora remete imediatamente ao principal motivo que justificou o impeachment da presidente à época, i.e. as pedaladas fiscais[^3].
+O título agora remete ao principal motivo que justificou o impeachment da presidente à época, i.e. as pedaladas fiscais[^3].
 
 [^3]: O espaço limitado do gráfico muitas vezes exige um esforço de edição que pode beirar o sensacionalismo ou clickbait. Talvez um título mais completo seria: "Para população brasileira, uso indevido do dinheiro público justifica impeachment do presidente". Contudo, acredito que o título atual seja um meio-termo razoável.
 
+### Melhorias
+
+---
+
+
+- **Caixas de texto** - ajudam a contar a história e "explicam" a legenda de maneira intuitiva. O uso das cores junto com o texto indica que vermelho representa o percentual dos que não considera justificado.
+
+- **Alinhamento horizontal e ordem dos grupos** - O alinhamento horizontal das barras facilita a leitura do texto e dos títulos dos eixos. Além disso, a ordem (esquerda x direita) é intuitiva dentro do contexto político.
+
+- **Cores intencionais** - O gráfico original tinha cores genéricas e confusas. O gráfico revisado aproveita o contexto político
+
+
 ### Antes e Depois
+
+---
 
 ::: panel-tabset
 ## Antes
@@ -526,7 +619,7 @@ O gráfico abaixo mostra o quanto os entrevistados consideraram justo o impeahme
 
 O dado sendo apresentado é um tanto complexo. Como a resposta à pergunta é avaliada numa escala numérica é preciso traduzir isto para o leitor final. Seria possível "traduzir" a escala (e.g. 'discorda muito', 'discorda', 'discorda um pouco', etc.), mas isto implica em inventar uma correspondência que não existe na pesquisa original.
 
-A mensagem central dos dados, resume-se à discordância ou concordância com a pergunta. Contudo, resumir os dados em apenas três grupos ('concordo', 'discordo', 'neutro') removeria a nuance da escala numérica.
+A mensagem central dos dados resume-se à discordância ou concordância com a pergunta. Contudo, resumir os dados em apenas três grupos ('concordo', 'discordo', 'neutro') removeria a nuance da escala numérica.
 
 ### Problemas do gráfico
 
@@ -549,6 +642,7 @@ A mensagem central dos dados, resume-se à discordância ou concordância com a 
 Para montar o novo gráfico, eu agrego os valores em três grupos: concordo, discordo e neutro. Estes valores serão apresentados junto com todas as colunas originais.
 
 ```{r dc-impeach-just}
+#| code-fold: true
 imp_just <- prep_data(braimp17, translate = FALSE)
 
 imp_just <- imp_just |> 
@@ -773,6 +867,38 @@ plot_single_color
 
 # Referências e posts relacionados
 
-<https://medium.economist.com/mistakes-weve-drawn-a-few-8cdd8a42d368>
+* [Economist - Mistakes, we've drawn a few](https://medium.economist.com/mistakes-weve-drawn-a-few-8cdd8a42d368)
+* [Economist - Tips for visualising data like The Economist](https://education.economist.com/insights/interviews/tips-for-visualising-data-like-the-economist)
+* [Replicando gráficos com {ggplot2}](https://restateinsight.com/posts/general-posts/2023-11-replicating-plots/)
 
-<https://education.economist.com/insights/interviews/tips-for-visualising-data-like-the-economist>
+
+```{r}
+#| include: false
+library(patchwork)
+library(magick)
+library(grid)
+
+path_stvida <- here::here("static/images/bad_charts/01satisfacao_com_a_vida.png")
+img_stvida <- image_read(path_stvida)
+
+scaled_img_stvida <- image_scale(img_stvida, "400")
+
+plot_before <- ggplot(subset(mtcars, wt < 0)) + geom_point()
+grid.raster(scaled_img_stvida)
+
+plot_after <- plot_no_grid &
+  plot_annotation(title = "After") &
+  theme(plot.title = element_text(size = 16))
+
+panel <- plot_before | plot_after
+panel
+  
+  # Create arrow plot
+  arrow_plot <- ggplot() +
+    annotate("segment", x = 0.2, xend = 0.8, y = 0.5, yend = 0.5,
+             arrow = arrow(length = unit(0.3, "inches"), type = "closed"),
+             size = 2, color = "darkblue") +
+    xlim(0, 1) + ylim(0, 1) +
+    theme_void()
+
+```
