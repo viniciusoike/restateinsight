@@ -2,15 +2,15 @@
 title: "Melhorando gráficos ruins"
 date: "2025-07-15"
 description: "Fazer o gráfico certo não é tarefa fácil e é um processo de aprendizado contínuo. Neste post, reviso algumas visualizações antigas e mostro como melhorá-las, usando princípios modernos do design de informação. Pequenos detalhes somados fazem uma grande diferença na hora de contar uma história com dados."
-image: ""
+image: "/static/images/thumbnails/improving_charts.png"
+image-alt: "/static/images/thumbnails/improving_charts.png"
 categories: ["data-visualization", "ggplot2", "data-science", "tutorial-R", "brasil", "LAPOP"]
 format:
   html:
     default-image-extension: svg
-execute: 
+execute:
   message: false
   warning: false
-draft: true
 ---
 
 # Melhorando visualizações
@@ -18,6 +18,7 @@ draft: true
 Neste post analiso alguns gráficos antigos que fiz e tento melhorá-los. Os gráficos são parte de um projeto pessoal antigo, que não chegou a ser publicado. Na época, queria analisar os dados do [AmericasBarometer LAPOP](https://www.vanderbilt.edu/lapop/about-americasbarometer.php), um questionário anual sobre opiniões a respeito da democracia na América Latina. Em particular, a edição de 2017 fez perguntas sobre o impeachment de Dilma Rouseff.
 
 De maneira geral, os principais problemas que notei nos meus gráficos antigos foram:
+
 1. Uso excessivo de linhas de grade.
 2. Uso inconsistente de cores.
 3. Informações textuais ruins: títulos confusos, barras sem rótulos, etc.
@@ -71,7 +72,7 @@ xconv <- c(
   )
 
 prep_data <- function(var, translate = TRUE, tidy = TRUE) {
-  
+
   dat <- lapop %>%
     # Conta o número de obsevações segundo o peso amostral
     count({{ var }}, wt = wt) %>%
@@ -81,27 +82,27 @@ prep_data <- function(var, translate = TRUE, tidy = TRUE) {
     mutate(share = n / sum(n) * 100) %>%
     # Convert as respostas numéricas em texto (i.e. 1 -> Sim, 2 -> Não)
     as_factor()
-  
+
   # Opção para traduzir as respostas
   if (translate) {
     dat[[1]] <- forcats::fct_recode(dat[[1]], !!!xconv)
   }
-  
+
   # Opção para facilitar o agrupamento dos dados posteriormente
   if (tidy) {
-    
+
     swap_names <- rlang::as_name(rlang::enquo(var))
     names(swap_names) <- "name_label"
-    
+
     dat <- dat %>%
       mutate(
         name_var = rlang::as_name(rlang::enquo(var)),
         .before = 1) %>%
       rename(all_of(swap_names))
   }
-  
+
   return(dat)
-  
+
 }
 
 # Função para formatar números
@@ -117,16 +118,16 @@ Por fim, vou usar uma paleta de cores padronizada, algumas fontes e um tema padr
 ```{r theme_elements}
 #| code-fold: true
 color_palette <- c(
-  "#1f4e79",  # Deep navy blue (primary)
-  "#2e5984",  # Medium navy
-  "#4472c4",  # Professional blue
-  "#70ad47",  # Muted green
-  "#ffc000",  # Warm amber/gold
-  "#e15759",  # Muted red
-  "#af7aa1",  # Soft purple
-  "#ff9f40",  # Warm orange
-  "#5b9bd5",  # Light blue
-  "#a5a5a5"   # Professional gray
+  "#1f4e79", # Deep navy blue (primary)
+  "#2e5984", # Medium navy
+  "#4472c4", # Professional blue
+  "#70ad47", # Muted green
+  "#ffc000", # Warm amber/gold
+  "#e15759", # Muted red
+  "#af7aa1", # Soft purple
+  "#ff9f40", # Warm orange
+  "#5b9bd5", # Light blue
+  "#a5a5a5" # Professional gray
 )
 
 font_text <- "Rockwell"
@@ -135,10 +136,16 @@ font_title <- "Georgia"
 theme_barplot <- theme_minimal(base_family = font_text) +
   theme(
     plot.margin = margin(10, 5, 10, 5),
-    legend.position = "top",
-    axis.text.x = element_text(size = 12),
+    panel.background = element_rect(fill = "#fefefe", color = "#fefefe"),
+    plot.background = element_rect(fill = "#fefefe", color = "#fefefe"),
+
     panel.grid.minor = element_blank(),
     panel.grid.major.x = element_blank(),
+
+    legend.position = "top",
+
+    axis.text.x = element_text(size = 12),
+
     plot.title = element_text(family = font_title, size = 18),
     plot.subtitle = element_text(color = "gray20"),
     plot.caption = element_text(color = "gray40", hjust = 0)
@@ -202,14 +209,14 @@ tab <- bind_rows(
 ```{r fun-plot-barplot}
 #| code-fold: true
 plot_barplot <- function(type = c("sequential", "qualitative")) {
-  
+
   cols <- list(
     sequential = color_palette[c(1, 3)],
     qualitative = color_palette[c(1, 8)]
   )
-  
+
   colors <- cols[[type]]
-  
+
   plot <- ggplot(tab, aes(name_label, share, fill = name_var)) +
   geom_col(position = "dodge") +
   geom_hline(yintercept = 0) +
@@ -230,11 +237,11 @@ plot_barplot <- function(type = c("sequential", "qualitative")) {
     caption = "Fonte: Lapop (2017) | Perguntas: SOCT2, IDIO2.\n(*)'Você considera que a situação econômica atual do país está ... do que há doze meses?'\n'Você acha que a sua situação econômica está ... do que há doze meses?'",
     x = NULL,
     y = "(%)"
-  ) + 
+  ) +
   theme_barplot
-  
+
   return(plot)
-  
+
 }
 ```
 
@@ -645,7 +652,7 @@ Para montar o novo gráfico, eu agrego os valores em três grupos: concordo, dis
 #| code-fold: true
 imp_just <- prep_data(braimp17, translate = FALSE)
 
-imp_just <- imp_just |> 
+imp_just <- imp_just |>
   mutate(
     resp_num = case_when(
       name_label == "Strongly Disagree" ~ 1,
@@ -726,7 +733,7 @@ plot_single_color <- ggplot(imp_just, aes(resp_num, share)) +
   ) +
   geom_segment(
     data = brackets,
-    aes(x = x, xend = xend, y = y, yend = yend), 
+    aes(x = x, xend = xend, y = y, yend = yend),
     color = "black"
     ) +
   geom_segment(
@@ -753,7 +760,7 @@ plot_single_color <- ggplot(imp_just, aes(resp_num, share)) +
     axis.text.x = element_blank()
   )
 
-plot_div_color <- 
+plot_div_color <-
   ggplot(imp_just, aes(resp_num, share)) +
   geom_col(aes(fill = grouping)) +
   geom_hline(yintercept = 0) +
@@ -773,7 +780,7 @@ plot_div_color <-
   ) +
   geom_segment(
     data = brackets,
-    aes(x = x, xend = xend, y = y, yend = yend), 
+    aes(x = x, xend = xend, y = y, yend = yend),
     color = "black",
     inherit.aes = FALSE
     ) +
@@ -874,31 +881,12 @@ plot_single_color
 
 ```{r}
 #| include: false
-library(patchwork)
-library(magick)
-library(grid)
-
-path_stvida <- here::here("static/images/bad_charts/01satisfacao_com_a_vida.png")
-img_stvida <- image_read(path_stvida)
-
-scaled_img_stvida <- image_scale(img_stvida, "400")
-
-plot_before <- ggplot(subset(mtcars, wt < 0)) + geom_point()
-grid.raster(scaled_img_stvida)
-
-plot_after <- plot_no_grid &
-  plot_annotation(title = "After") &
-  theme(plot.title = element_text(size = 16))
-
-panel <- plot_before | plot_after
-panel
-  
-  # Create arrow plot
-  arrow_plot <- ggplot() +
-    annotate("segment", x = 0.2, xend = 0.8, y = 0.5, yend = 0.5,
-             arrow = arrow(length = unit(0.3, "inches"), type = "closed"),
-             size = 2, color = "darkblue") +
-    xlim(0, 1) + ylim(0, 1) +
-    theme_void()
+# Export one of the plots to serve as thumbnail
+ggsave(
+  here::here("static/images/thumbnails/improving_charts.png"),
+  plot = plot_no_grid,
+  width = 7.4,
+  height = 5
+  )
 
 ```
