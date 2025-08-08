@@ -1,5 +1,7 @@
 library(dplyr)
 library(stringr)
+library(gt)
+library(gtExtras)
 import::from(tidyr, pivot_wider)
 import::from(sidrar, get_sidra)
 
@@ -90,34 +92,34 @@ tbl_pop_metro <- tbl_pop_metro |>
   arrange(year) |>
   arrange(name_metro)
 
-# Get only metro regions that had over 500k inhabitants in 2022
-big_metros <- subset(tbl_pop_metro, year == 2022 & total > 5 * 1e5)$name_metro
+# # Get only metro regions that had over 500k inhabitants in 2022
+# big_metros <- subset(tbl_pop_metro, year == 2022 & total > 5 * 1e5)$name_metro
 
-# Get only 500k cities and compute average geometric growth
-tbl_major <- tbl_pop_metro |>
-  filter(name_metro %in% big_metros) |>
-  # Not so trivial since year intervals are not the same between Census editions
-  group_by(name_metro) |>
-  mutate(
-    tcg = (total / lag(total))^(1 / (year - lag(year) + 1)) - 1,
-    total_round = round(total / 1000)
-  ) |>
-  ungroup()
+# # Get only 500k cities and compute average geometric growth
+# tbl_major <- tbl_pop_metro |>
+#   filter(name_metro %in% big_metros) |>
+#   # Not so trivial since year intervals are not the same between Census editions
+#   group_by(name_metro) |>
+#   mutate(
+#     tcg = (total / lag(total))^(1 / (year - lag(year) + 1)) - 1,
+#     total_round = round(total / 1000)
+#   ) |>
+#   ungroup()
 
-# Convert to wider and arrange by 2022 population
-tbl_major_wide <- tbl_major |>
-  pivot_wider(
-    id_cols = c("name_metro", "state"),
-    names_from = "year",
-    values_from = c("total_round", "tcg")
-  ) |>
-  select(-tcg_1991) |>
-  arrange(desc(total_round_2022))
+# # Convert to wider and arrange by 2022 population
+# tbl_major_wide <- tbl_major |>
+#   pivot_wider(
+#     id_cols = c("name_metro", "state"),
+#     names_from = "year",
+#     values_from = c("total_round", "tcg")
+#   ) |>
+#   select(-tcg_1991) |>
+#   arrange(desc(total_round_2022))
 
-qs::qsave(
-  list(metro = tbl_major, metro_wide = tbl_major_wide),
-  here::here("posts/general-posts/2025-06-censo-metro-regions/table.qs")
-)
+# qs::qsave(
+#   list(metro = tbl_major, metro_wide = tbl_major_wide),
+#   here::here("posts/general-posts/2025-06-censo-metro-regions/table.qs")
+# )
 
 # Split the larger metro tables into smaller regions views
 # to make the interpretation cleaner
@@ -173,106 +175,78 @@ tbl_full_wide <- tbl_full |>
   select(-tcg_1991) |>
   arrange(desc(total_round_2022))
 
-sub_region <- tbl_full %>%
-  filter(code_region == 4)
+qs::qsave(
+  list(metro = tbl_full, metro_wide = tbl_full_wide),
+  here::here("posts/general-posts/2025-06-censo-metro-regions/table.qs")
+)
 
-sub_region_wide <- tbl_full_wide %>%
-  filter(code_region == 4) %>%
-  select(name_metro, code_state, total_round_2022, starts_with("tcg"))
 
-timeline <- sub_region %>%
+timeline <- tbl_full %>%
   summarise(
     TCG = list(na.omit(c(tcg * 100))),
     .by = "name_metro"
   )
 
-col_names <- c(
-  "Região Metro",
-  "Pop. 2022",
-  "1991/2000",
-  "2000/2010",
-  "2010/2022"
+tbl_big_metros <- tbl_full_wide |>
+  filter(total_round_2022 > 1000) |>
+  select(name_metro, starts_with("total"), starts_with("tcg")) |>
+  select(-total_round_1991) |>
+  mutate(across(starts_with("total"), ~ round(.x / 1000)))
+
+vals <- c(
+  tbl_big_metros$tcg_2000,
+  tbl_big_metros$tcg_2010,
+  tbl_big_metros$tcg_2022
 )
 
-names(col_names) <- names(sub_region_wide)
+breaks <- quantile(vals, probs = c(0.2, 0.4, 0.6, 0.8))
 
-gt_theme_simple <- function(dat) {
-  fmt_table <- dat |>
-    opt_table_font(font = "DIN Alternate") |>
-    tab_options(
-      column_labels.background.color = "#fefefe",
-      data_row.padding = px(4),
-      column_labels.font.size = px(16),
-      table.font.size = px(14),
-      table.font.color = "#374151",
+tbl_big_metros <- tbl_big_metros |>
+  mutate(across(
+    tcg_2000:tcg_2022,
+    ~ findInterval(.x, breaks),
+    .names = "{.col}_class"
+  ))
 
-      column_labels.border.top.style = "solid",
-      column_labels.border.top.width = px(2),
-      #column_labels.border.top.color = "#1B365D",
-      column_labels.border.top.color = "#000000",
-      column_labels.border.bottom.style = "solid",
-      column_labels.border.bottom.width = px(1),
-      column_labels.border.bottom.color = "#E5E7EB",
+tbl_big_metros <- left_join(tbl_big_metros, timeline)
 
-      stub_border.style = "solid",
-      stub_border.width = px(2),
-      stub_border.color = "#E5E7EB",
+gt_colnames <- c(
+  "name_metro" = "Região Metro",
+  "total_round_2000" = "2000",
+  "total_round_2010" = "2010",
+  "total_round_2022" = "2022",
+  "tcg_2000" = "1991/2000",
+  "tcg_2010" = "2000/2010",
+  "tcg_2022" = "2010/2022",
+  "TCG" = "TCG"
+)
 
-      # Row styling
-      row.striping.include_table_body = TRUE,
-      row.striping.background_color = "#FAFBFC",
+pal_rdbu <- c("#E63946", as.character(ekioplot::ekio_palette("modern_premium")))
 
-      # Borders
-      heading.border.bottom.style = "solid",
-      heading.border.bottom.width = px(2),
-      heading.border.bottom.color = "#000000",
-      table.border.top.style = "solid",
-      table.border.top.width = px(2),
-      table.border.top.color = "#000000",
-      table.border.bottom.style = "solid",
-      table.border.bottom.width = px(2),
-      table.border.bottom.color = "#1B365D",
-
-      # Source notes
-      source_notes.font.size = px(10),
-      source_notes.border.lr.style = "none",
-      source_notes.padding = px(10)
-    ) %>%
-    tab_style(
-      style = list(
-        cell_text(color = "#fefefe", weight = "bold"),
-        cell_fill(color = "#1B365D")
-      ),
-      locations = cells_column_labels()
-    ) %>%
-    # Style spanners
-    tab_style(
-      style = list(
-        cell_text(weight = "bold", color = "#fefefe"),
-        cell_fill(color = "#1B365D")
-      ),
-      locations = cells_column_spanners()
-    ) %>%
-    tab_style(
-      style = cell_borders(
-        sides = c("top", "bottom"),
-        color = "#E5E7EB",
-        weight = px(1)
-      ),
-      locations = cells_body()
-    ) %>%
-    tab_style(
-      style = list(
-        cell_text(color = "#6B7280")
-      ),
-      location = cells_source_notes()
-    )
-}
+gt(tbl_big_metros) %>%
+  cols_hide(columns = ends_with("class")) %>%
+  cols_label(.list = gt_colnames) %>%
+  tab_spanner("Populacao (Mil)", columns = 2:4) %>%
+  tab_spanner("Crescimento (%)", columns = 5:7) %>%
+  fmt_number(starts_with("total"), decimals = 0, sep_mark = ".") %>%
+  fmt_percent(starts_with("tcg"), decimals = 2, dec_mark = ",") %>%
+  gt_plt_sparkline(
+    column = TCG,
+    palette = c("gray30", "black", "firebrick", "dodgerblue", "lightgrey"),
+    fig_dim = c(5, 28)
+  ) %>%
+  data_color(
+    columns = c(tcg_2000_class, tcg_2010_class, tcg_2022_class),
+    target_columns = c(tcg_2000, tcg_2010, tcg_2022),
+    palette = pal_rdbu,
+    domain = c(0, 4)
+  ) %>%
+  gt_theme_ekio()
 
 table_region <- function(dat, code) {
   subdat <- dat %>%
     filter(code_region %in% code) %>%
-    select(name_metro, total_round_2022, starts_with("tcg"))
+    select(name_metro, state, total_round_2022, starts_with("tcg"))
 
   q <- quantile(
     subdat$tcg_2022[subdat$tcg_2022 > 0],
@@ -291,12 +265,24 @@ table_region <- function(dat, code) {
       .by = "name_metro"
     )
 
+  col_names <- c(
+    "Região Metro",
+    "Estado",
+    "Pop. 2022",
+    "1991/2000",
+    "2000/2010",
+    "2010/2022"
+  )
+
+  gt_colnames <- col_names
+  names(gt_colnames) <- names(subdat)[1:length(col_names)]
+
   subdat %>%
     left_join(timeline) %>%
     gt() %>%
-    cols_label(.list = col_names) %>%
+    cols_label(.list = gt_colnames) %>%
     cols_hide(columns = "class") %>%
-    tab_spanner("Crescimento (%)", columns = 3:5) %>%
+    tab_spanner("Crescimento (%)", columns = 4:6) %>%
     tab_header(
       title = "Crescimento demográfico",
       subtitle = "Crescimento populacional entre os Censos"
@@ -309,7 +295,7 @@ table_region <- function(dat, code) {
       palette = c("gray30", "black", "firebrick", "dodgerblue", "lightgrey"),
       fig_dim = c(5, 28)
     ) %>%
-    gt_theme_simple() %>%
+    gt_theme_ekio() %>%
     data_color(
       columns = class,
       target_columns = tcg_2022,
@@ -317,10 +303,9 @@ table_region <- function(dat, code) {
     )
 }
 
-
 table_state <- function(dat, code) {
   subdat <- dat %>%
-    filter(code_state == code) %>%
+    filter(code_state %in% code) %>%
     select(name_metro, total_round_2022, starts_with("tcg"))
 
   timeline <- tbl_full %>%
@@ -330,10 +315,21 @@ table_state <- function(dat, code) {
       .by = "name_metro"
     )
 
-  subdat %>%
-    left_join(timeline) %>%
-    gt() %>%
-    cols_label(.list = col_names) %>%
+  gt_colnames <- c(
+    "Região Metro",
+    "Pop. 2022",
+    "1991/2000",
+    "2000/2010",
+    "2010/2022"
+  )
+
+  names(gt_colnames) <- names(subdat)[1:length(gt_colnames)]
+
+  subdat <- left_join(subdat, timeline)
+
+  gt(subdat) %>%
+    cols_hide(columns = starts_with("class")) %>%
+    cols_label(.list = gt_colnames) %>%
     tab_spanner("Crescimento (%)", columns = 3:5) %>%
     fmt_number(starts_with("total"), decimals = 0, sep_mark = ".") %>%
     fmt_percent(starts_with("tcg"), decimals = 2, dec_mark = ",") %>%
@@ -343,58 +339,24 @@ table_state <- function(dat, code) {
       palette = c("gray30", "black", "firebrick", "dodgerblue", "lightgrey"),
       fig_dim = c(5, 28)
     ) %>%
-    gt_theme_538() %>%
-    gt_color_rows(
-      columns = tcg_2022,
-      domain = seq(-0.005, 0.03, 0.005),
-      #domain = c(min(metro_wide$tcg_2022), 0, max(metro_wide$tcg_2022)),
-      palette = c(
-        "#E63946",
-        "#F1FAEE",
-        "#CDEAE5",
-        "#BBE2E1",
-        "#A8DADC",
-        "#90C3CD",
-        "#77ABBD",
-        "#457B9D",
-        "#31587A",
-        "#1D3557"
-      )
+    gt_theme_ekio() %>%
+    data_color(
+      columns = tcg_2000:tcg_2022,
+      palette = pal_rdbu,
+      method = "quantile",
+      quantiles = 5
     )
 }
 
-table_state(sub_region_wide, 41)
-table_region(tbl_full_wide, 3)
+# Export tables
 
+codes <- list(41, 42, 42, c(31:35))
 
-sub_region_wide %>%
-  left_join(timeline) %>%
-  gt() %>%
-  cols_label(.list = col_names) %>%
-  tab_spanner("Crescimento (%)", columns = 4:6) %>%
-  fmt_number(starts_with("total"), decimals = 0, sep_mark = ".") %>%
-  fmt_percent(starts_with("tcg"), decimals = 2) %>%
-  ## Target Timeline column
-  gt_plt_sparkline(
-    column = TCG,
-    palette = c("gray30", "black", "firebrick", "dodgerblue", "lightgrey"),
-    fig_dim = c(5, 28)
-  ) %>%
-  gt_theme_538() %>%
-  gt_color_rows(
-    columns = tcg_2022,
-    domain = seq(-0.005, 0.03, 0.005),
-    #domain = c(min(metro_wide$tcg_2022), 0, max(metro_wide$tcg_2022)),
-    palette = c(
-      "#E63946",
-      "#F1FAEE",
-      "#CDEAE5",
-      "#BBE2E1",
-      "#A8DADC",
-      "#90C3CD",
-      "#77ABBD",
-      "#457B9D",
-      "#31587A",
-      "#1D3557"
-    )
-  )
+state_tables <- lapply(codes, \(c) table_state(tbl_full_wide, code = c))
+
+names(state_tables) <- c(
+  "parana",
+  "santa_catarina",
+  "rio_grande_do_sul",
+  "sudeste"
+)
