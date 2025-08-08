@@ -2,7 +2,7 @@
 title: "O crescimento das Regiões Metropolitanas Brasileiras"
 date: "2025-06-15"
 categories: ["censo", "brasil", "cidades", "demografia", "data-visualization"]
-description: ""
+description: "Os resultados do Censo 2022 trouxeram à tona um fenômeno que tem gerado intensos debates sobre o futuro demográfico do Brasil: pela primeira vez em décadas, algumas das principais regiões metropolitanas do país registraram redução populacional ou crescimento próximo de zero. Para melhor compreender esta transformação, vale analisar os dados em uma perspectiva histórica e regional."
 format:
   html:
     toc: false
@@ -21,13 +21,14 @@ library(ggplot2)
 ```
 
 ```{r}
-
 dirpath <- here::here("posts/general-posts/2025-06-censo-metro-regions/")
 tables <- qs::qread(here::here(dirpath, "table.qs"))
 plots <- readr::read_rds(here::here(dirpath, "plots.rds"))
 
 metro <- tables$metro
 metro_wide <- tables$metro_wide
+
+source(here::here(dirpath, "gt_funs.R"))
 ```
 
 ```{r}
@@ -37,52 +38,66 @@ timeline <- metro %>%
     .by = "name_metro"
   )
 
-col_names <- c(
-  "Região Metro",
-  "Estado",
-  "1991",
-  "2000",
-  "2010",
-  "2022",
-  "1991/2000",
-  "2000/2010",
-  "2010/2022"
+tbl_big_metros <- metro_wide |>
+  filter(total_round_2022 > 1e6) |>
+  select(name_metro, starts_with("total"), starts_with("tcg")) |>
+  select(-total_round_1991) |>
+  mutate(across(starts_with("total"), ~ round(.x / 1000)))
+
+vals <- c(
+  tbl_big_metros$tcg_2000,
+  tbl_big_metros$tcg_2010,
+  tbl_big_metros$tcg_2022
 )
 
-names(col_names) <- names(metro_wide)
+breaks <- quantile(vals, probs = c(0.2, 0.4, 0.6, 0.8))
 
-gtable_cities <- metro_wide %>%
-  left_join(timeline) %>%
-  gt() %>%
-  cols_label(.list = col_names) %>%
-  tab_spanner("População (Mil)", columns = 3:6) %>%
-  tab_spanner("Crescimento (%)", columns = 7:9) %>%
+tbl_big_metros <- tbl_big_metros |>
+  mutate(across(
+    tcg_2000:tcg_2022,
+    ~ findInterval(.x, breaks),
+    .names = "{.col}_class"
+  ))
+
+tbl_big_metros <- left_join(tbl_big_metros, timeline)
+
+gt_colnames <- c(
+  "name_metro" = "Região Metro",
+  "total_round_2000" = "2000",
+  "total_round_2010" = "2010",
+  "total_round_2022" = "2022",
+  "tcg_2000" = "1991/2000",
+  "tcg_2010" = "2000/2010",
+  "tcg_2022" = "2010/2022",
+  "TCG" = "TCG"
+)
+
+pal_rdbu <- c("#E63946", as.character(ekioplot::ekio_palette("modern_premium")))
+
+gtable_cities <- gt(tbl_big_metros) %>%
+  cols_hide(columns = ends_with("class")) %>%
+  cols_label(.list = gt_colnames) %>%
+  tab_spanner("Populacao (Mil)", columns = 2:4) %>%
+  tab_spanner("Crescimento (%)", columns = 5:7) %>%
   fmt_number(starts_with("total"), decimals = 0, sep_mark = ".") %>%
-  fmt_percent(starts_with("tcg"), decimals = 2) %>%
-  ## Target Timeline column
+  fmt_percent(starts_with("tcg"), decimals = 2, dec_mark = ",") %>%
   gt_plt_sparkline(
     column = TCG,
     palette = c("gray30", "black", "firebrick", "dodgerblue", "lightgrey"),
     fig_dim = c(5, 28)
   ) %>%
-  gt_theme_538() %>%
-  gt_color_rows(
-    columns = tcg_2022,
-    domain = seq(-0.005, 0.03, 0.005),
-    #domain = c(min(metro_wide$tcg_2022), 0, max(metro_wide$tcg_2022)),
-    palette = c(
-      "#E63946",
-      "#F1FAEE",
-      "#CDEAE5",
-      "#BBE2E1",
-      "#A8DADC",
-      "#90C3CD",
-      "#77ABBD",
-      "#457B9D",
-      "#31587A",
-      "#1D3557"
-    )
-  )
+  data_color(
+    columns = c(tcg_2000_class, tcg_2010_class, tcg_2022_class),
+    target_columns = c(tcg_2000, tcg_2010, tcg_2022),
+    palette = pal_rdbu,
+    domain = c(0, 4)
+  ) %>%
+  gt_theme_ekio()
+
+gtable_pr <- table_state(metro_wide, metro, 41)
+gtable_sc <- table_state(metro_wide, metro, 42)
+gtable_rs <- table_state(metro_wide, metro, 43)
+gtable_se <- table_state(metro_wide, metro, 31:35)
 ```
 
 ## **As Mudanças Demográficas nas Regiões Metropolitanas Brasileiras**
@@ -115,9 +130,37 @@ Os dados mostram um cenário de clara desaceleração do crescimento populaciona
 
 ### Diferentes Dinâmicas Regionais
 
-A análise dos dados revela padrões regionais distintos que refletem as transformações econômicas e sociais do país. No **Sudeste**, observa-se uma clara desaceleração: além de São Paulo e Rio de Janeiro, mesmo regiões tradicionalmente dinâmicas como Campinas (0,96%) e Vale do Paraíba (0,78%) apresentam crescimento modesto. Belo Horizonte mantém algum dinamismo (0,42%), mas bem abaixo dos padrões históricos.
+A análise dos dados revela padrões regionais distintos que refletem as transformações econômicas e sociais do país.
+
+```{r}
+gtable_se
+```
+
+No **Sudeste**, observa-se uma clara desaceleração: além de São Paulo e Rio de Janeiro, mesmo regiões tradicionalmente dinâmicas como Campinas (0,96%) e Vale do Paraíba (0,78%) apresentam crescimento modesto. Belo Horizonte mantém algum dinamismo (0,42%), mas bem abaixo dos padrões históricos.
 
 O **Sul** apresenta o cenário mais heterogêneo do país. Enquanto Porto Alegre encolhe (-0,03%), regiões como Florianópolis (2,28%) lideram o crescimento nacional. Cidades médias como Chapecó (1,63%), Maringá (1,34%) e a região Carbonífera de Santa Catarina (1,23%) demonstram forte vitalidade econômica, refletindo o dinamismo do agronegócio e da indústria regional.
+
+::: {.panel-tabset}
+
+## Paraná
+
+```{r}
+gtable_pr
+```
+
+## Santa Catarina
+
+```{r}
+gtable_sc
+```
+
+## Rio Grande do Sul
+
+```{r}
+gtable_rs
+```
+
+:::
 
 No **Centro-Oeste**, todas as regiões metropolitanas mantêm crescimento positivo. Goiânia (1,39%) e a RIDE-DF (1,06%) se beneficiam da expansão do agronegócio e do setor público, enquanto o Vale do Rio Cuiabá (1,09%) reflete o boom do agronegócio mato-grossense.
 
@@ -132,7 +175,6 @@ Um dos aspectos mais notáveis dos dados é o dinamismo das cidades médias e re
 Florianópolis emerge como a capital de maior crescimento (2,28%), consolidando-se como polo tecnológico e de qualidade de vida. No interior catarinense, o dinamismo se repete: Chapecó (1,63%), Vale do Itajaí (1,54%), Norte/Nordeste Catarinense (1,48%) e região Carbonífera (1,23%) demonstram a vitalidade econômica diversificada do estado.
 
 ::: {.panel-tabset}
-
 ## Número de Cidades
 
 ```{r}
@@ -143,6 +185,7 @@ plots$cities
 ```
 
 ## Crescimento Médio
+
 ```{r}
 #| echo: false
 #| fig-align: "center"
@@ -151,6 +194,7 @@ plots$growth
 ```
 
 ## Crescimento Total (ganho pop.)
+
 ```{r}
 #| echo: false
 #| fig-align: "center"
@@ -168,8 +212,7 @@ Esse padrão sugere uma reconfiguração profunda do sistema urbano brasileiro, 
 
 ### Nuances regionais: o caso de Belo Horizonte
 
-A RM de Belo Horizonte ilustra um processo de redistribuição populacional. Enquanto a capital mineira registrou perda populacional de quase 60 mil habitantes, passando de 2,375 milhões para 2,316 milhões entre 2010 e 2022 (queda de -0,21%), a população da região metropolitana como um todo cresceu 0,42% ao ano no mesmo período. Em termos absolutos, a RM de Belo Horizonte ganhou pouco mais de 300 mil habitantes (crescimento de 5,6%).
-<br>
+A RM de Belo Horizonte ilustra um processo de redistribuição populacional. Enquanto a capital mineira registrou perda populacional de quase 60 mil habitantes, passando de 2,375 milhões para 2,316 milhões entre 2010 e 2022 (queda de -0,21%), a população da região metropolitana como um todo cresceu 0,42% ao ano no mesmo período. Em termos absolutos, a RM de Belo Horizonte ganhou pouco mais de 300 mil habitantes (crescimento de 5,6%). <br>
 
 ```{r}
 #| echo: false
