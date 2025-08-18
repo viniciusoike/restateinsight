@@ -1,0 +1,464 @@
+---
+title: 'You need a map - Parte 1'
+date: '2024-01-03'
+categories: ['data visualization', 'ggplot2', 'turorial-R']
+description: "O ggplot2 tem uma ótima interface para a produção de mapas de alta qualidade. Neste primeiro post, mostro como fazer mapas usando os conhecimentos adquiridos até aqui sem a necessidade de se preocupar com objetos geométricos."
+---
+
+```{r}
+#| include: false
+knitr::opts_chunk$set(
+  warning = FALSE,
+  message = FALSE,
+  fig.align = "center",
+  fig.showtext = TRUE,
+  fig.width = 9,
+  fig.asp = 0.618,
+  out.width = "90%",
+  fig.retina = 2,
+  dpi = 72
+)
+
+library(patchwork)
+
+print_table <- function(x) {
+  x |>
+    knitr::kable(align = "c", digits = 0) |>
+    kableExtra::kable_styling(
+      full_width = FALSE,
+      bootstrap_options = c("condensed", "responsive", "hover", "striped")
+    )
+}
+```
+
+```{r}
+#| include: false
+library(ggplot2)
+library(sf)
+library(dplyr)
+library(tidyr)
+sf::sf_use_s2(FALSE)
+
+rent <- readr::read_csv(here::here(
+  "posts/tutorial-ggplot2/rents_liberdade.csv"
+))
+cem <- readr::read_csv(here::here("static/data/cem_imoveis.zip"))
+pod <- readr::read_csv(here::here("posts/tutorial-ggplot2/table_pod.csv"))
+cem2010 <- filter(cem, ano_lanc == 2010)
+
+cem <- cem |>
+  mutate(code_muni = as.numeric(substr(ap2010, 1, 7))) |>
+  filter(code_muni == 3550308)
+```
+
+# Mapas
+
+Eu começo este post com uma confissão: eu sofri muito até conseguir fazer mapas minimamente apresentáveis com o R. Há duas dificuldades bem sérias: primeiro, objetos geométricos são uma classe de objetos bastante complexa; segundo, há inúmeras convenções na elaboração de mapas que escapam completamente aos objetivos do economista.
+
+Este post vai tentar ensinar a fazer mapas, apresentando absolutamente o mínimo necessário sobre convenções cartográficas, tipos de projeção, e geografia de maneira geral. Por questão de completude ele é dividido em três partes: na primeira parte mostro como fazer mapas de pontos de maneira simples sem se preocupar com geometria; na segunda parte mostro como fazer mapas coropléticos, mapas onde as cores usualmente representam o valor das variáveis; por fim, na terceira parte, mostro como fazer mapas estáticos com "elementos de mapa" como ruas, avenidas, rios, etc.
+
+# Quero apenas fazer um mapa interativo
+
+Se o seu objetivo é fazer um mapa interativo não use `ggplot`. Comece explorando o `leaflet`. Se o objetivo for menos visualização e mais "ciência de dados" e você não quer perder horas customizando cores no {leaflet} use o {tmap} ou {mapview}.
+
+```{r}
+library(leaflet)
+
+leaflet() %>%
+  addTiles() %>%
+  setView(lng = -46.6554, lat = -23.5651, zoom = 13)
+```
+
+# Mapas estáticos sem objetos espaciais
+
+## O básico
+
+A abordagem mais simples para tratar dados espaciais é simplesmente tratá-los como dados tabulados quaisquer. Isto funciona perfeitamente bem para objetos geométricos na forma de pontos e linhas, mas torna-se impraticável no caso de polígonos.
+
+No plano cartesiano, longitude e latitude são literalmente coordenadas; pode-se mapear estas coordenadas como pontos num gráfico de dispersão. Para tornar os exemplos mais aplicados vamos usar a base de [Empreendimentos Residenciais Verticais da Embraesp](https://geoembraesp.embraesp.com.br), disponibilizado pelo [Centro de Estudos da Metrópole da FAU/USP](https://centrodametropole.fflch.usp.br/pt-br/download-de-dados?busca_geral=empreendimentos&items_per_page=20). Os dados compreendem todos os lançamentos residenciais na Região Metropolitana de São Paulo entre 1985 e 2013. Para simplificar nossa análise vamos nos restringir somente aos empreendimentos lançados na capital.
+
+```{r}
+#| eval: false
+
+#> Os pacotes necessários
+library(ggplot2)
+library(sf)
+library(dplyr)
+
+# Para ler os dados dentro do R a partir do Github
+cem <- readr::read_csv(
+  "https://github.com/viniciusoike/restateinsight/raw/main/static/data/cem_imoveis.zip"
+)
+#| Seleciona apenas os empreendimentos lançados em São Paulo (capital)
+cem <- cem |>
+  mutate(code_muni = as.numeric(substr(ap2010, 1, 7))) |>
+  filter(code_muni == 3550308)
+```
+
+No gráfico abaixo cada ponto é um empreendimento residencial lançado em São Paulo entre 1985 e 2013. Note que os valores de longitude e latitude são fornecidos diretamente aos argumentos `x` e `y`.
+
+A função `coord_sf` fornece mais estrutura ao sistema de coordenadas. Especificamente, esta função garante que os dados plotados compartilhem o mesmo sistema de coordenadas e permite explicitamente definir qual sistema utilizar. No exemplo abaixo uso `crs = sf::st_crs(4326)` que é código para a projeção do [World Geodetic System](https://epsg.io/4326).
+
+```{r}
+ggplot(cem, aes(x = lon, y = lat)) +
+  geom_point(size = 0.1) +
+  coord_sf(crs = sf::st_crs(4326))
+```
+
+A principal vantagem de tratar os pontos, simplesmente como pontos, é que podemos aplicar todo o nosso conhecimento acumulado até agora. Os dados no gráfico seguem a mesma lógica dos [gráficos de dispersão, visto anteriormente](https://restateinsight.com/posts/tutorial-ggplot2/1-grafico-dispersao) e a sua manipulação segue as mesmas [convenções de dados tabulares convencionais](https://restateinsight.com/posts/tutorial-ggplot2/apendix-manipular-enxergar).
+
+No exemplo abaixo, o tamanho de cada círculo é proporcional ao número de unidades do empreendimento e a cor sinaliza se o empreendimento é veritical ou horizontal.
+
+```{r}
+#> Seleciona somente empreendimentos lançados em 2008
+cem08 <- cem |>
+  filter(ano_lanc == 2008)
+
+ggplot(cem08, aes(x = lon, y = lat)) +
+  geom_point(aes(size = emp_unid, color = as.factor(emp_tipo)), alpha = 0.5) +
+  coord_sf(crs = st_crs(4326))
+```
+
+Infelizmente, é necessário repetir o CRS da projeção dos dados em todos os gráficos. No post seguinte, vamos ver como construir objetos "geométricos" com o pacote `sf`, que funcionam como um `data.frame` embutido com informação espacial; neste caso, o `ggplot2` sabe qual a projeção a ser utilizada e não é necessário declará-la.
+
+Pode-se também fazer [gráficos em facets](https://restateinsight.com/posts/tutorial-ggplot2/9-facets) usando os dados de longitude e latitude. No gráfico abaixo, mostro os lançamentos ano a ano no período 2008-2011.
+
+```{r}
+#> Seleciona empreendimentos lançados entre 2008 e 2011
+sub <- cem |>
+  filter(ano_lanc %in% 2008:2011)
+
+ggplot(sub, aes(x = lon, y = lat)) +
+  geom_point(size = 0.4) +
+  coord_sf(crs = st_crs(4326)) +
+  facet_wrap(vars(ano_lanc))
+```
+
+## Agregando pontos
+
+### Mapas de contorno
+
+Pode-se agregar os pontos em mapas de calor (contorno). Há duas funções principais:
+
+-   `geom_density_2d` - que desenha linhas de contorno
+-   `geom_density_2d_filled` - que desenha uma mapa de contorno
+
+Nos gráficos abaixo uso apenas a subamostra de lançamentos no período 2008-2011.
+
+```{r}
+#| fig-show: hold
+#| out-width: "100%"
+#| layout-ncol: 2
+ggplot(sub, aes(x = lon, y = lat)) +
+  geom_density_2d() +
+  coord_sf(crs = st_crs(4326)) +
+  theme(legend.position = "none")
+
+ggplot(sub, aes(x = lon, y = lat)) +
+  geom_density_2d_filled() +
+  coord_sf(crs = st_crs(4326)) +
+  theme(legend.position = "none")
+```
+
+Talvez o argumento mais útil destas funções seja o `bins` ou `binwidth`, similar ao argumento de `geom_histogram`. Os mapas abaixo mostram como este argumento controla o número de quebras nas linhas de contorno. A função que calcula os contornos é a `MASS::kde2d()` e, em geral, ela escolhe bons valores para o número de bins.
+
+```{r density}
+#| eval: false
+ggplot(sub, aes(x = lon, y = lat)) +
+  geom_density_2d_filled(bins = 5) +
+  coord_sf(crs = st_crs(4326))
+
+ggplot(sub, aes(x = lon, y = lat)) +
+  geom_density_2d_filled(bins = 8) +
+  coord_sf(crs = st_crs(4326))
+
+ggplot(sub, aes(x = lon, y = lat)) +
+  geom_density_2d_filled(bins = 10) +
+  coord_sf(crs = st_crs(4326))
+
+ggplot(sub, aes(x = lon, y = lat)) +
+  geom_density_2d_filled(bins = 15) +
+  coord_sf(crs = st_crs(4326))
+```
+
+```{r density-bins}
+#| echo: false
+#| out-width: 100%
+p1 <- ggplot(sub, aes(x = lon, y = lat)) +
+  geom_density_2d_filled(bins = 5) +
+  coord_sf(crs = st_crs(4326)) +
+  ggtitle("bins = 5") +
+  labs(x = NULL, y = NULL) +
+  theme(legend.position = "none")
+
+p2 <- ggplot(sub, aes(x = lon, y = lat)) +
+  geom_density_2d_filled(bins = 8) +
+  coord_sf(crs = st_crs(4326)) +
+  ggtitle("bins = 8") +
+  labs(x = NULL, y = NULL) +
+  theme(legend.position = "none")
+
+p3 <- ggplot(sub, aes(x = lon, y = lat)) +
+  geom_density_2d_filled(bins = 10) +
+  coord_sf(crs = st_crs(4326)) +
+  ggtitle("bins = 10") +
+  labs(x = NULL, y = NULL) +
+  theme(legend.position = "none")
+
+p4 <- ggplot(sub, aes(x = lon, y = lat)) +
+  geom_density_2d_filled(bins = 15) +
+  coord_sf(crs = st_crs(4326)) +
+  ggtitle("bins = 15") +
+  labs(x = NULL, y = NULL) +
+  theme(legend.position = "none")
+
+(p1 + p2) / (p3 + p4)
+```
+
+Na base de dados do CEM cada linha é um tipo de unidade lançada de um empreendimento (uma tipologia). Assim, é possível (e recorrente) que um mesmo empreendimento apareça em várias linhas. A tabela abaixo mostra os empreendimentos lançados pela Cyrella em 2009. Note como o mesmo empreendimento aparece mais do que uma vez.
+
+```{r}
+sub |>
+  filter(construt_a == "Cyrela", ano_lanc == 2009) |>
+  select(
+    data_lanc,
+    name_district,
+    cep,
+    emp_andares,
+    emp_unid,
+    emp_dorm,
+    emp_elev,
+    dorm,
+    banh
+  ) |>
+  arrange(data_lanc)
+```
+
+Quando os dados estão na forma de uma "tabela de frequências" usualmente usa-se o argumento `weight`. O exemplo abaixo mostra um gráfico de dispersão entre a área útil de cada tipologia e o seu preço final (atualizado pelo IGP-DI). No primeiro caso, cada tipologia tem peso idêntico, ou seja, uma tipologia que foi lançada 200 vezes tem o mesmo peso que uma outra tipologia que foi lançada apenas 20 vezes. No gráfico da direita, o argumento `weight = emp_unid` cria uma peso para cada observação, de tal maneira que as tipologias mais representativas têm peso maior no ajuste.
+
+```{r}
+#| fig-show: hold
+#| out-width: "100%"
+#| layout-ncol: 2
+ggplot(sub, aes(x = ar_ut_unid, y = log(pc_tt_atu))) +
+  geom_point() +
+  geom_smooth(method = "gam") +
+  scale_y_continuous(limits = c(NA, 16))
+
+ggplot(sub, aes(x = ar_ut_unid, y = log(pc_tt_atu))) +
+  geom_point() +
+  geom_smooth(aes(weight = emp_unid), method = "gam") +
+  scale_y_continuous(limits = c(NA, 16))
+```
+
+Infelizmente, a função subjacente que a `geom_density_2d` utiliza não funciona diretamente com o argumento `weight`. A solução para contornar isto é criar uma tabela de dados onde as observações são repetidas usando a função `uncount`. Esta função repete as linhas de uma tabela segundo alguma variável: no caso abaixo, cada linha é repetida de acordo com o número de unidades que foram lançadas.
+
+```{r}
+#| out-width: 100%
+#| fig-show: hold
+#| layout-ncol: 2
+count_unidades <- sub |>
+  select(emp_code, emp_unid, lat, lon) |>
+  uncount(emp_unid)
+
+ggplot(count_unidades, aes(x = lon, y = lat)) +
+  geom_density_2d() +
+  coord_sf(crs = st_crs(4326)) +
+  ggtitle("Unidades lançadas") +
+  labs(x = NULL, y = NULL) +
+  theme(legend.position = "none")
+
+ggplot(sub, aes(x = lon, y = lat)) +
+  geom_density_2d() +
+  coord_sf(crs = st_crs(4326)) +
+  ggtitle("Empreendimentos lançados") +
+  labs(x = NULL, y = NULL) +
+  theme(legend.position = "none")
+```
+
+Mais a título de curiosidade, também é possível usar adaptar a função `stat_density_2d()` para gerar um mapa similar ao do `geom_count`.
+
+```{r}
+#| out-width: 100%
+#| fig-show: hold
+#| layout-ncol: 2
+ggplot(sub, aes(x = lon, y = lat)) +
+  geom_count() +
+  coord_sf(crs = st_crs(4326))
+
+ggplot(sub, aes(x = lon, y = lat)) +
+  stat_density_2d(
+    geom = "point",
+    aes(size = after_stat(density)),
+    n = 20,
+    contour = FALSE
+  )
+```
+
+Pode-se separar os contornos em grupos com cores distintas. No gráfico abaixo eu separo os empreendimentos pelo número de andares. Vê-se que os empreendimentos horizontais simples, de apenas um andar, estão concentrados no lado nordeste do gráfico. Já os empreendimentos verticais mais elevados (20 a 35 andares) estão concentrados no sudoeste do gráfico (grosso modo, região do Itaim Bibi) e na região oeste (grosso modo, região da Vila Formosa).
+
+```{r}
+sub <- sub |>
+  mutate(
+    group = findInterval(emp_andares, c(1, 5, 10, 20, 35)),
+    group = factor(
+      group,
+      labels = c("1", "1 a 5", "5 a 10", "10 a 20", "20 a 35")
+    )
+  )
+
+ggplot(sub, aes(x = lon, y = lat)) +
+  geom_density_2d(aes(color = group)) +
+  coord_sf(crs = st_crs(4326)) +
+  scale_color_brewer(name = "Número de andares", palette = 6, type = "qual") +
+  theme(legend.position = "bottom")
+```
+
+Como de costume, é possível sobrepor vários tipos de geoms num mesmo gráfico. O gráfico abaixo mostra a distribuição espacial dos empreendimentos de 10 a 20 andares.
+
+```{r}
+sub <- sub |>
+  mutate(
+    group = findInterval(emp_andares, c(1, 5, 10, 20, 35)),
+    group = factor(
+      group,
+      labels = c("1", "1 a 5", "5 a 10", "10 a 20", "20 a 35")
+    )
+  )
+
+ggplot(filter(sub, group == "10 a 20"), aes(x = lon, y = lat)) +
+  geom_point(aes(size = emp_unid), alpha = 0.1) +
+  geom_density_2d_filled(alpha = 0.5) +
+  coord_sf(crs = st_crs(4326))
+```
+
+### Mapas com grids
+
+Por fim, vale mencionar duas funções simples que permitem agregar os pontos em um grid regular. Há duas opções de grids:
+
+1.  Quadrados com a função `geom_bin2d()` ou `geom_bin_2d()`
+2.  Hexágonos com a função `geom_hex()`
+
+Tanto quadrados como hexágonos tem boas propriedades geométricas que os tornam aptos a agregar dados espaciais.
+
+```{r}
+ggplot(sub, aes(x = lon, y = lat)) +
+  geom_bin2d() +
+  scale_fill_viridis_c(option = "inferno")
+```
+
+```{r}
+#| eval: false
+ggplot(sub, aes(x = lon, y = lat)) +
+  geom_bin2d(bins = 10) +
+  coord_sf(crs = st_crs(4326)) +
+  scale_fill_viridis_c(option = "inferno")
+
+ggplot(sub, aes(x = lon, y = lat)) +
+  geom_bin2d(bins = 15) +
+  coord_sf(crs = st_crs(4326)) +
+  scale_fill_viridis_c(option = "inferno")
+
+ggplot(sub, aes(x = lon, y = lat)) +
+  geom_bin2d(bins = 25) +
+  coord_sf(crs = st_crs(4326)) +
+  scale_fill_viridis_c(option = "inferno")
+
+ggplot(sub, aes(x = lon, y = lat)) +
+  geom_bin2d(bins = 50) +
+  coord_sf(crs = st_crs(4326)) +
+  scale_fill_viridis_c(option = "inferno")
+```
+
+Existe algum controle sobre a quantidade de quadrados via o argumento `bins` ou `binwidth` (similar ao argumento da função `geom_histogram`).
+
+```{r}
+#| echo: false
+#| out-width: 100%
+p1 <- ggplot(sub, aes(x = lon, y = lat)) +
+  geom_bin2d(bins = 10) +
+  coord_sf(crs = st_crs(4326)) +
+  ggtitle("bins = 10") +
+  scale_fill_viridis_c(option = "inferno")
+
+p2 <- ggplot(sub, aes(x = lon, y = lat)) +
+  geom_bin2d(bins = 15) +
+  coord_sf(crs = st_crs(4326)) +
+  ggtitle("bins = 15") +
+  scale_fill_viridis_c(option = "inferno")
+
+p3 <- ggplot(sub, aes(x = lon, y = lat)) +
+  geom_bin2d(bins = 25) +
+  coord_sf(crs = st_crs(4326)) +
+  ggtitle("bins = 25") +
+  scale_fill_viridis_c(option = "inferno")
+
+p4 <- ggplot(sub, aes(x = lon, y = lat)) +
+  geom_bin2d(bins = 50) +
+  coord_sf(crs = st_crs(4326)) +
+  ggtitle("bins = 50") +
+  scale_fill_viridis_c(option = "inferno")
+
+(p1 + p2) / (p3 + p4)
+```
+
+O padrão da função `geom_bin2d()` é de contar o número de pontos dentro de cada quadrado. Pode-se mudar este valor via o argumento `weight` dentro de `aes`. No gráfico da esquerda, os dados representam o número total de unidades lançadas nos empreendimentos. Já no gráfico da direita, os valores representam o valor total (em R\$ atualizados pelo IGP-DI) dos empreendimentos lançados
+
+```{r}
+#| fig-show: hold
+#| out-width: "100%"
+#| layout-ncol: 2
+ggplot(sub, aes(x = lon, y = lat)) +
+  geom_bin2d(aes(weight = emp_unid), bins = 25) +
+  coord_sf(crs = st_crs(4326)) +
+  ggtitle("Número de unidades lançadas") +
+  scale_fill_viridis_c(option = "inferno")
+
+ggplot(sub, aes(x = lon, y = lat)) +
+  geom_bin2d(aes(weight = pc_emp_atu / 1e9), bins = 25) +
+  coord_sf(crs = st_crs(4326)) +
+  ggtitle("VGV dos empreendimentos") +
+  scale_fill_viridis_c(option = "inferno")
+```
+
+Os mapas com hexágonos funcionam da mesma maneira que os mapas com grids em quadrado. Os mapas com hexágonos se tornaram bastante populares pois emulam o sistema de grid utilizado pela [Uber (H3)](https://h3geo.org). Os códigos abaixo mostram um exemplo simples de como montar gráficos em hexágonos. Para maior controle sobre os hexágonos vale explorar os pacotes [h3](https://github.com/crazycapivara/h3-r) e [h3r](https://github.com/scottmmjackson/h3r).
+
+```{r}
+#| fig-show: hold
+#| out-width: "100%"
+#| layout-ncol: 2
+ggplot(sub, aes(x = lon, y = lat)) +
+  geom_hex(bins = 15) +
+  scale_fill_viridis_c()
+
+ggplot(sub, aes(x = lon, y = lat)) +
+  geom_hex(bins = 15, aes(weight = pc_emp_atu / 1e9)) +
+  scale_fill_viridis_c()
+```
+
+Por fim, vale notar que as técnicas de agregação de pontos que vimos aqui também funcionam com gráficos de dispersão convencionais. De fato, elas podem ser utilizadas para amenizar problemas de overplotting.
+
+```{r}
+#| fig-show: hold
+#| out-width: "100%"
+#| layout-ncol: 2
+ggplot(sub, aes(x = ar_ut_unid, y = log(pc_tt_atu))) +
+  geom_point() +
+  geom_smooth(aes(weight = emp_unid), method = "gam") +
+  scale_fill_viridis_c()
+
+ggplot(sub, aes(x = ar_ut_unid, y = log(pc_tt_atu))) +
+  geom_bin2d(bins = 50) +
+  geom_smooth(aes(weight = emp_unid), method = "gam") +
+  scale_fill_viridis_c()
+```
+
+# Resumo
+
+Neste post vimos como utilizar a informação "crua" de latitude e longitude para gerar mapas simples de pontos e mapas de calor em geral. Estes mapas, em geral, não costumam servir para publicações ou trabalhos mais sérios, mas podem ser muito úteis para a exploração de dados. As mesmas técnicas de agregação de pontos também podem ser utilizadas em gráficos de dispersão convencionais, para evitar o overplotting.
+
+## Posts Relacionados
+
+-   [Fundamentos: Gráfico de dispersão](https://restateinsight.com/posts/tutorial-ggplot2/1-grafico-dispersao)
+
+-   [Fundamentos: histograma](https://restateinsight.com/posts/tutorial-ggplot2/3-grafico-histograma)

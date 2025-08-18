@@ -1,0 +1,232 @@
+---
+title: 'You need a map - Parte 4'
+date: '2024-01-07'
+categories: ['data visualization', 'ggplot2', 'turorial-R']
+description: ""
+draft: true
+execute: 
+  eval: false
+---
+
+```{r}
+library(ggplot2)
+library(ggmap)
+library(dplyr)
+library(sf)
+```
+
+```{r}
+dat <- qs::qread("/Users/viniciusoike/Documents/GitHub/weekly_viz/data/car_accidents_non_fatal.qs")
+
+dat <- dat %>%
+  filter(
+    name_city == "SAO PAULO",
+    ts_year == 2023,
+    ts_month %in% c("OUTUBRO", "NOVEMBRO", "DEZEMBRO"),
+    !is.na(lat),
+    !is.na(lng)
+    ) %>%
+  select(lat, lng, victims_total, ts_day_shift, ts_date, ts_time_accident, ts_weekday)
+
+dat <- dat %>%
+  mutate(
+    ts_weekday = stringr::str_to_title(ts_weekday),
+    ts_weekday = factor(
+      ts_weekday,
+      levels = c("Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado")
+      ),
+    ts_time_accident = lubridate::hm(ts_time_accident),
+    ts_hour = lubridate::hour(ts_time_accident)
+  )
+
+accidents = st_as_sf(
+  dat,
+  coords = c("lng", "lat"),
+  crs = 4326,
+  remove = FALSE
+  )
+
+spborder = geobr::read_municipality(3550308)
+spborder = st_transform(spborder, crs = 4326)
+spborder$geoid = 1
+
+accidents = accidents %>%
+  st_join(spborder) %>%
+  filter(!is.na(geoid))
+```
+
+# Mapas de calor
+
+Juntando as ferramentas vistas nos últimos posts, vamos montar um mapa de calor com basemap estático. Vamos usar a base de acidentes de trânsito não-fatais de São Paulo. Os dados são da xxx e foram coletados por mim. Para simplificar a análise vamos considerar apenas os acidentes em dezembro de 2023. Ao todo temos quase 4000 acidentes.
+
+## Setup
+
+Como sempre, é possível visualizar estes dados como pontos.
+
+```{r}
+ggplot(sample_n(accidents, 500)) +
+  geom_sf(alpha = 0.2)
+```
+
+## Importando um basemap
+
+Primeiro, vamos importar um basemap estático. Isto é feito usando o pacote `ggmaps`.
+
+```{r}
+spborder <- geobr::read_municipality(3550308)
+spborder <- st_transform(spborder, crs = 4326)
+basemap <- ggmap::get_stadiamap(as.numeric(st_bbox(spborder)), zoom = 12)
+```
+
+```{r}
+ggmap(basemap)
+```
+
+## Combinando os elementos
+
+```{r}
+ggmap(basemap) +
+  geom_point(
+    data = sample_n(accidents, 500),
+    aes(x = lng, y = lat),
+    size = 0.1,
+    alpha = 0.75,
+    color = "firebrick"
+    ) +
+  coord_sf(ylim = c(-23.8, -23.45)) +
+  ggthemes::theme_map()
+```
+
+## Agregando pontos
+
+É difícil enxergar um padrão somente olhando para pontos. Vamos usar algumas das técnicas vistas neste post anterior para agregar pontos. O primeiro mapa abaixo mostra como criar um grid retangular. A escolha do número de bins não é trivial.
+
+Este código simples funciona apenas para mostrar o número total (frequência) de ocorrências ou a soma total de alguma variável. No caso abaixo, mostra-se o número total de vítimas em acidentes de trânsito não-fatais.
+
+```{r}
+ggmap(basemap) +
+  geom_bin2d(
+    data = accidents,
+    aes(x = lng, y = lat, weight = victims_total),
+    alpha = 0.5,
+    bins = 80
+    ) +
+  scale_fill_distiller(
+    name = stringr::str_wrap(
+      "Número de vítimas em acidentes de trânsito não-fatais", 11
+      ),
+    palette = "Reds", direction = 1) +
+  coord_sf(ylim = c(-23.8, -23.45))
+```
+
+Também é possível desenhar linhas de contorno.
+
+```{r}
+ggmap(basemap) +
+  geom_density_2d(
+    data = accidents,
+    aes(x = lng, y = lat),
+    color = "red"
+    ) +
+  coord_sf(ylim = c(-23.8, -23.45)) +
+  ggthemes::theme_map()
+```
+
+## Mapas de calor
+
+O código abaixo mostra como montar um mapa de calor usando uma escala contínua.
+
+```{r}
+ggmap(basemap) +
+  stat_density_2d(
+    data = accidents,
+    aes(x = lng, y = lat, fill = ..level..),
+    geom = "polygon",
+    alpha = 0.15,
+    color = NA
+    ) +
+  scale_fill_distiller(palette = "YlOrRd", direction = 1)
+```
+
+Para montar um mapa de calor com uma escala discreta, precisa-se especificar o número de `bins` ou o tamanho do `binwidth`. Pode-se também definir as quebras manualmente usando `breaks`. O funcionamento destes argumentos é similar a `geom_bin_2d` ou `geom_histogram`. No mapa abaixo, os dados são normalizados numa escala 0-1; para tornar o mapa mais limpo eu removo valores muito baixo (\<0.1).
+
+```{r}
+ggmap(basemap) +
+  geom_density_2d_filled(
+    data = accidents,
+    aes(x = lng, y = lat),
+    contour_var = "ndensity",
+    alpha = 0.5,
+    color = NA,
+    breaks = seq(0.1, 1, 0.1)
+    ) +
+  scale_fill_brewer(palette = "YlOrRd", direction = 1) +
+  ggthemes::theme_map() +
+  theme(legend.position = "right")
+```
+
+### Encontrando padrões
+
+Naturalmente, pode-se tratar estes mapas como objetos de `ggplot2` quaisquer. Uma alternativa interessante é usar `facet_wrap` para criar pequenos mapas. O código abaixo mostra como mapear os acidentes por dia de semana. Nota-se que há mais acidentes durante os dias de semana. O padrão de localização dos acidentes também parece se alterar, mas é difícil de visualizar isto, pois a escala distorce as cores nos dias de final de semana.
+
+```{r}
+ggmap(basemap) +
+  stat_density_2d(
+    data = accidents,
+    aes(x = lng, y = lat, fill = ..level..),
+    geom = "polygon",
+    alpha = 0.5,
+    color = NA
+    ) +
+  scale_fill_distiller(palette = "YlOrRd", direction = 1) +
+  facet_wrap(vars(ts_weekday)) +
+  ggthemes::theme_map() +
+  theme(legend.position = "right")
+```
+
+Para melhorar comparar o padrão de localização de acidentes pode-se usar a densidade, ao invés do número absoluto de acidentes. No mapa abaixo vê-se como há mais acidentes na Zona Leste e menos acidentes no Centro nos finais de semana, relativamente aos dias de semana.
+
+```{r}
+ggmap(basemap) +
+  geom_density_2d_filled(
+    data = accidents,
+    aes(x = lng, y = lat),
+    contour_var = "ndensity",
+    alpha = 0.5,
+    color = NA,
+    breaks = seq(0.1, 1, 0.1)
+    ) +
+  scale_fill_brewer(palette = "YlOrRd", direction = 1) +
+  facet_wrap(vars(ts_weekday)) +
+  ggthemes::theme_map() +
+  theme(legend.position = "right")
+```
+
+O número de acidentes de trânsito também flutua ao longo de cada dia. O histograma abaixo mostra como o número de acidentes dimnue durante a madrugada, quando o fluxo de carros é menor.
+
+```{r}
+ggplot(accidents, aes(x = ts_hour)) +
+  geom_bar(fill = "#457b9d") +
+  geom_hline(yintercept = 0) +
+  scale_x_continuous(breaks = 0:23) +
+  theme_bw() +
+  theme(panel.grid.minor = element_blank())
+```
+
+O mapa abaixo mostra como os acidentes se distribuem conforme o horário do dia. Nota-se que durante a madrugada e a noite, os acidentes ficam menos concentrados no espaço.
+
+```{r}
+ggmap(basemap) +
+  geom_density_2d_filled(
+    data = accidents,
+    aes(x = lng, y = lat),
+    contour_var = "ndensity",
+    alpha = 0.5,
+    color = NA,
+    breaks = seq(0.1, 1, 0.1)
+    ) +
+  scale_fill_brewer(palette = "YlOrRd", direction = 1) +
+  facet_wrap(vars(ts_day_shift)) +
+  ggthemes::theme_map() +
+  theme(legend.position = "right")
+```

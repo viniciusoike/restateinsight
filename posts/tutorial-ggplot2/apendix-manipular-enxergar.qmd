@@ -1,0 +1,1069 @@
+---
+title: "Apêndice: manipular para enxergar"
+date: '2023-07-07'
+categories: ['data-visualization', 'ggplot2', 'tutorial-R']
+description: "Este post revisa as principais funções para manipulação de dados do Tidyverse. O material serve mais como referência e apoio ao tutorial de ggplot2 do que como introdução ao assunto."
+execute: 
+  message: false
+  warning: false
+format:
+  html:
+    code-fold: false
+    code-tools: true
+    fig-align: center
+    fig-asp: 0.618
+freeze: true
+---
+
+```{r setup, include = FALSE}
+library(dplyr)
+library(tidyr)
+library(stringr)
+library(readr)
+
+knitr::opts_chunk$set(
+  fig.align = "center",
+  fig.asp = 0.618,
+  fig.width = 8,
+  out.width = "80%",
+  fig.dev = "svg"
+  )
+
+print_table <- function(x) {
+  
+  x |> 
+    knitr::kable(align = "c", digits = 0) |> 
+    kableExtra::kable_styling(
+        full_width = FALSE,
+        bootstrap_options = c("condensed", "responsive", "hover", "striped")
+    )
+
+}
+```
+
+# Introdução
+
+Este tutorial, ao contrário da série "ggplot2: do básico ao intermediário" já assume que se tenha um entendimento razoável de `R`. O material aqui serve mais para consultar/relembrar ou aprender um truque novo. Da maneira como está escrito, não é adequado para uma primeira leitura. Grosso modo, a referência aqui é Hadley (2017) capítulos 4, 5, 10-12.
+
+# Limpeza de dados
+
+O primeiro passo para montar uma visualização é ter os dados no formato certo. Em geral, isto envolve três etapas: (1) importar os dados no `R`; (2) limpar os dados; e (3) transformar os dados no formato apropriado. Neste tutorial vamos focar sobretudo nas últimas duas etapas.
+
+Dados tabulares são armazenados dentro de objetos chamados `data.frame`. Todo gráfico de `ggplot` começa com um (ou mais) `data.frame`. Apesar de ser possível montar gráficos a partir de vetores de dados dispersos, recomendo fortemente que sempre se utilize dados dentro de `data.frame.` Isto garante um código mais organizado e menos propenso a erros.
+
+Apesar de funcionar como um repositório de pacotes, o `R` já vem com diversas funções "de fábrica" que permitem a importação e manipulação de dados. Estas funções que já vem carregadas no `R` são chamadas de funções "base" ou "base-R". Alguns pacotes foram criados para melhorar estas funções "base".
+
+### Você tem um momento para falar sobre o `tidyverse`?
+
+O `tidyverse` é um metapacote, ele instala vários pacotes simultaneamente quando instalado e carrega múltiplos pacotes quando chamado. Estes pacotes formam uma família de pacotes que são unidos por uma filosofia e um objetivos comuns: todos os pacotes têm como objetivo a limpeza de dados e, de maneira geral, seguem o princípio de "tidy" data.
+
+```{r, eval = FALSE}
+# Instala o pacote tidyverse
+install.packages("tidyverse")
+# Carrega o pacote tidyverse
+library("tidyverse")
+```
+
+Todos os pacotes e funções que vamos utilizar serão carregados nesta única linha de código.
+
+-   `readr` - importação e exportação de dados.
+-   `dplyr` - manipulação de dados.
+-   `tidyr` - manipulação de dados.
+-   `stringr` - manipulacao de strings (`character`)
+-   `forcats` - manipulacao de `factors`
+-   `lubridate` - manipulação de datas (`Date`)
+
+O `tidyverse` inclui ainda mais pacotes, como `rvest` para webscrapping, ou `dbplyr` que permite utilizar comandos do `dplyr` em databases.
+
+### A filosofia do `tidyverse`
+
+Numa primeira leitura, esta seção pode ser pulada sem grandes prejuízos; contudo, ela pode ser interessante numa segunda leitura ou para leitores que já tem alguma familiaridade com `tidyverse`.
+
+A filosofia geral do `tidyverse` toma muito emprestado da gramática. As funções têm nomes de verbos que costumam ser intuitivos e são encadeados via "pipes"[^1] que funcionam como conectivos numa frase. Em tese, isto torna o código mais legível e até mais didático. A tarefa de renomear colunas, criar variáveis e calcular uma média nos grupos torna-se "linear" no mesmo sentido em que uma frase com sujeito-verbo-objeto é linear.
+
+[^1]: Para saber mais sobre pipes e a diferença entre o novo pipe nativo `|>` e o pipe `%>%` do `magrittr` veja meu post sobre o assunto.
+
+O pipe, essencialmente, carrega o resultado de uma função adiante numa cadeia de comandos: `objeto |> função1 |> função2 |> função3`. Isto tem duas vantagens: primeiro, evita que você use funções compostas que são lidas "de dentro para fora" como `exp(mean(log(x)))`; e, segundo, dispensa a criação de objetos intermediários "inúteis" que estão ali somente para segurar um valor que não vai ser utilizado mais adiante.
+
+```{r}
+#| eval: false
+model <- lm(log(AirPassengers) ~ time(AirPassengers))
+
+#> Função composta
+mean(exp(fitted(model)))
+#> Usando pipes
+model |> fitted() |> exp() |> mean()
+#> Usando objetos intermediários
+x1 <- fitted(model)
+x2 <- exp(x1)
+x3 <- mean(x2)
+```
+
+Há um tempo atrás argumentava-se contra o uso de "pipes", pois estes dificultavam a tarefa de encontrar bugs no código. Isto continua sendo parcialmente verdade, mas as funções do `tidyvserse` atualmente têm mensagens de erro bastante ricas e permitem encontrar a fonte do erro com relativa facilidade. Ainda assim, não se recomenda encadear funções em excesso, i.e., pipes com 10 funções ou mais.
+
+Outra filosofia do `tidyverse` é de que tarefas rotineiras devem ser transformadas em funções específicas. Neste sentido, os pacotes `dplyr`, `tidyr` e afins são recheados de funções, às vezes com nomes muito semelhantes e com usos redundantes. As funções `starts_with` e `ends_with`, por exemplo, são casos específicos da função `matches`. Há funções que permitem até duas formas de grafia como `summarise` e `summarize`. Outras como `slice_min` e `slice_max` são convenientes mas são literalmente: `arrange + slice`.
+
+Somando somente os dois principais pacotes, `dplyr` e `tidyr`, há 360 funções disponíveis. Contraste isto com o `data.table` que permite fazer 95% das transformações de dados somente com `dt[i, j, by = c(), .SDcols = cols]`.
+
+Mesmo as funções base do `R` costumam ser mais sucintas do que códigos em `tidyverse`. No exemplo abaixo, a função `tapply` consegue o mesmo resultado que o código mais extenso feito com `dplyr`.
+
+```{r}
+#| eval: false
+tapply(mtcars$mpg, mtcars$cyl, mean)
+
+mtcars |> 
+  group_by(cyl) |> 
+  summarise(avg = mean(cyl))
+```
+
+As vantagens do `tidyverse` se tornam mais evidentes com o tempo. De fato, o pacote permite abstrações muito poderosas, e eventualmente, pode-se fazer um código centenas de vezes mais sucinto combinando as suas funções.
+
+O lado negativo disto tudo é que para não-falantes de inglês muitas destas "vantagens gramaticais" são despercebidas[^2]; e o resultado é somente um código "verborrágico", cheio de funções. Atualmente, parece haver um consenso crescente de que a melhor forma de começar a aprender R é começando pelo tidyverse; esta visão não é livre de críticos como de [Norm Matloff, professor de estatística da UC Davis](https://github.com/matloff/TidyverseSkeptic).
+
+[^2]: No fundo, isto é ainda mais um incentivo para aprender inglês.
+
+Um fato particularmente irritante do `tidyverse` é a frequência com que os pacotes mudam. Na maior parte das vezes, as mudanças são positivas, mas isto faz com que o código escrito em tidyverse não seja sustentável ao longo do tempo.
+
+Eu demorei um bom tempo para entender as funções `tidyr::gather` e `tidyr::spread` e, atualmente, ambas foram descontinuadas e substituídas pelas funções `pivot_longer` e `pivot_wider`. As funções `mutate_if`, `mutate_at` e similares do `dplyr` foram todas suprimidas pela sinataxe mais geral do `across`. A função `tidyr::separate` agora está sendo substituída por `separate_wider_position` e `separate_wider_delim`.
+
+Mesmo um código bem escrito há poucos anos atrás tem grandes chances de não funcionar mais porque as funções foram alteradas ou descontinuadas. Em 2021, Hadley Wickham, a principal mente por trás do tidyverse, discutiu este problema abertamente [numa palestra](https://posit.co/resources/videos/maintaining-the-house-the-tidyverse-built/). Desde então, o tidyverse tem melhorado a sua política de [manutenção de funções](https://lifecycle.r-lib.org/articles/stages.html).
+
+## Tabelas
+
+O objeto central da análise de dados é o `data.frame`. Um `data.frame` é uma tabela bidimensional que contém informações: em geral, cada coluna é uma variável diferente e cada linha é uma observação. Este objeto possui propriedades bastante simples:
+
+1.  **Comprimento fixo**. O número de linhas de um `data.frame` é fixo, assim todas as colunas têm o mesmo comprimento.
+2.  **Homogeneidade**. Cada coluna de um `data.frame` é homogênea, isto é, contém um dado de um único tipo. Assim, uma mesma coluna não pode misturar um string e um número, um `factor` e um string, etc.
+3.  **Nomes**. Cada coluna tem um nome (único e idiomático). Este nome é utilizado para fazer refrência a esta coluna.
+
+Estas três características garantem a funcionalidade e consistência de um `data.frame`. O comprimento fixo e a homogeneidade, em particular, tornam este tipo de objeto muito conveniente e previsível.
+
+### Construindo tabelas
+
+Para construir um `data.frame` basta chamar a função homônima e declarar as suas colunas seguindo as três propriedades acima. Nos exemplos abaixo, ao invés da função `data.frame` vou utilizar a função `tibble` que é, essencialmente, equivalente, mas que possui algumas pequenas vantagens. No restante do texto as palavras `tibble` e `data.frame` serão utilizadas como sinônimas.
+
+No primeiro exemplo crio uma tabela com três linhas e duas colunas.
+
+```{r}
+dados <- tibble(
+  cidade = c("Porto Alegre", "São Paulo", "Salvador"),
+  pop22 = c(1.332, 11.451, 2.418)
+)
+```
+
+Para visualizar o resultado basta chamar o objeto por nome ou usar a função `print`. Uma das vantanges do `tibble` é de mostrar a classe de cada coluna, onde `chr` indica *character* (caractere), isto é, um string e `dbl` indica *double*, isto é, um número[^3].
+
+[^3]: A classe mais geral de números do R é a `numeric`. Aqui, "double" faz referência à precisão do número, que é um "double-precision value", que equivale a uma precisão de 53 bits, com aplitude de $2\times 10^{-308}$ a $2\times 10^{-308}$. Em geral, a maioria dos números (com exceção de inteiros) é armazenada desta forma.
+
+```{r}
+dados
+```
+
+Pode-se também criar a tabela a partir de vetores/objetos previamente declarados.
+
+```{r}
+cidades <- c("Porto Alegre", "São Paulo", "Salvador")
+populacao <- c(1.332, 11.451, 2.418)
+
+dados <- tibble(
+  nome_cidade = cidades,
+  pop22 = populacao
+)
+```
+
+Quando alguma das colunas não tiver o mesmo comprimento das demais, o `R` vai tentar "reciclar" os valores desta coluna. Em geral, isto vai causar um erro, mas em alguns casos pode funcionar. No caso abaixo o valor `"Brasil"` (de comprimento unitário) é repetido três vezes para "caber" dentro da tabela.
+
+```{r}
+dados <- tibble(
+  cidade = c("Porto Alegre", "São Paulo", "Salvador"),
+  pop22 = c(1.332, 11.451, 2.418),
+  pais = "Brasil"
+)
+
+dados
+```
+
+### Propriedades de tabelas
+
+Toda coluna de um `data.frame` possui nomes. Para acessar os nomes usa-se `names`.
+
+```{r}
+#| eval: false
+names(dados)
+#> [1] "cidade" "pop22"  "pais"
+```
+
+Os nomes das colunas sempre devem ser únicos. Aqui, há uma pequena vantagem em utilizar o `tibble`. Mesmo no caso em que se tenta criar uma tabela com nomes idênticos, a função `data.frame` evita que isto aconteça, mas emite nenhum tipo de alerta sobre o que está acontecendo.
+
+```{r}
+tab <- data.frame(
+  a = c(1, 2, 3),
+  a = c("a", "b", "c")
+)
+
+tab
+```
+
+A função `tibble` é um pouco mais exigente e retorna um erro neste caso.
+
+```{r}
+#| error: true
+tab <- tibble(
+  a = c(1, 2, 3),
+  a = c("a", "b", "c")
+)
+```
+
+Para extrair uma coluna de um `data.frame` temos duas opções. A mais simples e direta é utilizar o operador `$` e chamar o nome da coluna como se fosse um objeto. A segunda opção é utilizar `[[` e chamar o nome da coluna como um string[^4].
+
+[^4]: De fato, esta é a mesma sintaxe que se utiliza para extrair um elemento de uma lista. Isto acontece pois um `data.frame` é essencialmente, uma lista com um pouco mais de estrutura. Isto pode ser verificado usando `typeof` em um objeto `data.frame`.
+
+```{r}
+#| eval: false
+#> Extraindo uma coluna 
+
+dados$cidade
+#> [1] "Porto Alegre" "São Paulo"    "Salvador"
+
+dados[["cidade"]]
+#> [1] "Porto Alegre" "São Paulo"    "Salvador"
+```
+
+### Importando tabelas
+
+Raramente vamos declarar todas as observações de uma tabela. Na prática, é muito mais comum importar uma tabela de alguma fonte externa como de uma planilha de Excel ou de um arquivo csv. Para cada tipo de arquivo existe uma função `read_*` diferente. Importar dados costuma ser uma tarefa frustrante por três motivos:
+
+1.  Há muitos arquivos para se importar.
+2.  É difícil fazer o `R` encontrar o arquivo.
+3.  Os arquivos têm problemas (valores corrompidos, linhas vazias, etc.)
+
+Os dois primeiros problemas são simples de se resolver. Pode-se importar múltiplos arquivos ao mesmo tempo usando um loop; importar todos os arquivos dentro de uma mesma pasta é trivial, desde que os arquivos sigam o mesmo padrão.
+
+Garantir que o `R` consiga encontrar os arquivos também é simples. Idealmente, todos os arquivos externos devem estar organizados dentro de uma pasta chamada `dados` ou `data` e deve-se chamar estes dados usando funções `read_*`. Uma boa prática é sempre usar "caminhos relativos" ao invés de caminhos absolutos.
+
+```{r}
+#| eval: false
+
+#> Ruim
+dat <- read_csv("/Users/viniciusoike/Documents/GitHub/projeto/data/income.csv")
+#> Bom 
+dat <- read_csv("data/income.csv")
+#> Ainda melhor
+dat <- read_csv(here::here("data/income.csv"))
+```
+
+O terceiro problema é muito mais complexo e vai exigir mais conhecimento e prática. Em geral, resolve-se a maior parte dos problemas usando algum dos argumentos dentro da função `read_*` como:
+
+-   `skip`: Pula as primeiras k linhas.
+
+-   `na`: Define quais valores devem ser interpretados como valores ausentes.
+
+-   `col_types`: Permite que se declare explicitamente qual o tipo de dado (numérico, data, texto) que está armazenado em cada coluna.
+
+-   `col_names` ou `name_repair`: O primeiro permite que se declare explicitamente o nome que cada coluna vai ter dentro do `R` enquanto o segundo permite que se use uma função que renomeia as colunas.
+
+-   `locale`: Permite selecionar diferentes tipos de padrão de local. Em geral, usa-se `locale = locale("pt_BR")`.
+
+-   range: Este argumento só vale no caso de planilhas de Excel e permite que se importe uma seleção específica da planilha (e.g. "D4:H115")
+
+O código abaixo mostra um exemplo particularmente tenebroso. O título da segunda coluna inclui símbolos como `$` e `/`; as datas estão em português com o mês escrito por extenso e em formato dia-mês-ano; os números usam a vírgula (ao invés do ponto) para separar o decimal e o valor ausente é sinalizado com "X".
+
+```{r}
+#| eval: false
+
+#> Input de um csv sujo
+dados <-
+'Data; Valor (R$/m2)
+"01-maio-2020";22,3
+"01-junho-2020";21,5
+"06-julho-2021";X
+"07-novembro-2022";22'
+
+#> Lendo o arquivo
+df <- read_delim(
+  #> Substitui esta linha pelo 'path' até o csv
+  I(dados),
+  delim = ";",
+  #> Usa , como separador decimal; lê meses em português (e.g. maio, junho, etc.)
+  locale = locale(decimal_mark = ",", date_names = "pt", date_format = "%d-%B-%Y"),
+  #> Interpreta X como valores ausentes (NA)
+  na = "x",
+  #> Renomeia as colunas
+  name_repair = janitor::clean_names
+  )
+```
+
+# Manipulando dados
+
+O pacote `dplyr` é uma das ferramentas mais populares e úteis para manipulação de dados no R. Ele fornece uma série de funções simples e poderosas para filtrar, agrupar, modificar e resumir dados. Neste tutorial, vamos explorar algumas dessas funções e ver como elas podem ser usadas para realizar tarefas comuns de manipulação de dados.
+
+Agora, vamos ver algumas das funções mais úteis do dplyr:
+
+| Nome da Função | Tradução          | O que faz                                                         |
+|----------------|-------------------|-------------------------------------------------------------------|
+| `rename`       | Renomear          | Modifica o nome das colunas.                                      |
+| `select`       | Selecionar        | Seleciona as colunas.                                             |
+| `filter`       | Filtrar           | Filtra/seleciona as linhas segundo alguma condição.               |
+| `arrange`      | Arranjar/ordenar  | Ordena as linhas (crescente/decrescente) segundo alguma variável. |
+| `mutate`       | Mutar/transformar | Cria uma nova coluna a partir de outras colunas ou dados.         |
+| `summarise`    | Sumarizar/resumir | Aplica alguma função sobre as linhas. Cria uma tabela "resumo".   |
+| `group by`     | Agrupar           | Agrupa as linhas segundo alguma variável.                         |
+
+As funções `rename`, `mutate`, `select` e `filter` são utilizadas para preparar e limpar os dados, enquanto as funções `group_by` e `summarise` são utilizadas para transformar/resumir os dados. Estas são as seis principais funções do pacote e veremos cada uma delas em maior detalhes.
+
+Para praticar as funções vamos utilizar uma tabela que traz informações sobre as cidades do Brasil.
+
+```{r}
+#| eval: false
+tbl <- read_csv("...")
+```
+
+```{r}
+#| include: false
+tbl <- read_csv(here::here("static/data/cities_brazil.csv"))
+```
+
+```{r}
+#| echo: false
+DT::datatable(tbl)
+```
+
+## rename
+
+Para renomear as colunas de `data.frame` usa-se a função `rename` (renomear) com `rename(tbl, novo_nome = velho_nome)`. Vale lembrar que para checar os nomes da tabela usa-se `names(tbl)`.
+
+```{r}
+#> Renomear colunas
+tbl_renamed <- rename(tbl, codigo_municipio = code_muni, pop = population)
+```
+
+Os nomes das colunas de um `data.frame` devem
+
+1.  Ser únicos (não-duplicados) e evitar caracteres maiúsculos.
+2.  Não devem incluir caracteres especiais (e.g. !\*&\@%), nem começar com um número ou caractere especial.
+3.  Evitar espaços em branco, que devem ser substituídos por `_` ou omitidos (e.g. `PIB Agro` deve ser reescrito como `pibAgro` ou `pib_agro`.
+
+Também é possível renomear colunas com auxílio de um vetor ou lista e usando ou `all_of` (todos) ou `any_of` (algum/alguns). O exemplo abaixo mostra a lógica geral: temos um vetor que indica o novo nome e o antigo nome de cada coluna que se quer trocar. Caso se queira trocar exatamente todos os nomes indicados no vetor usa-se `all_of` (mais rigoroso), caso se queira trocar todos os nomes indicados no vetor, ignorando os casos que não batem com nomes de colunas existentes, usa-se `any_of`.
+
+```{r}
+new_names <- c(
+  "codigo_municipio" = "code_muni",
+  "pop" = "population",
+  "pop_rate" = "population_growth_rate"
+  )
+
+tbl_renamed <- rename(tbl, all_of(new_names))
+```
+
+No exemplo abaixo incluo uma "nova coluna" chamada `unit` que desejo renomear para `unidade`. Usando `any_of` o retorno é exatamente igual ao caso acima, pois a função ignora a coluna inexistente `unit`.
+
+```{r}
+new_names <- c(
+  "codigo_municipio" = "code_muni",
+  "pop" = "population",
+  "pop_rate" = "population_growth_rate",
+  "unidade" = "unit"
+)
+
+tbl_renamed <- rename(tbl, any_of(new_names))
+```
+
+Já a função `all_of` é mais rigorosa e retorna um erro indicando que a coluna `unit` não existe.
+
+```{r}
+#| error: true
+tbl_renamed <- rename(tbl, all_of(new_names))
+```
+
+O uso de um vetor externo para renomear colunas é conveniente não somente porque permite melhor organizar o código; na prática, este vetor externo funciona como um **dicionário de variáveis** que pode ser inclusive utilizado para tratar várias bases de dados ou mesmo em outros códigos. Além disso, tratar o nome das colunas como strings é útil pois nos permite transformar este dado mais facilmente.
+
+Por fim, pode-se aplicar uma função para renomear as colunas usando `rename_with`.
+
+```{r}
+tbl_renamed <- rename_with(tbl, toupper)
+names(tbl_renamed)
+```
+
+Uma dica final para rapidamente renomear colunas é a função `janitor::clean_names` que obedece aos três princípios elencados acima. Ela pode ser utilizada diretamente num `data.frame` como se vê no exemplo abaixo.
+
+```{r}
+#| eval: false
+test_df <- as.data.frame(matrix(ncol = 6))
+names(test_df) <- c("firstName", "ábc@!*", "% successful (2009)",
+                    "REPEAT VALUE", "REPEAT VALUE", "")
+janitor::clean_names(test_df)
+#>   first_name abc percent_successful_2009 repeat_value repeat_value_2  x
+#> 1         NA  NA                      NA           NA             NA NA
+```
+
+## select
+
+A função `select` serve para selecionar colunas num `data.frame`, permitindo-se trabalhar com uma versão menor dos dados. Similarmente à função `rename` é possível selecionar colunas diretamente `select(tbl, coluna_1, coluna_2, …)` ou selecionando os nomes via um vetor de strings com auxílio de `any_of` of `all_of`.
+
+```{r}
+#> Seleciona diretamente as colunas
+sel_tbl <- select(tbl, code_muni, pib, pib_agriculture)
+
+#> Cria um vetor de nomes
+colunas <- c("code_muni", "pib", "pib_agriculture")
+#> Seleciona as colunas baseado no vetor
+sel_tbl <- select(tbl, all_of(colunas))
+
+sel_tbl
+```
+
+Para remover uma coluna, basta usar o sinal de menos na frente do nome.
+
+```{r}
+#> Seleciona diretamente as colunas
+sel_tbl <- select(tbl, -pib, -city_area, -population_density)
+
+#> Cria um vetor de nomes
+colunas <- c("pib", "city_area", "population_density")
+#> Seleciona as colunas baseado no vetor
+sel_tbl <- select(tbl, -all_of(colunas))
+
+sel_tbl
+```
+
+Pode-se também selecionar várias colunas ao mesmo tempo se elas estiverem em sequência (uma ao lado da outra). O código abaixo, por exemplo, seleciona a coluna `code_muni` e todas as colunas entre `pib` e `pib_added_value` (inclusive).
+
+```{r}
+sel_tbl <- select(tbl, code_muni, pib:pib_added_value)
+
+sel_tbl
+```
+
+Também é possível renomear e selecionar ao mesmo tempo.
+
+```{r}
+sel_tbl <- select(tbl, codigo_municipio = code_muni, pib)
+
+sel_tbl
+```
+
+Por fim, existem algumas funções auxiliares que facilitam a seleção de múltiplas colunas. Vou apresentar apenas três destas funções:
+
+-   `starts_with`/`ends_with` - selecionam colunas que começam ou terminam com determindo string.
+
+-   `where` - seleciona colunas de uma determinada classe (`numeric`, `factor`, etc.)
+
+-   `matches` - seleciona colunas com base num *match*, usando regex. Esta função é mais geral e engloba as duas primeiras.
+
+O código abaixo mostra alguns exemplos simples. Vou omitir as saídas do código, max experimente reproduzir o resultado.
+
+```{r}
+#| eval: false
+
+#> Seleciona code_muni mais as colunas que começam com 'pib'
+select(tbl, code_muni, starts_with("pib"))
+#> Seleciona as colunas que terminam com 'muni'
+select(tbl, ends_with("muni"))
+#> Seleciona code_muni mais as colunas que contêm números
+select(tbl, code_muni, where(is.numeric))
+
+#> Seleciona as colunas que tem o padrão '_texto_'
+select(tbl, matches("_[a-z].+_"))
+#> Selciona todas as colunas que começam com 'pib'
+select(tbl, matches("^pib"))
+#> Seleciona todas as colunas que terminam com 'muni'
+select(tbl, matches("muni$"))
+```
+
+## filter
+
+A função `filter` serve para filtrar as linhas de um `data.frame` segundo alguma condição lógica.
+
+```{r}
+filtered_tbl <- filter(tbl, population_growth < 0)
+
+filtered_tbl
+```
+
+Os principais opereadores lógicos no R:
+
+-   "Maior que", "Menor que": `>`, `<`, `>=`, `<=`
+
+-   E/ou: `&`, `|`
+
+-   "Negação": `!`
+
+-   "Igual a": `==`
+
+-   "Dentro de": `%in%`
+
+Existem alguns outros operadores, mas estes costumam resolver 95% dos casos. O exemplo abaixo mostra como filtrar linhas baseado num string. Note que quando se usa múltiplos strings é preciso usar o `%in%`.
+
+```{r}
+filter(tbl, name_muni == "São Paulo")
+filter(tbl, name_muni %in% c("São Paulo", "Rio de Janeiro"))
+```
+
+Para negar a igualdade, basta usar o operador `!`. No caso do operador `%in%` há duas maneiras válidas de negá-lo: pode-se colocar o ! no começo da expressão ou colocar a expressão inteira dentro de um parêntesis. Eu tendo a preferir a segunda sintaxe.
+
+```{r}
+#| eval: false
+#> Remove todas as cidades da região Sudeste
+filter(tbl, name_region != "Sudeste")
+#> Remove todas as cidades das regiões Sudeste e Norte
+filter(tbl, !name_region %in% c("Sudeste", "Norte"))
+#> Remove todas as cidades das regiões Sudeste e Norte
+filter(tbl, !(name_region %in% c("Sudeste", "Norte")))
+```
+
+Em geral, não é preciso utilizar o E (`&`), já que pode-se colocar várias condições lógicas dentro de uma mesma chamada para função `filter`.
+
+```{r}
+#| eval: false
+filter(
+  tbl,
+  name_region == "Nordeste",
+  !(name_state %in% c("Pernambuco", "Piauí")),
+  !(name_muni %in% c("Natal", "Fortaleza", "Maceió"))
+  )
+```
+
+No caso de relações de grandeza, pode-se colocar um número absoluto, mas também pode-se usar alguma função. No exemplo abaixo filtra-se apenas os municípios com PIB acima da média, por exemplo.
+
+```{r}
+#| eval: false
+filter(tbl, pib > mean(pib))
+filter(tbl, population >= 1000000)
+```
+
+## arrange
+
+A função `arrange` é talvez a mais simples e serve para rearranjar as linhas de um `data.frame`. Em geral, ela é utilizada mais para fins estéticos ou exploratórios, como para ordenar as cidades pelo maior PIB, ou menor população. Contudo, no caso de uma tabela que contenha séries de tempo, pode ser importante validar que as observações estão na ordem correta.
+
+```{r}
+tbl_arranged <- arrange(tbl, pib)
+
+tbl_arranged
+```
+
+O padrão da função é de sempre ordenar de maneira crescente (do menor para o maior). Para inverter este comportamento pode-se usar a função `desc` ou o sinal de menos.
+
+```{r}
+#| eval: false
+
+#> Ordena as cidades por PIB em ordem decrescente (maior ao menor)
+arrange(tbl, desc(pib))
+#> Ordena as cidades por PIB em ordem decrescente (maior ao menor)
+arrange(tbl, -pib)
+```
+
+A função `arrange` ordena strings em ordem alfabética e Datas em ordem cronológica.
+
+## mutate
+
+A função `mutate` cria novas colunas. Em geral, cria-se uma nova coluna com base nas colunas pré-existentes, mas a expressão é bastante geral na forma `mutate(tbl, nova_coluna = …)`. Novamente, vou omitir as saídas para poupar espaço.
+
+```{r}
+#| eval: false
+#> Cria uma coluna onde todas as entradas são iguais a 1
+mutate(tbl, id = 1)
+#> Cria a coluna 'lpib' igual ao logaritmo natural do 'pib'
+mutate(tbl, lpib = log(pib))
+#> Cria a coluna hh igual a 'household' dividido por 1 milhão
+mutate(tbl, hh = household / 1e6)
+```
+
+Um fato conveniente da função `mutate` é que ela vai criando as colunas sequencialmente, assim é possível fazer diversas transformações numa mesma chamada à função. No caso abaixo, pode-se criar a variável `lpibpc` a partir das colunas `lpib` e `lpop`.
+
+```{r}
+#| eval: false
+mutate(tbl,
+  lpib = log(pib),
+  lpop = log(population),
+  #> Criando uma variável a partir de duas colunas criadas anteriormente
+  lpibpc = lpib - lpop,
+  pibserv = pib_services + pib_govmt_services,
+  lpibs = log(pibserv)
+  )
+```
+
+Por fim, é possível transformar múltiplas colunas simultaneamente usando a função `across` da seguinte maneira: `across(colunas, função)`. Para indicar quais colunas quer-se transformar podemos usar a mesma lógica da função `select`: isto é, declarando o nome das colunas, usando `col1:col2`, ou mesmo uma função como `starts_with`/`matches`, etc.
+
+```{r}
+tbl |> 
+  mutate(across(pib:pib_services, log)) |> 
+  select(pib:pib_services)
+```
+
+```{r}
+#| eval: false
+#> Aplica uma transformação log em todas as colunas entre pib e pib_services
+mutate(tbl, across(pib:pib_services, log))
+#> Aplica uma transformação log em todas as colunas que começam com pib
+mutate(tbl, across(starts_with("pib"), log))
+#> Divide por pib e multiplica por 100 todas as colunas entre pib_taxes e
+#> pib_govmt_services
+mutate(tbl, across(pib_taxes:pib_govmt_services, ~.x / pib * 100))
+```
+
+## summarise e group_by
+
+### Uso básico
+
+As funções `summarise`[^5] e `group_by` são (quase) sempre utilizadas em conjunto e servem para resumir ou "sumarizar" os dados. A função `group_by` agrupa os dados segundo alguma coluna. No caso da nossa base de cidades, poderíamos agrupar os dados por estado ou região, por exemplo. A função `summarise` aplica transformações nestes dados agrupados: pode-se, por exemplo, calcular a população total de cada estado, o PIB per capita médio de cada região, etc.
+
+[^5]: O `dplyr` também aceita a função `summarize` com 'z' ao invés de 's'. As funções são exatamente iguais e podem ser intercambiadas sem maiores problemas.
+
+A tabela abaixo calcula a população total de cada região e ordena os dados, de maneira decrescente, segundo a população. A partir de agora começo a usar mais o pipe nos códigos.
+
+```{r}
+tbl |> 
+  #> Agrupa por região
+  group_by(name_region) |> 
+  #> Soma o total da população (dentro de cada região)
+  summarise(pop = sum(population)) |> 
+  #> Rearranja o resultado final
+  arrange(desc(pop))
+```
+
+### Um pouco mais de `group_by`
+
+A função `group_by` agrupa os dados de um `tibble` e permite que se faça operações sobre estes grupos. Pode-se, por exemplo, calcular o share da população de cada cidade, dentro do seu estado usando `mutate`. No caso abaixo, eu calculo o share percentual e mostro o resultado para a capital paulista. Vê-se que a capital tem cerca de 11,45 milhão de habitantes, equivalente a 25,78% da população do estado.
+
+```{r}
+tbl_share_pop <- tbl |> 
+  group_by(name_state) |> 
+  mutate(pop_share = population / sum(population) * 100)
+
+tbl_share_pop |> 
+  filter(name_muni == "São Paulo") |> 
+  select(name_muni, population, pop_share)
+```
+
+Similarmente, pode-se combinar outras funções como `filter`. O código abaixo filtra somente as cidades que possuem população acima da média do seu estado. Vale comparar os resultados e entender as diferenças entre cada uma das tabelas
+
+```{r}
+#> Filtra cidades que possuem população acima da média do seu estado
+tbl_pop_grouped <- tbl |> 
+  group_by(name_state) |> 
+  filter(population > mean(population))
+
+#> Filtra cidades que possuem população acima da média do país
+tbl_pop_ungrouped <- tbl |> 
+  filter(population > mean(population))
+```
+
+### Um pouco mais de `summarise`
+
+É possível fazer várias novas colunas num mesmo `summarise`. Assim como em `mutate` também é possível fazer transformações com colunas que foram criadas anteriormente na mesma função. No caso abaixo eu calculo o PIB e população totais de cada estado do nordeste e depois calculo o PIB per capita baseado nestes valores agregados.
+
+```{r}
+tbl |> 
+  filter(name_region == "Nordeste") |> 
+  group_by(name_state) |> 
+  summarise(
+    pib_uf = sum(pib) * 1000,
+    pop_uf = sum(population),
+    pibpc_uf = pib_uf / pop_uf
+    ) |> 
+  arrange(pibpc_uf)
+```
+
+A função `summarise` é bastante potente. O exemplo abaixo filtra as cidades de médio-grande porte (acima de 100.000 habitantes), agrupa os dados por estado e faz:
+
+-   O total (soma) da população (cidades com mais de 100.000 habitantes, por estado).
+
+-   Calcula a média da população (entre as cidades com mais de 100.000 habitantes, por estado).
+
+-   Calcula a população máxima (idem).
+
+-   Calcula os quintis da distribuição da população (idem).
+
+-   Faz uma regressão linear entre a população e o PIB (idem).
+
+-   Faz uma regressão linear entre a população e o PIB e extrai o R2 (idem).
+
+-   Conta o número de cidades (idem).
+
+```{r}
+tbl_summary <- tbl |> 
+  filter(population > 100000) |> 
+  group_by(name_state) |> 
+  summarise(
+    pop_uf = sum(population),
+    pop_avg = mean(population),
+    pop_max = max(population),
+    pop_ntile = list(quantile(population, probs = c(0.2, 0.4, 0.6, 0.8))),
+    reg = list(lm(population ~ pib)),
+    reg_r2 = summary(lm(population ~ pib))$r.squared,
+    count = n()
+    ) |> 
+  arrange(desc(count))
+```
+
+Nem tudo o que fiz acima faz muito sentido, mas ilustra a capacidade da função `summarise` de gerar informação e a flexibilidade de um `tibble` para armazenar diferentes tipos de output. Note que as funções foram todas executadas dentro dos respectivos grupos.
+
+No código abaixo pode-se verificar os quintis da população das cidades de Minas Gerais.
+
+```{r}
+tbl_summary |> 
+  filter(name_state == "Minas Gerais") |> 
+  pull(pop_ntile)
+```
+
+Já no código abaixo pode-se verificar o resultado da regressão entre população e PIB feita somente nos municípios grandes de São Paulo.
+
+```{r}
+reg_sp <- filter(tbl_summary, name_state == "São Paulo")[["reg"]]
+reg_sp <- reg_sp[[1]]
+
+summary(reg_sp)
+```
+
+### Adendos técnicos
+
+Vale notar que a função `group_by` trasnforma um `tibble` num `grouped_df`. Para desfazer esta transformação é preciso usar `ungroup`. De fato, é uma boa prática sempre utilizar `ungroup` depois de usar um `group_by`. Por exemplo, no caso em que se calcula o share percentual da população de cada município em seu respectivo estado, é importante desagrupar os dados.
+
+```{r}
+tbl_share_pop <- tbl |> 
+  group_by(name_state) |> 
+  mutate(pop_share = population / sum(population) * 100) |> 
+  ungroup()
+```
+
+Esta prática serve para evitar erros potenciais e, infelizmente, é necessária em alguns casos, como quando se quer combinar duas bases distintas. Atualmente, existe uma sintaxe experimental, fortemente inspirada na sintaxe do `data.table`, que desagrupa os dados por padrão. No caso do código abaixo não é preciso utilizar `ungroup()`.
+
+Pessoalmente, gosto bastante desta sintaxe, mas como ela ainda está em fase experimental, é melhor esperar um pouco para utilizá-la.
+
+```{r}
+tbl_share_pop <- tbl |> 
+  mutate(
+    pop_share = population / sum(population) * 100,
+    .by = "name_state")
+```
+
+Este mesmo `.by` pode ser utilizado dentro de `summarise`, `filter`, etc.
+
+# Formato dos dados
+
+O princípio geral da formatação dos dados, dentro do `tidyverse`, segue a lógica exposta em Wickham (2014):
+
+1.  Toda variável é uma coluna.
+2.  Cada observação é uma linha.
+3.  Todo tipo de "unidade observacional" é uma tabela única.
+
+Vale adicionar que o nome da coluna deve ser o nome de uma *variável* e não de um *valor*.
+
+É importante frisar este ponto: uma tabela é uma coleção organizada de **valores** (números ou texto). Cada *valor* pertence a uma *única variável e uma única observação*. Por exemplo: 171 é a altura (variável) de João (observação) em centímetros. Uma **variável** contém todos os valores que mensuram o mesmo atributo (e.g. altura, peso, IMC, etc.). Uma **observação** contém todos os valores mensurados no mesmo sujeito/objeto (e.g. um indivíduo, um dia específico, uma rodada de um experimento, etc.).
+
+## Contra-exemplos
+
+Vamos começar explorando alguns contra-exemplos de dados que não estão em formato "tidy".
+
+### Vendas de casas e apartamentos
+
+A tabela abaixo segue um formato tipicamente encontrando em planilhas de Excel. A primeira coluna define: (vendas de) apartamentos, casas e o total. Cada coluna subsequente representa um mês diferente; os valores de cada linha representam o número de vendas de cada tipo em cada mês.
+
+```{r}
+dat <- tibble(
+  nome = c("Apartamentos", "Casas", "Total"),
+  `2022-01` = c(900, 100, 1000),
+  `2022-02` = c(850, 120, 970),
+  `2022-03` = c(875, 125, 1000),
+  `2022-04` = c(920, 100, 1020),
+)
+
+dat
+```
+
+Note que:
+
+1.  Cada coluna não é uma variável. A maior parte das colunas são datas, que deveriam estar todas numa única coluna.
+
+2.  Cada linha não é uma observação. Cada linha é uma série de valores de observações que varia mês a mês.
+
+### Vendas e Alugueis de apartamentos e casas
+
+Esta segunda tabela é uma versão piorada da versão acima.
+
+```{r}
+dat2 <- tibble(
+  nome = c("Apartamentos", "Casas", "Total", "Apartamentos", "Casas", "Total"),
+  tipo = c("Venda", "Venda", "Venda", "Aluguel", "Aluguel", "Aluguel"),
+  `2022-01` = c(900, 100, 1000, 50, 100, 150),
+  `2022-02` = c(850, 120, 970, 60, 80, 140),
+  `2022-03` = c(875, 125, 1000, 70, 90, 160),
+  `2022-04` = c(920, 100, 1020, 50, 50, 100),
+)
+
+dat2
+```
+
+Note que:
+
+1.  O nome das colunas mistura variáveis e valores.
+2.  A linha continua não sendo uma observação.
+
+### Teste AB
+
+A tabela abaixo mostra um teste AB num formato (bem) problemático. No experimento, Bernardo e Álvares estão no grupo de tratamento, enquanto Fernando e Ricardo estão no grupo controle.
+
+```{r}
+dat3 <- tibble(
+  id = c("Bernardo", "Álvares", "Fernando", "Ricardo"),
+  controle = c(NA, NA, 7.2, 5.1),
+  tratamento = c(6.4, 5.5, NA, NA)
+)
+
+dat3
+```
+
+Note que:
+
+1.  Nem 'controle' e nem 'tratamento' são variáveis, já que são valores de uma mesma variável "qual grupo que está o indivíduo".
+
+Alternativamente, pode-se ter:
+
+```{r}
+dat31 <- tibble(
+  grupo = c("controle", "tratamento"),
+  `Bernardo` = c(NA, 6.4),
+  `Álvares` = c(NA, 5.5),
+  `Fernando` = c(7.2, NA),
+  `Ricardo` = c(5.1, NA)
+)
+
+dat31
+```
+
+Agora 'controle' e 'tratamento' estão corretamente dentro de uma mesma coluna, mas cada coluna representa um indivíduo diferente e não uma variável. "Bernardo" não é uma variável e sim um valor (nome do indivíduo).
+
+### Cidades
+
+A tabela abaixo mostra dados hipóteticos de PIB e população de duas cidades.
+
+```{r}
+dat4 <- tibble(
+  nome_cidade = c("São Paulo", "Porto Alegre"),
+  pib_2020 = c(1000, 500),
+  pib_2021 = c(1200, 700),
+  pop_2020 = c(1100, 110),
+  pop_2021 = c(1200, 120)
+)
+
+dat4
+```
+
+Note que:
+
+1.  Há mais de uma variável por coluna: a coluna pib_2020 indica duas informações: o ano da observação e o que está sendo mensurado (PIB).
+
+### Casas e Apartamentos
+
+Nesta tabela o nome das colunas mistura variáveis e valores.
+
+```{r}
+data <- tibble(
+  cidade = c("A", "B", "C"),
+  financiado_apto_2020 = c(1, 2, 3),
+  vista_apto_2020 = c(2, 2, 2),
+  permuta_casa_2020 = c(3, 1, 2),
+  vista_casa_2020 = c(1, 1, 1)
+)
+
+data
+```
+
+## Organizando
+
+Sendo bastante franco, acho difícil explicar a intuição por trás das funções `pivot_longer` e `pivot_wider`. No caso da primeira função tem-se:
+
+```{r}
+#| eval: false
+dat |> 
+  pivot_longer(
+    cols = ...,
+    #> Argumentos opcionais
+    names_to = "name",
+    values_to = "value"
+  )
+```
+
+onde `cols` indica quais colunas devem ser convertidas em formato longitudinal. Este argumento é bastante flexível e segue as mesmas regras da função `select`. Por exemplo:
+
+```{r}
+#| eval: false
+dat |> pivot_longer(cols = -date)
+dat |> pivot_longer(cols = starts_with("pib"))
+dat |> pivot_longer(cols = c("x1", "x2"))
+```
+
+Já a função `pivot_wider` é mais exigente:
+
+```{r}
+#| eval: false
+dat |> 
+  pivot_wider(
+    id_cols = ...,
+    names_from = ...,
+    values_from = ...
+  )
+```
+
+O primeiro argumento indica qual coluna identifica unicamente os valores; o segundo argumento indica quais valores devem ser convertidos em colunas (variáveis); o terceiro argumento indica quais valores devem ser convertido em valores (sim, é isto mesmo). A função "desfaz" o que a `pivot_longer` "faz", mas também pode fazer novas tabelas e também condensar informação. Pra piorar a situação, ambas as funções tem vários argumentos opcionais, que muitas vezes são super úteis.
+
+Como num jogo, explicar as regras em voz-alta parece torná-lo mais complicado do que é. A melhor dica que posso dar é que se pratique bastante. Alternativamente, considere também as funções:
+
+-   `data.table::melt` ou `reshape2::melt`. É preciso escolher as colunas "identificadoras" e as colunas de "mensuração". Eu penso no "id" como o que identifica unicamente cada linha e "measure" como o que identifica o que está sendo mensurado. Por exemplo: na tabela abaixo temos o preços de duas ações em dois dias distintos.
+
+```{r}
+tab <- tibble(
+  data = c(as.Date("2023-05-04"), as.Date("2023-05-05")),
+  PETR4 = c(23.02, 24),
+  CYRE3 = c(15.54, 15.97)
+)
+
+tab
+```
+
+Para converter em formato "tidy" ou longitudinal, declara-se quais as colunas identificam a observação e quais as colunas indicam o que está sendo mensurado.
+
+```{r}
+reshape2::melt(tab, id.vars = "data", measure.vars = c("PETR4", "CYRE3"))
+```
+
+Neste caso particular, é útil saber que o argumento `measure.vars` pode ser omitido
+
+```{r}
+reshape2::melt(tab, id.vars = "data")
+```
+
+-   O contrário destas funções é `data.table::dcast` ou `reshape2::dcast`, cuja sintaxe é um pouco mais estranha, mas bastante intuitiva.
+
+```{r}
+long <- reshape2::melt(tab, id.vars = "data")
+
+reshape2::dcast(long, data ~ variable)
+```
+
+-   `tidyr::gather` que é a versão antiga de `pivot_longer`. Pessoalmente, sempre achei esta função bastante confusa, mas, ela talvez seja mais intuitiva para você.
+
+```{r}
+gather(tab, "ticker", "price", -data)
+```
+
+```{r}
+long <- gather(tab, "ticker", "price", -data)
+spread(long, "ticker", "price")
+```
+
+Neste caso simples, o par `gather`/`spread` parece bastante conveniente, mas em casos mais complexos esta sintaxe limitada torna-se bastante problemática.
+
+### Exemplo 1
+
+```{r}
+dat
+```
+
+Este caso é bem simples, pois todas as colunas, exceto a primeira, são uma única variável (as datas do mês). A função `rename` é usada somente para deixar mais evidente que a primeira coluna contém a tipologia do que foi vendido. O argumento `values_to` também é opcional.
+
+```{r}
+dat |> 
+  rename(tipologia = nome) |> 
+  pivot_longer(cols = -tipologia, names_to = "data", values_to = "unidades")
+```
+
+Note que agora:
+
+1.  Cada linha é uma observação: 900 é o valor de apartamentos vendidos em 2022-01.
+2.  Cada coluna é uma variável: a primeira coluna define a 'tipologia', a segunda coluna define a 'data' e a terceira coluna é o número de 'unidades'.
+
+Por fim, para ser mais completo pode-se converter a data num formato padrão.
+
+```{r}
+dat |> 
+  rename(tipologia = nome) |> 
+  pivot_longer(cols = -tipologia, names_to = "data", values_to = "unidades") |> 
+  mutate(data = readr::parse_date(data, format = "%Y-%m"))
+```
+
+### Exemplo 2
+
+```{r}
+dat2
+```
+
+O segundo exemplo é quase idêntico ao primeiro.
+
+```{r}
+dat2 |> 
+  rename(tipologia = nome, mercado = tipo) |> 
+  pivot_longer(
+    cols = -c(tipologia, mercado),
+    names_to = "data",
+    values_to = "unidades"
+    ) |> 
+  print(n = 24)
+```
+
+### Exemplo 3
+
+```{r}
+dat3
+```
+
+```{r}
+dat3 |> 
+  pivot_longer(-id, names_to = "grupo", values_to = "valor")
+```
+
+### Exemplo 4
+
+```{r}
+dat4
+```
+
+Neste exemplo pode-se separar as colunas facilmente usando `names_sep` e `names_to`.
+
+```{r}
+dat4 |> 
+  pivot_longer(
+    cols = -nome_cidade,
+    names_sep = "_",
+    names_to = c("variavel", "ano"),
+    values_to = "valor"
+    )
+```
+
+### Exemplo 5
+
+```{r}
+data
+```
+
+Confesso que só coloquei este exemplo aqui para mostrar que é possível usar dois `pivot_longer` em sequência para chegar num resultado útil.
+
+```{r}
+data |> 
+  pivot_longer(
+    cols = -cidade,
+    names_sep = "_",
+    names_to = c(".value", "tipologia", "ano")
+  ) |> 
+  pivot_longer(
+    cols = financiado:permuta,
+    names_to = "forma_pagamento",
+    values_to = "unidades"
+  )
+```
+
+# Referências e Comentários
+
+-   [Wickham, H. Centinkaya-Rundel, M. Grolemund, G. R for Data Science. 2ed.](https://r4ds.hadley.nz) - Uma introdução didática ao tidyverse com aplicações para ciências de dados.
+
+-   [Centinkaya-Rundel, M. Teaching the tidyverse in 2023](https://www.tidyverse.org/blog/2023/08/teach-tidyverse-23/) - Uma visão geral de como ensinar o `tidyverse` na sua versão mais atual. Discute um pouco dos desafios de ensinar tantos pacotes e funções.
+
+-   [Wickham, H. Tidy Data. Journal of Statistical Software. 2014.](https://www.jstatsoft.org/article/view/v059i10) - Artigo seminal com o conceito de tidy. Este artigo foi acompanhado dos pacotes `plyr` e `reshape2` que foram os embriões do `dplyr` e `tidyr`.
+
+Como comentei no texto, a popularidade do `tidyverse` criou um certo consenso de que esta é a melhor forma de começar a aprender R. Ainda assim, acho que vale a pena considerar alguns dos contra-argumentos:
+
+-   [Matloff, N. Teach Base-R, Not Just the Tidyverse](https://github.com/matloff/TidyverseSkeptic) - Um famoso argumento contra o ensino do `tidyverse`. Essencialmente, argumenta-se que o tidyverse além de ser bastante complexo, esconde alguns aspectos fundamentais do R como vetores e operadores `$`, o que dificulta o aprendizado da linguagem.
+
+-   [Matloff, N. Greatly Revised Edition of Tidyverse Skeptic](https://matloff.wordpress.com/2022/04/02/greatly-revised-edition-of-tidyverse-skeptic/) - Atualização do texto anterior.
+
+-   [Why I don't use the Tidyverse](https://blog.ephorie.de/why-i-dont-use-the-tidyverse)
