@@ -327,10 +327,10 @@ window.Quarto = {
 <p>Vou também definir um tema para os gráficos. Este passo é opcional.</p>
 <div class="cell" data-layout-align="center">
 <div class="sourceCode cell-code" id="cb2"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>theme_series <span class="ot">=</span> <span class="fu">theme_bw</span>(<span class="at">base_size =</span> <span class="dv">10</span>, <span class="at">base_family =</span> <span class="st">"sans"</span>) <span class="sc">+</span></span>
-<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>    <span class="fu">theme</span>(</span>
-<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>      <span class="at">panel.grid.minor =</span> <span class="fu">element_blank</span>(),</span>
-<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>      <span class="at">axis.text.x =</span> <span class="fu">element_text</span>(<span class="at">angle =</span> <span class="dv">90</span>)</span>
-<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>      )</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme</span>(</span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>    <span class="at">panel.grid.minor =</span> <span class="fu">element_blank</span>(),</span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>    <span class="at">axis.text.x =</span> <span class="fu">element_text</span>(<span class="at">angle =</span> <span class="dv">90</span>)</span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>  )</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 </section>
 <section id="visualizando-sazonalidade" class="level1">
@@ -430,30 +430,34 @@ window.Quarto = {
 <details class="code-fold">
 <summary>Code</summary>
 <div class="sourceCode cell-code" id="cb10"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Série de demanda por energia elétrica residencial (Brasil)</span></span>
-<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a>energ <span class="ot">=</span> rbcb<span class="sc">::</span><span class="fu">get_series</span>(<span class="dv">1403</span>, <span class="at">as =</span> <span class="st">"tibble"</span>, <span class="at">start_date =</span> <span class="fu">as.Date</span>(<span class="st">"2002-01-01"</span>))</span>
-<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Regressão com tendência polinomial</span></span>
-<span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a><span class="fu">names</span>(energ) <span class="ot">=</span> <span class="fu">c</span>(<span class="st">"date"</span>, <span class="st">"consumo"</span>)</span>
-<span id="cb10-6"><a href="#cb10-6" aria-hidden="true" tabindex="-1"></a>energ<span class="sc">$</span>consumo <span class="ot">=</span> <span class="fu">ts</span>(<span class="fu">log</span>(energ<span class="sc">$</span>consumo), <span class="at">start =</span> <span class="fu">c</span>(<span class="dv">2002</span>, <span class="dv">1</span>), <span class="at">frequency =</span> <span class="dv">12</span>)</span>
-<span id="cb10-7"><a href="#cb10-7" aria-hidden="true" tabindex="-1"></a>energ<span class="sc">$</span>trend <span class="ot">=</span> <span class="fu">time</span>(energ<span class="sc">$</span>consumo)</span>
-<span id="cb10-8"><a href="#cb10-8" aria-hidden="true" tabindex="-1"></a>reg_lm <span class="ot">=</span> <span class="fu">lm</span>(consumo <span class="sc">~</span> <span class="fu">poly</span>(trend, <span class="dv">3</span>, <span class="at">raw =</span> <span class="cn">TRUE</span>), <span class="at">data =</span> energ)</span>
-<span id="cb10-9"><a href="#cb10-9" aria-hidden="true" tabindex="-1"></a>energ<span class="sc">$</span>detrend <span class="ot">=</span> <span class="fu">residuals</span>(reg_lm)</span>
-<span id="cb10-10"><a href="#cb10-10" aria-hidden="true" tabindex="-1"></a>energ<span class="sc">$</span>mes <span class="ot">=</span> lubridate<span class="sc">::</span><span class="fu">month</span>(energ<span class="sc">$</span>date, <span class="at">label =</span> <span class="cn">TRUE</span>)</span>
-<span id="cb10-11"><a href="#cb10-11" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb10-12"><a href="#cb10-12" aria-hidden="true" tabindex="-1"></a>p1 <span class="ot">&lt;-</span> <span class="fu">ggplot</span>(energ, <span class="fu">aes</span>(<span class="at">x =</span> date, <span class="at">y =</span> detrend)) <span class="sc">+</span></span>
-<span id="cb10-13"><a href="#cb10-13" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_line</span>() <span class="sc">+</span></span>
-<span id="cb10-14"><a href="#cb10-14" aria-hidden="true" tabindex="-1"></a>  <span class="fu">xlab</span>(<span class="cn">NULL</span>) <span class="sc">+</span></span>
-<span id="cb10-15"><a href="#cb10-15" aria-hidden="true" tabindex="-1"></a>  theme_series</span>
-<span id="cb10-16"><a href="#cb10-16" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb10-17"><a href="#cb10-17" aria-hidden="true" tabindex="-1"></a>p2 <span class="ot">&lt;-</span> <span class="fu">ggplot</span>(energ, <span class="fu">aes</span>(<span class="at">x =</span> mes, <span class="at">y =</span> detrend)) <span class="sc">+</span></span>
-<span id="cb10-18"><a href="#cb10-18" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_boxplot</span>() <span class="sc">+</span></span>
-<span id="cb10-19"><a href="#cb10-19" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_point</span>(<span class="at">position =</span> <span class="fu">position_jitter</span>(<span class="fl">0.25</span>), <span class="at">alpha =</span> <span class="fl">0.5</span>) <span class="sc">+</span></span>
-<span id="cb10-20"><a href="#cb10-20" aria-hidden="true" tabindex="-1"></a>  <span class="fu">xlab</span>(<span class="cn">NULL</span>) <span class="sc">+</span></span>
-<span id="cb10-21"><a href="#cb10-21" aria-hidden="true" tabindex="-1"></a>  theme_series</span>
-<span id="cb10-22"><a href="#cb10-22" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb10-23"><a href="#cb10-23" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(patchwork)</span>
-<span id="cb10-24"><a href="#cb10-24" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb10-25"><a href="#cb10-25" aria-hidden="true" tabindex="-1"></a>p1 <span class="sc">/</span> p2 <span class="sc">+</span> <span class="fu">plot_layout</span>(<span class="at">heights =</span> <span class="fu">c</span>(<span class="dv">1</span><span class="sc">/</span><span class="dv">3</span>, <span class="dv">2</span><span class="sc">/</span><span class="dv">3</span>))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a>energ <span class="ot">=</span> rbcb<span class="sc">::</span><span class="fu">get_series</span>(</span>
+<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a>  <span class="dv">1403</span>,</span>
+<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">as =</span> <span class="st">"tibble"</span>,</span>
+<span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">start_date =</span> <span class="fu">as.Date</span>(<span class="st">"2002-01-01"</span>)</span>
+<span id="cb10-6"><a href="#cb10-6" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb10-7"><a href="#cb10-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-8"><a href="#cb10-8" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Regressão com tendência polinomial</span></span>
+<span id="cb10-9"><a href="#cb10-9" aria-hidden="true" tabindex="-1"></a><span class="fu">names</span>(energ) <span class="ot">=</span> <span class="fu">c</span>(<span class="st">"date"</span>, <span class="st">"consumo"</span>)</span>
+<span id="cb10-10"><a href="#cb10-10" aria-hidden="true" tabindex="-1"></a>energ<span class="sc">$</span>consumo <span class="ot">=</span> <span class="fu">ts</span>(<span class="fu">log</span>(energ<span class="sc">$</span>consumo), <span class="at">start =</span> <span class="fu">c</span>(<span class="dv">2002</span>, <span class="dv">1</span>), <span class="at">frequency =</span> <span class="dv">12</span>)</span>
+<span id="cb10-11"><a href="#cb10-11" aria-hidden="true" tabindex="-1"></a>energ<span class="sc">$</span>trend <span class="ot">=</span> <span class="fu">time</span>(energ<span class="sc">$</span>consumo)</span>
+<span id="cb10-12"><a href="#cb10-12" aria-hidden="true" tabindex="-1"></a>reg_lm <span class="ot">=</span> <span class="fu">lm</span>(consumo <span class="sc">~</span> <span class="fu">poly</span>(trend, <span class="dv">3</span>, <span class="at">raw =</span> <span class="cn">TRUE</span>), <span class="at">data =</span> energ)</span>
+<span id="cb10-13"><a href="#cb10-13" aria-hidden="true" tabindex="-1"></a>energ<span class="sc">$</span>detrend <span class="ot">=</span> <span class="fu">residuals</span>(reg_lm)</span>
+<span id="cb10-14"><a href="#cb10-14" aria-hidden="true" tabindex="-1"></a>energ<span class="sc">$</span>mes <span class="ot">=</span> lubridate<span class="sc">::</span><span class="fu">month</span>(energ<span class="sc">$</span>date, <span class="at">label =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb10-15"><a href="#cb10-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-16"><a href="#cb10-16" aria-hidden="true" tabindex="-1"></a>p1 <span class="ot">&lt;-</span> <span class="fu">ggplot</span>(energ, <span class="fu">aes</span>(<span class="at">x =</span> date, <span class="at">y =</span> detrend)) <span class="sc">+</span></span>
+<span id="cb10-17"><a href="#cb10-17" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_line</span>() <span class="sc">+</span></span>
+<span id="cb10-18"><a href="#cb10-18" aria-hidden="true" tabindex="-1"></a>  <span class="fu">xlab</span>(<span class="cn">NULL</span>) <span class="sc">+</span></span>
+<span id="cb10-19"><a href="#cb10-19" aria-hidden="true" tabindex="-1"></a>  theme_series</span>
+<span id="cb10-20"><a href="#cb10-20" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-21"><a href="#cb10-21" aria-hidden="true" tabindex="-1"></a>p2 <span class="ot">&lt;-</span> <span class="fu">ggplot</span>(energ, <span class="fu">aes</span>(<span class="at">x =</span> mes, <span class="at">y =</span> detrend)) <span class="sc">+</span></span>
+<span id="cb10-22"><a href="#cb10-22" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_boxplot</span>() <span class="sc">+</span></span>
+<span id="cb10-23"><a href="#cb10-23" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_point</span>(<span class="at">position =</span> <span class="fu">position_jitter</span>(<span class="fl">0.25</span>), <span class="at">alpha =</span> <span class="fl">0.5</span>) <span class="sc">+</span></span>
+<span id="cb10-24"><a href="#cb10-24" aria-hidden="true" tabindex="-1"></a>  <span class="fu">xlab</span>(<span class="cn">NULL</span>) <span class="sc">+</span></span>
+<span id="cb10-25"><a href="#cb10-25" aria-hidden="true" tabindex="-1"></a>  theme_series</span>
+<span id="cb10-26"><a href="#cb10-26" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-27"><a href="#cb10-27" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(patchwork)</span>
+<span id="cb10-28"><a href="#cb10-28" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-29"><a href="#cb10-29" aria-hidden="true" tabindex="-1"></a>p1 <span class="sc">/</span> p2 <span class="sc">+</span> <span class="fu">plot_layout</span>(<span class="at">heights =</span> <span class="fu">c</span>(<span class="dv">1</span> <span class="sc">/</span> <span class="dv">3</span>, <span class="dv">2</span> <span class="sc">/</span> <span class="dv">3</span>))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details>
 <div class="cell-output-display">
 <div class="quarto-figure quarto-figure-center">
@@ -481,8 +485,12 @@ window.Quarto = {
 <span id="cb12-7"><a href="#cb12-7" aria-hidden="true" tabindex="-1"></a>  <span class="fu">facet_wrap</span>(<span class="fu">vars</span>(mes), <span class="at">ncol =</span> <span class="dv">1</span>) <span class="sc">+</span></span>
 <span id="cb12-8"><a href="#cb12-8" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_x_continuous</span>(<span class="at">breaks =</span> <span class="dv">0</span><span class="sc">:</span><span class="dv">23</span>) <span class="sc">+</span></span>
 <span id="cb12-9"><a href="#cb12-9" aria-hidden="true" tabindex="-1"></a>  <span class="fu">guides</span>(<span class="at">color =</span> <span class="st">"none"</span>) <span class="sc">+</span></span>
-<span id="cb12-10"><a href="#cb12-10" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">title =</span> <span class="st">"Temperatura média Porto Alegre"</span>, <span class="at">x =</span> <span class="st">"Hora do dia"</span>, <span class="at">y =</span> <span class="st">"Celsius"</span>) <span class="sc">+</span></span>
-<span id="cb12-11"><a href="#cb12-11" aria-hidden="true" tabindex="-1"></a>  theme_series</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb12-10"><a href="#cb12-10" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(</span>
+<span id="cb12-11"><a href="#cb12-11" aria-hidden="true" tabindex="-1"></a>    <span class="at">title =</span> <span class="st">"Temperatura média Porto Alegre"</span>,</span>
+<span id="cb12-12"><a href="#cb12-12" aria-hidden="true" tabindex="-1"></a>    <span class="at">x =</span> <span class="st">"Hora do dia"</span>,</span>
+<span id="cb12-13"><a href="#cb12-13" aria-hidden="true" tabindex="-1"></a>    <span class="at">y =</span> <span class="st">"Celsius"</span></span>
+<span id="cb12-14"><a href="#cb12-14" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">+</span></span>
+<span id="cb12-15"><a href="#cb12-15" aria-hidden="true" tabindex="-1"></a>  theme_series</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details>
 <div class="cell-output-display">
 <div class="quarto-figure quarto-figure-center">
@@ -510,23 +518,23 @@ y_{t} = \alpha_{0} + \alpha_{1}t + \sum_{i = 1}^{11}\beta_{i}\delta_{i} + u_{t}
 </div>
 <div class="cell" data-layout-align="center">
 <div class="cell-output-display">
-<div id="svhzggzuih" style="padding-left:0px;padding-right:0px;padding-top:10px;padding-bottom:10px;overflow-x:auto;overflow-y:auto;width:auto;height:auto;">
-<style>#svhzggzuih table {
+<div id="tgemcilrac" style="padding-left:0px;padding-right:0px;padding-top:10px;padding-bottom:10px;overflow-x:auto;overflow-y:auto;width:auto;height:auto;">
+<style>#tgemcilrac table {
   font-family: system-ui, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
-#svhzggzuih thead, #svhzggzuih tbody, #svhzggzuih tfoot, #svhzggzuih tr, #svhzggzuih td, #svhzggzuih th {
+#tgemcilrac thead, #tgemcilrac tbody, #tgemcilrac tfoot, #tgemcilrac tr, #tgemcilrac td, #tgemcilrac th {
   border-style: none;
 }
 
-#svhzggzuih p {
+#tgemcilrac p {
   margin: 0;
   padding: 0;
 }
 
-#svhzggzuih .gt_table {
+#tgemcilrac .gt_table {
   display: table;
   border-collapse: collapse;
   line-height: normal;
@@ -552,12 +560,12 @@ y_{t} = \alpha_{0} + \alpha_{1}t + \sum_{i = 1}^{11}\beta_{i}\delta_{i} + u_{t}
   border-left-color: #D3D3D3;
 }
 
-#svhzggzuih .gt_caption {
+#tgemcilrac .gt_caption {
   padding-top: 4px;
   padding-bottom: 4px;
 }
 
-#svhzggzuih .gt_title {
+#tgemcilrac .gt_title {
   color: #333333;
   font-size: 125%;
   font-weight: initial;
@@ -569,7 +577,7 @@ y_{t} = \alpha_{0} + \alpha_{1}t + \sum_{i = 1}^{11}\beta_{i}\delta_{i} + u_{t}
   border-bottom-width: 0;
 }
 
-#svhzggzuih .gt_subtitle {
+#tgemcilrac .gt_subtitle {
   color: #333333;
   font-size: 85%;
   font-weight: initial;
@@ -581,7 +589,7 @@ y_{t} = \alpha_{0} + \alpha_{1}t + \sum_{i = 1}^{11}\beta_{i}\delta_{i} + u_{t}
   border-top-width: 0;
 }
 
-#svhzggzuih .gt_heading {
+#tgemcilrac .gt_heading {
   background-color: #FFFFFF;
   text-align: center;
   border-bottom-color: #FFFFFF;
@@ -593,13 +601,13 @@ y_{t} = \alpha_{0} + \alpha_{1}t + \sum_{i = 1}^{11}\beta_{i}\delta_{i} + u_{t}
   border-right-color: #D3D3D3;
 }
 
-#svhzggzuih .gt_bottom_border {
+#tgemcilrac .gt_bottom_border {
   border-bottom-style: solid;
   border-bottom-width: 2px;
   border-bottom-color: #D3D3D3;
 }
 
-#svhzggzuih .gt_col_headings {
+#tgemcilrac .gt_col_headings {
   border-top-style: solid;
   border-top-width: 2px;
   border-top-color: #D3D3D3;
@@ -614,7 +622,7 @@ y_{t} = \alpha_{0} + \alpha_{1}t + \sum_{i = 1}^{11}\beta_{i}\delta_{i} + u_{t}
   border-right-color: #D3D3D3;
 }
 
-#svhzggzuih .gt_col_heading {
+#tgemcilrac .gt_col_heading {
   color: #333333;
   background-color: #FFFFFF;
   font-size: 100%;
@@ -634,7 +642,7 @@ y_{t} = \alpha_{0} + \alpha_{1}t + \sum_{i = 1}^{11}\beta_{i}\delta_{i} + u_{t}
   overflow-x: hidden;
 }
 
-#svhzggzuih .gt_column_spanner_outer {
+#tgemcilrac .gt_column_spanner_outer {
   color: #333333;
   background-color: #FFFFFF;
   font-size: 100%;
@@ -646,15 +654,15 @@ y_{t} = \alpha_{0} + \alpha_{1}t + \sum_{i = 1}^{11}\beta_{i}\delta_{i} + u_{t}
   padding-right: 4px;
 }
 
-#svhzggzuih .gt_column_spanner_outer:first-child {
+#tgemcilrac .gt_column_spanner_outer:first-child {
   padding-left: 0;
 }
 
-#svhzggzuih .gt_column_spanner_outer:last-child {
+#tgemcilrac .gt_column_spanner_outer:last-child {
   padding-right: 0;
 }
 
-#svhzggzuih .gt_column_spanner {
+#tgemcilrac .gt_column_spanner {
   border-bottom-style: solid;
   border-bottom-width: 2px;
   border-bottom-color: #D3D3D3;
@@ -666,11 +674,11 @@ y_{t} = \alpha_{0} + \alpha_{1}t + \sum_{i = 1}^{11}\beta_{i}\delta_{i} + u_{t}
   width: 100%;
 }
 
-#svhzggzuih .gt_spanner_row {
+#tgemcilrac .gt_spanner_row {
   border-bottom-style: hidden;
 }
 
-#svhzggzuih .gt_group_heading {
+#tgemcilrac .gt_group_heading {
   padding-top: 8px;
   padding-bottom: 8px;
   padding-left: 5px;
@@ -696,7 +704,7 @@ y_{t} = \alpha_{0} + \alpha_{1}t + \sum_{i = 1}^{11}\beta_{i}\delta_{i} + u_{t}
   text-align: left;
 }
 
-#svhzggzuih .gt_empty_group_heading {
+#tgemcilrac .gt_empty_group_heading {
   padding: 0.5px;
   color: #333333;
   background-color: #FFFFFF;
@@ -711,15 +719,15 @@ y_{t} = \alpha_{0} + \alpha_{1}t + \sum_{i = 1}^{11}\beta_{i}\delta_{i} + u_{t}
   vertical-align: middle;
 }
 
-#svhzggzuih .gt_from_md > :first-child {
+#tgemcilrac .gt_from_md > :first-child {
   margin-top: 0;
 }
 
-#svhzggzuih .gt_from_md > :last-child {
+#tgemcilrac .gt_from_md > :last-child {
   margin-bottom: 0;
 }
 
-#svhzggzuih .gt_row {
+#tgemcilrac .gt_row {
   padding-top: 8px;
   padding-bottom: 8px;
   padding-left: 5px;
@@ -738,7 +746,7 @@ y_{t} = \alpha_{0} + \alpha_{1}t + \sum_{i = 1}^{11}\beta_{i}\delta_{i} + u_{t}
   overflow-x: hidden;
 }
 
-#svhzggzuih .gt_stub {
+#tgemcilrac .gt_stub {
   color: #333333;
   background-color: #FFFFFF;
   font-size: 100%;
@@ -751,7 +759,7 @@ y_{t} = \alpha_{0} + \alpha_{1}t + \sum_{i = 1}^{11}\beta_{i}\delta_{i} + u_{t}
   padding-right: 5px;
 }
 
-#svhzggzuih .gt_stub_row_group {
+#tgemcilrac .gt_stub_row_group {
   color: #333333;
   background-color: #FFFFFF;
   font-size: 100%;
@@ -765,15 +773,15 @@ y_{t} = \alpha_{0} + \alpha_{1}t + \sum_{i = 1}^{11}\beta_{i}\delta_{i} + u_{t}
   vertical-align: top;
 }
 
-#svhzggzuih .gt_row_group_first td {
+#tgemcilrac .gt_row_group_first td {
   border-top-width: 2px;
 }
 
-#svhzggzuih .gt_row_group_first th {
+#tgemcilrac .gt_row_group_first th {
   border-top-width: 2px;
 }
 
-#svhzggzuih .gt_summary_row {
+#tgemcilrac .gt_summary_row {
   color: #333333;
   background-color: #FFFFFF;
   text-transform: inherit;
@@ -783,16 +791,16 @@ y_{t} = \alpha_{0} + \alpha_{1}t + \sum_{i = 1}^{11}\beta_{i}\delta_{i} + u_{t}
   padding-right: 5px;
 }
 
-#svhzggzuih .gt_first_summary_row {
+#tgemcilrac .gt_first_summary_row {
   border-top-style: solid;
   border-top-color: #D3D3D3;
 }
 
-#svhzggzuih .gt_first_summary_row.thick {
+#tgemcilrac .gt_first_summary_row.thick {
   border-top-width: 2px;
 }
 
-#svhzggzuih .gt_last_summary_row {
+#tgemcilrac .gt_last_summary_row {
   padding-top: 8px;
   padding-bottom: 8px;
   padding-left: 5px;
@@ -802,7 +810,7 @@ y_{t} = \alpha_{0} + \alpha_{1}t + \sum_{i = 1}^{11}\beta_{i}\delta_{i} + u_{t}
   border-bottom-color: #D3D3D3;
 }
 
-#svhzggzuih .gt_grand_summary_row {
+#tgemcilrac .gt_grand_summary_row {
   color: #333333;
   background-color: #FFFFFF;
   text-transform: inherit;
@@ -812,7 +820,7 @@ y_{t} = \alpha_{0} + \alpha_{1}t + \sum_{i = 1}^{11}\beta_{i}\delta_{i} + u_{t}
   padding-right: 5px;
 }
 
-#svhzggzuih .gt_first_grand_summary_row {
+#tgemcilrac .gt_first_grand_summary_row {
   padding-top: 8px;
   padding-bottom: 8px;
   padding-left: 5px;
@@ -822,7 +830,7 @@ y_{t} = \alpha_{0} + \alpha_{1}t + \sum_{i = 1}^{11}\beta_{i}\delta_{i} + u_{t}
   border-top-color: #D3D3D3;
 }
 
-#svhzggzuih .gt_last_grand_summary_row_top {
+#tgemcilrac .gt_last_grand_summary_row_top {
   padding-top: 8px;
   padding-bottom: 8px;
   padding-left: 5px;
@@ -832,11 +840,11 @@ y_{t} = \alpha_{0} + \alpha_{1}t + \sum_{i = 1}^{11}\beta_{i}\delta_{i} + u_{t}
   border-bottom-color: #D3D3D3;
 }
 
-#svhzggzuih .gt_striped {
+#tgemcilrac .gt_striped {
   background-color: rgba(128, 128, 128, 0.05);
 }
 
-#svhzggzuih .gt_table_body {
+#tgemcilrac .gt_table_body {
   border-top-style: solid;
   border-top-width: 2px;
   border-top-color: #D3D3D3;
@@ -845,7 +853,7 @@ y_{t} = \alpha_{0} + \alpha_{1}t + \sum_{i = 1}^{11}\beta_{i}\delta_{i} + u_{t}
   border-bottom-color: #D3D3D3;
 }
 
-#svhzggzuih .gt_footnotes {
+#tgemcilrac .gt_footnotes {
   color: #333333;
   background-color: #FFFFFF;
   border-bottom-style: none;
@@ -859,7 +867,7 @@ y_{t} = \alpha_{0} + \alpha_{1}t + \sum_{i = 1}^{11}\beta_{i}\delta_{i} + u_{t}
   border-right-color: #D3D3D3;
 }
 
-#svhzggzuih .gt_footnote {
+#tgemcilrac .gt_footnote {
   margin: 0px;
   font-size: 90%;
   padding-top: 4px;
@@ -868,7 +876,7 @@ y_{t} = \alpha_{0} + \alpha_{1}t + \sum_{i = 1}^{11}\beta_{i}\delta_{i} + u_{t}
   padding-right: 5px;
 }
 
-#svhzggzuih .gt_sourcenotes {
+#tgemcilrac .gt_sourcenotes {
   color: #333333;
   background-color: #FFFFFF;
   border-bottom-style: none;
@@ -882,7 +890,7 @@ y_{t} = \alpha_{0} + \alpha_{1}t + \sum_{i = 1}^{11}\beta_{i}\delta_{i} + u_{t}
   border-right-color: #D3D3D3;
 }
 
-#svhzggzuih .gt_sourcenote {
+#tgemcilrac .gt_sourcenote {
   font-size: 90%;
   padding-top: 4px;
   padding-bottom: 4px;
@@ -890,64 +898,73 @@ y_{t} = \alpha_{0} + \alpha_{1}t + \sum_{i = 1}^{11}\beta_{i}\delta_{i} + u_{t}
   padding-right: 5px;
 }
 
-#svhzggzuih .gt_left {
+#tgemcilrac .gt_left {
   text-align: left;
 }
 
-#svhzggzuih .gt_center {
+#tgemcilrac .gt_center {
   text-align: center;
 }
 
-#svhzggzuih .gt_right {
+#tgemcilrac .gt_right {
   text-align: right;
   font-variant-numeric: tabular-nums;
 }
 
-#svhzggzuih .gt_font_normal {
+#tgemcilrac .gt_font_normal {
   font-weight: normal;
 }
 
-#svhzggzuih .gt_font_bold {
+#tgemcilrac .gt_font_bold {
   font-weight: bold;
 }
 
-#svhzggzuih .gt_font_italic {
+#tgemcilrac .gt_font_italic {
   font-style: italic;
 }
 
-#svhzggzuih .gt_super {
+#tgemcilrac .gt_super {
   font-size: 65%;
 }
 
-#svhzggzuih .gt_footnote_marks {
+#tgemcilrac .gt_footnote_marks {
   font-size: 75%;
   vertical-align: 0.4em;
   position: initial;
 }
 
-#svhzggzuih .gt_asterisk {
+#tgemcilrac .gt_asterisk {
   font-size: 100%;
   vertical-align: 0;
 }
 
-#svhzggzuih .gt_indent_1 {
+#tgemcilrac .gt_indent_1 {
   text-indent: 5px;
 }
 
-#svhzggzuih .gt_indent_2 {
+#tgemcilrac .gt_indent_2 {
   text-indent: 10px;
 }
 
-#svhzggzuih .gt_indent_3 {
+#tgemcilrac .gt_indent_3 {
   text-indent: 15px;
 }
 
-#svhzggzuih .gt_indent_4 {
+#tgemcilrac .gt_indent_4 {
   text-indent: 20px;
 }
 
-#svhzggzuih .gt_indent_5 {
+#tgemcilrac .gt_indent_5 {
   text-indent: 25px;
+}
+
+#tgemcilrac .katex-display {
+  display: inline-flex !important;
+  margin-bottom: 0.75em !important;
+}
+
+#tgemcilrac div.Reactable > div.rt-table > div.rt-thead > div.rt-tr.rt-tr-group-header > div.rt-th-group:after {
+  height: 0px !important;
 }
 </style>
 
@@ -960,24 +977,24 @@ y_{t} = \alpha_{0} + \alpha_{1}t + \sum_{i = 1}^{11}\beta_{i}\delta_{i} + u_{t}
 </colgroup>
 <thead>
 <tr class="gt_col_headings header">
-<th id="<strong>Characteristic</strong>" class="gt_col_heading gt_columns_bottom_border gt_left" data-quarto-table-cell-role="th" scope="col"><strong>Characteristic</strong></th>
-<th id="<strong>Beta</strong>" class="gt_col_heading gt_columns_bottom_border gt_center" data-quarto-table-cell-role="th" scope="col"><strong>Beta</strong></th>
-<th id="<strong>95% CI</strong><span class=&quot;gt_footnote_marks&quot; style=&quot;white-space:nowrap;font-style:italic;font-weight:normal;&quot;><sup>1</sup></span>" class="gt_col_heading gt_columns_bottom_border gt_center" data-quarto-table-cell-role="th" scope="col"><strong>95% CI</strong><span class="gt_footnote_marks" style="white-space:nowrap;font-style:italic;font-weight:normal;"><sup>1</sup></span></th>
-<th id="<strong>p-value</strong>" class="gt_col_heading gt_columns_bottom_border gt_center" data-quarto-table-cell-role="th" scope="col"><strong>p-value</strong></th>
+<th id="label" class="gt_col_heading gt_columns_bottom_border gt_left" data-quarto-table-cell-role="th" scope="col"><strong>Characteristic</strong></th>
+<th id="estimate" class="gt_col_heading gt_columns_bottom_border gt_center" data-quarto-table-cell-role="th" scope="col"><strong>Beta</strong></th>
+<th id="conf.low" class="gt_col_heading gt_columns_bottom_border gt_center" data-quarto-table-cell-role="th" scope="col"><strong>95% CI</strong></th>
+<th id="p.value" class="gt_col_heading gt_columns_bottom_border gt_center" data-quarto-table-cell-role="th" scope="col"><strong>p-value</strong></th>
 </tr>
 </thead>
 <tbody class="gt_table_body">
 <tr class="odd">
 <td class="gt_row gt_left" headers="label">trend</td>
-<td class="gt_row gt_center" headers="estimate">-0.2896</td>
-<td class="gt_row gt_center" headers="ci">-0.3347, -0.2444</td>
+<td class="gt_row gt_center" headers="estimate">-0.2220</td>
+<td class="gt_row gt_center" headers="conf.low">-0.2600, -0.1840</td>
 <td class="gt_row gt_center" headers="p.value">&lt;0.001</td>
 </tr>
 <tr class="even">
 <td class="gt_row gt_left" headers="label">season</td>
 <td class="gt_row gt_center" headers="estimate"><br>
 </td>
-<td class="gt_row gt_center" headers="ci"><br>
+<td class="gt_row gt_center" headers="conf.low"><br>
 </td>
 <td class="gt_row gt_center" headers="p.value"><br>
 </td>
@@ -985,79 +1002,79 @@ y_{t} = \alpha_{0} + \alpha_{1}t + \sum_{i = 1}^{11}\beta_{i}\delta_{i} + u_{t}
 <tr class="odd">
 <td class="gt_row gt_left" headers="label">&nbsp;&nbsp;&nbsp;&nbsp;1</td>
 <td class="gt_row gt_center" headers="estimate">—</td>
-<td class="gt_row gt_center" headers="ci">—</td>
+<td class="gt_row gt_center" headers="conf.low">—</td>
 <td class="gt_row gt_center" headers="p.value"><br>
 </td>
 </tr>
 <tr class="even">
 <td class="gt_row gt_left" headers="label">&nbsp;&nbsp;&nbsp;&nbsp;2</td>
-<td class="gt_row gt_center" headers="estimate">-0.1771</td>
-<td class="gt_row gt_center" headers="ci">-9.1606, 8.8064</td>
+<td class="gt_row gt_center" headers="estimate">-0.0923</td>
+<td class="gt_row gt_center" headers="conf.low">-8.6324, 8.4479</td>
 <td class="gt_row gt_center" headers="p.value">&gt;0.9</td>
 </tr>
 <tr class="odd">
 <td class="gt_row gt_left" headers="label">&nbsp;&nbsp;&nbsp;&nbsp;3</td>
-<td class="gt_row gt_center" headers="estimate">9.5541</td>
-<td class="gt_row gt_center" headers="ci">0.5703, 18.5379</td>
-<td class="gt_row gt_center" headers="p.value">0.037</td>
+<td class="gt_row gt_center" headers="estimate">8.8868</td>
+<td class="gt_row gt_center" headers="conf.low">0.3464, 17.4273</td>
+<td class="gt_row gt_center" headers="p.value">0.042</td>
 </tr>
 <tr class="even">
 <td class="gt_row gt_left" headers="label">&nbsp;&nbsp;&nbsp;&nbsp;4</td>
-<td class="gt_row gt_center" headers="estimate">2.3854</td>
-<td class="gt_row gt_center" headers="ci">-6.5990, 11.3697</td>
-<td class="gt_row gt_center" headers="p.value">0.6</td>
+<td class="gt_row gt_center" headers="estimate">2.8731</td>
+<td class="gt_row gt_center" headers="conf.low">-5.6677, 11.4140</td>
+<td class="gt_row gt_center" headers="p.value">0.5</td>
 </tr>
 <tr class="odd">
 <td class="gt_row gt_left" headers="label">&nbsp;&nbsp;&nbsp;&nbsp;5</td>
-<td class="gt_row gt_center" headers="estimate">8.1083</td>
-<td class="gt_row gt_center" headers="ci">-0.8769, 17.0934</td>
-<td class="gt_row gt_center" headers="p.value">0.077</td>
+<td class="gt_row gt_center" headers="estimate">7.9951</td>
+<td class="gt_row gt_center" headers="conf.low">-0.5463, 16.5365</td>
+<td class="gt_row gt_center" headers="p.value">0.066</td>
 </tr>
 <tr class="even">
 <td class="gt_row gt_left" headers="label">&nbsp;&nbsp;&nbsp;&nbsp;6</td>
-<td class="gt_row gt_center" headers="estimate">6.1812</td>
-<td class="gt_row gt_center" headers="ci">-2.8050, 15.1674</td>
+<td class="gt_row gt_center" headers="estimate">6.0100</td>
+<td class="gt_row gt_center" headers="conf.low">-2.5322, 14.5522</td>
 <td class="gt_row gt_center" headers="p.value">0.2</td>
 </tr>
 <tr class="odd">
 <td class="gt_row gt_left" headers="label">&nbsp;&nbsp;&nbsp;&nbsp;7</td>
-<td class="gt_row gt_center" headers="estimate">13.0041</td>
-<td class="gt_row gt_center" headers="ci">4.0166, 21.9915</td>
-<td class="gt_row gt_center" headers="p.value">0.005</td>
+<td class="gt_row gt_center" headers="estimate">12.1720</td>
+<td class="gt_row gt_center" headers="conf.low">3.4692, 20.8747</td>
+<td class="gt_row gt_center" headers="p.value">0.006</td>
 </tr>
 <tr class="even">
 <td class="gt_row gt_left" headers="label">&nbsp;&nbsp;&nbsp;&nbsp;8</td>
-<td class="gt_row gt_center" headers="estimate">17.3770</td>
-<td class="gt_row gt_center" headers="ci">8.3880, 26.3659</td>
+<td class="gt_row gt_center" headers="estimate">16.2094</td>
+<td class="gt_row gt_center" headers="conf.low">7.5065, 24.9122</td>
 <td class="gt_row gt_center" headers="p.value">&lt;0.001</td>
 </tr>
 <tr class="odd">
 <td class="gt_row gt_left" headers="label">&nbsp;&nbsp;&nbsp;&nbsp;9</td>
-<td class="gt_row gt_center" headers="estimate">12.2082</td>
-<td class="gt_row gt_center" headers="ci">3.2176, 21.1988</td>
-<td class="gt_row gt_center" headers="p.value">0.008</td>
+<td class="gt_row gt_center" headers="estimate">11.1160</td>
+<td class="gt_row gt_center" headers="conf.low">2.4129, 19.8191</td>
+<td class="gt_row gt_center" headers="p.value">0.013</td>
 </tr>
 <tr class="even">
 <td class="gt_row gt_left" headers="label">&nbsp;&nbsp;&nbsp;&nbsp;10</td>
-<td class="gt_row gt_center" headers="estimate">17.0228</td>
-<td class="gt_row gt_center" headers="ci">8.0302, 26.0153</td>
+<td class="gt_row gt_center" headers="estimate">15.8841</td>
+<td class="gt_row gt_center" headers="conf.low">7.1806, 24.5876</td>
 <td class="gt_row gt_center" headers="p.value">&lt;0.001</td>
 </tr>
 <tr class="odd">
 <td class="gt_row gt_left" headers="label">&nbsp;&nbsp;&nbsp;&nbsp;11</td>
-<td class="gt_row gt_center" headers="estimate">9.7711</td>
-<td class="gt_row gt_center" headers="ci">0.5841, 18.9582</td>
-<td class="gt_row gt_center" headers="p.value">0.037</td>
+<td class="gt_row gt_center" headers="estimate">9.0984</td>
+<td class="gt_row gt_center" headers="conf.low">0.3943, 17.8025</td>
+<td class="gt_row gt_center" headers="p.value">0.041</td>
 </tr>
 <tr class="even">
 <td class="gt_row gt_left" headers="label">&nbsp;&nbsp;&nbsp;&nbsp;12</td>
-<td class="gt_row gt_center" headers="estimate">-5.6847</td>
-<td class="gt_row gt_center" headers="ci">-14.8728, 3.5033</td>
-<td class="gt_row gt_center" headers="p.value">0.2</td>
+<td class="gt_row gt_center" headers="estimate">-6.4642</td>
+<td class="gt_row gt_center" headers="conf.low">-15.1690, 2.2406</td>
+<td class="gt_row gt_center" headers="p.value">0.14</td>
 </tr>
-</tbody><tfoot class="gt_footnotes">
+</tbody><tfoot class="gt_sourcenotes">
 <tr class="odd">
-<td colspan="4" class="gt_footnote"><span class="gt_footnote_marks" style="white-space:nowrap;font-style:italic;font-weight:normal;"><sup>1</sup></span> CI = Confidence Interval</td>
+<td colspan="4" class="gt_sourcenote">Abbreviation: CI = Confidence Interval</td>
 </tr>
 </tfoot>
 
@@ -1098,9 +1115,9 @@ y_{t} = \alpha_{0} + \alpha_{1}t + \sum_{i = 1}^{11}\beta_{i}\delta_{i} + u_{t}
 <div class="cell" data-layout-align="center">
 <div class="sourceCode cell-code" id="cb16"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a>ma_trend <span class="ot">=</span> stats<span class="sc">::</span><span class="fu">filter</span>(</span>
 <span id="cb16-2"><a href="#cb16-2" aria-hidden="true" tabindex="-1"></a>  ipi,</span>
-<span id="cb16-3"><a href="#cb16-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">filter =</span> <span class="fu">c</span>(<span class="dv">1</span><span class="sc">/</span><span class="dv">24</span>, <span class="fu">rep</span>(<span class="dv">1</span><span class="sc">/</span><span class="dv">12</span>, <span class="dv">10</span>), <span class="dv">1</span><span class="sc">/</span><span class="dv">24</span>),</span>
+<span id="cb16-3"><a href="#cb16-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">filter =</span> <span class="fu">c</span>(<span class="dv">1</span> <span class="sc">/</span> <span class="dv">24</span>, <span class="fu">rep</span>(<span class="dv">1</span> <span class="sc">/</span> <span class="dv">12</span>, <span class="dv">10</span>), <span class="dv">1</span> <span class="sc">/</span> <span class="dv">24</span>),</span>
 <span id="cb16-4"><a href="#cb16-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">method =</span> <span class="st">"convolution"</span></span>
-<span id="cb16-5"><a href="#cb16-5" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb16-5"><a href="#cb16-5" aria-hidden="true" tabindex="-1"></a>)</span>
 <span id="cb16-6"><a href="#cb16-6" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb16-7"><a href="#cb16-7" aria-hidden="true" tabindex="-1"></a><span class="fu">autoplot</span>(ipi) <span class="sc">+</span></span>
 <span id="cb16-8"><a href="#cb16-8" aria-hidden="true" tabindex="-1"></a>  <span class="fu">autolayer</span>(ma_trend, <span class="at">color =</span> <span class="st">"blue"</span>) <span class="sc">+</span></span>
@@ -1146,23 +1163,23 @@ y_{t} = \alpha_{0} + \alpha_{1}t + \sum_{i = 1}^{11}\beta_{i}\delta_{i} + u_{t}
 <p>Comparando os modelos, vê-se que as estimativas dos efeitos sazonais são diferentes.</p>
 <div class="cell" data-layout-align="center">
 <div class="cell-output-display">
-<div id="tuxketypkz" style="padding-left:0px;padding-right:0px;padding-top:10px;padding-bottom:10px;overflow-x:auto;overflow-y:auto;width:auto;height:auto;">
-<style>#tuxketypkz table {
+<div id="ntgjenxmmf" style="padding-left:0px;padding-right:0px;padding-top:10px;padding-bottom:10px;overflow-x:auto;overflow-y:auto;width:auto;height:auto;">
+<style>#ntgjenxmmf table {
   font-family: system-ui, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
-#tuxketypkz thead, #tuxketypkz tbody, #tuxketypkz tfoot, #tuxketypkz tr, #tuxketypkz td, #tuxketypkz th {
+#ntgjenxmmf thead, #ntgjenxmmf tbody, #ntgjenxmmf tfoot, #ntgjenxmmf tr, #ntgjenxmmf td, #ntgjenxmmf th {
   border-style: none;
 }
 
-#tuxketypkz p {
+#ntgjenxmmf p {
   margin: 0;
   padding: 0;
 }
 
-#tuxketypkz .gt_table {
+#ntgjenxmmf .gt_table {
   display: table;
   border-collapse: collapse;
   line-height: normal;
@@ -1188,12 +1205,12 @@ y_{t} = \alpha_{0} + \alpha_{1}t + \sum_{i = 1}^{11}\beta_{i}\delta_{i} + u_{t}
   border-left-color: #D3D3D3;
 }
 
-#tuxketypkz .gt_caption {
+#ntgjenxmmf .gt_caption {
   padding-top: 4px;
   padding-bottom: 4px;
 }
 
-#tuxketypkz .gt_title {
+#ntgjenxmmf .gt_title {
   color: #333333;
   font-size: 125%;
   font-weight: initial;
@@ -1205,7 +1222,7 @@ y_{t} = \alpha_{0} + \alpha_{1}t + \sum_{i = 1}^{11}\beta_{i}\delta_{i} + u_{t}
   border-bottom-width: 0;
 }
 
-#tuxketypkz .gt_subtitle {
+#ntgjenxmmf .gt_subtitle {
   color: #333333;
   font-size: 85%;
   font-weight: initial;
@@ -1217,7 +1234,7 @@ y_{t} = \alpha_{0} + \alpha_{1}t + \sum_{i = 1}^{11}\beta_{i}\delta_{i} + u_{t}
   border-top-width: 0;
 }
 
-#tuxketypkz .gt_heading {
+#ntgjenxmmf .gt_heading {
   background-color: #FFFFFF;
   text-align: center;
   border-bottom-color: #FFFFFF;
@@ -1229,13 +1246,13 @@ y_{t} = \alpha_{0} + \alpha_{1}t + \sum_{i = 1}^{11}\beta_{i}\delta_{i} + u_{t}
   border-right-color: #D3D3D3;
 }
 
-#tuxketypkz .gt_bottom_border {
+#ntgjenxmmf .gt_bottom_border {
   border-bottom-style: solid;
   border-bottom-width: 2px;
   border-bottom-color: #D3D3D3;
 }
 
-#tuxketypkz .gt_col_headings {
+#ntgjenxmmf .gt_col_headings {
   border-top-style: solid;
   border-top-width: 2px;
   border-top-color: #D3D3D3;
@@ -1250,7 +1267,7 @@ y_{t} = \alpha_{0} + \alpha_{1}t + \sum_{i = 1}^{11}\beta_{i}\delta_{i} + u_{t}
   border-right-color: #D3D3D3;
 }
 
-#tuxketypkz .gt_col_heading {
+#ntgjenxmmf .gt_col_heading {
   color: #333333;
   background-color: #FFFFFF;
   font-size: 100%;
@@ -1270,7 +1287,7 @@ y_{t} = \alpha_{0} + \alpha_{1}t + \sum_{i = 1}^{11}\beta_{i}\delta_{i} + u_{t}
   overflow-x: hidden;
 }
 
-#tuxketypkz .gt_column_spanner_outer {
+#ntgjenxmmf .gt_column_spanner_outer {
   color: #333333;
   background-color: #FFFFFF;
   font-size: 100%;
@@ -1282,15 +1299,15 @@ y_{t} = \alpha_{0} + \alpha_{1}t + \sum_{i = 1}^{11}\beta_{i}\delta_{i} + u_{t}
   padding-right: 4px;
 }
 
-#tuxketypkz .gt_column_spanner_outer:first-child {
+#ntgjenxmmf .gt_column_spanner_outer:first-child {
   padding-left: 0;
 }
 
-#tuxketypkz .gt_column_spanner_outer:last-child {
+#ntgjenxmmf .gt_column_spanner_outer:last-child {
   padding-right: 0;
 }
 
-#tuxketypkz .gt_column_spanner {
+#ntgjenxmmf .gt_column_spanner {
   border-bottom-style: solid;
   border-bottom-width: 2px;
   border-bottom-color: #D3D3D3;
@@ -1302,11 +1319,11 @@ y_{t} = \alpha_{0} + \alpha_{1}t + \sum_{i = 1}^{11}\beta_{i}\delta_{i} + u_{t}
   width: 100%;
 }
 
-#tuxketypkz .gt_spanner_row {
+#ntgjenxmmf .gt_spanner_row {
   border-bottom-style: hidden;
 }
 
-#tuxketypkz .gt_group_heading {
+#ntgjenxmmf .gt_group_heading {
   padding-top: 8px;
   padding-bottom: 8px;
   padding-left: 5px;
@@ -1332,7 +1349,7 @@ y_{t} = \alpha_{0} + \alpha_{1}t + \sum_{i = 1}^{11}\beta_{i}\delta_{i} + u_{t}
   text-align: left;
 }
 
-#tuxketypkz .gt_empty_group_heading {
+#ntgjenxmmf .gt_empty_group_heading {
   padding: 0.5px;
   color: #333333;
   background-color: #FFFFFF;
@@ -1347,15 +1364,15 @@ y_{t} = \alpha_{0} + \alpha_{1}t + \sum_{i = 1}^{11}\beta_{i}\delta_{i} + u_{t}
   vertical-align: middle;
 }
 
-#tuxketypkz .gt_from_md > :first-child {
+#ntgjenxmmf .gt_from_md > :first-child {
   margin-top: 0;
 }
 
-#tuxketypkz .gt_from_md > :last-child {
+#ntgjenxmmf .gt_from_md > :last-child {
   margin-bottom: 0;
 }
 
-#tuxketypkz .gt_row {
+#ntgjenxmmf .gt_row {
   padding-top: 8px;
   padding-bottom: 8px;
   padding-left: 5px;
@@ -1374,7 +1391,7 @@ y_{t} = \alpha_{0} + \alpha_{1}t + \sum_{i = 1}^{11}\beta_{i}\delta_{i} + u_{t}
   overflow-x: hidden;
 }
 
-#tuxketypkz .gt_stub {
+#ntgjenxmmf .gt_stub {
   color: #333333;
   background-color: #FFFFFF;
   font-size: 100%;
@@ -1387,7 +1404,7 @@ y_{t} = \alpha_{0} + \alpha_{1}t + \sum_{i = 1}^{11}\beta_{i}\delta_{i} + u_{t}
   padding-right: 5px;
 }
 
-#tuxketypkz .gt_stub_row_group {
+#ntgjenxmmf .gt_stub_row_group {
   color: #333333;
   background-color: #FFFFFF;
   font-size: 100%;
@@ -1401,15 +1418,15 @@ y_{t} = \alpha_{0} + \alpha_{1}t + \sum_{i = 1}^{11}\beta_{i}\delta_{i} + u_{t}
   vertical-align: top;
 }
 
-#tuxketypkz .gt_row_group_first td {
+#ntgjenxmmf .gt_row_group_first td {
   border-top-width: 2px;
 }
 
-#tuxketypkz .gt_row_group_first th {
+#ntgjenxmmf .gt_row_group_first th {
   border-top-width: 2px;
 }
 
-#tuxketypkz .gt_summary_row {
+#ntgjenxmmf .gt_summary_row {
   color: #333333;
   background-color: #FFFFFF;
   text-transform: inherit;
@@ -1419,16 +1436,16 @@ y_{t} = \alpha_{0} + \alpha_{1}t + \sum_{i = 1}^{11}\beta_{i}\delta_{i} + u_{t}
   padding-right: 5px;
 }
 
-#tuxketypkz .gt_first_summary_row {
+#ntgjenxmmf .gt_first_summary_row {
   border-top-style: solid;
   border-top-color: #D3D3D3;
 }
 
-#tuxketypkz .gt_first_summary_row.thick {
+#ntgjenxmmf .gt_first_summary_row.thick {
   border-top-width: 2px;
 }
 
-#tuxketypkz .gt_last_summary_row {
+#ntgjenxmmf .gt_last_summary_row {
   padding-top: 8px;
   padding-bottom: 8px;
   padding-left: 5px;
@@ -1438,7 +1455,7 @@ y_{t} = \alpha_{0} + \alpha_{1}t + \sum_{i = 1}^{11}\beta_{i}\delta_{i} + u_{t}
   border-bottom-color: #D3D3D3;
 }
 
-#tuxketypkz .gt_grand_summary_row {
+#ntgjenxmmf .gt_grand_summary_row {
   color: #333333;
   background-color: #FFFFFF;
   text-transform: inherit;
@@ -1448,7 +1465,7 @@ y_{t} = \alpha_{0} + \alpha_{1}t + \sum_{i = 1}^{11}\beta_{i}\delta_{i} + u_{t}
   padding-right: 5px;
 }
 
-#tuxketypkz .gt_first_grand_summary_row {
+#ntgjenxmmf .gt_first_grand_summary_row {
   padding-top: 8px;
   padding-bottom: 8px;
   padding-left: 5px;
@@ -1458,7 +1475,7 @@ y_{t} = \alpha_{0} + \alpha_{1}t + \sum_{i = 1}^{11}\beta_{i}\delta_{i} + u_{t}
   border-top-color: #D3D3D3;
 }
 
-#tuxketypkz .gt_last_grand_summary_row_top {
+#ntgjenxmmf .gt_last_grand_summary_row_top {
   padding-top: 8px;
   padding-bottom: 8px;
   padding-left: 5px;
@@ -1468,11 +1485,11 @@ y_{t} = \alpha_{0} + \alpha_{1}t + \sum_{i = 1}^{11}\beta_{i}\delta_{i} + u_{t}
   border-bottom-color: #D3D3D3;
 }
 
-#tuxketypkz .gt_striped {
+#ntgjenxmmf .gt_striped {
   background-color: rgba(128, 128, 128, 0.05);
 }
 
-#tuxketypkz .gt_table_body {
+#ntgjenxmmf .gt_table_body {
   border-top-style: solid;
   border-top-width: 2px;
   border-top-color: #D3D3D3;
@@ -1481,7 +1498,7 @@ y_{t} = \alpha_{0} + \alpha_{1}t + \sum_{i = 1}^{11}\beta_{i}\delta_{i} + u_{t}
   border-bottom-color: #D3D3D3;
 }
 
-#tuxketypkz .gt_footnotes {
+#ntgjenxmmf .gt_footnotes {
   color: #333333;
   background-color: #FFFFFF;
   border-bottom-style: none;
@@ -1495,7 +1512,7 @@ y_{t} = \alpha_{0} + \alpha_{1}t + \sum_{i = 1}^{11}\beta_{i}\delta_{i} + u_{t}
   border-right-color: #D3D3D3;
 }
 
-#tuxketypkz .gt_footnote {
+#ntgjenxmmf .gt_footnote {
   margin: 0px;
   font-size: 90%;
   padding-top: 4px;
@@ -1504,7 +1521,7 @@ y_{t} = \alpha_{0} + \alpha_{1}t + \sum_{i = 1}^{11}\beta_{i}\delta_{i} + u_{t}
   padding-right: 5px;
 }
 
-#tuxketypkz .gt_sourcenotes {
+#ntgjenxmmf .gt_sourcenotes {
   color: #333333;
   background-color: #FFFFFF;
   border-bottom-style: none;
@@ -1518,7 +1535,7 @@ y_{t} = \alpha_{0} + \alpha_{1}t + \sum_{i = 1}^{11}\beta_{i}\delta_{i} + u_{t}
   border-right-color: #D3D3D3;
 }
 
-#tuxketypkz .gt_sourcenote {
+#ntgjenxmmf .gt_sourcenote {
   font-size: 90%;
   padding-top: 4px;
   padding-bottom: 4px;
@@ -1526,64 +1543,73 @@ y_{t} = \alpha_{0} + \alpha_{1}t + \sum_{i = 1}^{11}\beta_{i}\delta_{i} + u_{t}
   padding-right: 5px;
 }
 
-#tuxketypkz .gt_left {
+#ntgjenxmmf .gt_left {
   text-align: left;
 }
 
-#tuxketypkz .gt_center {
+#ntgjenxmmf .gt_center {
   text-align: center;
 }
 
-#tuxketypkz .gt_right {
+#ntgjenxmmf .gt_right {
   text-align: right;
   font-variant-numeric: tabular-nums;
 }
 
-#tuxketypkz .gt_font_normal {
+#ntgjenxmmf .gt_font_normal {
   font-weight: normal;
 }
 
-#tuxketypkz .gt_font_bold {
+#ntgjenxmmf .gt_font_bold {
   font-weight: bold;
 }
 
-#tuxketypkz .gt_font_italic {
+#ntgjenxmmf .gt_font_italic {
   font-style: italic;
 }
 
-#tuxketypkz .gt_super {
+#ntgjenxmmf .gt_super {
   font-size: 65%;
 }
 
-#tuxketypkz .gt_footnote_marks {
+#ntgjenxmmf .gt_footnote_marks {
   font-size: 75%;
   vertical-align: 0.4em;
   position: initial;
 }
 
-#tuxketypkz .gt_asterisk {
+#ntgjenxmmf .gt_asterisk {
   font-size: 100%;
   vertical-align: 0;
 }
 
-#tuxketypkz .gt_indent_1 {
+#ntgjenxmmf .gt_indent_1 {
   text-indent: 5px;
 }
 
-#tuxketypkz .gt_indent_2 {
+#ntgjenxmmf .gt_indent_2 {
   text-indent: 10px;
 }
 
-#tuxketypkz .gt_indent_3 {
+#ntgjenxmmf .gt_indent_3 {
   text-indent: 15px;
 }
 
-#tuxketypkz .gt_indent_4 {
+#ntgjenxmmf .gt_indent_4 {
   text-indent: 20px;
 }
 
-#tuxketypkz .gt_indent_5 {
+#ntgjenxmmf .gt_indent_5 {
   text-indent: 25px;
+}
+
+#ntgjenxmmf .katex-display {
+  display: inline-flex !important;
+  margin-bottom: 0.75em !important;
+}
+
+#ntgjenxmmf div.Reactable > div.rt-table > div.rt-thead > div.rt-tr.rt-tr-group-header > div.rt-th-group:after {
+  height: 0px !important;
 }
 </style>
 
@@ -1597,21 +1623,25 @@ y_{t} = \alpha_{0} + \alpha_{1}t + \sum_{i = 1}^{11}\beta_{i}\delta_{i} + u_{t}
 </colgroup>
 <thead>
 <tr class="gt_col_headings gt_spanner_row header">
-<th rowspan="2" id="<strong>Characteristic</strong>" class="gt_col_heading gt_columns_bottom_border gt_left" data-quarto-table-cell-role="th" scope="col"><strong>Characteristic</strong></th>
-<th colspan="2" id="Tendência linear" class="gt_center gt_columns_top_border gt_column_spanner_outer" data-quarto-table-cell-role="th" scope="colgroup"><span class="gt_column_spanner">Tendência linear</span></th>
-<th colspan="2" id="Média Móvel" class="gt_center gt_columns_top_border gt_column_spanner_outer" data-quarto-table-cell-role="th" scope="colgroup"><span class="gt_column_spanner">Média Móvel</span></th>
+<th rowspan="2" id="label" class="gt_col_heading gt_columns_bottom_border gt_left" data-quarto-table-cell-role="th" scope="col"><strong>Characteristic</strong></th>
+<th colspan="2" id="level 1; estimate_1" class="gt_center gt_columns_top_border gt_column_spanner_outer" data-quarto-table-cell-role="th" scope="colgroup"><div class="gt_column_spanner">
+Tendência linear
+</div></th>
+<th colspan="2" id="level 1; estimate_2" class="gt_center gt_columns_top_border gt_column_spanner_outer" data-quarto-table-cell-role="th" scope="colgroup"><div class="gt_column_spanner">
+Média Móvel
+</div></th>
 </tr>
 <tr class="gt_col_headings even">
-<th id="<strong>Beta</strong>" class="gt_col_heading gt_columns_bottom_border gt_center" data-quarto-table-cell-role="th" scope="col"><strong>Beta</strong></th>
-<th id="<strong>p-value</strong>" class="gt_col_heading gt_columns_bottom_border gt_center" data-quarto-table-cell-role="th" scope="col"><strong>p-value</strong></th>
-<th id="<strong>Beta</strong>" class="gt_col_heading gt_columns_bottom_border gt_center" data-quarto-table-cell-role="th" scope="col"><strong>Beta</strong></th>
-<th id="<strong>p-value</strong>" class="gt_col_heading gt_columns_bottom_border gt_center" data-quarto-table-cell-role="th" scope="col"><strong>p-value</strong></th>
+<th id="estimate_1" class="gt_col_heading gt_columns_bottom_border gt_center" data-quarto-table-cell-role="th" scope="col"><strong>Beta</strong></th>
+<th id="p.value_1" class="gt_col_heading gt_columns_bottom_border gt_center" data-quarto-table-cell-role="th" scope="col"><strong>p-value</strong></th>
+<th id="estimate_2" class="gt_col_heading gt_columns_bottom_border gt_center" data-quarto-table-cell-role="th" scope="col"><strong>Beta</strong></th>
+<th id="p.value_2" class="gt_col_heading gt_columns_bottom_border gt_center" data-quarto-table-cell-role="th" scope="col"><strong>p-value</strong></th>
 </tr>
 </thead>
 <tbody class="gt_table_body">
 <tr class="odd">
 <td class="gt_row gt_left" headers="label">trend</td>
-<td class="gt_row gt_center" headers="estimate_1">-0.2896</td>
+<td class="gt_row gt_center" headers="estimate_1">-0.2220</td>
 <td class="gt_row gt_center" headers="p.value_1">&lt;0.001</td>
 <td class="gt_row gt_center" headers="estimate_2"><br>
 </td>
@@ -1640,80 +1670,80 @@ y_{t} = \alpha_{0} + \alpha_{1}t + \sum_{i = 1}^{11}\beta_{i}\delta_{i} + u_{t}
 </tr>
 <tr class="even">
 <td class="gt_row gt_left" headers="label">&nbsp;&nbsp;&nbsp;&nbsp;2</td>
-<td class="gt_row gt_center" headers="estimate_1">-0.1771</td>
+<td class="gt_row gt_center" headers="estimate_1">-0.0923</td>
 <td class="gt_row gt_center" headers="p.value_1">&gt;0.9</td>
-<td class="gt_row gt_center" headers="estimate_2">-0.2992</td>
+<td class="gt_row gt_center" headers="estimate_2">-0.2292</td>
 <td class="gt_row gt_center" headers="p.value_2">0.9</td>
 </tr>
 <tr class="odd">
 <td class="gt_row gt_left" headers="label">&nbsp;&nbsp;&nbsp;&nbsp;3</td>
-<td class="gt_row gt_center" headers="estimate_1">9.5541</td>
-<td class="gt_row gt_center" headers="p.value_1">0.037</td>
-<td class="gt_row gt_center" headers="estimate_2">9.1337</td>
+<td class="gt_row gt_center" headers="estimate_1">8.8868</td>
+<td class="gt_row gt_center" headers="p.value_1">0.042</td>
+<td class="gt_row gt_center" headers="estimate_2">8.7920</td>
 <td class="gt_row gt_center" headers="p.value_2">&lt;0.001</td>
 </tr>
 <tr class="even">
 <td class="gt_row gt_left" headers="label">&nbsp;&nbsp;&nbsp;&nbsp;4</td>
-<td class="gt_row gt_center" headers="estimate_1">2.3854</td>
-<td class="gt_row gt_center" headers="p.value_1">0.6</td>
-<td class="gt_row gt_center" headers="estimate_2">2.1705</td>
-<td class="gt_row gt_center" headers="p.value_2">0.3</td>
+<td class="gt_row gt_center" headers="estimate_1">2.8731</td>
+<td class="gt_row gt_center" headers="p.value_1">0.5</td>
+<td class="gt_row gt_center" headers="estimate_2">2.5927</td>
+<td class="gt_row gt_center" headers="p.value_2">0.2</td>
 </tr>
 <tr class="odd">
 <td class="gt_row gt_left" headers="label">&nbsp;&nbsp;&nbsp;&nbsp;5</td>
-<td class="gt_row gt_center" headers="estimate_1">8.1083</td>
-<td class="gt_row gt_center" headers="p.value_1">0.077</td>
-<td class="gt_row gt_center" headers="estimate_2">6.0471</td>
-<td class="gt_row gt_center" headers="p.value_2">0.003</td>
+<td class="gt_row gt_center" headers="estimate_1">7.9951</td>
+<td class="gt_row gt_center" headers="p.value_1">0.066</td>
+<td class="gt_row gt_center" headers="estimate_2">6.4042</td>
+<td class="gt_row gt_center" headers="p.value_2">&lt;0.001</td>
 </tr>
 <tr class="even">
 <td class="gt_row gt_left" headers="label">&nbsp;&nbsp;&nbsp;&nbsp;6</td>
-<td class="gt_row gt_center" headers="estimate_1">6.1812</td>
+<td class="gt_row gt_center" headers="estimate_1">6.0100</td>
 <td class="gt_row gt_center" headers="p.value_1">0.2</td>
-<td class="gt_row gt_center" headers="estimate_2">4.3697</td>
-<td class="gt_row gt_center" headers="p.value_2">0.029</td>
+<td class="gt_row gt_center" headers="estimate_2">4.6021</td>
+<td class="gt_row gt_center" headers="p.value_2">0.010</td>
 </tr>
 <tr class="odd">
 <td class="gt_row gt_left" headers="label">&nbsp;&nbsp;&nbsp;&nbsp;7</td>
-<td class="gt_row gt_center" headers="estimate_1">13.0041</td>
-<td class="gt_row gt_center" headers="p.value_1">0.005</td>
-<td class="gt_row gt_center" headers="estimate_2">11.6693</td>
+<td class="gt_row gt_center" headers="estimate_1">12.1720</td>
+<td class="gt_row gt_center" headers="p.value_1">0.006</td>
+<td class="gt_row gt_center" headers="estimate_2">11.7918</td>
 <td class="gt_row gt_center" headers="p.value_2">&lt;0.001</td>
 </tr>
 <tr class="even">
 <td class="gt_row gt_left" headers="label">&nbsp;&nbsp;&nbsp;&nbsp;8</td>
-<td class="gt_row gt_center" headers="estimate_1">17.3770</td>
+<td class="gt_row gt_center" headers="estimate_1">16.2094</td>
 <td class="gt_row gt_center" headers="p.value_1">&lt;0.001</td>
-<td class="gt_row gt_center" headers="estimate_2">16.3905</td>
+<td class="gt_row gt_center" headers="estimate_2">16.1563</td>
 <td class="gt_row gt_center" headers="p.value_2">&lt;0.001</td>
 </tr>
 <tr class="odd">
 <td class="gt_row gt_left" headers="label">&nbsp;&nbsp;&nbsp;&nbsp;9</td>
-<td class="gt_row gt_center" headers="estimate_1">12.2082</td>
-<td class="gt_row gt_center" headers="p.value_1">0.008</td>
-<td class="gt_row gt_center" headers="estimate_2">11.5568</td>
+<td class="gt_row gt_center" headers="estimate_1">11.1160</td>
+<td class="gt_row gt_center" headers="p.value_1">0.013</td>
+<td class="gt_row gt_center" headers="estimate_2">11.1553</td>
 <td class="gt_row gt_center" headers="p.value_2">&lt;0.001</td>
 </tr>
 <tr class="even">
 <td class="gt_row gt_left" headers="label">&nbsp;&nbsp;&nbsp;&nbsp;10</td>
-<td class="gt_row gt_center" headers="estimate_1">17.0228</td>
+<td class="gt_row gt_center" headers="estimate_1">15.8841</td>
 <td class="gt_row gt_center" headers="p.value_1">&lt;0.001</td>
-<td class="gt_row gt_center" headers="estimate_2">16.3383</td>
+<td class="gt_row gt_center" headers="estimate_2">15.8405</td>
 <td class="gt_row gt_center" headers="p.value_2">&lt;0.001</td>
 </tr>
 <tr class="odd">
 <td class="gt_row gt_left" headers="label">&nbsp;&nbsp;&nbsp;&nbsp;11</td>
-<td class="gt_row gt_center" headers="estimate_1">9.7711</td>
-<td class="gt_row gt_center" headers="p.value_1">0.037</td>
-<td class="gt_row gt_center" headers="estimate_2">9.5591</td>
+<td class="gt_row gt_center" headers="estimate_1">9.0984</td>
+<td class="gt_row gt_center" headers="p.value_1">0.041</td>
+<td class="gt_row gt_center" headers="estimate_2">9.1553</td>
 <td class="gt_row gt_center" headers="p.value_2">&lt;0.001</td>
 </tr>
 <tr class="even">
 <td class="gt_row gt_left" headers="label">&nbsp;&nbsp;&nbsp;&nbsp;12</td>
-<td class="gt_row gt_center" headers="estimate_1">-5.6847</td>
-<td class="gt_row gt_center" headers="p.value_1">0.2</td>
-<td class="gt_row gt_center" headers="estimate_2">-5.7295</td>
-<td class="gt_row gt_center" headers="p.value_2">0.004</td>
+<td class="gt_row gt_center" headers="estimate_1">-6.4642</td>
+<td class="gt_row gt_center" headers="p.value_1">0.14</td>
+<td class="gt_row gt_center" headers="estimate_2">-6.2197</td>
+<td class="gt_row gt_center" headers="p.value_2">&lt;0.001</td>
 </tr>
 </tbody>
 </table>
@@ -1743,15 +1773,15 @@ H_{o} = \beta_{1} = \beta_{2} = \dots = \beta_{11} = 0
 <span id="cb19-6"><a href="#cb19-6" aria-hidden="true" tabindex="-1"></a>  <span class="at">value =</span> <span class="fu">as.numeric</span>(ipi_detrend)</span>
 <span id="cb19-7"><a href="#cb19-7" aria-hidden="true" tabindex="-1"></a>)</span>
 <span id="cb19-8"><a href="#cb19-8" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb19-9"><a href="#cb19-9" aria-hidden="true" tabindex="-1"></a>tab <span class="ot">=</span> df <span class="sc">|&gt;</span> </span>
-<span id="cb19-10"><a href="#cb19-10" aria-hidden="true" tabindex="-1"></a>  dplyr<span class="sc">::</span><span class="fu">filter</span>(<span class="sc">!</span><span class="fu">is.na</span>(value)) <span class="sc">|&gt;</span> </span>
+<span id="cb19-9"><a href="#cb19-9" aria-hidden="true" tabindex="-1"></a>tab <span class="ot">=</span> df <span class="sc">|&gt;</span></span>
+<span id="cb19-10"><a href="#cb19-10" aria-hidden="true" tabindex="-1"></a>  dplyr<span class="sc">::</span><span class="fu">filter</span>(<span class="sc">!</span><span class="fu">is.na</span>(value)) <span class="sc">|&gt;</span></span>
 <span id="cb19-11"><a href="#cb19-11" aria-hidden="true" tabindex="-1"></a>  dplyr<span class="sc">::</span><span class="fu">mutate</span>(</span>
 <span id="cb19-12"><a href="#cb19-12" aria-hidden="true" tabindex="-1"></a>    <span class="at">rank =</span> <span class="fu">rank</span>(value, <span class="at">ties.method =</span> <span class="st">"average"</span>),</span>
 <span id="cb19-13"><a href="#cb19-13" aria-hidden="true" tabindex="-1"></a>    <span class="at">mes =</span> lubridate<span class="sc">::</span><span class="fu">month</span>(date),</span>
 <span id="cb19-14"><a href="#cb19-14" aria-hidden="true" tabindex="-1"></a>    <span class="at">ano =</span> lubridate<span class="sc">::</span><span class="fu">year</span>(date)</span>
-<span id="cb19-15"><a href="#cb19-15" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb19-15"><a href="#cb19-15" aria-hidden="true" tabindex="-1"></a>  )</span>
 <span id="cb19-16"><a href="#cb19-16" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb19-17"><a href="#cb19-17" aria-hidden="true" tabindex="-1"></a>tab <span class="sc">|&gt;</span> </span>
+<span id="cb19-17"><a href="#cb19-17" aria-hidden="true" tabindex="-1"></a>tab <span class="sc">|&gt;</span></span>
 <span id="cb19-18"><a href="#cb19-18" aria-hidden="true" tabindex="-1"></a>  tidyr<span class="sc">::</span><span class="fu">pivot_wider</span>(</span>
 <span id="cb19-19"><a href="#cb19-19" aria-hidden="true" tabindex="-1"></a>    <span class="at">id_cols =</span> <span class="st">"ano"</span>,</span>
 <span id="cb19-20"><a href="#cb19-20" aria-hidden="true" tabindex="-1"></a>    <span class="at">names_from =</span> <span class="st">"mes"</span>,</span>
@@ -1759,21 +1789,22 @@ H_{o} = \beta_{1} = \beta_{2} = \dots = \beta_{11} = 0
 <span id="cb19-22"><a href="#cb19-22" aria-hidden="true" tabindex="-1"></a>    <span class="at">names_sort =</span> <span class="cn">TRUE</span></span>
 <span id="cb19-23"><a href="#cb19-23" aria-hidden="true" tabindex="-1"></a>  )</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
-<pre><code># A tibble: 12 × 13
+<pre><code># A tibble: 13 × 13
      ano   `1`   `2`   `3`   `4`   `5`   `6`   `7`   `8`   `9`  `10`  `11`  `12`
    &lt;dbl&gt; &lt;dbl&gt; &lt;dbl&gt; &lt;dbl&gt; &lt;dbl&gt; &lt;dbl&gt; &lt;dbl&gt; &lt;dbl&gt; &lt;dbl&gt; &lt;dbl&gt; &lt;dbl&gt; &lt;dbl&gt; &lt;dbl&gt;
- 1  2012    NA    NA    NA    NA    NA    47    93   128    89   129    98    12
- 2  2013    38     7    72   106    91    54   111   127   108   130   107     6
- 3  2014    34    42    75    53    88    19   101   123   125   131   104     9
- 4  2015    29    24   120    59    58    44   103   112    95   124    69     2
- 5  2016    10    26    81    57    76    65    92   118    67    73    52     5
- 6  2017    25    23   105    20    61    45    63   113    70    90    79    16
- 7  2018    32    21    68    46    18    60    80   115    74   114    56     8
- 8  2019    31    36    40    43    77    37    97   109    82   121   100    15
- 9  2020    50    49    39     1     3    27   116   122   119   126    87    28
-10  2021    35    30    83    48    66    62    99   110    94    86    64    11
-11  2022    13    22    71    41    85    55    84   117    78   102    51     4
-12  2023    14    17    96    33    NA    NA    NA    NA    NA    NA    NA    NA</code></pre>
+ 1  2012    NA  NA      NA    NA    NA    53   109   148   104   149   114  14  
+ 2  2013    42   9      84   122   106    63   128   147   124   150   123   8  
+ 3  2014    38  46      87    61   103    21   117   143   145   151   120  11  
+ 4  2015    33  26     140    68    67    48   119   129   111   144    80   2  
+ 5  2016    12  29      93    66    88    76   108   138    78    85    60   7  
+ 6  2017    27  25     121    22    72    49    74   132    82   105    91  18  
+ 7  2018    36  23      79    50    19    69    92   134    86   133    65  10  
+ 8  2019    35  40      44    47    89    41   113   125    94   141   116  17  
+ 9  2020    57  55      43     1     3    30   136   142   139   146   102  31.5
+10  2021    39  34      95    54    77    73   115   127   110   101    75  13  
+11  2022    15  24      83    45   100    64    98   137    90   118    59   5  
+12  2023    16  20     112    37    99    70    96   130    62    97    56   6  
+13  2024    28  31.5    52    71    58    51   126   131   107   135    81   4  </code></pre>
 </div>
 </div>
 <p>A hipótese nula do teste é de que as diferentes amostras foram geradas pela mesma distribuição. Como se vê abaixo, o teste é rejeitado, implicando que há presença de sazonalidade.</p>
@@ -1785,7 +1816,7 @@ H_{o} = \beta_{1} = \beta_{2} = \dots = \beta_{11} = 0
     Kruskal-Wallis rank sum test
 
 data:  tab$rank and tab$mes
-Kruskal-Wallis chi-squared = 101.18, df = 11, p-value &lt; 2.2e-16</code></pre>
+Kruskal-Wallis chi-squared = 116.68, df = 11, p-value &lt; 2.2e-16</code></pre>
 </div>
 </div>
 </section>
@@ -1793,12 +1824,12 @@ Kruskal-Wallis chi-squared = 101.18, df = 11, p-value &lt; 2.2e-16</code></pre>
 <h3 class="anchored" data-anchor-id="friedman">Friedman</h3>
 <p>O teste de Friedman é muito similar ao teste KW, mas não exige independência das observações dentro de cada grupo (mês). O código abaixo executa o teste. Note que é preciso remover os anos incompletos, pois o teste somente funciona quando as amostras tem tamanho igual. Novamente, rejeita-se a hipótese nula, sugerindo que existe um padrão sazonal na série.</p>
 <div class="cell" data-layout-align="center">
-<div class="sourceCode cell-code" id="cb23"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb23-1"><a href="#cb23-1" aria-hidden="true" tabindex="-1"></a>tab <span class="ot">=</span> df <span class="sc">|&gt;</span> </span>
+<div class="sourceCode cell-code" id="cb23"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb23-1"><a href="#cb23-1" aria-hidden="true" tabindex="-1"></a>tab <span class="ot">=</span> df <span class="sc">|&gt;</span></span>
 <span id="cb23-2"><a href="#cb23-2" aria-hidden="true" tabindex="-1"></a>  dplyr<span class="sc">::</span><span class="fu">mutate</span>(</span>
 <span id="cb23-3"><a href="#cb23-3" aria-hidden="true" tabindex="-1"></a>    <span class="at">mes =</span> lubridate<span class="sc">::</span><span class="fu">month</span>(date),</span>
 <span id="cb23-4"><a href="#cb23-4" aria-hidden="true" tabindex="-1"></a>    <span class="at">ano =</span> lubridate<span class="sc">::</span><span class="fu">year</span>(date)</span>
-<span id="cb23-5"><a href="#cb23-5" aria-hidden="true" tabindex="-1"></a>    ) <span class="sc">|&gt;</span> </span>
-<span id="cb23-6"><a href="#cb23-6" aria-hidden="true" tabindex="-1"></a>  dplyr<span class="sc">::</span><span class="fu">filter</span>(<span class="sc">!</span><span class="fu">is.na</span>(value), ano <span class="sc">&gt;</span> <span class="dv">2012</span>, ano <span class="sc">&lt;</span> <span class="dv">2023</span>) <span class="sc">|&gt;</span> </span>
+<span id="cb23-5"><a href="#cb23-5" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">|&gt;</span></span>
+<span id="cb23-6"><a href="#cb23-6" aria-hidden="true" tabindex="-1"></a>  dplyr<span class="sc">::</span><span class="fu">filter</span>(<span class="sc">!</span><span class="fu">is.na</span>(value), ano <span class="sc">&gt;</span> <span class="dv">2012</span>, ano <span class="sc">&lt;</span> <span class="dv">2023</span>) <span class="sc">|&gt;</span></span>
 <span id="cb23-7"><a href="#cb23-7" aria-hidden="true" tabindex="-1"></a>  dplyr<span class="sc">::</span><span class="fu">mutate</span>(<span class="at">rank =</span> <span class="fu">rank</span>(value), <span class="at">.by =</span> <span class="st">"ano"</span>)</span>
 <span id="cb23-8"><a href="#cb23-8" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb23-9"><a href="#cb23-9" aria-hidden="true" tabindex="-1"></a><span class="fu">friedman.test</span>(tab<span class="sc">$</span>rank, tab<span class="sc">$</span>mes, tab<span class="sc">$</span>ano)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
@@ -1821,15 +1852,15 @@ Friedman chi-squared = 87.569, df = 11, p-value = 4.984e-14</code></pre>
 <div class="cell-output cell-output-stdout">
 <pre><code>Test used:  Kruskall Wallis 
  
-Test statistic:  92.64 
-P-value:  5.107026e-15</code></pre>
+Test statistic:  104.34 
+P-value:  0</code></pre>
 </div>
 <div class="sourceCode cell-code" id="cb27"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb27-1"><a href="#cb27-1" aria-hidden="true" tabindex="-1"></a><span class="fu">fried</span>(ipi, <span class="dv">12</span>, <span class="at">diff =</span> <span class="cn">FALSE</span>, <span class="at">residuals =</span> <span class="cn">TRUE</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>Test used:  Friedman rank 
  
-Test statistic:  87.95 
-P-value:  4.196643e-14</code></pre>
+Test statistic:  101.32 
+P-value:  1.110223e-16</code></pre>
 </div>
 <div class="sourceCode cell-code" id="cb29"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb29-1"><a href="#cb29-1" aria-hidden="true" tabindex="-1"></a><span class="fu">isSeasonal</span>(ipi, <span class="at">freq =</span> <span class="dv">12</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
@@ -1873,8 +1904,8 @@ P-value:  4.196643e-14</code></pre>
 <span id="cb32-8"><a href="#cb32-8" aria-hidden="true" tabindex="-1"></a>dat<span class="sc">$</span>month <span class="ot">=</span> lubridate<span class="sc">::</span><span class="fu">month</span>(dat<span class="sc">$</span>date, <span class="at">label =</span> <span class="cn">TRUE</span>, <span class="at">locale =</span> <span class="st">"pt_BR"</span>)</span>
 <span id="cb32-9"><a href="#cb32-9" aria-hidden="true" tabindex="-1"></a>dat<span class="sc">$</span>year <span class="ot">=</span> lubridate<span class="sc">::</span><span class="fu">year</span>(dat<span class="sc">$</span>date)</span>
 <span id="cb32-10"><a href="#cb32-10" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb32-11"><a href="#cb32-11" aria-hidden="true" tabindex="-1"></a>dat <span class="ot">&lt;-</span> dat <span class="sc">|&gt;</span> </span>
-<span id="cb32-12"><a href="#cb32-12" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">s_avg =</span> <span class="fu">mean</span>(seasonal), <span class="at">.by =</span> <span class="st">"month"</span>) <span class="sc">|&gt;</span> </span>
+<span id="cb32-11"><a href="#cb32-11" aria-hidden="true" tabindex="-1"></a>dat <span class="ot">&lt;-</span> dat <span class="sc">|&gt;</span></span>
+<span id="cb32-12"><a href="#cb32-12" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">s_avg =</span> <span class="fu">mean</span>(seasonal), <span class="at">.by =</span> <span class="st">"month"</span>) <span class="sc">|&gt;</span></span>
 <span id="cb32-13"><a href="#cb32-13" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">s1 =</span> seasonal <span class="sc">-</span> s_avg, <span class="at">s2 =</span> seasonal <span class="sc">-</span> s_avg <span class="sc">+</span> remainder)</span>
 <span id="cb32-14"><a href="#cb32-14" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb32-15"><a href="#cb32-15" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>(dat) <span class="sc">+</span></span>
@@ -1906,8 +1937,8 @@ P-value:  4.196643e-14</code></pre>
 <span id="cb33-9"><a href="#cb33-9" aria-hidden="true" tabindex="-1"></a>dat<span class="sc">$</span>month <span class="ot">=</span> lubridate<span class="sc">::</span><span class="fu">month</span>(dat<span class="sc">$</span>date, <span class="at">label =</span> <span class="cn">TRUE</span>, <span class="at">locale =</span> <span class="st">"pt_BR"</span>)</span>
 <span id="cb33-10"><a href="#cb33-10" aria-hidden="true" tabindex="-1"></a>dat<span class="sc">$</span>year <span class="ot">=</span> lubridate<span class="sc">::</span><span class="fu">year</span>(dat<span class="sc">$</span>date)</span>
 <span id="cb33-11"><a href="#cb33-11" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb33-12"><a href="#cb33-12" aria-hidden="true" tabindex="-1"></a>dat <span class="ot">&lt;-</span> dat <span class="sc">|&gt;</span> </span>
-<span id="cb33-13"><a href="#cb33-13" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">s_avg =</span> <span class="fu">mean</span>(seasonal), <span class="at">.by =</span> <span class="st">"month"</span>) <span class="sc">|&gt;</span> </span>
+<span id="cb33-12"><a href="#cb33-12" aria-hidden="true" tabindex="-1"></a>dat <span class="ot">&lt;-</span> dat <span class="sc">|&gt;</span></span>
+<span id="cb33-13"><a href="#cb33-13" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">s_avg =</span> <span class="fu">mean</span>(seasonal), <span class="at">.by =</span> <span class="st">"month"</span>) <span class="sc">|&gt;</span></span>
 <span id="cb33-14"><a href="#cb33-14" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">s1 =</span> seasonal <span class="sc">-</span> s_avg, <span class="at">s2 =</span> seasonal <span class="sc">-</span> s_avg <span class="sc">+</span> remainder)</span>
 <span id="cb33-15"><a href="#cb33-15" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb33-16"><a href="#cb33-16" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>(dat) <span class="sc">+</span></span>
@@ -1942,7 +1973,9 @@ P-value:  4.196643e-14</code></pre>
 <p>Os modelos SARIMA incluem um componente de “sazonalidade estocástica” nos modelos ARIMA. Já escrevi um <a href="https://restateinsight.com/posts/general-posts/repost-sarima-no-r/">post</a> onde detalho melhor alguns aspectos teóricos deste tipo de modelo. Vale notar o modelo SARIMA <em>não realiza uma decomposição de tendência e sazonalidade</em> com visto acima. Quando se aplica um SARIMA, implicitamente, supõe-se que a série possui uma tendência sazonal estocástica (i.e.&nbsp;raiz unitária sazonal) e não uma tendência sazonal determinística<a href="#fn5" class="footnote-ref" id="fnref5" role="doc-noteref"><sup>5</sup></a>.</p>
 <p>Como último exemplo vamos analisar a demanda mensal por gasolina. A série é da <a href="https://www.gov.br/anp/pt-br/centrais-de-conteudo/dados-estatisticos">ANP</a> e registra o total de vendas de gasolina C no Brasil em metros cúbicos.</p>
 <div class="cell" data-layout-align="center">
-<div class="sourceCode cell-code" id="cb35"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb35-1"><a href="#cb35-1" aria-hidden="true" tabindex="-1"></a>gasolina <span class="ot">=</span> <span class="fu">read_csv</span>(<span class="st">"..."</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb35"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb35-1"><a href="#cb35-1" aria-hidden="true" tabindex="-1"></a>gasolina <span class="ot">=</span> <span class="fu">read_csv</span>(</span>
+<span id="cb35-2"><a href="#cb35-2" aria-hidden="true" tabindex="-1"></a>  <span class="st">"https://github.com/viniciusoike/restateinsight/raw/refs/heads/main/static/data/br_anp_gasolina.csv"</span></span>
+<span id="cb35-3"><a href="#cb35-3" aria-hidden="true" tabindex="-1"></a>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 <div class="cell" data-layout-align="center">
 <div class="sourceCode cell-code" id="cb36"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb36-1"><a href="#cb36-1" aria-hidden="true" tabindex="-1"></a>gas <span class="ot">=</span> <span class="fu">ts</span>(<span class="fu">na.omit</span>(gasolina<span class="sc">$</span>demand), <span class="at">start =</span> <span class="fu">c</span>(<span class="dv">2012</span>, <span class="dv">1</span>), <span class="at">frequency =</span> <span class="dv">12</span>)</span>
@@ -2017,28 +2050,24 @@ seas(x = energ)
 
 Coefficients:
                     Estimate Std. Error z value Pr(&gt;|z|)    
-Mon               -0.0042020  0.0023735  -1.770  0.07666 .  
-Tue               -0.0059006  0.0023706  -2.489  0.01281 *  
-Wed                0.0001782  0.0023459   0.076  0.93944    
-Thu                0.0071610  0.0023445   3.054  0.00226 ** 
-Fri                0.0042435  0.0023327   1.819  0.06889 .  
-Sat               -0.0009477  0.0023489  -0.403  0.68662    
-Easter[15]        -0.0285829  0.0051214  -5.581 2.39e-08 ***
-LS2002.Apr         0.0741254  0.0171309   4.327 1.51e-05 ***
-AO2014.Feb         0.0807054  0.0158664   5.087 3.65e-07 ***
-LS2015.Mar        -0.0791423  0.0154974  -5.107 3.28e-07 ***
-MA-Nonseasonal-01  0.5255629  0.0539651   9.739  &lt; 2e-16 ***
-MA-Seasonal-12     0.7236629  0.0507009  14.273  &lt; 2e-16 ***
+Mon               -0.0044594  0.0024144  -1.847   0.0647 .  
+Tue               -0.0067071  0.0024161  -2.776   0.0055 ** 
+Wed                0.0015360  0.0023804   0.645   0.5188    
+Thu                0.0060074  0.0023645   2.541   0.0111 *  
+Fri                0.0043871  0.0023727   1.849   0.0645 .  
+Sat               -0.0008662  0.0023711  -0.365   0.7149    
+Easter[15]        -0.0287199  0.0050182  -5.723 1.05e-08 ***
+LS2002.Apr         0.0752851  0.0172641   4.361 1.30e-05 ***
+AO2014.Feb         0.0810754  0.0164747   4.921 8.60e-07 ***
+LS2015.Mar        -0.0788268  0.0156131  -5.049 4.45e-07 ***
+MA-Nonseasonal-01  0.5532245  0.0501164  11.039  &lt; 2e-16 ***
+MA-Seasonal-12     0.7247917  0.0470988  15.389  &lt; 2e-16 ***
 ---
 Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
 
-SEATS adj.  ARIMA: (0 1 1)(0 1 1)  Obs.: 264  Transform: log
-AICc:  3379, BIC:  3423  QS (no seasonality in final):    0  
-Box-Ljung (no autocorr.): 16.46   Shapiro (normality): 0.9953  
-Messages generated by X-13:
-Warnings:
-- At least one visually significant trading day peak has been
-  found in one or more of the estimated spectra.</code></pre>
+SEATS adj.  ARIMA: (0 1 1)(0 1 1)  Obs.: 282  Transform: log
+AICc:  3649, BIC:  3695  QS (no seasonality in final):    0  
+Box-Ljung (no autocorr.): 15.76   Shapiro (normality): 0.9952  </code></pre>
 </div>
 </div>
 <p>O gráfico abaixo mostra a série original e a série sazonalmente ajustada em vermelho. Para extrair a série ajustada usa-se a função <code>final()</code>.</p>
@@ -2062,16 +2091,18 @@ Warnings:
 <details class="code-fold">
 <summary>Code</summary>
 <div class="sourceCode cell-code" id="cb44"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb44-1"><a href="#cb44-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(rvest)</span>
-<span id="cb44-2"><a href="#cb44-2" aria-hidden="true" tabindex="-1"></a>url <span class="ot">=</span> <span class="st">"https://www.inf.ufrgs.br/~cabral/tabela_pascoa.html"</span></span>
-<span id="cb44-3"><a href="#cb44-3" aria-hidden="true" tabindex="-1"></a>tabela <span class="ot">=</span> url <span class="sc">|&gt;</span> </span>
-<span id="cb44-4"><a href="#cb44-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">read_html</span>() <span class="sc">|&gt;</span> </span>
-<span id="cb44-5"><a href="#cb44-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">html_table</span>()</span>
-<span id="cb44-6"><a href="#cb44-6" aria-hidden="true" tabindex="-1"></a>tab <span class="ot">=</span> tabela[[<span class="dv">1</span>]]</span>
-<span id="cb44-7"><a href="#cb44-7" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb44-8"><a href="#cb44-8" aria-hidden="true" tabindex="-1"></a>feriados_bra <span class="ot">=</span> <span class="fu">data.frame</span>(tab[<span class="sc">-</span><span class="dv">1</span>, ])</span>
-<span id="cb44-9"><a href="#cb44-9" aria-hidden="true" tabindex="-1"></a><span class="fu">names</span>(feriados_bra) <span class="ot">=</span> <span class="fu">as.character</span>(tab[<span class="dv">1</span>, ])</span>
+<span id="cb44-2"><a href="#cb44-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb44-3"><a href="#cb44-3" aria-hidden="true" tabindex="-1"></a>url <span class="ot">=</span> <span class="st">"https://www.inf.ufrgs.br/~cabral/tabela_pascoa.html"</span></span>
+<span id="cb44-4"><a href="#cb44-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb44-5"><a href="#cb44-5" aria-hidden="true" tabindex="-1"></a>tabela <span class="ot">=</span> url <span class="sc">|&gt;</span></span>
+<span id="cb44-6"><a href="#cb44-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">read_html</span>() <span class="sc">|&gt;</span></span>
+<span id="cb44-7"><a href="#cb44-7" aria-hidden="true" tabindex="-1"></a>  <span class="fu">html_table</span>()</span>
+<span id="cb44-8"><a href="#cb44-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb44-9"><a href="#cb44-9" aria-hidden="true" tabindex="-1"></a>tab <span class="ot">=</span> tabela[[<span class="dv">1</span>]]</span>
 <span id="cb44-10"><a href="#cb44-10" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb44-11"><a href="#cb44-11" aria-hidden="true" tabindex="-1"></a><span class="fu">head</span>(feriados_bra)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb44-11"><a href="#cb44-11" aria-hidden="true" tabindex="-1"></a>feriados_bra <span class="ot">=</span> <span class="fu">data.frame</span>(tab[<span class="sc">-</span><span class="dv">1</span>, ])</span>
+<span id="cb44-12"><a href="#cb44-12" aria-hidden="true" tabindex="-1"></a><span class="fu">names</span>(feriados_bra) <span class="ot">=</span> <span class="fu">as.character</span>(tab[<span class="dv">1</span>, ])</span>
+<span id="cb44-13"><a href="#cb44-13" aria-hidden="true" tabindex="-1"></a><span class="fu">head</span>(feriados_bra)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details>
 <div class="cell-output cell-output-stdout">
 <pre><code>   Ano  a b c  d e d+e Dia   Mês      Páscoa    Carnaval Corpus Christi
@@ -2091,9 +2122,14 @@ Warnings:
 <span id="cb46-4"><a href="#cb46-4" aria-hidden="true" tabindex="-1"></a>  feriados_bra<span class="sc">$</span>Carnaval,</span>
 <span id="cb46-5"><a href="#cb46-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">format =</span> <span class="st">"%d/%b/%Y"</span>,</span>
 <span id="cb46-6"><a href="#cb46-6" aria-hidden="true" tabindex="-1"></a>  <span class="at">locale =</span> <span class="fu">locale</span>(<span class="st">"pt"</span>)</span>
-<span id="cb46-7"><a href="#cb46-7" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb46-7"><a href="#cb46-7" aria-hidden="true" tabindex="-1"></a>)</span>
 <span id="cb46-8"><a href="#cb46-8" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb46-9"><a href="#cb46-9" aria-hidden="true" tabindex="-1"></a>carnaval <span class="ot">=</span> <span class="fu">genhol</span>(feriados_bra<span class="sc">$</span>date_carnaval, <span class="at">start =</span> <span class="sc">-</span><span class="dv">3</span>, <span class="at">end =</span> <span class="dv">1</span>, <span class="at">frequency =</span> <span class="dv">12</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb46-9"><a href="#cb46-9" aria-hidden="true" tabindex="-1"></a>carnaval <span class="ot">=</span> <span class="fu">genhol</span>(</span>
+<span id="cb46-10"><a href="#cb46-10" aria-hidden="true" tabindex="-1"></a>  feriados_bra<span class="sc">$</span>date_carnaval,</span>
+<span id="cb46-11"><a href="#cb46-11" aria-hidden="true" tabindex="-1"></a>  <span class="at">start =</span> <span class="sc">-</span><span class="dv">3</span>,</span>
+<span id="cb46-12"><a href="#cb46-12" aria-hidden="true" tabindex="-1"></a>  <span class="at">end =</span> <span class="dv">1</span>,</span>
+<span id="cb46-13"><a href="#cb46-13" aria-hidden="true" tabindex="-1"></a>  <span class="at">frequency =</span> <span class="dv">12</span></span>
+<span id="cb46-14"><a href="#cb46-14" aria-hidden="true" tabindex="-1"></a>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 <p>As datas de carnaval são inseridas dentro do X13-ARIMA via o argumento <code>xreg</code>.</p>
 <div class="cell" data-layout-align="center">
@@ -2113,17 +2149,17 @@ seas(x = energ, xreg = carnaval, regression.variables = "td1coef",
 
 Coefficients:
                    Estimate Std. Error z value Pr(&gt;|z|)    
-xreg              -0.027271   0.006800  -4.011 6.05e-05 ***
-Easter[15]        -0.042946   0.006329  -6.786 1.16e-11 ***
-LS2015.Mar        -0.079623   0.016601  -4.796 1.62e-06 ***
-MA-Nonseasonal-01  0.597775   0.049154  12.161  &lt; 2e-16 ***
-MA-Seasonal-12     0.707968   0.049235  14.379  &lt; 2e-16 ***
+xreg              -0.026183   0.006325  -4.139 3.48e-05 ***
+Easter[15]        -0.041452   0.006007  -6.900 5.19e-12 ***
+LS2015.Mar        -0.079472   0.016788  -4.734 2.20e-06 ***
+MA-Nonseasonal-01  0.596372   0.046563  12.808  &lt; 2e-16 ***
+MA-Seasonal-12     0.715057   0.044903  15.924  &lt; 2e-16 ***
 ---
 Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
 
-SEATS adj.  ARIMA: (0 1 1)(0 1 1)  Obs.: 264  Transform: log
-AICc:  3431, BIC:  3451  QS (no seasonality in final):4.891 .
-Box-Ljung (no autocorr.):   108 *** Shapiro (normality): 0.9928  
+SEATS adj.  ARIMA: (0 1 1)(0 1 1)  Obs.: 282  Transform: log
+AICc:  3695, BIC:  3717  QS (no seasonality in final):4.187  
+Box-Ljung (no autocorr.): 114.7 *** Shapiro (normality): 0.9931  
 Messages generated by X-13:
 Warnings:
 - At least one visually significant trading day peak has been
