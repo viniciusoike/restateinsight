@@ -2,7 +2,7 @@
 title: "Brazil in Charts: Unemployment"
 date: "2023-10-20"
 categories: ['data-visualization', 'brazil', 'weekly-viz', 'ggplot2', 'english']
-execute: 
+execute:
   warning: false
   message: false
   echo: false
@@ -12,9 +12,7 @@ execute:
 knitr::opts_chunk$set(
   fig.align = "center",
   out.width = "100%",
-  fig.width = 9,
-  dev = "svg",
-  fig.retina = 2
+  fig.width = 9
 )
 ```
 
@@ -37,45 +35,50 @@ showtext_auto()
 ```{r, import-data}
 state <- geobr::read_state(showProgress = FALSE)
 dim_state <- as_tibble(sf::st_drop_geometry(state))
-unemp <- get_sidra(4099, variable = 4099, geo = "State", period = "201201-202302")
+unemp <- get_sidra(
+  4099,
+  variable = 4099,
+  geo = "State",
+  period = "201201-202302"
+)
 unemp_br <- get_sidra(4099, variable = 4099, period = "201201-202302")
 ```
 
 ```{r, clean-data}
 
 #> Clean Sidra table
-tbl_unemp_br <- unemp_br |> 
-  janitor::clean_names() |> 
-  select(trimestre = trimestre_codigo, unemp = valor) |> 
+tbl_unemp_br <- unemp_br |>
+  janitor::clean_names() |>
+  select(trimestre = trimestre_codigo, unemp = valor) |>
   mutate(date = zoo::as.Date(zoo::as.yearqtr(trimestre, format = "%Y%q")))
 
 #> Clean Sidra table
-tbl_unemp <- unemp |> 
-  janitor::clean_names() |> 
+tbl_unemp <- unemp |>
+  janitor::clean_names() |>
   select(
     code_state = unidade_da_federacao_codigo,
     trimestre = trimestre_codigo,
-    unemp = valor 
-    ) |> 
+    unemp = valor
+  ) |>
   mutate(
     date = zoo::as.Date(zoo::as.yearqtr(trimestre, format = "%Y%q")),
     code_state = as.numeric(code_state)
-    ) |> 
+  ) |>
   left_join(dim_state, by = "code_state")
 
 #> Lollipop data
-lvls <- tbl_unemp |> 
-  filter(date == as.Date("2019-04-01")) |> 
-  arrange(unemp) |> 
+lvls <- tbl_unemp |>
+  filter(date == as.Date("2019-04-01")) |>
+  arrange(unemp) |>
   pull(abbrev_state)
 
-tbl_compare <- tbl_unemp |> 
-  filter(date %in% c(as.Date("2019-04-01"), as.Date("2023-04-01"))) |> 
+tbl_compare <- tbl_unemp |>
+  filter(date %in% c(as.Date("2019-04-01"), as.Date("2023-04-01"))) |>
   mutate(abbrev_state = factor(abbrev_state, levels = lvls))
 
-tbl_chg <- tbl_compare |> 
-  mutate(chg = unemp - lag(unemp), .by = "code_state") |> 
-  filter(!is.na(chg)) |> 
+tbl_chg <- tbl_compare |>
+  mutate(chg = unemp - lag(unemp), .by = "code_state") |>
+  filter(!is.na(chg)) |>
   select(code_state, chg, unemp)
 
 
@@ -116,7 +119,11 @@ plot_chg_states <- ggplot(tbl_compare, aes(x = abbrev_state, y = unemp)) +
   theme_minimal(base_family = "Roboto Condensed") +
   theme(
     plot.title = element_text(family = "Merriweather", size = 16),
-    plot.subtitle = element_text(family = "Merriweather", size = 11, color = "gray10"),
+    plot.subtitle = element_text(
+      family = "Merriweather",
+      size = 11,
+      color = "gray10"
+    ),
     legend.position = "top",
     panel.grid.minor = element_blank()
   )
@@ -131,7 +138,7 @@ map_states <- ggplot(map_chg) +
     size = 3,
     family = "Roboto Condensed",
     color = "gray10"
-    ) +
+  ) +
   geom_label_repel(
     data = filter(map_chg, repel == 1),
     aes(x = x, y = y, label = label),
@@ -139,8 +146,10 @@ map_states <- ggplot(map_chg) +
     family = "Roboto Condensed",
     color = "gray10",
     nudge_x = 5
-    ) +
-  labs(title = "Southern and Mid-Western States\nHave Lowest Unemployment Rates") +
+  ) +
+  labs(
+    title = "Southern and Mid-Western States\nHave Lowest Unemployment Rates"
+  ) +
   scale_fill_distiller(name = "Unemployment (%)", palette = "PuBuGn") +
   ggthemes::theme_map() +
   theme(
@@ -152,12 +161,15 @@ map_states <- ggplot(map_chg) +
 
 ```{r}
 library(seasonal)
-unemp_br <- GetBCBData::gbcbd_get_series(24369, first.date = as.Date("2012-01-01"))
+unemp_br <- GetBCBData::gbcbd_get_series(
+  24369,
+  first.date = as.Date("2012-01-01")
+)
 unemp <- ts(unemp_br$value, start = c(2012, 3), frequency = 12)
 seas_unemp <- seasonal::seas(unemp)
 sunemp <- seasonal::final(seas_unemp)
 
-unemp_br <- unemp_br |> 
+unemp_br <- unemp_br |>
   dplyr::mutate(
     seas_adjusted = as.numeric(sunemp)
   )
@@ -194,14 +206,14 @@ The job market numbers are even more impressive when one accounts for the very h
 
 [^2]: <https://agenciadenoticias.ibge.gov.br/agencia-sala-de-imprensa/2013-agencia-de-noticias/releases/37029-pib-cresce-1-9-no-1-trimestre-de-2023>
 
-```{r}
+```{r plot-unemp}
 #| out-width: 80%
 plot_unemp
 ```
 
 The drop in unemployment has been seen across all Brazilian states. The largest drop happened in the northern state of Roraíma, which saw unemployment drop 10 percentage points. Santa Catarina had the lowest unemployment rate in 2019-Q2 and now has the third lowest rate at 3.5%.
 
-```{r}
+```{r plot-chg-states}
 #| out-width: 80%
 #| fig-width: 8
 #| fig-height: 9
@@ -210,6 +222,6 @@ plot_chg_states
 
 Overall, the Mid-Western states of Mato Grosso and Mato Grosso do Sul are at historically low unemployment rates. Both states have strong ties to the primary sector and have benefited from recent record-breaking soybean crops. The states in the South and Southeast all have below average unemployment rates with the exception of Rio de Janeiro. Rio's economy is still struggling after repeated blows; the aftermath of the 2014 World Cup has been a continuing string of crisis: the 2015-17 recession, Lavajato, and the Covid-19 Pandemic have all aggravated a pre-existing economic stagnation.
 
-```{r}
+```{r map-states}
 map_states
 ```

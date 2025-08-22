@@ -2,7 +2,7 @@
 title: "Brazil: Unemployment"
 categories: ['data-visualization', 'english', 'ggplot2']
 date: "2023-10-20"
-execute: 
+execute:
   warning: false
   message: false
   echo: false
@@ -13,9 +13,7 @@ draft: true
 knitr::opts_chunk$set(
   fig.align = "center",
   out.width = "100%",
-  fig.width = 9,
-  dev = "svg",
-  fig.retina = 2
+  fig.width = 9
 )
 ```
 
@@ -38,37 +36,42 @@ showtext_auto()
 ```{r, import-data}
 state <- geobr::read_state(showProgress = FALSE)
 dim_state <- as_tibble(sf::st_drop_geometry(state))
-unemp <- get_sidra(4099, variable = 4099, geo = "State", period = "201201-202302")
+unemp <- get_sidra(
+  4099,
+  variable = 4099,
+  geo = "State",
+  period = "201201-202302"
+)
 ```
 
 ```{r, clean-data}
 #> Clean Sidra table
-tbl_unemp <- unemp |> 
-  janitor::clean_names() |> 
+tbl_unemp <- unemp |>
+  janitor::clean_names() |>
   select(
     code_state = unidade_da_federacao_codigo,
     trimestre = trimestre_codigo,
-    unemp = valor 
-    ) |> 
+    unemp = valor
+  ) |>
   mutate(
     date = zoo::as.Date(zoo::as.yearqtr(trimestre, format = "%Y%q")),
     code_state = as.numeric(code_state)
-    ) |> 
+  ) |>
   left_join(dim_state, by = "code_state")
 
 #> Lollipop data
-lvls <- tbl_unemp |> 
-  filter(date == as.Date("2019-04-01")) |> 
-  arrange(unemp) |> 
+lvls <- tbl_unemp |>
+  filter(date == as.Date("2019-04-01")) |>
+  arrange(unemp) |>
   pull(abbrev_state)
 
-tbl_compare <- tbl_unemp |> 
-  filter(date %in% c(as.Date("2019-04-01"), as.Date("2023-04-01"))) |> 
+tbl_compare <- tbl_unemp |>
+  filter(date %in% c(as.Date("2019-04-01"), as.Date("2023-04-01"))) |>
   mutate(abbrev_state = factor(abbrev_state, levels = lvls))
 
-tbl_chg <- tbl_compare |> 
-  mutate(chg = unemp - lag(unemp), .by = "code_state") |> 
-  filter(!is.na(chg)) |> 
+tbl_chg <- tbl_compare |>
+  mutate(chg = unemp - lag(unemp), .by = "code_state") |>
+  filter(!is.na(chg)) |>
   select(code_state, chg, unemp)
 
 
@@ -109,7 +112,11 @@ ggplot(tbl_compare, aes(x = abbrev_state, y = unemp)) +
   theme_minimal(base_family = "Roboto Condensed") +
   theme(
     plot.title = element_text(family = "Merriweather", size = 16),
-    plot.subtitle = element_text(family = "Merriweather", size = 11, color = "gray10"),
+    plot.subtitle = element_text(
+      family = "Merriweather",
+      size = 11,
+      color = "gray10"
+    ),
     legend.position = "top",
     panel.grid.minor = element_blank()
   )
@@ -124,7 +131,7 @@ ggplot(map_chg) +
     size = 3,
     family = "Roboto Condensed",
     color = "gray10"
-    ) +
+  ) +
   geom_label_repel(
     data = filter(map_chg, repel == 1),
     aes(x = x, y = y, label = label),
@@ -132,8 +139,10 @@ ggplot(map_chg) +
     family = "Roboto Condensed",
     color = "gray10",
     nudge_x = 5
-    ) +
-  labs(title = "Southern and Mid-Western States\nHave Lowest Unemployment Rates") +
+  ) +
+  labs(
+    title = "Southern and Mid-Western States\nHave Lowest Unemployment Rates"
+  ) +
   scale_fill_distiller(name = "Unemployment (%)", palette = "PuBuGn") +
   ggthemes::theme_map() +
   theme(
@@ -149,20 +158,20 @@ labor_share_br <- get_sidra(
   variable = 4096,
   period = "201801-202304",
   geo = "Brazil"
-  )
+)
 
-tbl_labor_share_br <- labor_share_br |> 
-  janitor::clean_names() |> 
-  select(trimestre = trimestre_codigo, share = valor) |> 
+tbl_labor_share_br <- labor_share_br |>
+  janitor::clean_names() |>
+  select(trimestre = trimestre_codigo, share = valor) |>
   mutate(
     date = zoo::as.Date(zoo::as.yearqtr(trimestre, format = "%Y%q"))
-    )
+  )
 
-base_index <- tbl_labor_share_br |> 
-  filter(date >= as.Date("2019-01-01"), date <= as.Date("2019-12-01")) |> 
+base_index <- tbl_labor_share_br |>
+  filter(date >= as.Date("2019-01-01"), date <= as.Date("2019-12-01")) |>
   summarise(base = mean(share))
 
-tbl_labor_share_br <- tbl_labor_share_br |> 
+tbl_labor_share_br <- tbl_labor_share_br |>
   mutate(index = share / base_index$base * 100)
 ```
 
@@ -172,42 +181,49 @@ labor_share <- get_sidra(
   variable = 4096,
   period = "201801-202304",
   geo = "State"
-  )
+)
 
-tbl_labor_share <- labor_share |> 
-  janitor::clean_names() |> 
+tbl_labor_share <- labor_share |>
+  janitor::clean_names() |>
   select(
     code_state = unidade_da_federacao_codigo,
     trimestre = trimestre_codigo,
-    share = valor 
-    ) |> 
+    share = valor
+  ) |>
   mutate(
     date = zoo::as.Date(zoo::as.yearqtr(trimestre, format = "%Y%q")),
     code_state = as.numeric(code_state)
-    ) |> 
+  ) |>
   left_join(dim_state, by = "code_state")
 
-index_base <- tbl_labor_share |> 
-  filter(date >= as.Date("2019-01-01"), date <= as.Date("2019-12-01")) |> 
+index_base <- tbl_labor_share |>
+  filter(date >= as.Date("2019-01-01"), date <= as.Date("2019-12-01")) |>
   summarise(base = mean(share), .by = "code_state")
 
-tbl_labor_share <- tbl_labor_share |> 
-  left_join(index_base, by = "code_state") |> 
+tbl_labor_share <- tbl_labor_share |>
+  left_join(index_base, by = "code_state") |>
   mutate(
     index = share / base * 100,
     highlight = if_else(
-      abbrev_state %in% c("AL", "AC", "SP", "RJ", "TO", "RN"), 1L, 0L
-      )
+      abbrev_state %in% c("AL", "AC", "SP", "RJ", "TO", "RN"),
+      1L,
+      0L
     )
+  )
 ```
 
 ```{r}
 ggplot() +
   geom_line(
     data = tbl_labor_share,
-    aes(x = date, y = index, group = code_state, color = as.factor(name_region)),
+    aes(
+      x = date,
+      y = index,
+      group = code_state,
+      color = as.factor(name_region)
+    ),
     alpha = 0.7
-    ) +
+  ) +
   geom_line(
     data = tbl_labor_share_br,
     aes(x = date, y = index),
@@ -238,7 +254,7 @@ ggplot() +
     panel.grid.minor = element_blank(),
     legend.position = "top",
     plot.title = element_text(family = "Merriweather", size = 16)
-    )
+  )
 ```
 
 # Unemployment
@@ -248,6 +264,6 @@ Brazilian unemployment has fallen sharply since the end of the pandemic and is b
 It should be noted that the Brazilian labor market has a large degree of informality. This overall unemployment rate
 
 ```{r}
-tbl_unemp |> 
+tbl_unemp |>
   filter(abbrev_state == "RR", date %in% c(as.Date("2023-04-01")))
 ```

@@ -3,9 +3,9 @@ title: 'Weekly Viz - Brazilian Census'
 date: "2023-10-27"
 categories: ['data-visualization', 'weekly-viz', 'english', 'brasil', 'ggplot2']
 format:
-  html: 
+  html:
     fig-align: "center"
-execute: 
+execute:
   echo: false
   warning: false
   message: false
@@ -25,9 +25,9 @@ state_border <- geobr::read_state(showProgress = FALSE)
 ```
 
 ```{r}
-tbl_census <- census |> 
-  janitor::clean_names() |> 
-  select(code_muni = municipio_codigo, tgc = valor) |> 
+tbl_census <- census |>
+  janitor::clean_names() |>
+  select(code_muni = municipio_codigo, tgc = valor) |>
   mutate(code_muni = as.numeric(code_muni))
 ```
 
@@ -37,45 +37,55 @@ city_pop <- left_join(city_border, tbl_census, by = "code_muni")
 
 ```{r}
 plot_map <- function(region) {
-  
   breaks <- c(-3, -1, 0, 0.5, 1, 3)
   labels <- c(
-    "< -3", "-3 to -1", "-1 to 0", "0 to 0.5", "0.5 to 1", "1 to 3", "> 3"
-    )
+    "< -3",
+    "-3 to -1",
+    "-1 to 0",
+    "0 to 0.5",
+    "0.5 to 1",
+    "1 to 3",
+    "> 3"
+  )
   cores <- c(
-    "#B2182B", "#D6604D", "#F4A582", "#92C5DE", "#4393C3", "#2166AC", "#053061"
-    )
-  
+    "#B2182B",
+    "#D6604D",
+    "#F4A582",
+    "#92C5DE",
+    "#4393C3",
+    "#2166AC",
+    "#053061"
+  )
+
   vlregion <- c(
     "norte" = 1,
     "nordeste" = 2,
     "sudeste" = 3,
     "sul" = 4,
-    "centro-oeste" = 5 
+    "centro-oeste" = 5
   )
-  
+
   code <- unname(vlregion[region])
-  
+
   sub <- city_pop %>%
     dplyr::filter(code_region == code) %>%
     dplyr::mutate(group_tgc = factor(findInterval(tgc, breaks)))
-  
+
   ggplot() +
     geom_sf(
       data = sub,
       aes(fill = group_tgc),
       linewidth = 0.1,
       color = "gray95"
-      ) +
+    ) +
     geom_sf(
       data = filter(state_border, code_region == code),
       linewidth = 0.75,
       color = "gray90",
       fill = NA
-      ) +
+    ) +
     scale_fill_manual(name = "TGC (%)", values = cores, labels = labels) +
     ggthemes::theme_map()
-  
 }
 ```
 

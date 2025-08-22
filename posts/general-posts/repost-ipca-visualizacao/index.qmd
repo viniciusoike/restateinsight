@@ -22,13 +22,15 @@ Neste post vou mostrar o comportamento da inflação desde 1999.
 ## Pacotes
 
 ```{r, echo = FALSE}
-knitr::opts_chunk$set(warning = FALSE,
-                      message = FALSE,
-                      fig.align = "center",
-                      fig.showtext = TRUE,
-                      fig.width = 8,
-                      fig.height = 5.5,
-                      out.width = "100%")
+knitr::opts_chunk$set(
+  warning = FALSE,
+  message = FALSE,
+  fig.align = "center",
+  fig.showtext = TRUE,
+  fig.width = 8,
+  fig.height = 5.5,
+  out.width = "100%"
+)
 ```
 
 ```{r, message = FALSE, warning = FALSE}
@@ -38,29 +40,26 @@ library(tidyr)
 library(ggplot2)
 library(ggdist)
 library(spiralize)
-library(showtext)
+library(ragg)
 library(lubridate)
 library(GetBCBData)
 library(forecast)
 ```
 
 ```{r, echo = FALSE}
-font_add("Helvetica", "Helvetica.ttc")
-showtext_auto()
-
 theme_vini <- theme_minimal() +
   theme(
     panel.grid.minor = element_blank(),
-    
+
     panel.background = element_rect(fill = "white", colour = "white"),
     plot.background = element_rect(fill = "white", colour = "white"),
-    
+
     legend.position = "top",
-    
+
     text = element_text(family = "Helvetica", size = 10, color = "gray15"),
     plot.title = element_text(size = 14),
     plot.subtitle = element_text(size = 8, color = "gray30"),
-    plot.caption  = element_text(size = 6, color = "gray30"),
+    plot.caption = element_text(size = 6, color = "gray30"),
     axis.text.x = element_text(angle = 90)
   )
 ```
@@ -71,33 +70,46 @@ Importo os dados diretamente da API do Banco Central usando o pacote `GetBCBData
 
 ```{r}
 # Importar os dados
-ipca <- gbcbd_get_series(id = 433, first.date = as.Date("1998-01-01"))
+ipca <- gbcbd_get_series(
+  id = 433,
+  first.date = as.Date("1998-01-01")
+)
+
+ipca <- subset(ipca, ref.date <= as.Date("2022-12-01"))
 ```
 
 O código abaixo cria alguns elementos que serão necessários para as visualizações.
 
 ```{r}
 grid <- tibble(
-  ref.date = seq(as.Date("1998-01-01"),as.Date("2022-12-01"), "1 month"))
+  ref.date = seq(
+    as.Date("1998-01-01"),
+    as.Date("2022-12-01"),
+    "1 month"
+  )
+)
 
 ipca_meta <- tibble(
   year = 1999:2022,
   meta = c(8, 6, 4, 3.5, 4, 5.5, rep(4.5, 14), 4.25, 4, 3.75, 3.5),
   banda = c(rep(2, 4), rep(2.5, 3), rep(2, 11), rep(1.5, 6)),
   banda_superior = meta + banda,
-  banda_inferior = meta - banda)
+  banda_inferior = meta - banda
+)
 ```
 
 ```{r}
-ipca <- ipca %>% 
-  inner_join(grid) %>% 
-  fill() %>% 
-  mutate(month = month(ref.date, label = TRUE, abbr = TRUE, locale = "pt_BR"),
-         year = year(ref.date),
-         value = value / 100,
-         acum12m = RcppRoll::roll_prodr(1 + value, n = 12) - 1,
-         acum12m = acum12m * 100) %>% 
-  left_join(ipca_meta) %>% 
+ipca <- ipca %>%
+  inner_join(grid) %>%
+  fill() %>%
+  mutate(
+    month = month(ref.date, label = TRUE, abbr = TRUE, locale = "pt_BR"),
+    year = year(ref.date),
+    value = value / 100,
+    acum12m = RcppRoll::roll_prodr(1 + value, n = 12) - 1,
+    acum12m = acum12m * 100
+  ) %>%
+  left_join(ipca_meta) %>%
   mutate(deviation = acum12m - meta)
 ```
 
@@ -122,9 +134,7 @@ y <- ts(ipca$value * 100, start = c(1998, 1), frequency = 12)
 
 ggseasonplot(y) +
   scale_color_viridis_d(name = "") +
-  labs(title = "Sazonalidade do IPCA",
-       x = NULL,
-       y = "%") +
+  labs(title = "Sazonalidade do IPCA", x = NULL, y = "%") +
   theme_minimal() +
   theme(legend.position = "bottom")
 ```
@@ -161,21 +171,25 @@ dftext <- tibble(x = as.Date("2019-01-01"), y = 7, label = label)
 ggplot(na.omit(ipca), aes(x = ref.date, y = acum12m)) +
   geom_line(size = 1) +
   geom_hline(yintercept = 0) +
-  geom_hline(yintercept = avgipca,
-             linetype = 2) +
-  geom_text(data = dftext,
-            aes(x = as.Date("2019-01-01"), y = 7, label = label),
-            family = "Helvetica",
-            size = 3) +
+  geom_hline(yintercept = avgipca, linetype = 2) +
+  geom_text(
+    data = dftext,
+    aes(x = as.Date("2019-01-01"), y = 7, label = label),
+    family = "Helvetica",
+    size = 3
+  ) +
   scale_x_date(date_breaks = "1 year", date_labels = "%Y") +
-  labs(title = "Inflação Acumulada em 12 Meses",
-       x = NULL,
-       y = "%",
-       caption = "Fonte: BCB") +
+  labs(
+    title = "Inflação Acumulada em 12 Meses",
+    x = NULL,
+    y = "%",
+    caption = "Fonte: BCB"
+  ) +
   theme_minimal() +
   theme(
     text = element_text(family = "Helvetica"),
-    axis.text.x = element_text(angle = 90))
+    axis.text.x = element_text(angle = 90)
+  )
 ```
 
 A comparação com a média histórica é interessante, mas é mais relevante olhar para a meta de inflação. Desde 1999, o Conselho Monetário Nacional (CMN) define, em geral com 2 anos de antecedência, a meta de inflação que o Banco Central deve perseguir. Este tipo de estrutura institucional é bastante popular mundo afora e há uma sólida básica empírica e teórica que a sustenta.
@@ -185,26 +199,34 @@ Basicamente, ao estabelecer antecipadamente uma meta de inflação, o CMN tenta 
 A meta de inflação também incentiva o Banco Central a priorizar o controle dos preços acima de outras prioridades concorrentes.
 
 ```{r}
-historico_meta <- ipca %>% 
-  select(ref.date, acum12m, meta, banda_inferior, banda_superior) %>% 
-  pivot_longer(cols = -ref.date) %>% 
+historico_meta <- ipca %>%
+  select(ref.date, acum12m, meta, banda_inferior, banda_superior) %>%
+  pivot_longer(cols = -ref.date) %>%
   na.omit()
 
 ggplot() +
-  geom_line(data = filter(historico_meta, name == "acum12m"),
-            aes(x = ref.date, y = value),
-            color = "#e63946") +
-  geom_line(data = filter(historico_meta, name != "acum12m"),
-            aes(x = ref.date, y = value, color = name)) +
+  geom_line(
+    data = filter(historico_meta, name == "acum12m"),
+    aes(x = ref.date, y = value),
+    color = "#e63946"
+  ) +
+  geom_line(
+    data = filter(historico_meta, name != "acum12m"),
+    aes(x = ref.date, y = value, color = name)
+  ) +
   geom_hline(yintercept = 0) +
   scale_x_date(date_breaks = "1 year", date_labels = "%Y") +
-  scale_color_manual(name = "",
-                     values = c("#264653", "#264653", "#2a9d8f"),
-                     labels = c("Banda Inf.", "Banda Sup.", "Meta")) +
-  labs(title = "Histórico de Metas de Inflação",
-       y = "% (acum. 12 meses)",
-       x = NULL,
-       caption = "Fonte: BCB") +
+  scale_color_manual(
+    name = "",
+    values = c("#264653", "#264653", "#2a9d8f"),
+    labels = c("Banda Inf.", "Banda Sup.", "Meta")
+  ) +
+  labs(
+    title = "Histórico de Metas de Inflação",
+    y = "% (acum. 12 meses)",
+    x = NULL,
+    caption = "Fonte: BCB"
+  ) +
   theme_vini
 
 ```
@@ -225,9 +247,12 @@ Conhecer a distribução dos dados costuma ser uma informação relevante para a
 
 ```{r, warning = FALSE, fig.height=4}
 ggplot(ipca, aes(x = value * 100)) +
-  geom_histogram(aes(y = ..density..), bins = 38,
-                 fill = "#264653",
-                 color = "white") +
+  geom_histogram(
+    aes(y = ..density..),
+    bins = 38,
+    fill = "#264653",
+    color = "white"
+  ) +
   geom_hline(yintercept = 0) +
   geom_density() +
   scale_x_continuous(breaks = seq(-0.5, 3, 0.25)) +
@@ -238,8 +263,10 @@ ggplot(ipca, aes(x = value * 100)) +
 Um tipo de visualização interessante é montar um "grid" como o abaixo. Um problema é que a escala de cores acaba um pouco deturpada por causa do período 2002-3.
 
 ```{r}
-ggplot(filter(ipca, ref.date >= as.Date("1999-01-01")),
-       aes(x = month, y = year, fill = acum12m)) +
+ggplot(
+  filter(ipca, ref.date >= as.Date("1999-01-01")),
+  aes(x = month, y = year, fill = acum12m)
+) +
   geom_tile(color = "gray90") +
   scale_y_continuous(breaks = 1999:2022) +
   scale_fill_viridis_c(name = "", option = "magma", breaks = seq(0, 16, 2)) +
@@ -250,14 +277,15 @@ ggplot(filter(ipca, ref.date >= as.Date("1999-01-01")),
 Algum nível de arbitrariedade é necessário para resolver isso. Uma opção é agrupar os dados em grupos. Como a meta mais longa que tivemos foi a de 4.5 com intervalo de 2, monto os grupos baseado nisso. A aceleração recente da inflação, a meu ver, fica mais evidente desta forma. Inclusive, conseguimos enxergar melhor como a inflação recente é mais intensa do que a de 2015-17.
 
 ```{r}
-grupos <- ipca %>% 
-  filter(ref.date >= as.Date("1999-01-01")) %>% 
-  mutate(ipca_group = findInterval(acum12m, c(0, 2.5, 4.5, 6.5, 10, 15)),
-         ipca_group = factor(ipca_group))
+grupos <- ipca %>%
+  filter(ref.date >= as.Date("1999-01-01")) %>%
+  mutate(
+    ipca_group = findInterval(acum12m, c(0, 2.5, 4.5, 6.5, 10, 15)),
+    ipca_group = factor(ipca_group)
+  )
 labels <- c("< 2.5", "2.5-4.5", "4.5-6.5", "6.5-10", "10-15", "> 15")
 
-ggplot(grupos,
-       aes(x = month, y = year, fill = ipca_group)) +
+ggplot(grupos, aes(x = month, y = year, fill = ipca_group)) +
   geom_tile(color = "gray90") +
   scale_y_continuous(breaks = 1999:2022) +
   scale_fill_viridis_d(name = "", option = "magma", labels = labels) +
@@ -273,17 +301,20 @@ Ainda assim, é interessante ver a dispersão enorme dos valores em 2002-3 e tam
 ggplot(ipca, aes(x = factor(year), y = value * 100, fill = factor(year))) +
   stat_halfeye(
     justification = -.5,
-    .width = 0, 
-    point_colour = NA) +
-  
+    .width = 0,
+    point_colour = NA
+  ) +
+
   scale_fill_viridis_d(option = "magma") +
   scale_y_continuous(breaks = seq(-0.5, 3, 0.5)) +
   guides(fill = "none") +
   coord_flip() +
   theme_minimal() +
   labs(x = NULL, y = NULL) +
-  theme(plot.background = element_rect(fill = "gray80", color = NA),
-        panel.grid.minor = element_blank())
+  theme(
+    plot.background = element_rect(fill = "gray80", color = NA),
+    panel.grid.minor = element_blank()
+  )
 
 ```
 
@@ -294,21 +325,34 @@ Fica uma visualização bacana, mas não acho que seja a mais apropriada.
 ```{r}
 ipca <- na.omit(ipca)
 
-spiral_initialize_by_time(xlim = range(ipca$ref.date),
-                          unit_on_axis = "months",
-                          period = "year",
-                          period_per_loop = 1,
-                          padding = unit(2, "cm"))
-                          #vp_param = list(x = unit(0, "npc"), just = "left"))
+spiral_initialize_by_time(
+  xlim = range(ipca$ref.date),
+  unit_on_axis = "months",
+  period = "year",
+  period_per_loop = 1,
+  padding = unit(2, "cm")
+)
+#vp_param = list(x = unit(0, "npc"), just = "left"))
 spiral_track(height = 0.8)
 lt = spiral_horizon(ipca$ref.date, ipca$acum12m, use_bar = TRUE)
 
 s = current_spiral()
 d = seq(30, 360, by = 30) %% 360
-month_name <- as.character(lubridate::month(1:12, label = TRUE, abbr = FALSE, locale = "pt_BR"))
-for(i in seq_along(d)) {
-  foo = polar_to_cartesian(d[i]/180*pi, (s$max_radius + 1)*1.05)
-  grid.text(month_name[i], x = foo[1, 1], y = foo[1, 2], default.unit = "native",
-            rot = ifelse(d[i] > 0 & d[i] < 180, d[i] - 90, d[i] + 90), gp = gpar(fontsize = 10))
+month_name <- as.character(lubridate::month(
+  1:12,
+  label = TRUE,
+  abbr = FALSE,
+  locale = "pt_BR"
+))
+for (i in seq_along(d)) {
+  foo = polar_to_cartesian(d[i] / 180 * pi, (s$max_radius + 1) * 1.05)
+  grid.text(
+    month_name[i],
+    x = foo[1, 1],
+    y = foo[1, 2],
+    default.unit = "native",
+    rot = ifelse(d[i] > 0 & d[i] < 180, d[i] - 90, d[i] + 90),
+    gp = gpar(fontsize = 10)
+  )
 }
 ```
