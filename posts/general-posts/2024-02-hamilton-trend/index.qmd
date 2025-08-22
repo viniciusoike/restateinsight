@@ -7,7 +7,7 @@ image: "/static/plots/hamilton_trend.png"
 format:
   html:
     code-fold: true
-execute: 
+execute:
   echo: false
   warning: false
   message: false
@@ -15,11 +15,16 @@ execute:
 
 ```{r}
 #| include: false
-library(tidyverse)
 library(forecast)
-library(rbcb)
 library(patchwork)
 library(mFilter)
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+
+import::from(rbcb, get_series)
+import::from(purrr, map, partial)
+import::from(stringr, str_detect)
 
 knitr::opts_chunk$set(
   fig.align = "center",
@@ -27,30 +32,34 @@ knitr::opts_chunk$set(
   fig.width = 9,
   out.width = "80%",
   fig.dev = "svg"
-  )
+)
 
 carros <- get_series(1374, as = "tibble")
 names(carros)[2] <- "value"
 
-carros <- carros |> 
+carros <- carros |>
   mutate(
     lcar = log(value),
     trend = seq_along(date),
     trend2 = trend^2,
     trend3 = trend^3
-    )
+  )
 
-subcarros <- filter(carros, date >= as.Date("1993-01-01"), date <= as.Date("2007-01-01"))
+subcarros <- filter(
+  carros,
+  date >= as.Date("1993-01-01"),
+  date <= as.Date("2007-01-01")
+)
 
 
 model_lm <- lm(lcar ~ trend + trend2 + trend3, data = subcarros)
 
-subcarros <- subcarros |> 
+subcarros <- subcarros |>
   mutate(
     fit_tt = fitted(model_lm),
     resid_tt = residuals(model_lm),
     resid_sto = c(NA, diff(lcar))
-    )
+  )
 ```
 
 # Tendências em séries econômicas
@@ -99,7 +108,8 @@ ggplot(subcarros, aes(x = date, y = lcar)) +
     subtitle = "Produção de automóveis e comerciais leves",
     x = NULL,
     y = "Unidades (log)",
-    caption = "Fonte: BCB") +
+    caption = "Fonte: BCB"
+  ) +
   theme_bw()
 ```
 
@@ -226,7 +236,12 @@ tbl_hp <- tibble(
 p1 <- ggplot(tbl_hp, aes(x = date)) +
   geom_line(aes(y = series), lwd = 0.8, color = "#023047") +
   geom_line(aes(y = trend), lwd = 0.8, color = "#ffb703") +
-  labs("Filtro HP aplicado no Random Walk", subtitle = "Série e Tendência", x = NULL, y = NULL) +
+  labs(
+    "Filtro HP aplicado no Random Walk",
+    subtitle = "Série e Tendência",
+    x = NULL,
+    y = NULL
+  ) +
   theme_bw()
 
 p2 <- ggplot(tbl_hp, aes(x = date)) +
@@ -255,33 +270,35 @@ macro <- tibble(
   as.data.frame(USMacroG)
 )
 
-macro <- macro |> 
+macro <- macro |>
   mutate(across(gdp:m1, log))
 
-nest_macro <- macro |> 
-  select(date, gdp, consumption, invest, m1) |> 
-  pivot_longer(col = -date, names_to = "name_series") |> 
-  group_by(name_series) |> 
+nest_macro <- macro |>
+  select(date, gdp, consumption, invest, m1) |>
+  pivot_longer(col = -date, names_to = "name_series") |>
+  group_by(name_series) |>
   nest()
 
-macro_hp <- nest_macro |> 
-  mutate(hpy = map(data, \(x) {
-    y <- ts(x$value, frequency = 4, start = c(1950, 1))
-    hp <- hpfilter(y, freq = 1600, type = "lambda")
-    
-    tibble(
-      cycle = as.numeric(hp$cycle),
-      trend = as.numeric(hp$trend)
-    )
-  })) |> 
-  unnest(c(data, hpy)) |> 
+macro_hp <- nest_macro |>
+  mutate(
+    hpy = map(data, \(x) {
+      y <- ts(x$value, frequency = 4, start = c(1950, 1))
+      hp <- hpfilter(y, freq = 1600, type = "lambda")
+
+      tibble(
+        cycle = as.numeric(hp$cycle),
+        trend = as.numeric(hp$trend)
+      )
+    })
+  ) |>
+  unnest(c(data, hpy)) |>
   ungroup()
 
 p1 <- ggplot(macro_hp, aes(x = date, y = value)) +
   geom_line(aes(y = value), lwd = 0.8, color = "#023047") +
   geom_line(aes(y = trend), lwd = 0.8, color = "#ffb703") +
   facet_wrap(~name_series, scales = "free_y", ncol = 1) +
-  labs(x = NULL, y = NULL)+
+  labs(x = NULL, y = NULL) +
   theme_bw()
 
 p2 <- ggplot(macro_hp, aes(x = date, y = cycle)) +
@@ -298,9 +315,13 @@ A análise das autocorrelações mostra que há bastante autocorrelação cruzad
 
 ```{r}
 #| echo: true
-macro_detrend <- macro_hp |> 
-  mutate(detrend = value - trend) |> 
-  pivot_wider(id_cols = "date", names_from = "name_series", values_from = "detrend") |> 
+macro_detrend <- macro_hp |>
+  mutate(detrend = value - trend) |>
+  pivot_wider(
+    id_cols = "date",
+    names_from = "name_series",
+    values_from = "detrend"
+  ) |>
   select(-date)
 
 ggAcf(ts(macro_detrend, frequency = 4), lag.max = 28) +
@@ -312,9 +333,9 @@ Se tivéssemos assumido, contudo, que as séries são I(1), não haveria muita c
 
 ```{r}
 #| echo: true
-macro_d1 <- macro |> 
-  select(gdp, consumption, invest, m1) |> 
-  mutate(across(everything(), ~c(NA, diff(.x))))
+macro_d1 <- macro |>
+  select(gdp, consumption, invest, m1) |>
+  mutate(across(everything(), ~ c(NA, diff(.x))))
 
 
 ggAcf(ts(macro_d1, frequency = 4), lag.max = 28) +
@@ -360,17 +381,15 @@ macro <- tibble(
   as.data.frame(USMacroG)
 )
 
-macro_long <- macro |> 
-  select(date, gdp, consumption, invest, m1, government, inflation) |> 
-  mutate(across(gdp:government, ~log10(.x) * 100)) |> 
+macro_long <- macro |>
+  select(date, gdp, consumption, invest, m1, government, inflation) |>
+  mutate(across(gdp:government, ~ log10(.x) * 100)) |>
   pivot_longer(-date, names_to = "name_series")
 
-macro_lags <- macro_long |> 
-  group_by(name_series) |> 
+macro_lags <- macro_long |>
+  group_by(name_series) |>
   mutate(
-    across(value,
-           map(1:12, ~partial(dplyr::lag, n = .x)),
-           .names = "l{.fn}")
+    across(value, map(1:12, ~ partial(dplyr::lag, n = .x)), .names = "l{.fn}")
   )
 
 ```
@@ -400,9 +419,9 @@ O primeiro modelo será chamado de "regression", enquanto o segundo modelo será
 ```{r}
 #| echo: true
 #| code-fold: false
-macro_models <- macro_lags |> 
-  mutate(resid_rw = value - l8) |> 
-  nest() |> 
+macro_models <- macro_lags |>
+  mutate(resid_rw = value - l8) |>
+  nest() |>
   mutate(
     model_reg = map(data, \(d) lm(value ~ l8 + l9 + l10 + l11, data = d)),
     trend = map(model_reg, fitted),
@@ -424,15 +443,19 @@ Evidentemente, não é fácil inspecionar os resíduos de todos os modelos, espe
 
 ```{r}
 #| out-width: 100%
-tbl_resid <- macro_models |> 
-  select(name_series, resid) |> 
-  unnest(cols = resid) |> 
-  mutate(sd_resid = as.numeric(scale(resid))) |> 
-  ungroup() |> 
+tbl_resid <- macro_models |>
+  select(name_series, resid) |>
+  unnest(cols = resid) |>
+  mutate(sd_resid = as.numeric(scale(resid))) |>
+  ungroup() |>
   mutate(id = as.numeric(names(resid)))
 
-resid_wide <- tbl_resid |> 
-  pivot_wider(id_cols = "id", names_from = "name_series", values_from = "resid") |> 
+resid_wide <- tbl_resid |>
+  pivot_wider(
+    id_cols = "id",
+    names_from = "name_series",
+    values_from = "resid"
+  ) |>
   select(-id)
 
 ggAcf(ts(resid_wide, frequency = 4), lag.max = 28) +
@@ -447,64 +470,69 @@ O código abaixo junta todas as séries para facilitar a sua visualização. Com
 ```{r}
 #| code-fold: true
 #| echo: true
-m1 <- macro_models |> 
-  ungroup() |> 
-  select(name_series, trend, resid) |> 
-  unnest(cols = c("trend", "resid")) |> 
+m1 <- macro_models |>
+  ungroup() |>
+  select(name_series, trend, resid) |>
+  unnest(cols = c("trend", "resid")) |>
   mutate(id = as.numeric(names(trend)), .before = everything())
 
-macro_trend <- macro_models |> 
-  select(name_series, data) |> 
-  unnest(cols = c(data)) |> 
-  mutate(id = vctrs::vec_group_id(date), .before = everything()) |> 
+macro_trend <- macro_models |>
+  select(name_series, data) |>
+  unnest(cols = c(data)) |>
+  mutate(id = vctrs::vec_group_id(date), .before = everything()) |>
   ungroup()
 
-macro_trend <- macro_trend |> 
+macro_trend <- macro_trend |>
   left_join(m1, by = c("id", "name_series"))
 
-series_trend <- macro_trend |> 
-  select(date, name_series, trend, resid, resid_rw) |> 
+series_trend <- macro_trend |>
+  select(date, name_series, trend, resid, resid_rw) |>
   pivot_longer(cols = -c(date, name_series), names_to = "name_decomp") |>
-  mutate(decomp = if_else(str_detect(name_decomp, "trend"), "trend", "resid")) |> 
+  mutate(
+    decomp = if_else(str_detect(name_decomp, "trend"), "trend", "resid")
+  ) |>
   filter(!is.na(value))
 
 plot_series <- function(x, ylim = c(NA, NA)) {
-  
   p1 <- ggplot() +
-  geom_line(
-    data = dplyr::filter(series_trend, name_series == x, decomp == "trend"),
-    aes(x = date, y = value),
-    lwd = 0.8,
-    color = "steelblue"
+    geom_line(
+      data = dplyr::filter(series_trend, name_series == x, decomp == "trend"),
+      aes(x = date, y = value),
+      lwd = 0.8,
+      color = "steelblue"
     ) +
-  labs(x = NULL, y = NULL) +
-  ggtitle(glue::glue("Series: {x}")) +
-  theme_bw() +
-  theme(plot.title = element_text(size = 10))
+    labs(x = NULL, y = NULL) +
+    ggtitle(glue::glue("Series: {x}")) +
+    theme_bw() +
+    theme(plot.title = element_text(size = 10))
 
-p2 <- ggplot() +
-  geom_hline(yintercept = 0) +
-  geom_line(
-    data = dplyr::filter(series_trend, name_series == x, decomp == "resid"),
-    aes(x = date, y = value, color = name_decomp),
-    lwd = 0.8
+  p2 <- ggplot() +
+    geom_hline(yintercept = 0) +
+    geom_line(
+      data = dplyr::filter(series_trend, name_series == x, decomp == "resid"),
+      aes(x = date, y = value, color = name_decomp),
+      lwd = 0.8
     ) +
-  scale_x_date(
-    breaks = seq(as.Date("1950-01-01"), as.Date("2000-01-01"), by = "10 year"),
-    date_labels = "%Y"
+    scale_x_date(
+      breaks = seq(
+        as.Date("1950-01-01"),
+        as.Date("2000-01-01"),
+        by = "10 year"
+      ),
+      date_labels = "%Y"
     ) +
-  scale_y_continuous(limits = ylim) +
-  scale_color_manual(
-    name = "",
-    values = c("#003049", "#d62828"),
-    labels = c("Regression", "Random Walk")) +
-  labs(x = NULL, y = NULL) +
-  ggtitle(glue::glue("Cyclical Component: {x}")) +
-  theme_bw() +
-  theme(legend.position = "top", plot.title = element_text(size = 10))
+    scale_y_continuous(limits = ylim) +
+    scale_color_manual(
+      name = "",
+      values = c("#003049", "#d62828"),
+      labels = c("Regression", "Random Walk")
+    ) +
+    labs(x = NULL, y = NULL) +
+    ggtitle(glue::glue("Cyclical Component: {x}")) +
+    theme_bw() +
+    theme(legend.position = "top", plot.title = element_text(size = 10))
 
   return(list(trend = p1, cycle = p2))
-  
 }
 ```
 
@@ -516,7 +544,7 @@ library(patchwork)
 pgdp <- plot_series("gdp", ylim = c(-4, 6))
 pcons <- plot_series("consumption", ylim = c(-4, 6))
 
-( pgdp[[1]] + pcons[[1]] ) / ( pgdp[[2]] + pcons[[2]] )
+(pgdp[[1]] + pcons[[1]]) / (pgdp[[2]] + pcons[[2]])
 ```
 
 O gráfico abaixo mostra o ajuste do filtro de Hamilton nas séries de investimento e gasto do governo.
@@ -525,7 +553,7 @@ O gráfico abaixo mostra o ajuste do filtro de Hamilton nas séries de investime
 pinv <- plot_series("invest", ylim = c(-20, 20))
 pgvt <- plot_series("government", ylim = c(-20, 20))
 
-( pinv[[1]] + pgvt[[1]] ) / ( pinv[[2]] + pgvt[[2]] )
+(pinv[[1]] + pgvt[[1]]) / (pinv[[2]] + pgvt[[2]])
 ```
 
 Finalmente, o gráfico abaixo mostra o ajuste do filtro de Hamilton nas séries de M1 e de inflação.
@@ -534,7 +562,7 @@ Finalmente, o gráfico abaixo mostra o ajuste do filtro de Hamilton nas séries 
 pm1 <- plot_series("m1")
 pinf <- plot_series("inflation")
 
-( pm1[[1]] + pinf[[1]] ) / ( pm1[[2]] + pinf[[2]] )
+(pm1[[1]] + pinf[[1]]) / (pm1[[2]] + pinf[[2]])
 ```
 
 O filtro proposto por Hamilton tem diversas características interessantes. A simplicidade e intuição do filtro, em especial, são pontos atrativos. Um paper recente, de Viv Hall e Peter Thompson (2021), contudo, não encontrou grandes vantagens deste filtro em relação aos tradicionais filtro HP e filtro Baxter-King. Os autores testam os filtros usando um amplo conjunto de séries macroeconômicas da Nova Zelândia. De maneira geral, o filtro de Hamilton gerou séries com maior volatilidade e pior capacidade preditiva. Considerando a literatura de filtros, parece improvável, de fato, que um filtro tão simples possa ter uma melhor performance do que filtros no domínio da frequência.

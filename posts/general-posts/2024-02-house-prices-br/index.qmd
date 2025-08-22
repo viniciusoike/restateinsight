@@ -4,7 +4,7 @@ date: "2024-02-25"
 categories: ["data-visualization", "brasil", "ggplot2", "real-estate"]
 description: "Neste post discuto a teoria sobre índices de preços imobiliários e apresento os principais índices disponíveis no Brasil. Pela discussão teórica deve ficar claro as principais limitações de cada índice."
 image: "/static/images/rppi_brasil.png"
-execute: 
+execute:
   message: false
   warning: false
   echo: false
@@ -15,8 +15,8 @@ knitr::opts_chunk$set(
   fig.align = "center",
   fig.asp = 0.618,
   out.width = "90%",
-  fig.width = 7,
-  fig.dev = "svg"
+  fig.width = 7.5,
+  fig.dev = "png"
 )
 
 library(realestatebr)
@@ -31,36 +31,48 @@ library(stringr)
 library(rbcb)
 library(gt)
 library(gtExtras)
-
-font_add_google("Lato", "Lato")
-showtext_auto()
+library(ragg)
 ```
 
 ```{r theme-colors}
 colors <- c("#287271", "#2A9D8F", "#8AB17D", "#F4A261", "#E76F51")
+col_offwhite <- "#fefefe"
 
-theme_vini <- theme_minimal(base_family = "Lato", base_size = 10) +
+theme_vini <- theme_minimal(base_family = "Lato", base_size = 11) +
   theme(
     panel.grid.minor = element_blank(),
-    panel.background = element_rect(fill = "#FBFBF8", color = "#FBFBF8"),
-    plot.background = element_rect(fill = "#FBFBF8", color = "#FBFBF8"),
+    panel.background = element_rect(fill = col_offwhite, color = col_offwhite),
+    plot.background = element_rect(fill = col_offwhite, color = col_offwhite),
     legend.position = "bottom",
-    plot.subtitle = element_text(size = 8, color = "gray30")
+    plot.title = element_text(size = 14),
+    plot.subtitle = element_text(
+      size = 9,
+      color = "gray30"
+    ),
+    plot.caption = element_text(
+      size = 8,
+      color = "gray50",
+      hjust = 0,
+      margin = margin(t = 8)
+    ),
+    plot.margin = margin(10, 10, 10, 10)
   )
 ```
 
 ```{r import rppi-sale}
-sale <- get_rppi(stack = TRUE)
+sale <- get_rppi(stack = TRUE, cached = TRUE)
+sale <- subset(sale, date <= as.Date("2023-12-31"))
 ```
 
-```{r}
+```{r import-price-series}
 ipca = get_series(433, start_date = as.Date("2000-01-01"), as = "ts")
 incc = get_series(192, start_date = as.Date("2000-12-01"), as = "ts")
 
 mts <- ts.intersect(ipca, incc, dframe = TRUE)
 tbl_prices <- tibble(date = zoo::as.Date.ts(incc), mts)
 
-tbl_prices <- tbl_prices |> 
+tbl_prices <- tbl_prices |>
+  filter(date <= as.Date("2023-12-31")) |>
   mutate(
     acum_ipca = c(NA, (cumprod(1 + ipca[-1] / 100) - 1) * 100),
     index_ipca = if_else(date == first(date), 100, 100 + acum_ipca),
@@ -68,13 +80,13 @@ tbl_prices <- tbl_prices |>
     index_incc = if_else(date == first(date), 100, 100 + acum_incc)
   )
 
-tbl_index <- tbl_prices |> 
-  select(date, starts_with("index")) |> 
+tbl_index <- tbl_prices |>
+  select(date, starts_with("index")) |>
   tidyr::pivot_longer(
     cols = -date,
     names_to = "source",
     values_to = "index"
-    ) |> 
+  ) |>
   mutate(
     source = stringr::str_remove(source, "^index_"),
     source = stringr::str_to_upper(source)
@@ -82,49 +94,56 @@ tbl_index <- tbl_prices |>
 ```
 
 ```{r data-comp}
-rppi_sale <- sale |> 
+rppi_sale <- sale |>
   filter(name_muni %in% c("Brazil", "Índice Fipezap"))
 
 # Table with all RPPIs + IPCA + INCC
-rppi_indexes <- rppi_sale |> 
-  select(source, date, index) |> 
-  bind_rows(tbl_index) |> 
+rppi_indexes <- rppi_sale |>
+  select(source, date, index) |>
+  bind_rows(tbl_index) |>
   mutate(
     source = factor(
       source,
       levels = c("FipeZap", "IGMI-R", "IVG-R", "IPCA", "INCC")
-      )
+    )
   )
 
 # Table with all RPPIs with 2019 = 100
-base <- rppi_sale |> 
-  mutate(year = lubridate::year(date)) |> 
-  filter(year == 2019) |> 
+base <- rppi_sale |>
+  mutate(year = lubridate::year(date)) |>
+  filter(year == 2019) |>
   summarise(base_index = mean(index), .by = "source")
 
-rppi_comp <- rppi_sale |> 
-  select(source, date, index) |> 
-  left_join(base, by = "source") |> 
+rppi_comp <- rppi_sale |>
+  select(source, date, index) |>
+  left_join(base, by = "source") |>
   mutate(new_index = index / base_index * 100)
 ```
 
 ```{r}
 # Compute year changes for table (gt)
-price_chg <- tbl_prices |> 
-  mutate(ipca = ipca / 100, incc = incc / 100) |> 
-  select(date, ipca, incc) |> 
-  pivot_longer(cols = -date, names_to = "source", values_to = "chg") |> 
+price_chg <- tbl_prices |>
+  mutate(ipca = ipca / 100, incc = incc / 100) |>
+  select(date, ipca, incc) |>
+  pivot_longer(cols = -date, names_to = "source", values_to = "chg") |>
   mutate(source = str_to_upper(source))
 
-rppi_chg <- rppi_sale |> 
-  select(source, date, chg) |> 
+rppi_chg <- rppi_sale |>
+  select(source, date, chg) |>
   bind_rows(price_chg)
 
-tab_rppi <- rppi_chg |> 
-  mutate(year = lubridate::year(date)) |> 
-  summarise(acum_year = (prod(1 + chg, na.rm = TRUE) - 1) * 100, .by = c("source", "year")) |> 
-  tidyr::pivot_wider(id_cols = "year", names_from = "source", values_from = "acum_year") |> 
-  arrange(year) |> 
+tab_rppi <- rppi_chg |>
+  mutate(year = lubridate::year(date)) |>
+  summarise(
+    acum_year = (prod(1 + chg, na.rm = TRUE) - 1) * 100,
+    .by = c("source", "year")
+  ) |>
+  tidyr::pivot_wider(
+    id_cols = "year",
+    names_from = "source",
+    values_from = "acum_year"
+  ) |>
+  arrange(year) |>
   filter(year >= 2003, year < 2024)
 ```
 
@@ -139,17 +158,25 @@ p_rppi_comp <- ggplot(rppi_comp, aes(date, new_index, color = source)) +
   ) +
   labs(
     title = "Inflação supera valorização imobiliária nos últimos dez anos",
-    subtitle = str_wrap("Comaparação de índices de preços imobiliários e inflação geral. Todos índices normalizados para jan/2014.", 111),
+    subtitle = str_wrap(
+      "Comaparação de índices de preços imobiliários e inflação geral. Todos índices normalizados para jan/2014.",
+      111
+    ),
     x = NULL,
     y = "Índice (2019 = 100)",
-    caption = "Fonte: IVG-R (BCB), FipeZap (Fipe), IGMI-R (Abecip)") +
+    caption = "Fonte: IVG-R (BCB), FipeZap (Fipe), IGMI-R (Abecip)"
+  ) +
   theme_vini
 ```
 
 ```{r vecm-analysis}
-tbl_rppi = rppi_comp |> 
-  filter(date >= as.Date("2014-01-01"), date <= as.Date("2023-12-01")) |> 
-  pivot_wider(id_cols = "date", names_from = "source", values_from = "new_index")
+tbl_rppi = rppi_comp |>
+  filter(date >= as.Date("2014-01-01"), date < as.Date("2024-01-01")) |>
+  pivot_wider(
+    id_cols = "date",
+    names_from = "source",
+    values_from = "new_index"
+  )
 
 ts_rppi <- ts(tbl_rppi[, -1], start = c(2014, 1), frequency = 12)
 
@@ -162,21 +189,21 @@ johan = ca.jo(
   ecdet = "trend",
   K = 3,
   season = 12
-  )
+)
 
 vecm = cajorls(johan, r = 2)
 ```
 
 ```{r data-comp-recent}
 # Recent comparison (all indexes based in 2014/1)
-rppi_recent <- rppi_indexes |> 
-  filter(date >= as.Date("2014-01-01"), date <= as.Date("2023-12-01")) |> 
+rppi_recent <- rppi_indexes |>
+  filter(date >= as.Date("2014-01-01"), date < as.Date("2024-01-01")) |>
   mutate(new_index = index / first(index) * 100, .by = "source")
 
 p_rppi_brasil <- ggplot(
   filter(rppi_recent, !(source %in% c("IPCA", "INCC"))),
   aes(x = date, y = new_index, color = source)
-  ) +
+) +
   geom_hline(yintercept = 100) +
   geom_line(lwd = 0.8) +
   scale_x_date(date_breaks = "1 year", date_labels = "%Y") +
@@ -186,16 +213,21 @@ p_rppi_brasil <- ggplot(
   ) +
   labs(
     title = "Índices de Preços Imobiliários no Brasil",
-    subtitle = str_wrap("Comaparação de índices de preços imobiliários no Brasil. Todos índices normalizados para jan/2014.", 111),
+    subtitle = str_wrap(
+      "Comaparação de índices de preços imobiliários no Brasil. Todos índices normalizados para jan/2014.",
+      111
+    ),
     x = NULL,
     y = "Índice (jan/14 = 100)",
-    caption = "Fonte: IVG-R (BCB), FipeZap (Fipe), IGMI-R (Abecip)") +
+    caption = "Fonte: IVG-R (BCB), FipeZap (Fipe), IGMI-R (Abecip)"
+  ) +
   theme_vini
 
-p_rppi_ipca <- 
+p_rppi_ipca <-
   ggplot(
     filter(rppi_recent, source != "INCC"),
-    aes(x = date, y = new_index, color = source)) +
+    aes(x = date, y = new_index, color = source)
+  ) +
   geom_hline(yintercept = 100) +
   geom_line(lwd = 0.8) +
   scale_x_date(date_breaks = "1 year", date_labels = "%Y") +
@@ -205,16 +237,21 @@ p_rppi_ipca <-
   ) +
   labs(
     title = "Inflação supera valorização imobiliária nos últimos dez anos",
-    subtitle = str_wrap("Comaparação de índices de preços imobiliários e inflação geral. Todos índices normalizados para jan/2014.", 111),
+    subtitle = str_wrap(
+      "Comaparação de índices de preços imobiliários e inflação geral. Todos índices normalizados para jan/2014.",
+      111
+    ),
     x = NULL,
     y = "Índice (jan/14 = 100)",
-    caption = "Fonte: IVG-R (BCB), IPCA (IBGE), FipeZap (Fipe), IGMI-R (Abecip)") +
+    caption = "Fonte: IVG-R (BCB), IPCA (IBGE), FipeZap (Fipe), IGMI-R (Abecip)"
+  ) +
   theme_vini
 
-p_rppi_incc <- 
+p_rppi_incc <-
   ggplot(
     filter(rppi_recent, source != "IPCA"),
-    aes(x = date, y = new_index, color = source)) +
+    aes(x = date, y = new_index, color = source)
+  ) +
   geom_hline(yintercept = 100) +
   geom_line(lwd = 0.8) +
   scale_x_date(date_breaks = "1 year", date_labels = "%Y") +
@@ -224,25 +261,30 @@ p_rppi_incc <-
   ) +
   labs(
     title = "Inflação de Custos supera valorização imobiliária nos últimos dez anos",
-    subtitle = str_wrap("Comaparação de índices de preços imobiliários e o INCC (Índice Nacional de Custos da Construção Civil). Todos índices normalizados para jan/2014.", 111),
+    subtitle = str_wrap(
+      "Comaparação de índices de preços imobiliários e o INCC (Índice Nacional de Custos da Construção Civil). Todos índices normalizados para jan/2014.",
+      111
+    ),
     x = NULL,
     y = "Índice (jan/14 = 100)",
-    caption = "Fonte: IVG-R (BCB), INCC (FGV), FipeZap (Fipe), IGMI-R (Abecip)") +
+    caption = "Fonte: IVG-R (BCB), INCC (FGV), FipeZap (Fipe), IGMI-R (Abecip)"
+  ) +
   theme_vini
 ```
 
 ```{r}
-ivgr_comp <- rppi_indexes |> 
+ivgr_comp <- rppi_indexes |>
   filter(
     date >= as.Date("2001-03-01"),
-    date <= as.Date("2023-12-01"),
+    date < as.Date("2024-01-01"),
     source %in% c("IPCA", "INCC", "IVG-R")
-    ) |> 
+  ) |>
   mutate(new_index = index / first(index) * 100, .by = "source")
 
 p_ivgr_ipca <- ggplot(
-    ivgr_comp,
-    aes(x = date, y = new_index, color = source)) +
+  ivgr_comp,
+  aes(x = date, y = new_index, color = source)
+) +
   geom_hline(yintercept = 100) +
   geom_line(lwd = 0.8) +
   scale_color_manual(
@@ -251,22 +293,29 @@ p_ivgr_ipca <- ggplot(
   ) +
   labs(
     title = "Preço de Imóveis aumenta mais de seis vezes no longo prazo",
-    subtitle = str_wrap("Comaparação de índices de preços: IVGR, INCC e IPCA. Todos índices normalizados para mar/2001.", 111),
+    subtitle = str_wrap(
+      "Comaparação de índices de preços: IVGR, INCC e IPCA. Todos índices normalizados para mar/2001.",
+      111
+    ),
     x = NULL,
     y = "Índice (mar/01 = 100)",
-    caption = "Fonte: IVG-R (BCB), INCC (FGV), IPCA (IBGE).") +
+    caption = "Fonte: IVG-R (BCB), INCC (FGV), IPCA (IBGE)."
+  ) +
   theme_vini
 ```
 
 ```{r plot-rppi-function}
 plot_rppi <- function(name) {
-  
   av_names <- unique(rppi_sale$source)
-  
+
   if (!any(name %in% av_names)) {
-    stop("Argument `name` must be one of ", paste(av_names, collapse = ", "), ".")
+    stop(
+      "Argument `name` must be one of ",
+      paste(av_names, collapse = ", "),
+      "."
+    )
   }
-  
+
   p_index <- ggplot(filter(rppi_sale, source == name), aes(date, index)) +
     geom_line(lwd = 0.8, color = colors[1]) +
     geom_hline(yintercept = 100) +
@@ -279,7 +328,7 @@ plot_rppi <- function(name) {
     scale_y_continuous(labels = scales::label_percent()) +
     labs(x = NULL, y = "% (acum. 12 meses)", subtitle = "Acumulado 12 meses") +
     theme_vini
-  
+
   p_chg <- ggplot(filter(rppi_sale, source == name), aes(date, chg)) +
     geom_line(lwd = 0.8, color = colors[1]) +
     geom_hline(yintercept = 0) +
@@ -287,13 +336,11 @@ plot_rppi <- function(name) {
     labs(x = NULL, y = "%", subtitle = "Variação Mensal") +
     theme_vini
 
-
   panel <- p_index / p_12m / p_chg
-  
+
   panel <- panel + plot_annotation(title = name) & theme_vini
-  
+
   return(panel)
-  
 }
 ```
 
@@ -380,6 +427,9 @@ Em termos metodológicos o IVGR é um índice de mediana estratificado. Essencia
 Como resultado, o IVG-R é um índice bastante suave. O IVG-R é o mais próximo que existe de um índice "oficial" de preços de imóveis no Brasil. Ele é o índice utilizado pelo BIS na compilação de índices de preços imobiliários.
 
 ```{r}
+#| fig-width: 9
+#| fig-height: 9
+#| out-width: "100%"
 plot_rppi("IVG-R")
 ```
 
@@ -392,6 +442,9 @@ O Índice FipeZap é um índice de mediana estratificado construído a partir de
 3.  O custo de construção de um índice de anúncios é baixíssimo quando comparado com outros métodos de coleta de dados.
 
 ```{r}
+#| fig-width: 9
+#| fig-height: 9
+#| out-width: "100%"
 plot_rppi("FipeZap")
 ```
 
@@ -404,6 +457,9 @@ O IGMI-R foi desenvolvido pelo economista Paulo Pichetti, numa [parceria entre a
 A principal fragilidade do IGMI-R é o seu histórico curto. Além disso, o *timing* de criação do índice foi bastante infortuito, pois a série inicia em 2014. Nos seus breves 10 anos de história, o IGMI-R passou pela maior recessão econômica da história recente do país, uma pandemia global, dois ciclos de alta de juros e a menor taxa de juros da história.
 
 ```{r}
+#| fig-width: 9
+#| fig-height: 9
+#| out-width: "100%"
 plot_rppi("IGMI-R")
 ```
 
@@ -414,10 +470,10 @@ plot_rppi("IGMI-R")
 A tabela abaixo mostra a variação anual acumulada dos três. Para facilitar a contextualização, coloca-se também a variação do IPCA e do INCC.
 
 ```{r}
-gt(tab_rppi) |> 
-  gt::cols_label(year = "Ano") |> 
-  fmt_number(2:6, decimals = 2) |> 
-  sub_missing() |> 
+gt(tab_rppi) |>
+  gt::cols_label(year = "Ano") |>
+  fmt_number(2:6, decimals = 2) |>
+  sub_missing() |>
   gt_theme_538()
 ```
 

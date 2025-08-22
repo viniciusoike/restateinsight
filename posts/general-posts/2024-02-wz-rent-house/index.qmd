@@ -7,7 +7,7 @@ image: "/static/images/scatter-bp-1.png"
 format:
   html:
     code-tools: true
-execute: 
+execute:
   message: false
   warning: false
   echo: false
@@ -42,23 +42,24 @@ theme_series = theme_minimal(base_family = "IBM Plex Sans", base_size = 12) +
 ```{r import-data}
 fipezap = get_rppi_fipezap()
 
-fipezap = fipezap |> 
+fipezap = fipezap |>
   filter(
     name_muni == "Índice Fipezap",
     market == "residential",
     variable == "index",
-    rooms == "total"
-  ) |> 
+    rooms == "total",
+    date < as.Date("2024-01-01")
+  ) |>
   select(date, rent_sale, value)
-  
-base = fipezap |> 
-  mutate(ano = lubridate::year(date)) |> 
-  summarise(base_index = mean(value), .by = c("ano", "rent_sale")) |> 
-  filter(ano == 2019) |> 
+
+base = fipezap |>
+  mutate(ano = lubridate::year(date)) |>
+  summarise(base_index = mean(value), .by = c("ano", "rent_sale")) |>
+  filter(ano == 2019) |>
   select(-ano)
 
-fipezap = fipezap |> 
-  left_join(base, by = c("rent_sale")) |> 
+fipezap = fipezap |>
+  left_join(base, by = c("rent_sale")) |>
   mutate(new_index = value / base_index * 100)
 ```
 
@@ -81,10 +82,10 @@ p1 = ggplot(fipezap, aes(x = date, y = new_index, color = rent_sale)) +
     x = NULL,
     y = "Índice (100 = 2019)",
     caption = "Fonte: FipeZap"
-    ) +
+  ) +
   theme_series
 
-fipezap = fipezap |> 
+fipezap = fipezap |>
   mutate(acum = value / first(value) * 100, .by = "rent_sale")
 
 p2 = ggplot(fipezap, aes(date, acum, color = rent_sale)) +
@@ -100,24 +101,28 @@ p2 = ggplot(fipezap, aes(date, acum, color = rent_sale)) +
     x = NULL,
     y = "Variação Acumulada (100 = jan/2008)",
     title = "Valorização Acumulada Aluguel/Venda",
-    subtitle = "Variação acumulada ") +
+    subtitle = "Variação acumulada "
+  ) +
   theme_series
 
-fipe_changes = fipezap |> 
-  group_by(rent_sale) |> 
+fipe_changes = fipezap |>
+  group_by(rent_sale) |>
   mutate(
     chg = new_index / lag(new_index) - 1,
-    acum12m = RcppRoll::roll_prodr(1 + chg, n = 12) - 1) |>
+    acum12m = RcppRoll::roll_prodr(1 + chg, n = 12) - 1
+  ) |>
   pivot_wider(
     id_cols = "date",
     names_from = "rent_sale",
     values_from = c("chg", "acum12m"),
-    values_fn = ~.x * 100
-  ) |> 
+    values_fn = ~ .x * 100
+  ) |>
   mutate(
     cycle = factor(case_when(
-      date >= as.Date("2008-01-01") & date <= as.Date("2012-06-01") ~ "Commodity Cycle",
-      date >= as.Date("2014-06-01") & date <= as.Date("2017-12-01") ~ "Dilma Recession",
+      date >= as.Date("2008-01-01") & date <= as.Date("2012-06-01") ~
+        "Commodity Cycle",
+      date >= as.Date("2014-06-01") & date <= as.Date("2017-12-01") ~
+        "Dilma Recession",
       date >= as.Date("2020-05-01") ~ "Covid",
       TRUE ~ "Normal"
     ))
@@ -125,8 +130,9 @@ fipe_changes = fipezap |>
 
 p3 = ggplot(
   fipe_changes,
-  aes(x = chg_sale, y = chg_rent)) +
-  geom_point(aes( color = cycle)) +
+  aes(x = chg_sale, y = chg_rent)
+) +
+  geom_point(aes(color = cycle)) +
   geom_smooth(method = "gam", se = FALSE) +
   geom_hline(yintercept = 0) +
   geom_vline(xintercept = 0) +
@@ -144,7 +150,8 @@ p3 = ggplot(
 
 p4 = ggplot(
   fipe_changes,
-  aes(x = chg_sale, y = chg_rent, color = cycle)) +
+  aes(x = chg_sale, y = chg_rent, color = cycle)
+) +
   geom_point(alpha = 0.8) +
   geom_smooth(method = "lm", se = FALSE) +
   geom_hline(yintercept = 0) +
@@ -161,12 +168,12 @@ p4 = ggplot(
   ) +
   theme_series
 
-tbl_fipe = fipezap |> 
+tbl_fipe = fipezap |>
   pivot_wider(
     id_cols = "date",
     names_from = "rent_sale",
     values_from = "new_index"
-    )
+  )
 
 p_rent_bp = ggplot(tbl_fipe, aes(date, rent)) +
   geom_line(lwd = 1, color = "#264653") +
@@ -175,24 +182,29 @@ p_rent_bp = ggplot(tbl_fipe, aes(date, rent)) +
     title = "Preços de Aluguel",
     subtitle = "Linha tracejada indica quebra estrutural na série",
     x = NULL,
-    y = "Índice (100 = 2019)") +
+    y = "Índice (100 = 2019)"
+  ) +
   theme_series
 
 p_sale_bp = ggplot(tbl_fipe, aes(date, sale)) +
   geom_line(lwd = 1, color = "#264653") +
   geom_vline(
     xintercept = c(
-      as.Date("2010-07-01"), as.Date("2012-11-01"), as.Date("2018-12-01")
-      ),
-    linetype = 2) +
+      as.Date("2010-07-01"),
+      as.Date("2012-11-01"),
+      as.Date("2018-12-01")
+    ),
+    linetype = 2
+  ) +
   labs(
     title = "Preços de Venda",
     subtitle = "Linha tracejada indica quebra estrutural na série",
     x = NULL,
-    y = "Índice (100 = 2019)") +
+    y = "Índice (100 = 2019)"
+  ) +
   theme_series
 
-fipe_changes = fipe_changes |> 
+fipe_changes = fipe_changes |>
   mutate(
     bp = factor(if_else(date >= as.Date("2020-10-01"), 1L, 0L))
   )
@@ -219,18 +231,21 @@ p_changes = ggplot(fipe_changes, aes(chg_rent, chg_sale, color = bp)) +
 
 ivar = get_rppi_ivar(cached = TRUE)
 
-ivar = ivar |> 
-  filter(name_muni == "Brazil") |> 
-  dplyr::select(date, ivar = index) 
+ivar = ivar |>
+  filter(
+    name_muni == "Brazil",
+    date < as.Date("2024-12-01")
+  ) |>
+  dplyr::select(date, ivar = index)
 
-fipe = fipezap |> 
-  filter(rent_sale == "rent") |> 
+fipe = fipezap |>
+  filter(rent_sale == "rent") |>
   dplyr::select(date, fipezap = value)
 
 indexes = left_join(ivar, fipe, by = "date")
 
-indexes = indexes |> 
-  pivot_longer(cols = -date, names_to = "name_series", values_to = "index") |> 
+indexes = indexes |>
+  pivot_longer(cols = -date, names_to = "name_series", values_to = "index") |>
   mutate(index = index / first(index) * 100, .by = "name_series")
 
 p_fipe_ivar = ggplot(indexes, aes(date, index, color = name_series)) +
@@ -342,21 +357,21 @@ Num post futuro vou entrar em maiores detalhes sobre as séries do FipeZap e sob
 ```{r}
 # rent = ts(tbl_fipe$rent, start = c(2008, 1), frequency = 12)
 # sale = ts(tbl_fipe$sale, start = c(2008, 1), frequency = 12)
-# 
+#
 # subrent = window(rent, end = c(2020, 9))
 # subsale = window(sale, end = c(2020, 9))
-# 
+#
 # model = lm(subsale ~ subrent + time(subsale))
-# 
+#
 # dat = ts.intersect(subrent, subsale)
 # # vars::VARselect(dat, type = "const")
 # johansen = urca::ca.jo(dat, ecdet = "const", K = 2, type = "eigen", spec = "longrun", season = 12)
 # vecm = urca::cajorls(johansen, r = 1)
-# 
+#
 # test_sale = window(sale, start = c(2020, 10))
-# 
+#
 # predict(vecm_rls$rlm, newdata = test_sale)
-# 
+#
 # var_model = vars::vec2var(johansen)
 # predict(var_model, n.ahead = 40)
 ```

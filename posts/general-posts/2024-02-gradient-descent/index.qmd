@@ -3,7 +3,7 @@ title: "Gradient Descent"
 date: "2024-02-05"
 categories: ['data-science', 'tutorial-R', 'econometria']
 description: "O algoritmo de Gradient Descent é um otimizador amplamente utilizado em Machine Learning para minimizar funções de custo. Este otimizador simples é baseado na direção do gradiente da função. Neste post explico a matemática que sustenta este método e mostro como implementá-lo passo a passo."
-execute: 
+execute:
   warning: false
   message: false
 ---
@@ -17,7 +17,7 @@ library(tibble)
 
 dat <- mtcars |>
   select(c("mpg", "wt", "qsec", "am")) |>
-  mutate(across(everything(), ~as.numeric(scale(.x))))
+  mutate(across(everything(), ~ as.numeric(scale(.x))))
 ```
 
 # Entendendo o Gradiente Descent (GD)
@@ -107,8 +107,8 @@ Não é necessário, mas é instrutivo calcular a função de perda.
 Agora, calculamos o valor do gradiente neste ponto.
 
 ```{r}
-(gb0 <- sum(y - yhat) * (-2/N))
-(gb1 <- sum((y - yhat) * x) * (-2/N))
+(gb0 <- sum(y - yhat) * (-2 / N))
+(gb1 <- sum((y - yhat) * x) * (-2 / N))
 ```
 
 Por fim, o valor dos parâmetros é atualizado segundo a fórmula matemática do algoritmo. Utiliza-se $g = 0.01$ como valor para a learning-rate.
@@ -141,8 +141,9 @@ b0 <- runif(1)
 b1 <- runif(1)
 
 for (i in seq_len(num_iterations)) {
-
-  if (i %% 100 == 0) cat("Iteração: ", i, "\n")
+  if (i %% 100 == 0) {
+    cat("Iteração: ", i, "\n")
+  }
 
   #> Calcula o valor previsto
   yhat <- b0 + b1 * x
@@ -156,8 +157,8 @@ for (i in seq_len(num_iterations)) {
   }
 
   #> Calcula o gradiente nos pontos atuais
-  gb0 <- sum(y - yhat) * (-2/N)
-  gb1 <- sum((y - yhat) * x) * (-2/N)
+  gb0 <- sum(y - yhat) * (-2 / N)
+  gb1 <- sum((y - yhat) * x) * (-2 / N)
   #> Atualiza o valor dos parâmetros usando o gradiente
   b0_new <- b0 - g * gb0
   b1_new <- b1 - g * gb1
@@ -168,7 +169,6 @@ for (i in seq_len(num_iterations)) {
   if (i %% 100 == 0) {
     cat("Betas: ", c(b0, b1), "\n\n")
   }
-
 }
 ```
 
@@ -204,7 +204,6 @@ b1 <- runif(1)
 
 betas <- matrix(ncol = 2, nrow = num_iterations)
 for (i in seq_len(num_iterations)) {
-
   #> Calcula o valor previsto
   yhat <- b0 + b1 * x
 
@@ -213,19 +212,17 @@ for (i in seq_len(num_iterations)) {
   mse <- mean(error^2)
 
   #> Calcula o gradiente nos pontos atuais
-  gb0 <- sum(y - yhat) * (-2/N)
-  gb1 <- sum((y - yhat) * dat$wt) * (-2/N)
+  gb0 <- sum(y - yhat) * (-2 / N)
+  gb1 <- sum((y - yhat) * dat$wt) * (-2 / N)
   #> Atualiza o valor dos parâmetros usando o gradiente
   b0_new <- b0 - alpha * gb0
   b1_new <- b1 - alpha * gb1
 
   b0 <- b0_new
   b1 <- b1_new
-  
+
   betas[i, 1] <- b0_new
   betas[i, 2] <- b1_new
-
-
 }
 
 sel <- c(1:10, seq(20, 100, 10), seq(100, 1000, 50))
@@ -258,7 +255,7 @@ ggplot() +
     size = 5
   ) +
   transition_states(iter) +
-  enter_fade() + 
+  enter_fade() +
   exit_shrink() +
   theme_bw()
 ```
@@ -274,7 +271,7 @@ $$
 Isto é, agora temos $k$ variáveis independentes, $x_1, x_2, ..., x_k$, e temos $k$ coeficientes, $\beta_0, \beta_1, \beta_2, ..., \beta_k$, a ser estimados. A função de custo torna-se:
 
 $$
-\text{MSE} = \frac{1}{n} \sum_{i=1}^{n} (y_i - (\beta_0 + \beta_{1} x_{i1} + \beta_2 x_{i2} + ... + \beta_k X_{ik}))^2 
+\text{MSE} = \frac{1}{n} \sum_{i=1}^{n} (y_i - (\beta_0 + \beta_{1} x_{i1} + \beta_2 x_{i2} + ... + \beta_k X_{ik}))^2
 $$
 
 Agora, as derivadas parciais da função de custo em relação a cada parâmetro $\beta$ são calculadas e utilizadas para atualizar os coeficientes durante o GD.
@@ -292,18 +289,18 @@ Suponha que tenhamos $n$ observações e $k$ variáveis independentes.
 As observações de entrada podem ser organizadas em uma matriz $X$ de dimensão $n \times (k+1)$, onde a primeira coluna é composta por $1$s para representar o intercepto do modelo. Assim, a matriz $X$ é dada por:
 
 $$
-X = \begin{bmatrix} 
+X = \begin{bmatrix}
 1 & x_{11} & x_{12} & \cdots & x_{1p} \\
 1 & x_{21} & x_{22} & \cdots & x_{2p} \\
 \vdots & \vdots & \vdots & \ddots & \vdots \\
 1 & x_{n1} & x_{n2} & \cdots & x_{nk}
-\end{bmatrix} 
+\end{bmatrix}
 $$
 
 Os parâmetros do modelo $\beta$ podem ser representados como um vetor de coeficientes de dimensão $(k+1) \times 1$. Assim, o vetor $\beta$ é dado por:
 
 $$
-\beta = \begin{bmatrix} 
+\beta = \begin{bmatrix}
 \beta_0 \\
 \beta_1 \\
 \vdots \\
@@ -314,7 +311,7 @@ $$
 A resposta $y$ pode ser representada como um vetor de dimensão $n \times 1$.
 
 $$
-y = \begin{bmatrix} 
+y = \begin{bmatrix}
 y_0 \\
 y_1 \\
 \vdots \\
@@ -341,7 +338,7 @@ e = y - \hat{y} = y - X\beta
 $$ e agora o problema de minimizar
 
 $$
-\text{min } e^te = (y - X\beta)^t(y-XB) 
+\text{min } e^te = (y - X\beta)^t(y-XB)
 $$
 
 Para encontrar o gradiente da função de custo $e^te$, em relação aos parâmetros $\beta$, podemos usar cálculo matricial.

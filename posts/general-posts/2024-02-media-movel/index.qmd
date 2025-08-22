@@ -4,7 +4,7 @@ date: '2024-02-20'
 categories: ['data-science', 'economia', 'tutorial-R', 'econometria', 'time-series']
 description: 'O filtro de médias móveis serve para suavizar séries de tempo e encontrar tendências nos dados. Este filtro é bastante simples e pode ser escalado com facilidade para lidar com múltiplas séries de tempo.'
 image: "/static/plots/moving_average_trend.png"
-execute: 
+execute:
   warning: false
   message: false
 ---
@@ -15,7 +15,7 @@ knitr::opts_chunk$set(
   fig.align = "center",
   fig.asp = 0.618,
   out.width = "90%"
-  )
+)
 ```
 
 # Médias móveis
@@ -61,7 +61,7 @@ A série final é uma média móvel simétrica com menor peso nas pontas. Esta �
 Na primeira demonstração acima, definimos que todos $a_j$ teriam o mesmo valor. Isto não é necessário. Imagine que queremos um filtro que olha somente para o passado e atribui pesos decrescentes à medida que a observação se afasta no tempo. No caso de uma janela com apenas dois períodos teríamos algo da forma:
 
 $$
-z_{t} = \frac{1}{2}y_{t} + \frac{1}{3}y_{t-1} + \frac{1}{6}y_{t-2} 
+z_{t} = \frac{1}{2}y_{t} + \frac{1}{3}y_{t-1} + \frac{1}{6}y_{t-2}
 $$
 
 Note que os pesos somam 1 e vão decaindo no tempo. De forma mais geral,
@@ -129,9 +129,9 @@ tbl_ma = data.frame(
 
 ```{r}
 #| echo: false
-tbl_ma |> 
-  gt::gt() |> 
-  gt::sub_missing() |> 
+tbl_ma |>
+  gt::gt() |>
+  gt::sub_missing() |>
   gt::fmt_number(2:5, decimals = 1) |>
   gtExtras::gt_theme_538()
 ```
@@ -139,7 +139,7 @@ tbl_ma |>
 O gráfico abaixo mostra o ajuste de cada um dos filtros.
 
 ```{r}
-autoplot(mts) + 
+autoplot(mts) +
   scale_color_manual(
     name = "",
     values = c("#073B4C", "#FFD166", "#0CB0A9", "#F4592A"),
@@ -173,8 +173,8 @@ series = lapply(series, setNames, c("date", "value"))
 names(series) = code
 series = bind_rows(series, .id = "series_id")
 
-ggplot(series, aes(date, value)) + 
-  geom_line() + 
+ggplot(series, aes(date, value)) +
+  geom_line() +
   facet_wrap(vars(series_id)) +
   theme_series
 ```
@@ -182,15 +182,15 @@ ggplot(series, aes(date, value)) +
 É relativamente simples aplicar o filtro sobre cada uma das séries. O gráfico mostra o resultado final.
 
 ```{r}
-series = series |> 
-  group_by(series_id) |> 
+series = series |>
+  group_by(series_id) |>
   mutate(
     trend = roll_mean(value, n = 12, fill = NA),
     trend = roll_mean(trend, n = 2, fill = NA)
   )
 
-ggplot(series, aes(date)) + 
-  geom_line(aes(y = value), alpha = 0.8, color = "#126782") + 
+ggplot(series, aes(date)) +
+  geom_line(aes(y = value), alpha = 0.8, color = "#126782") +
   geom_line(aes(y = trend), lwd = 0.8, color = "#023047") +
   facet_wrap(vars(series_id)) +
   theme_series
@@ -213,17 +213,17 @@ macro = tibble(
   as.data.frame(USMacroG)
 )
 
-submacro = macro |> 
-  filter(date >= as.Date("1947-01-01"), date <= as.Date("1997-01-01")) |> 
+submacro = macro |>
+  filter(date >= as.Date("1947-01-01"), date <= as.Date("1997-01-01")) |>
   mutate(across(gdp:m1, log))
 
-macro_trend = submacro |> 
-  select(date, gdp, consumption, invest, m1, inflation, unemp) |> 
-  pivot_longer(col = -date, names_to = "name_series") |> 
-  group_by(name_series) |> 
+macro_trend = submacro |>
+  select(date, gdp, consumption, invest, m1, inflation, unemp) |>
+  pivot_longer(col = -date, names_to = "name_series") |>
+  group_by(name_series) |>
   mutate(
     trend = roll_mean(value, n = 25, fill = NA),
-    detrend = value - trend) |> 
+    detrend = value - trend) |>
   ungroup()
 
 ggplot(macro_trend, aes(date)) +
@@ -255,11 +255,11 @@ library(mFilter)
 tbl_unemp = select(macro, date, unemp)
 bk = mFilter::bkfilter(tbl_unemp$unemp, 6, 32, nfix = 12)
 
-tbl_unemp = tbl_unemp |> 
+tbl_unemp = tbl_unemp |>
   mutate(
     ma = roll_mean(unemp, n = 25, fill = NA, align = "center"),
     bk = mFilter::bkfilter(unemp, 6, 32, nfix = 12)$trend
-  ) |> 
+  ) |>
   pivot_longer(cols = -date, names_to = "series")
 
 ggplot(tbl_unemp, aes(date, value, color = series)) +
@@ -289,7 +289,7 @@ ewma11 = stats::filter(atletas, filter = ewma_wgt(order = 11), sides = 1L)
 
 mts = ts.intersect(atletas, ewma3, ewma5, ewma11)
 
-autoplot(mts) + 
+autoplot(mts) +
   scale_color_manual(
     name = "",
     values = c("#073B4C", "#FFD166", "#0CB0A9", "#F4592A"),
@@ -304,15 +304,15 @@ O exemplo acima é um tanto quanto artificial. Tipicamente, o filtro EWMA é uti
 library(TTR)
 data(ttrc)
 
-ttrc = ttrc |> 
-  rename_with(tolower) |> 
-  dplyr::filter(date >= as.Date("2004-01-01")) |> 
+ttrc = ttrc |>
+  rename_with(tolower) |>
+  dplyr::filter(date >= as.Date("2004-01-01")) |>
   mutate(
     trend07 = EMA(close, n = 7),
     trend30 = EMA(close, n = 30),
     trend50 = EMA(close, n = 50)
-    ) |> 
-  select(date, close, starts_with("trend")) |> 
+    ) |>
+  select(date, close, starts_with("trend")) |>
   pivot_longer(cols = -date, names_to = "series")
 
 ggplot(ttrc, aes(x = date, y = value, color = series)) +

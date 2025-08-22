@@ -14,7 +14,8 @@ knitr::opts_chunk$set(
   fig.showtext = TRUE,
   fig.width = 7,
   fig.asp = 0.618,
-  out.width = "90%")
+  out.width = "90%"
+)
 
 library(forecast)
 library(seasonal)
@@ -76,10 +77,10 @@ Vou também definir um tema para os gráficos. Este passo é opcional.
 
 ```{r}
 theme_series = theme_bw(base_size = 10, base_family = "sans") +
-    theme(
-      panel.grid.minor = element_blank(),
-      axis.text.x = element_text(angle = 90)
-      )
+  theme(
+    panel.grid.minor = element_blank(),
+    axis.text.x = element_text(angle = 90)
+  )
 ```
 
 # Visualizando sazonalidade
@@ -147,7 +148,11 @@ Alternativamente, pode-se fazer um boxplot mês a mês da série. No caso abaixo
 #| code-fold: true
 #| out-width: 100%
 #> Série de demanda por energia elétrica residencial (Brasil)
-energ = rbcb::get_series(1403, as = "tibble", start_date = as.Date("2002-01-01"))
+energ = rbcb::get_series(
+  1403,
+  as = "tibble",
+  start_date = as.Date("2002-01-01")
+)
 
 #> Regressão com tendência polinomial
 names(energ) = c("date", "consumo")
@@ -170,7 +175,7 @@ p2 <- ggplot(energ, aes(x = mes, y = detrend)) +
 
 library(patchwork)
 
-p1 / p2 + plot_layout(heights = c(1/3, 2/3))
+p1 / p2 + plot_layout(heights = c(1 / 3, 2 / 3))
 ```
 
 Por fim, vale comentar que também é possível visualizar o padrão sazonal de série com frequência mais alta. O painel abaixo mostra a temperatura média (hora a hora) na estação Jardim Botânico de Porto Alegre (RS) nos primeiros três meses de 2023. Como comentei anteriormente, este tipo de série exige alguns pacotes específicos como `xts` para ser melhor processado pelo `R`.
@@ -194,7 +199,11 @@ ggplot(temp, aes(x = hora, y = temp_ins_c, color = mes, group = date_ymd)) +
   facet_wrap(vars(mes), ncol = 1) +
   scale_x_continuous(breaks = 0:23) +
   guides(color = "none") +
-  labs(title = "Temperatura média Porto Alegre", x = "Hora do dia", y = "Celsius") +
+  labs(
+    title = "Temperatura média Porto Alegre",
+    x = "Hora do dia",
+    y = "Celsius"
+  ) +
   theme_series
 ```
 
@@ -230,8 +239,8 @@ model_lm <- tslm(ipi ~ trend + season)
 #| echo: false
 tbl_regression(
   model_lm,
-  estimate_fun = ~style_number(.x, digits = 4)
-  )
+  estimate_fun = ~ style_number(.x, digits = 4)
+)
 ```
 
 O gráfico abaixo mostra o ajuste "interno" da série. Note como a série vermelha, dos valores previstos, exibe uma tendência linear simples e um padrão sazonal fixo e recorrente. O padrão sazonal é relativamente resiliente a outliers como no caso do início da pandemia.
@@ -257,9 +266,9 @@ Pode-se também modelar a tendência de maneiras um pouco mais sofisticadas. Uma
 ```{r}
 ma_trend = stats::filter(
   ipi,
-  filter = c(1/24, rep(1/12, 10), 1/24),
+  filter = c(1 / 24, rep(1 / 12, 10), 1 / 24),
   method = "convolution"
-  )
+)
 
 autoplot(ipi) +
   autolayer(ma_trend, color = "blue") +
@@ -293,19 +302,19 @@ Comparando os modelos, vê-se que as estimativas dos efeitos sazonais são difer
 tbl1 <- tbl_regression(
   model_lm,
   conf.int = FALSE,
-  estimate_fun = ~style_number(.x, digits = 4)
-  )
+  estimate_fun = ~ style_number(.x, digits = 4)
+)
 
 tbl2 <- tbl_regression(
   model_lm2,
   conf.int = FALSE,
-  estimate_fun = ~style_number(.x, digits = 4)
-  )
+  estimate_fun = ~ style_number(.x, digits = 4)
+)
 
 tbl_merge(
   list(tbl1, tbl2),
   tab_spanner = c("Tendência linear", "Média Móvel")
-  )
+)
 ```
 
 # Testando sazonalidade
@@ -335,15 +344,15 @@ df = data.frame(
   value = as.numeric(ipi_detrend)
 )
 
-tab = df |> 
-  dplyr::filter(!is.na(value)) |> 
+tab = df |>
+  dplyr::filter(!is.na(value)) |>
   dplyr::mutate(
     rank = rank(value, ties.method = "average"),
     mes = lubridate::month(date),
     ano = lubridate::year(date)
-    )
+  )
 
-tab |> 
+tab |>
   tidyr::pivot_wider(
     id_cols = "ano",
     names_from = "mes",
@@ -365,12 +374,12 @@ kruskal.test(tab$rank, tab$mes)
 O teste de Friedman é muito similar ao teste KW, mas não exige independência das observações dentro de cada grupo (mês). O código abaixo executa o teste. Note que é preciso remover os anos incompletos, pois o teste somente funciona quando as amostras tem tamanho igual. Novamente, rejeita-se a hipótese nula, sugerindo que existe um padrão sazonal na série.
 
 ```{r}
-tab = df |> 
+tab = df |>
   dplyr::mutate(
     mes = lubridate::month(date),
     ano = lubridate::year(date)
-    ) |> 
-  dplyr::filter(!is.na(value), ano > 2012, ano < 2023) |> 
+  ) |>
+  dplyr::filter(!is.na(value), ano > 2012, ano < 2023) |>
   dplyr::mutate(rank = rank(value), .by = "ano")
 
 friedman.test(tab$rank, tab$mes, tab$ano)
@@ -424,8 +433,8 @@ dat = data.frame(
 dat$month = lubridate::month(dat$date, label = TRUE, locale = "pt_BR")
 dat$year = lubridate::year(dat$date)
 
-dat <- dat |> 
-  mutate(s_avg = mean(seasonal), .by = "month") |> 
+dat <- dat |>
+  mutate(s_avg = mean(seasonal), .by = "month") |>
   mutate(s1 = seasonal - s_avg, s2 = seasonal - s_avg + remainder)
 
 ggplot(dat) +
@@ -450,8 +459,8 @@ dat = data.frame(
 dat$month = lubridate::month(dat$date, label = TRUE, locale = "pt_BR")
 dat$year = lubridate::year(dat$date)
 
-dat <- dat |> 
-  mutate(s_avg = mean(seasonal), .by = "month") |> 
+dat <- dat |>
+  mutate(s_avg = mean(seasonal), .by = "month") |>
   mutate(s1 = seasonal - s_avg, s2 = seasonal - s_avg + remainder)
 
 ggplot(dat) +
@@ -478,7 +487,9 @@ Como último exemplo vamos analisar a demanda mensal por gasolina. A série é d
 
 ```{r}
 #| eval: false
-gasolina = read_csv("...")
+gasolina = read_csv(
+  "https://github.com/viniciusoike/restateinsight/raw/refs/heads/main/static/data/br_anp_gasolina.csv"
+)
 ```
 
 ```{r}
@@ -542,15 +553,17 @@ Um recurso bastante útil para conseguir as datas das festividades brasileiras �
 ```{r}
 #| code-fold: true
 library(rvest)
+
 url = "https://www.inf.ufrgs.br/~cabral/tabela_pascoa.html"
-tabela = url |> 
-  read_html() |> 
+
+tabela = url |>
+  read_html() |>
   html_table()
+
 tab = tabela[[1]]
 
 feriados_bra = data.frame(tab[-1, ])
 names(feriados_bra) = as.character(tab[1, ])
-
 head(feriados_bra)
 ```
 
@@ -563,9 +576,14 @@ feriados_bra$date_carnaval = parse_date(
   feriados_bra$Carnaval,
   format = "%d/%b/%Y",
   locale = locale("pt")
-  )
+)
 
-carnaval = genhol(feriados_bra$date_carnaval, start = -3, end = 1, frequency = 12)
+carnaval = genhol(
+  feriados_bra$date_carnaval,
+  start = -3,
+  end = 1,
+  frequency = 12
+)
 ```
 
 As datas de carnaval são inseridas dentro do X13-ARIMA via o argumento `xreg`.

@@ -5,6 +5,7 @@ categories: ['data-visualization', 'ggplot2', 'weekly-viz', 'time-series']
 description: "A demanda por energia elétrica é geralmente entendida como uma proxy do nível de produção de um país. Na prática, ela funciona como uma proxy mensal do PIB. Neste visualização mostro como a evolução destas variáveis divergiu nos últimos anos."
 format:
   html:
+    toc: false
     echo: false
     warning: false
     message: false
@@ -16,11 +17,8 @@ knitr::opts_chunk$set(
   fig.align = "center",
   fig.showtext = TRUE,
   fig.asp = 0.618,
-  out.width = "100%",
-  fig.retina = 2,
-  fig.dev = "svg",
-  dpi = 72
-  )
+  out.width = "100%"
+)
 ```
 
 ```{r}
@@ -29,23 +27,25 @@ library(dplyr)
 library(tidyr)
 library(purrr)
 library(ggplot2)
-
-library(showtext)
-
-font_add_google("Lato", "Lato")
-showtext_opts(dpi = 72)
-showtext_auto()
+library(ragg)
 ```
 
 ```{r}
 codes <- tribble(
-  ~code, ~name_series,
-  1402, "energia_br_comercial",
-  1403, "energia_br_residencial",
-  1404, "energia_br_industrial",
-  1406, "energia_br_todos",
-  24364, "ibcbr_dessaz",
-  22109, "pib_qtr_dessaz"
+  ~code,
+  ~name_series,
+  1402,
+  "energia_br_comercial",
+  1403,
+  "energia_br_residencial",
+  1404,
+  "energia_br_industrial",
+  1406,
+  "energia_br_todos",
+  24364,
+  "ibcbr_dessaz",
+  22109,
+  "pib_qtr_dessaz"
 )
 
 series <- map(codes$code, rbcb::get_series)
@@ -61,62 +61,64 @@ tbl_series <- bind_rows(series, .id = "name_series")
 code_energy <- as.character(c(1402:1406))
 code_gdp_dessaz <- c("24364", "22109")
 
-tbl_series <- tbl_series |> 
+tbl_series <- tbl_series |>
   filter(
     date >= as.Date("2002-01-01"),
     date <= as.Date("2024-01-01")
-    )
+  )
 
-energ_nest <- tbl_series |> 
-  filter(id %in% code_energy) |> 
-  select(date, id, name_series, value) |> 
-  group_by(name_series, id) |> 
-  nest() |> 
+energ_nest <- tbl_series |>
+  filter(id %in% code_energy) |>
+  select(date, id, name_series, value) |>
+  group_by(name_series, id) |>
+  nest() |>
   mutate(
-    y = map(data, \(d) stats::ts(log(d$value), start = c(2002, 1), frequency = 12)),
+    y = map(data, \(d) {
+      stats::ts(log(d$value), start = c(2002, 1), frequency = 12)
+    }),
     model_stl = map(y, forecast::mstl, s.window = 51, robust = TRUE),
     decomp = map(model_stl, as.data.frame)
   )
 
-energ_trend <- energ_nest |> 
-  select(name_series, id, data, decomp) |> 
-  unnest(cols = c(data, decomp)) |> 
-  ungroup() |> 
-  select(-Data) |> 
+energ_trend <- energ_nest |>
+  select(name_series, id, data, decomp) |>
+  unnest(cols = c(data, decomp)) |>
+  ungroup() |>
+  select(-Data) |>
   rename_with(tolower)
 
 # ggplot(energ_trend, aes(date, trend, color = name_series)) +
 #   geom_line() +
 #   facet_wrap(vars(name_series), scales = "free_y")
 
-energ_trend <- energ_trend |> 
-  select(name_series, id, date, value = trend) |> 
+energ_trend <- energ_trend |>
+  select(name_series, id, date, value = trend) |>
   mutate(value = exp(value))
 
-dat <- energ_trend |> 
-  bind_rows(filter(tbl_series, id %in% code_gdp_dessaz)) 
+dat <- energ_trend |>
+  bind_rows(filter(tbl_series, id %in% code_gdp_dessaz))
 
 # Index values in a common year
-base_index <- dat |> 
-  mutate(ano = lubridate::year(date)) |> 
-  filter(ano == 2005) |> 
+base_index <- dat |>
+  mutate(ano = lubridate::year(date)) |>
+  filter(ano == 2005) |>
   summarise(base_index = mean(value), .by = "name_series")
 
-dat <- dat |> 
-  left_join(base_index, by = "name_series") |> 
+dat <- dat |>
+  left_join(base_index, by = "name_series") |>
   mutate(index = value / base_index * 100)
 
 # Auxiliar table to show original series
-tbl_energ <- tbl_series |> 
+tbl_energ <- tbl_series |>
   filter(id == "1406", date >= as.Date("2003-01-01"))
 
-base_index_energ <- tbl_energ |> 
-  mutate(ano = lubridate::year(date)) |> 
-  filter(ano == 2005) |> 
+base_index_energ <- tbl_energ |>
+  mutate(ano = lubridate::year(date)) |>
+  filter(ano == 2005) |>
   summarise(base_index = mean(value), .by = "name_series")
 
-tbl_energ <- tbl_energ |> 
-  left_join(base_index_energ, by = "name_series") |> 
+tbl_energ <- tbl_energ |>
+  left_join(base_index_energ, by = "name_series") |>
   mutate(index = value / base_index * 100)
 
 dbreaks <- c(
@@ -144,7 +146,11 @@ ggplot() +
     alpha = 0.5
   ) +
   geom_line(
-    data = filter(dat, id %in% c("1406", code_gdp_dessaz), date >= as.Date("2003-01-01")),
+    data = filter(
+      dat,
+      id %in% c("1406", code_gdp_dessaz),
+      date >= as.Date("2003-01-01")
+    ),
     aes(date, index, color = name_series),
     lwd = 0.9
   ) +
@@ -157,7 +163,10 @@ ggplot() +
   ) +
   labs(
     title = "Crescimento econômico com maior gasto energético",
-    subtitle = stringr::str_wrap("Gráfico mostra a demanda total de energia elétrica junto com o IBC-Br (dessazonalizado) e PIB trimestral (dessazonalizado).\nAjuste sazonal STL da série original de consumo de energia elétrica. Valores das séries normalizados em relação\na média dos valores em 2005.", width = 111),
+    subtitle = stringr::str_wrap(
+      "Gráfico mostra a demanda total de energia elétrica junto com o IBC-Br (dessazonalizado) e PIB trimestral (dessazonalizado).\nAjuste sazonal STL da série original de consumo de energia elétrica. Valores das séries normalizados em relação\na média dos valores em 2005.",
+      width = 111
+    ),
     x = NULL,
     y = "Índice (2005 = 100)",
     caption = "Fonte: BCB. @viniciusoike"
@@ -167,28 +176,32 @@ ggplot() +
     panel.grid.minor = element_blank(),
     legend.position = 'bottom',
     plot.subtitle = element_text(size = 8, color = "gray20")
-    )
+  )
 ```
 
 O segundo gráfico divide o consumo em três grandes grupos: comercial, industrial e residencial. Neste gráfico, vê-se como a demanda por energia elétrica da indústria começa a divergir das demais após a Crise de 2008 e depois cai novamente na Crise de 2014. De maneira geral, o consumo de energia elétrica residencial parece ser o menos afetado por crises econômicas.
 
 ```{r}
-tbl_energ <- tbl_series |> 
+tbl_energ <- tbl_series |>
   filter(id %in% c("1404", "1402", "1403"), date >= as.Date("2003-01-01"))
 
-base_index_energ <- tbl_energ |> 
-  mutate(ano = lubridate::year(date)) |> 
-  filter(ano == 2005) |> 
+base_index_energ <- tbl_energ |>
+  mutate(ano = lubridate::year(date)) |>
+  filter(ano == 2005) |>
   summarise(base_index = mean(value), .by = "name_series")
 
-tbl_energ <- tbl_energ |> 
-  left_join(base_index_energ, by = "name_series") |> 
+tbl_energ <- tbl_energ |>
+  left_join(base_index_energ, by = "name_series") |>
   mutate(index = value / base_index * 100)
 
 ggplot() +
   geom_hline(yintercept = 100) +
   geom_line(
-    data = filter(dat, id %in% c("1404", "1403", "1402", code_gdp_dessaz), date >= as.Date("2003-01-01")),
+    data = filter(
+      dat,
+      id %in% c("1404", "1403", "1402", code_gdp_dessaz),
+      date >= as.Date("2003-01-01")
+    ),
     aes(date, index, color = name_series),
     lwd = 0.9
   ) +
@@ -197,11 +210,20 @@ ggplot() +
   scale_color_manual(
     name = "",
     values = c("#E9C46A", "#E76F51", "#F4A261", "#264653", "#2a9d8f"),
-    labels = c("Energ: Comercial", "Energ: Industrial", "Energ: Residencial", "IBC-Br", "PIB")
+    labels = c(
+      "Energ: Comercial",
+      "Energ: Industrial",
+      "Energ: Residencial",
+      "IBC-Br",
+      "PIB"
+    )
   ) +
   labs(
     title = "Residências e comércio elevam demanda por energia",
-    subtitle = stringr::str_wrap("Gráfico mostra a demanda total de energia elétrica por setores junto com o IBC-Br (dessazonalizado) e PIB trimestral (dessazonalizado). Ajuste sazonal STL das séries de consumo de energia elétrica. Valores das séries normalizados em relação a média dos valores em 2005.", width = 111),
+    subtitle = stringr::str_wrap(
+      "Gráfico mostra a demanda total de energia elétrica por setores junto com o IBC-Br (dessazonalizado) e PIB trimestral (dessazonalizado). Ajuste sazonal STL das séries de consumo de energia elétrica. Valores das séries normalizados em relação a média dos valores em 2005.",
+      width = 111
+    ),
     x = NULL,
     y = "Índice (2005 = 100)",
     caption = "Fonte: BCB. @viniciusoike"

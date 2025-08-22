@@ -3,7 +3,7 @@ title: "Preços de Imóveis no Brasil"
 date: "2024-01-28"
 categories: ["data-visualization", "ggplot2", "weekly-viz", "brasil", "real-estate"]
 description: "Existe uma impressão generalizada de que o preço dos imóveis no Brasil cresceu muito nos últimos anos. Neste post mostro como, em termos reais, o preço médio dos imóveis no Brasil andou de lado; na prática, os preços atuais estão abaixo dos valores observados em 2010."
-execute: 
+execute:
   message: false
   warning: false
   echo: false
@@ -14,16 +14,14 @@ knitr::opts_chunk$set(
   fig.align = "center",
   fig.asp = 0.618,
   out.width = "100%",
-  fig.dev = "svg"
+  fig.width = 8
 )
 
 library(realestatebr)
 library(dplyr)
 library(ggplot2)
-library(showtext)
+library(ragg)
 library(stringr)
-font_add_google("Lato", "Lato")
-showtext_auto()
 ```
 
 ```{r}
@@ -59,7 +57,7 @@ rppi <- bis %>%
     date >= as.Date("2000-01-01"),
     unit == "Index, 2010 = 100",
     is_nominal == FALSE
-    )
+  )
 ```
 
 ```{r}
@@ -69,12 +67,13 @@ rppi_comp <- rppi %>%
   filter(
     name_country %in% sel_agg,
     date >= as.Date("2010-01-01"),
-    date < as.Date("2023-01-01")) %>%
+    date < as.Date("2023-01-01")
+  ) %>%
   mutate(
     name_country = factor(name_country, levels = sel_agg)
-    )
+  )
 
-p_bis_geral <- ggplot(rppi_comp, aes(x = date, y = value)) + 
+p_bis_geral <- ggplot(rppi_comp, aes(x = date, y = value)) +
   geom_line(aes(color = name_country), linewidth = 1) +
   geom_hline(yintercept = 100) +
   scale_x_date(date_breaks = "1 year", date_labels = "%Y") +
@@ -83,7 +82,10 @@ p_bis_geral <- ggplot(rppi_comp, aes(x = date, y = value)) +
     x = NULL,
     y = "Índice (2010 = 100)",
     title = "Preços no Brasil seguem abaixo de 2010",
-    subtitle = str_wrap("Índices de preços imobiliários reais (ajustados pela inflação local) indexados nos valores médios de 2010. Definições de Avançados e Emergentes seguem convenções do BIS.", 111),
+    subtitle = str_wrap(
+      "Índices de preços imobiliários reais (ajustados pela inflação local) indexados nos valores médios de 2010. Definições de Avançados e Emergentes seguem convenções do BIS.",
+      111
+    ),
     caption = "Fonte: BIS. @viniciusoike"
   ) +
   theme_vini
@@ -96,7 +98,7 @@ rppi_latam <- rppi %>%
   filter(name_country %in% country_sel) %>%
   na.omit()
 
-p_bis_latam <- 
+p_bis_latam <-
   ggplot(rppi_latam, aes(x = date, y = value, color = name_country)) +
   geom_hline(yintercept = 100) +
   geom_line(linewidth = 1) +
@@ -106,7 +108,10 @@ p_bis_latam <-
     x = NULL,
     y = "Índice (2010 = 100)",
     title = "Imóveis no Brasil dessincronizados com o resto do mundo",
-    subtitle = str_wrap("Índices de preços imobiliários reais (ajustados pela inflação local) indexados nos valores médios de 2010. Comparação do Brasil com outros países selecionados.", 111)
+    subtitle = str_wrap(
+      "Índices de preços imobiliários reais (ajustados pela inflação local) indexados nos valores médios de 2010. Comparação do Brasil com outros países selecionados.",
+      111
+    )
   ) +
   theme_vini +
   theme(axis.text.x = element_text(angle = 90))
@@ -119,7 +124,7 @@ rppi_rich <- rppi %>%
   filter(name_country %in% sel_rich) %>%
   na.omit()
 
-p_bis_rich <- 
+p_bis_rich <-
   ggplot(rppi_rich, aes(x = date, y = value, color = name_country)) +
   geom_hline(yintercept = 100) +
   geom_line(linewidth = 1) +
@@ -129,7 +134,10 @@ p_bis_rich <-
     x = NULL,
     y = "Índice (2010 = 100)",
     title = "Preços no Brasil não acompanham outros países latinoamericanos.",
-    subtitle = str_wrap("Índices de preços imobiliários reais (ajustados pela inflação local) indexados nos valores médios de 2010. Comparação do Brasil com outros países selecionados.", 111)
+    subtitle = str_wrap(
+      "Índices de preços imobiliários reais (ajustados pela inflação local) indexados nos valores médios de 2010. Comparação do Brasil com outros países selecionados.",
+      111
+    )
   ) +
   theme_vini +
   theme(axis.text.x = element_text(angle = 90))
