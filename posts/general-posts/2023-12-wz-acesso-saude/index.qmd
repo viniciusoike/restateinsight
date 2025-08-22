@@ -6,7 +6,7 @@ description: "Neste post, vou mapear a acessibilidade a hospitais e leitos em S�
 format:
   html:
     code-tools: true
-execute: 
+execute:
   warning: false
   message: false
 ---
@@ -42,10 +42,15 @@ As bases de dados são de livre acesso no site [dados.gov.br](https://dados.gov.
 
 [^2]: Caso fosse necessário seria possível combinar a rotina de importação em `Python` com a rotina de análise em `R` usando `reticulate`.
 
-```{r}
+```{r import-data}
 #| include: false
-cnes = data.table::fread("/Users/viniciusoike/Downloads/cnes_estabelecimentos.csv")
-leitos = data.table::fread("/Users/viniciusoike/Downloads/Leitos_2024.csv", encoding = "Latin-1")
+cnes = data.table::fread(
+  here::here("static/data", "cnes_estabelecimentos.csv")
+)
+leitos = data.table::fread(
+  here::here("static/data", "Leitos_2024.csv"),
+  encoding = "Latin-1"
+)
 ```
 
 ```{r}
@@ -83,59 +88,18 @@ setnames(leitos, c("cnes", "endereco"), c("code_cnes", "numero"))
 
 # Vetor para selecionar colunas
 sel_cols <- c(
-  "code_cnes", "nome_estabelecimento", "logradouro", "numero", "bairro", "cep",
+  "code_cnes",
+  "nome_estabelecimento",
+  "logradouro",
+  "numero",
+  "bairro",
+  "cep",
   "leitos_existentes"
-  )
+)
 
 leitos <- leitos[uf == "SP" & municipio == "SAO PAULO", ..sel_cols]
 
 dat <- merge(leitos, cnes, by = "code_cnes")
-```
-
-### Geocoding
-
-Há poucos casos que não foram identificados no cruzamento dos dados. Especificamente, apenas três hospitais não foram identificados. Note que a função `unique` remove as linhas duplicadas pois a base de leitos não unicamente identificada por estabelecimento.
-
-```{r}
-missing_leitos <- dat[is.na(lng) | is.na(lat)]
-missing_leitos <- unique(missing_leitos[, .(code_cnes, logradouro, numero, bairro)])
-
-print(missing_leitos)
-```
-
-Para georeferenciar estas observações uso o `tidygeocoder`.
-
-```{r}
-missing_leitos[,
-  endereco := glue::glue_data(.SD, "{numero}, {logradouro}, {bairro}, São Paulo, SP")
-  ]
-
-geo_leitos <- geocode(missing_leitos, address = endereco)
-```
-
-Pelo mapa abaixo, fica claro que o processo teve sucesso.
-
-```{r}
-test = st_as_sf(geo_leitos, coords = c("long", "lat"), crs = 4326)
-mapview(test)
-```
-
-Por fim, o código abaixo remove as linhas da base original, que tinham lat/long ausente, e substitui elas pelas novas linhas encontradas acima. Algum cuidado é necessário já que a base original não é identificada por estabelecimento. Por fim, faço um teste simples para verificar que todas as observações tem lat/lng.
-
-```{r}
-setnames(geo_leitos, "long", "lng")
-setDT(geo_leitos)
-geo_leitos <- geo_leitos[, .(code_cnes, lng, lat)]
-
-fix_dat <- dat[is.na(lng) | is.na(lat)]
-set(fix_dat, j = c("lng", "lat"), value = NULL)
-fix_dat <- merge(fix_dat, geo_leitos, all.x = TRUE, by = "code_cnes")
-
-dat <- dat[!(is.na(lng) | is.na(lat))]
-dat <- rbind(dat, fix_dat)
-
-# Verifica se há lat/lngs faltando
-nrow(dat[is.na(lng) | is.na(lat)])
 ```
 
 ## Isócronas
@@ -149,12 +113,12 @@ iso_test = osrmIsochrone(
   dat[1, .(lng, lat)],
   breaks = seq(from = 10, to = 30, by = 5),
   osrm.profile = "bike"
-  )
+)
 
 mapview(iso_test, zcol = "isomax")
 ```
 
-Ao todo, temos 224 pontos que representam um estabelecimento único. Ao todo, calcula-se 1140 isócronas.
+Ao todo, temos 225 pontos que representam um estabelecimento único. Ao todo, calcula-se 1125 isócronas.
 
 ```{r}
 locations <- unique(dat[, .(code_cnes, lng, lat)])
@@ -166,7 +130,7 @@ geo_locations <- st_as_sf(
   locations[, .(lng, lat)],
   coords = c("lng", "lat"),
   crs = 4326
-  )
+)
 
 mapview(geo_locations)
 ```
@@ -176,26 +140,25 @@ O código abaixo importa as isócronas para todos os pontos. Note que este códi
 ```{r}
 #| eval: false
 get_isochrone = function(dat) {
-  
   iso = osrm::osrmIsochrone(
     dat[, .(lng, lat)],
     breaks = seq(from = 10, to = 30, by = 5),
     osrm.profile = "bike"
   )
-  
+
   return(iso)
-  
 }
 
 locations <- split(locations, by = "code_cnes")
-
 geo_locations <- lapply(locations, get_isochrone)
 ```
 
 ```{r}
 #| include: false
 # qs::qsave(geo_locations, here::here("static/data/isocronas_geo_locations_sp.qs"))
-geo_locations <- qs::qread(here::here("static/data/isocronas_geo_locations_sp.qs"))
+geo_locations <- qs::qread(here::here(
+  "static/data/isocronas_geo_locations_sp.qs"
+))
 ```
 
 ## Grid
@@ -231,24 +194,20 @@ isocronas <- dplyr::bind_rows(geo_locations, .id = "code_cnes")
 
 ```{r}
 match_h3_destination = function(dest) {
-  
-  iso = isocronas |> 
+  iso = isocronas |>
     dplyr::filter(code_cnes == dest)
 
   hex_codes = lapply(1:5, \(i) {
-    
-    idhex = dplyr::filter(iso, id == i) |> 
-      h3jsr::polygon_to_cells(res = 9) |> 
+    idhex = dplyr::filter(iso, id == i) |>
+      h3jsr::polygon_to_cells(res = 9) |>
       unlist()
-    
+
     return(data.frame(id_hex = idhex))
-    
   })
-  
+
   names(hex_codes) = as.character(c(10, 15, 20, 25, 30))
-  
+
   h3iso = rbindlist(hex_codes, idcol = "isomax")
-  
 }
 
 cnes_codes <- unique(isocronas$code_cnes)
@@ -273,7 +232,7 @@ timetable <- merge(dtgrid, min_table, by = "id_hex", all.x = TRUE)
 # Junta os dados com o grid
 acesso_saude <- dplyr::left_join(h3grid, timetable, by = "id_hex")
 # Troca NAs por > 30
-acesso_saude <- acesso_saude |> 
+acesso_saude <- acesso_saude |>
   dplyr::mutate(
     isomax = ifelse(is.na(isomax), 30, isomax)
   )
@@ -285,31 +244,32 @@ O mapa abaixo mostra o resultado final. De maneira geral, a área central da cid
 
 Como comentado inicialmente, esta métrica é bastante rudimentar. Uma melhoria interessante seria ponderar o número total de leitos disponíveis em relação a população atendida em cada região.
 
-```{r}
+```{r map-acess-health}
 #| code-fold: true
 #| out-width: "100%"
-#| out-height: 900px
-#| fig-width: 9
-#| fig-height: 12
-#| fig-format: svg
+#| fig-width: 10
+#| fig-height: 10
+#| fig-format: png
 #| fig-showtext: true
-#| fig-dpi: 72
+#| fig-dpi: 300
 
 ggplot(acesso_saude) +
   geom_sf(aes(fill = isomax, color = isomax)) +
   scale_fill_distiller(
     name = "",
     palette = "RdBu",
-    labels = c("Até 10 min.", "15 min.", "20 min", "25 min", "30 min. ou mais")) +
+    labels = c("Até 10 min.", "15 min.", "20 min", "25 min", "30 min. ou mais")
+  ) +
   scale_color_distiller(
     name = "",
     palette = "RdBu",
-    labels = c("Até 10 min.", "15 min.", "20 min", "25 min", "30 min. ou mais")) +
+    labels = c("Até 10 min.", "15 min.", "20 min", "25 min", "30 min. ou mais")
+  ) +
   labs(
     title = "Acesso a Hospitais",
     subtitle = "Tempo mínimo necessário para chegar ao hospital/leito mais próximo.",
     caption = "Fonte: Open Source Routing Machine (osrm), Dados Abertos (Ministério da Saúde)."
-    ) +
+  ) +
   ggthemes::theme_map() +
   theme(
     legend.position = "top",
