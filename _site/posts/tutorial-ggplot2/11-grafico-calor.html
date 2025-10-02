@@ -114,12 +114,17 @@ function gtag(){dataLayer.push(arguments);}
 gtag('js', new Date());
 gtag('config', 'G-EJF8PGT67H', { 'anonymize_ip': true});
 </script>
+<script src="../../site_libs/kePrint-0.0.1/kePrint.js"></script>
+<link href="../../site_libs/lightable-0.0.1/lightable.css" rel="stylesheet">
 
 
 <link rel="stylesheet" href="../../styles.css">
 <meta property="og:title" content="Indo além: mapas de clusters – Vinicius Oike">
 <meta property="og:description" content="Mapas de calor ou de clusters apresentam a variação de uma variável num plano bidemensional para sugerir padrões, tendências, ou mesmo para visualizar a evolução de uma variável num grupo de classes. Este post intermediário ensina a fazer este gráfico no R.">
+<meta property="og:image" content="https:://www.restateinsight.com/posts/tutorial-ggplot2/11-grafico-calor_files/figure-html/unnamed-chunk-1-1.png">
 <meta property="og:site_name" content="Vinicius Oike">
+<meta property="og:image:height" content="889">
+<meta property="og:image:width" content="1440">
 </head>
 
 <body class="nav-fixed quarto-light">
@@ -275,14 +280,23 @@ gtag('config', 'G-EJF8PGT67H', { 'anonymize_ip': true});
 <section id="graficos-ou-mapas-de-calor" class="level1">
 <h1>Graficos ou mapas de calor</h1>
 <p>Mapas de calor apresentam a variação de uma variável num plano bidimensional. Há dois tipos principais de mapas de calor: o mapa de calor espacial e o mapa de calor de clusters. O primeiro tipicamente é superimposto sobre um mapa e <strong>representa a intensidade de alguma variável</strong>, como a pluviosidade, temperatura, concentração de C02 e assim por diante. Já o <em>mapa de calor de clusters</em> é disposto numa <strong>matriz bidimensional para sugerir padrões</strong>, tendências, ou mesmo para visualizar a evolução de uma variável num grupo de classes.</p>
+<div class="cell" data-layout-align="center">
+<div class="cell-output-display">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="11-grafico-calor_files/figure-html/unnamed-chunk-1-1.png" class="img-fluid quarto-figure quarto-figure-center figure-img" style="width:100.0%"></p>
+</figure>
+</div>
+</div>
+</div>
 <p>O pacote <code>ggplot2</code> não tem uma função única para montar mapas de calor, então vamos explorar uma abordagem simples focada na função <code>geom_tile()</code>. Contudo, é possível montar mapas de calor também com as funções <code>geom_bin_2d()</code>, <code>geom_density_2d()</code>, <code>geom_raster()</code> ou <code>geom_hex()</code>.</p>
 <p>Neste post vamos nos focar em <strong>mapas de clusters</strong>. A discussão de mapas de calor será apresentada no post subsequente que trata sobre mapas.</p>
 <p>O código abaixo carrega os pacotes necessários. Para a paleta de cores vou utilizar o pacote <code>MetBrewer</code>, que oferece algumas paletas de cores interessantes, inspiradas em artistas famosos do <a href="https://github.com/BlakeRMills/MetBrewer">Metropolitan Museum de NY</a>. O pacote <code>pwt10</code> carrega a base de dados da <a href="https://www.rug.nl/ggdc/productivity/pwt/?lang=en">Penn World Table</a> que traz uma série de informações socioeconômicas dos países ao longo dos anos. Por fim, os pacotes <code>astsa</code>, <code>wooldridge</code> e <code>GetBCBData</code> são utilizados para conseguir acesso a base de dados para os exemplos.</p>
-<div class="cell">
+<div class="cell" data-layout-align="center">
 <div class="sourceCode cell-code" id="cb1"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Para instalar um pacote do GitHub</span></span>
 <span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>remotes<span class="sc">::</span><span class="fu">install_github</span>(<span class="st">"BlakeRMills/MetBrewer"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
-<div class="cell">
+<div class="cell" data-layout-align="center">
 <div class="sourceCode cell-code" id="cb2"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Carrega os pacotes</span></span>
 <span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(dplyr)</span>
 <span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(tidyr)</span>
@@ -312,14 +326,622 @@ gtag('config', 'G-EJF8PGT67H', { 'anonymize_ip': true});
 <section id="exemplo-crescimento-econômico" class="level2">
 <h2 class="anchored" data-anchor-id="exemplo-crescimento-econômico">Exemplo: Crescimento Econômico</h2>
 <p>Primeiro vamos importar a base de dados da Penn World Table usando o pacote <code>pwt10</code>.</p>
-<div class="cell">
+<div class="cell" data-layout-align="center">
 <div class="sourceCode cell-code" id="cb3"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="co"># A base de dados</span></span>
 <span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>pwt <span class="ot">&lt;-</span> <span class="fu">as_tibble</span>(pwt10<span class="sc">::</span>pwt10<span class="fl">.0</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 <p>A base tem várias colunas mas vamos nos focar somente nas colunas <code>country</code>, <code>pop</code> (população do país em milhões de habitante) e <code>rgdpe</code>, que o é o PIB (pela ótica da despesa) em milhões de US$ constantes (2017).</p>
+<div class="cell" data-layout-align="center">
+<div class="cell-output-display">
+<div style="border: 1px solid #ddd; padding: 5px; overflow-x: scroll; width:100%; ">
+<div class="table-responsive">
+<table class="table table-condensed table-hover table-striped caption-top table-sm small" data-quarto-postprocess="true">
+<thead>
+<tr class="header">
+<th style="text-align: center;" data-quarto-table-cell-role="th">country</th>
+<th style="text-align: center;" data-quarto-table-cell-role="th">isocode</th>
+<th style="text-align: center;" data-quarto-table-cell-role="th">year</th>
+<th style="text-align: center;" data-quarto-table-cell-role="th">currency</th>
+<th style="text-align: center;" data-quarto-table-cell-role="th">rgdpe</th>
+<th style="text-align: center;" data-quarto-table-cell-role="th">rgdpo</th>
+<th style="text-align: center;" data-quarto-table-cell-role="th">pop</th>
+<th style="text-align: center;" data-quarto-table-cell-role="th">emp</th>
+<th style="text-align: center;" data-quarto-table-cell-role="th">avh</th>
+<th style="text-align: center;" data-quarto-table-cell-role="th">hc</th>
+<th style="text-align: center;" data-quarto-table-cell-role="th">ccon</th>
+<th style="text-align: center;" data-quarto-table-cell-role="th">cda</th>
+<th style="text-align: center;" data-quarto-table-cell-role="th">cgdpe</th>
+<th style="text-align: center;" data-quarto-table-cell-role="th">cgdpo</th>
+<th style="text-align: center;" data-quarto-table-cell-role="th">cn</th>
+<th style="text-align: center;" data-quarto-table-cell-role="th">ck</th>
+<th style="text-align: center;" data-quarto-table-cell-role="th">ctfp</th>
+<th style="text-align: center;" data-quarto-table-cell-role="th">cwtfp</th>
+<th style="text-align: center;" data-quarto-table-cell-role="th">rgdpna</th>
+<th style="text-align: center;" data-quarto-table-cell-role="th">rconna</th>
+<th style="text-align: center;" data-quarto-table-cell-role="th">rdana</th>
+<th style="text-align: center;" data-quarto-table-cell-role="th">rnna</th>
+<th style="text-align: center;" data-quarto-table-cell-role="th">rkna</th>
+<th style="text-align: center;" data-quarto-table-cell-role="th">rtfpna</th>
+<th style="text-align: center;" data-quarto-table-cell-role="th">rwtfpna</th>
+<th style="text-align: center;" data-quarto-table-cell-role="th">labsh</th>
+<th style="text-align: center;" data-quarto-table-cell-role="th">irr</th>
+<th style="text-align: center;" data-quarto-table-cell-role="th">delta</th>
+<th style="text-align: center;" data-quarto-table-cell-role="th">xr</th>
+<th style="text-align: center;" data-quarto-table-cell-role="th">pl_con</th>
+<th style="text-align: center;" data-quarto-table-cell-role="th">pl_da</th>
+<th style="text-align: center;" data-quarto-table-cell-role="th">pl_gdpo</th>
+<th style="text-align: center;" data-quarto-table-cell-role="th">i_cig</th>
+<th style="text-align: center;" data-quarto-table-cell-role="th">i_xm</th>
+<th style="text-align: center;" data-quarto-table-cell-role="th">i_xr</th>
+<th style="text-align: center;" data-quarto-table-cell-role="th">i_outlier</th>
+<th style="text-align: center;" data-quarto-table-cell-role="th">i_irr</th>
+<th style="text-align: center;" data-quarto-table-cell-role="th">cor_exp</th>
+<th style="text-align: center;" data-quarto-table-cell-role="th">statcap</th>
+<th style="text-align: center;" data-quarto-table-cell-role="th">csh_c</th>
+<th style="text-align: center;" data-quarto-table-cell-role="th">csh_i</th>
+<th style="text-align: center;" data-quarto-table-cell-role="th">csh_g</th>
+<th style="text-align: center;" data-quarto-table-cell-role="th">csh_x</th>
+<th style="text-align: center;" data-quarto-table-cell-role="th">csh_m</th>
+<th style="text-align: center;" data-quarto-table-cell-role="th">csh_r</th>
+<th style="text-align: center;" data-quarto-table-cell-role="th">pl_c</th>
+<th style="text-align: center;" data-quarto-table-cell-role="th">pl_i</th>
+<th style="text-align: center;" data-quarto-table-cell-role="th">pl_g</th>
+<th style="text-align: center;" data-quarto-table-cell-role="th">pl_x</th>
+<th style="text-align: center;" data-quarto-table-cell-role="th">pl_m</th>
+<th style="text-align: center;" data-quarto-table-cell-role="th">pl_n</th>
+<th style="text-align: center;" data-quarto-table-cell-role="th">pl_k</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: center;">Brazil</td>
+<td style="text-align: center;">BRA</td>
+<td style="text-align: center;">1950</td>
+<td style="text-align: center;">Brazilian Real</td>
+<td style="text-align: center;">92711</td>
+<td style="text-align: center;">89223</td>
+<td style="text-align: center;">53</td>
+<td style="text-align: center;">17</td>
+<td style="text-align: center;">2042</td>
+<td style="text-align: center;">1</td>
+<td style="text-align: center;">67102</td>
+<td style="text-align: center;">83933</td>
+<td style="text-align: center;">87798</td>
+<td style="text-align: center;">85324</td>
+<td style="text-align: center;">227373</td>
+<td style="text-align: center;">NA</td>
+<td style="text-align: center;">NA</td>
+<td style="text-align: center;">NA</td>
+<td style="text-align: center;">145828</td>
+<td style="text-align: center;">108970</td>
+<td style="text-align: center;">144486</td>
+<td style="text-align: center;">608567</td>
+<td style="text-align: center;">NA</td>
+<td style="text-align: center;">NA</td>
+<td style="text-align: center;">NA</td>
+<td style="text-align: center;">1</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">extrapolated</td>
+<td style="text-align: center;">extrapolated</td>
+<td style="text-align: center;">market</td>
+<td style="text-align: center;">no</td>
+<td style="text-align: center;">regular</td>
+<td style="text-align: center;">NA</td>
+<td style="text-align: center;">NA</td>
+<td style="text-align: center;">1</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">NA</td>
+</tr>
+<tr class="even">
+<td style="text-align: center;">Brazil</td>
+<td style="text-align: center;">BRA</td>
+<td style="text-align: center;">1951</td>
+<td style="text-align: center;">Brazilian Real</td>
+<td style="text-align: center;">96889</td>
+<td style="text-align: center;">91904</td>
+<td style="text-align: center;">55</td>
+<td style="text-align: center;">17</td>
+<td style="text-align: center;">2051</td>
+<td style="text-align: center;">1</td>
+<td style="text-align: center;">70038</td>
+<td style="text-align: center;">91417</td>
+<td style="text-align: center;">92312</td>
+<td style="text-align: center;">87631</td>
+<td style="text-align: center;">242814</td>
+<td style="text-align: center;">NA</td>
+<td style="text-align: center;">NA</td>
+<td style="text-align: center;">NA</td>
+<td style="text-align: center;">152969</td>
+<td style="text-align: center;">113887</td>
+<td style="text-align: center;">155273</td>
+<td style="text-align: center;">654280</td>
+<td style="text-align: center;">NA</td>
+<td style="text-align: center;">NA</td>
+<td style="text-align: center;">NA</td>
+<td style="text-align: center;">1</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">extrapolated</td>
+<td style="text-align: center;">extrapolated</td>
+<td style="text-align: center;">market</td>
+<td style="text-align: center;">no</td>
+<td style="text-align: center;">regular</td>
+<td style="text-align: center;">NA</td>
+<td style="text-align: center;">NA</td>
+<td style="text-align: center;">1</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">NA</td>
+</tr>
+<tr class="odd">
+<td style="text-align: center;">Brazil</td>
+<td style="text-align: center;">BRA</td>
+<td style="text-align: center;">1952</td>
+<td style="text-align: center;">Brazilian Real</td>
+<td style="text-align: center;">105943</td>
+<td style="text-align: center;">101667</td>
+<td style="text-align: center;">56</td>
+<td style="text-align: center;">18</td>
+<td style="text-align: center;">2060</td>
+<td style="text-align: center;">1</td>
+<td style="text-align: center;">76213</td>
+<td style="text-align: center;">100796</td>
+<td style="text-align: center;">101407</td>
+<td style="text-align: center;">97895</td>
+<td style="text-align: center;">261085</td>
+<td style="text-align: center;">NA</td>
+<td style="text-align: center;">NA</td>
+<td style="text-align: center;">NA</td>
+<td style="text-align: center;">167515</td>
+<td style="text-align: center;">123881</td>
+<td style="text-align: center;">170169</td>
+<td style="text-align: center;">705852</td>
+<td style="text-align: center;">NA</td>
+<td style="text-align: center;">NA</td>
+<td style="text-align: center;">NA</td>
+<td style="text-align: center;">1</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">extrapolated</td>
+<td style="text-align: center;">extrapolated</td>
+<td style="text-align: center;">market</td>
+<td style="text-align: center;">no</td>
+<td style="text-align: center;">regular</td>
+<td style="text-align: center;">NA</td>
+<td style="text-align: center;">NA</td>
+<td style="text-align: center;">1</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">NA</td>
+</tr>
+<tr class="even">
+<td style="text-align: center;">Brazil</td>
+<td style="text-align: center;">BRA</td>
+<td style="text-align: center;">1953</td>
+<td style="text-align: center;">Brazilian Real</td>
+<td style="text-align: center;">108931</td>
+<td style="text-align: center;">105003</td>
+<td style="text-align: center;">58</td>
+<td style="text-align: center;">18</td>
+<td style="text-align: center;">2069</td>
+<td style="text-align: center;">1</td>
+<td style="text-align: center;">80936</td>
+<td style="text-align: center;">100441</td>
+<td style="text-align: center;">104321</td>
+<td style="text-align: center;">101629</td>
+<td style="text-align: center;">272078</td>
+<td style="text-align: center;">NA</td>
+<td style="text-align: center;">NA</td>
+<td style="text-align: center;">NA</td>
+<td style="text-align: center;">176028</td>
+<td style="text-align: center;">130481</td>
+<td style="text-align: center;">171026</td>
+<td style="text-align: center;">737951</td>
+<td style="text-align: center;">NA</td>
+<td style="text-align: center;">NA</td>
+<td style="text-align: center;">NA</td>
+<td style="text-align: center;">1</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">extrapolated</td>
+<td style="text-align: center;">extrapolated</td>
+<td style="text-align: center;">market</td>
+<td style="text-align: center;">no</td>
+<td style="text-align: center;">regular</td>
+<td style="text-align: center;">NA</td>
+<td style="text-align: center;">NA</td>
+<td style="text-align: center;">1</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">NA</td>
+</tr>
+<tr class="odd">
+<td style="text-align: center;">Brazil</td>
+<td style="text-align: center;">BRA</td>
+<td style="text-align: center;">1954</td>
+<td style="text-align: center;">Brazilian Real</td>
+<td style="text-align: center;">118686</td>
+<td style="text-align: center;">113983</td>
+<td style="text-align: center;">60</td>
+<td style="text-align: center;">19</td>
+<td style="text-align: center;">2078</td>
+<td style="text-align: center;">1</td>
+<td style="text-align: center;">88946</td>
+<td style="text-align: center;">111934</td>
+<td style="text-align: center;">113384</td>
+<td style="text-align: center;">110080</td>
+<td style="text-align: center;">287037</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">1</td>
+<td style="text-align: center;">1</td>
+<td style="text-align: center;">190468</td>
+<td style="text-align: center;">143957</td>
+<td style="text-align: center;">191257</td>
+<td style="text-align: center;">780613</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">1</td>
+<td style="text-align: center;">1</td>
+<td style="text-align: center;">1</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">extrapolated</td>
+<td style="text-align: center;">extrapolated</td>
+<td style="text-align: center;">market</td>
+<td style="text-align: center;">no</td>
+<td style="text-align: center;">regular</td>
+<td style="text-align: center;">NA</td>
+<td style="text-align: center;">NA</td>
+<td style="text-align: center;">1</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">3</td>
+</tr>
+<tr class="even">
+<td style="text-align: center;">Brazil</td>
+<td style="text-align: center;">BRA</td>
+<td style="text-align: center;">1955</td>
+<td style="text-align: center;">Brazilian Real</td>
+<td style="text-align: center;">127384</td>
+<td style="text-align: center;">122678</td>
+<td style="text-align: center;">61</td>
+<td style="text-align: center;">20</td>
+<td style="text-align: center;">2087</td>
+<td style="text-align: center;">1</td>
+<td style="text-align: center;">94400</td>
+<td style="text-align: center;">117254</td>
+<td style="text-align: center;">121279</td>
+<td style="text-align: center;">118126</td>
+<td style="text-align: center;">301169</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">1</td>
+<td style="text-align: center;">1</td>
+<td style="text-align: center;">202763</td>
+<td style="text-align: center;">153006</td>
+<td style="text-align: center;">201258</td>
+<td style="text-align: center;">820627</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">1</td>
+<td style="text-align: center;">1</td>
+<td style="text-align: center;">1</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">extrapolated</td>
+<td style="text-align: center;">extrapolated</td>
+<td style="text-align: center;">market</td>
+<td style="text-align: center;">no</td>
+<td style="text-align: center;">regular</td>
+<td style="text-align: center;">NA</td>
+<td style="text-align: center;">NA</td>
+<td style="text-align: center;">1</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">2</td>
+</tr>
+<tr class="odd">
+<td style="text-align: center;">Brazil</td>
+<td style="text-align: center;">BRA</td>
+<td style="text-align: center;">1956</td>
+<td style="text-align: center;">Brazilian Real</td>
+<td style="text-align: center;">131865</td>
+<td style="text-align: center;">127205</td>
+<td style="text-align: center;">63</td>
+<td style="text-align: center;">20</td>
+<td style="text-align: center;">2097</td>
+<td style="text-align: center;">1</td>
+<td style="text-align: center;">97827</td>
+<td style="text-align: center;">119971</td>
+<td style="text-align: center;">125158</td>
+<td style="text-align: center;">122067</td>
+<td style="text-align: center;">313178</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">1</td>
+<td style="text-align: center;">1</td>
+<td style="text-align: center;">210124</td>
+<td style="text-align: center;">159465</td>
+<td style="text-align: center;">206719</td>
+<td style="text-align: center;">854692</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">1</td>
+<td style="text-align: center;">1</td>
+<td style="text-align: center;">1</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">extrapolated</td>
+<td style="text-align: center;">extrapolated</td>
+<td style="text-align: center;">market</td>
+<td style="text-align: center;">no</td>
+<td style="text-align: center;">regular</td>
+<td style="text-align: center;">NA</td>
+<td style="text-align: center;">NA</td>
+<td style="text-align: center;">1</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">2</td>
+</tr>
+<tr class="even">
+<td style="text-align: center;">Brazil</td>
+<td style="text-align: center;">BRA</td>
+<td style="text-align: center;">1957</td>
+<td style="text-align: center;">Brazilian Real</td>
+<td style="text-align: center;">143384</td>
+<td style="text-align: center;">138373</td>
+<td style="text-align: center;">65</td>
+<td style="text-align: center;">21</td>
+<td style="text-align: center;">2106</td>
+<td style="text-align: center;">1</td>
+<td style="text-align: center;">104123</td>
+<td style="text-align: center;">133653</td>
+<td style="text-align: center;">136122</td>
+<td style="text-align: center;">132684</td>
+<td style="text-align: center;">332711</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">1</td>
+<td style="text-align: center;">1</td>
+<td style="text-align: center;">231221</td>
+<td style="text-align: center;">170139</td>
+<td style="text-align: center;">228611</td>
+<td style="text-align: center;">911217</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">1</td>
+<td style="text-align: center;">1</td>
+<td style="text-align: center;">1</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">extrapolated</td>
+<td style="text-align: center;">extrapolated</td>
+<td style="text-align: center;">market</td>
+<td style="text-align: center;">no</td>
+<td style="text-align: center;">regular</td>
+<td style="text-align: center;">NA</td>
+<td style="text-align: center;">NA</td>
+<td style="text-align: center;">1</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">2</td>
+</tr>
+<tr class="odd">
+<td style="text-align: center;">Brazil</td>
+<td style="text-align: center;">BRA</td>
+<td style="text-align: center;">1958</td>
+<td style="text-align: center;">Brazilian Real</td>
+<td style="text-align: center;">151546</td>
+<td style="text-align: center;">146430</td>
+<td style="text-align: center;">67</td>
+<td style="text-align: center;">21</td>
+<td style="text-align: center;">2115</td>
+<td style="text-align: center;">1</td>
+<td style="text-align: center;">113085</td>
+<td style="text-align: center;">142400</td>
+<td style="text-align: center;">144065</td>
+<td style="text-align: center;">141124</td>
+<td style="text-align: center;">350683</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">1</td>
+<td style="text-align: center;">1</td>
+<td style="text-align: center;">245978</td>
+<td style="text-align: center;">184877</td>
+<td style="text-align: center;">244075</td>
+<td style="text-align: center;">963159</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">1</td>
+<td style="text-align: center;">1</td>
+<td style="text-align: center;">1</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">extrapolated</td>
+<td style="text-align: center;">extrapolated</td>
+<td style="text-align: center;">market</td>
+<td style="text-align: center;">no</td>
+<td style="text-align: center;">regular</td>
+<td style="text-align: center;">NA</td>
+<td style="text-align: center;">NA</td>
+<td style="text-align: center;">1</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">2</td>
+</tr>
+<tr class="even">
+<td style="text-align: center;">Brazil</td>
+<td style="text-align: center;">BRA</td>
+<td style="text-align: center;">1959</td>
+<td style="text-align: center;">Brazilian Real</td>
+<td style="text-align: center;">158732</td>
+<td style="text-align: center;">153143</td>
+<td style="text-align: center;">69</td>
+<td style="text-align: center;">22</td>
+<td style="text-align: center;">2125</td>
+<td style="text-align: center;">1</td>
+<td style="text-align: center;">116669</td>
+<td style="text-align: center;">152878</td>
+<td style="text-align: center;">150332</td>
+<td style="text-align: center;">147218</td>
+<td style="text-align: center;">376789</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">1</td>
+<td style="text-align: center;">1</td>
+<td style="text-align: center;">264945</td>
+<td style="text-align: center;">191877</td>
+<td style="text-align: center;">262297</td>
+<td style="text-align: center;">1033868</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">1</td>
+<td style="text-align: center;">1</td>
+<td style="text-align: center;">1</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">extrapolated</td>
+<td style="text-align: center;">extrapolated</td>
+<td style="text-align: center;">market</td>
+<td style="text-align: center;">no</td>
+<td style="text-align: center;">regular</td>
+<td style="text-align: center;">NA</td>
+<td style="text-align: center;">NA</td>
+<td style="text-align: center;">1</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">2</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+</div>
 <p>Vamos selecionar apenas os principais países da América Latina para montar nossa visualização.</p>
 <p>O primeiro painel que iremos explorar vai exibir os ciclos de expansão e de recessão nos países latino-americanos ao longo dos anos, desde 1950. Para isto vamos primeiro calcular o PIB per capital real de cada país e depois criar uma variável <em>dummy</em> que indica com o valor 1 se o país teve crescimento do PIB per capita real e 0 caso contrário.</p>
-<div class="cell">
+<div class="cell" data-layout-align="center">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="sourceCode cell-code" id="cb4"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Vetor com países</span></span>
@@ -365,16 +987,23 @@ gtag('config', 'G-EJF8PGT67H', { 'anonymize_ip': true});
 <h2 class="anchored" data-anchor-id="gráfico-de-calor">Gráfico de Calor</h2>
 <p>Apesar de bidimensional, um heatmap serve para representar dados em três dimensões. No nosso caso, a função <code>geom_tile()</code> mapeia as variáveis <code>x</code> e <code>y</code> nas coordenadas enquanto a variável <code>fill</code> representa uma variável numérica adicional, seja ela categórica ou contínua.</p>
 <p>O código abaixo monta um heatmap simples. No gráfico, os anos de crescimento e de recessão são destacados em cada país.</p>
-<div class="cell">
+<div class="cell" data-layout-align="center">
 <div class="sourceCode cell-code" id="cb5"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>(<span class="at">data =</span> latam, <span class="fu">aes</span>(<span class="at">x =</span> year, <span class="at">y =</span> country)) <span class="sc">+</span></span>
 <span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_tile</span>(<span class="fu">aes</span>(<span class="at">fill =</span> growth))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output-display">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="11-grafico-calor_files/figure-html/unnamed-chunk-7-1.png" class="img-fluid quarto-figure quarto-figure-center figure-img" style="width:100.0%"></p>
+</figure>
+</div>
+</div>
 </div>
 <p>O gráfico acima é bastante interessante, mas pode ser melhorado em diversos aspectos. Vamos implementar as melhorias sequencialmente.</p>
 <section id="reordenar-as-colunas" class="level3">
 <h3 class="anchored" data-anchor-id="reordenar-as-colunas">Reordenar as colunas</h3>
 <p>Note que os países no gráfico acima estão organizados de forma alfabética, mas a ordem está invertida. Para alterar a ordem de uma variável categórica temos que alterar os seus níveis. No <code>R</code> variáveis categóricas tem uma classe especial <code>factor</code> e seus níveis são definidos pelo argumento <code>levels</code>.</p>
 <p>Tipicamente, isto envolve definir um vetor com a ordem dos níveis e criar uma variável nova como no exemplo abaixo.</p>
-<div class="cell">
+<div class="cell" data-layout-align="center">
 <div class="sourceCode cell-code" id="cb6"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Vetor com o nome de todos os países latino-americanos</span></span>
 <span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>lvls <span class="ot">&lt;-</span> <span class="fu">unique</span>(latam[[<span class="st">"country"</span>]])</span>
 <span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a><span class="co"># Inverte a ordem do vetor</span></span>
@@ -385,30 +1014,44 @@ gtag('config', 'G-EJF8PGT67H', { 'anonymize_ip': true});
 </div>
 <p>Há, contudo, vários atalhos para melhor lidar com <code>factors</code>. Em particular, o pacote <code>forcats</code> carregado junto no <code>tidyverse</code> tem uma série de funções que facilitam o trato de variáveis categóricas. A função <code>fct_rev()</code>, por exemplo, serve para inverter a ordem de uma variável categórica.</p>
 <p>Assim, o código abaixo chega no mesmo resultado.</p>
-<div class="cell">
+<div class="cell" data-layout-align="center">
 <div class="sourceCode cell-code" id="cb7"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Inverte a ordem da variável country</span></span>
 <span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>latam <span class="ot">&lt;-</span> latam <span class="sc">|&gt;</span></span>
 <span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">country =</span> <span class="fu">fct_rev</span>(country))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 <p>Note que o gráfico está em ordem alfabética, começando na Argentina e terminando na Venezuela.</p>
-<div class="cell">
+<div class="cell" data-layout-align="center">
 <div class="sourceCode cell-code" id="cb8"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Monta o gráfico</span></span>
 <span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>(<span class="at">data =</span> latam, <span class="fu">aes</span>(<span class="at">x =</span> year, <span class="at">y =</span> country)) <span class="sc">+</span></span>
 <span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_tile</span>(<span class="fu">aes</span>(<span class="at">fill =</span> growth))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output-display">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="11-grafico-calor_files/figure-html/unnamed-chunk-10-1.png" class="img-fluid quarto-figure quarto-figure-center figure-img" style="width:100.0%"></p>
+</figure>
+</div>
+</div>
 </div>
 </section>
 <section id="dimensionar-o-gráfico" class="level3">
 <h3 class="anchored" data-anchor-id="dimensionar-o-gráfico">Dimensionar o gráfico</h3>
 <p>Podemos inserir um pouco de espaço entre as séries de cada país alterando o argumento <code>height</code> da função <code>geom_tile()</code>.</p>
-<div class="cell">
+<div class="cell" data-layout-align="center">
 <div class="sourceCode cell-code" id="cb9"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>(<span class="at">data =</span> latam, <span class="fu">aes</span>(<span class="at">x =</span> year, <span class="at">y =</span> country)) <span class="sc">+</span></span>
 <span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_tile</span>(<span class="fu">aes</span>(<span class="at">fill =</span> growth), <span class="at">height =</span> <span class="fl">0.9</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output-display">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="11-grafico-calor_files/figure-html/unnamed-chunk-11-1.png" class="img-fluid quarto-figure quarto-figure-center figure-img" style="width:100.0%"></p>
+</figure>
+</div>
+</div>
 </div>
 </section>
 <section id="alterar-as-cores" class="level3">
 <h3 class="anchored" data-anchor-id="alterar-as-cores">Alterar as cores</h3>
 <p>A escolha do esquema de cores é talvez o aspecto mais importante de um heat map. Não é fácil encontrar boas cores que sejam intuitivas e que também sejam inclusivas. Aqui utilizamos uma paleta inspirada no artista plástico Hiroshige Utagawa para conseguir alguns tons de azul/vermelho para representar os anos de expansão/recessão.</p>
-<div class="cell">
+<div class="cell" data-layout-align="center">
 <div class="sourceCode cell-code" id="cb10"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Colors</span></span>
 <span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a>colors_hiroshige <span class="ot">&lt;-</span> <span class="fu">met.brewer</span>(<span class="at">name =</span> <span class="st">"Hiroshige"</span>)</span>
 <span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a>colors_binary <span class="ot">&lt;-</span> colors_hiroshige[<span class="fu">c</span>(<span class="dv">1</span>, <span class="dv">8</span>)]</span>
@@ -428,6 +1071,13 @@ gtag('config', 'G-EJF8PGT67H', { 'anonymize_ip': true});
 <span id="cb10-17"><a href="#cb10-17" aria-hidden="true" tabindex="-1"></a>  )</span>
 <span id="cb10-18"><a href="#cb10-18" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb10-19"><a href="#cb10-19" aria-hidden="true" tabindex="-1"></a>p</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output-display">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="11-grafico-calor_files/figure-html/unnamed-chunk-12-1.png" class="img-fluid quarto-figure quarto-figure-center figure-img" style="width:100.0%"></p>
+</figure>
+</div>
+</div>
 </div>
 </section>
 <section id="ajustar-e-duplicar-o-eixo" class="level3">
@@ -435,7 +1085,7 @@ gtag('config', 'G-EJF8PGT67H', { 'anonymize_ip': true});
 <p>A leitura dos anos no gráfico acima pode ser melhorada. Primeiro, vamos inserir mais quebras no eixo-x e sinalizar que a série tem início em 1951 e tem fim em 2019. Para ajustar o eixo usamos a função <code>scale_x_continuous()</code> variando o argumento <code>breaks</code>.</p>
 <p>Quando temos um gráfico grande, pode ser útil duplicar os eixos para facilitar a sua leitura. Vamos duplicar o eixo-x (anos) usando <code>sec.axis = dup_axis()</code>.</p>
 <p>Por fim, note que há espaço ocioso tanto no lado esquerdo como no lado direito do gráfico (espaço entre os “tiles” e a borda do painel do gráfico). O argumento <code>expand = c(0, 0)</code> remove o espaço entre as barras e o limite do painel.</p>
-<div class="cell">
+<div class="cell" data-layout-align="center">
 <div class="sourceCode cell-code" id="cb11"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a>latam_na <span class="ot">&lt;-</span> latam <span class="sc">|&gt;</span></span>
 <span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(<span class="sc">!</span><span class="fu">is.na</span>(growth))</span>
 <span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a></span>
@@ -451,12 +1101,19 @@ gtag('config', 'G-EJF8PGT67H', { 'anonymize_ip': true});
 <span id="cb11-13"><a href="#cb11-13" aria-hidden="true" tabindex="-1"></a>  )</span>
 <span id="cb11-14"><a href="#cb11-14" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb11-15"><a href="#cb11-15" aria-hidden="true" tabindex="-1"></a>p</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output-display">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="11-grafico-calor_files/figure-html/unnamed-chunk-13-1.png" class="img-fluid quarto-figure quarto-figure-center figure-img" style="width:100.0%"></p>
+</figure>
+</div>
+</div>
 </div>
 </section>
 <section id="ajustar-o-tema" class="level3">
 <h3 class="anchored" data-anchor-id="ajustar-o-tema">Ajustar o tema</h3>
 <p>Os ajustes finos de um gráfico são feitos com a função <code>theme()</code>. Neste caso, queremos um gráfico com poucos elementos. Uma abordagem simples para modificar os detalhes do gráfico é inicar com um template, um tema padrão. Neste caso, começamos como um tema chamado <code>theme_minimal()</code>.</p>
-<div class="cell">
+<div class="cell" data-layout-align="center">
 <div class="sourceCode cell-code" id="cb12"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a>p <span class="ot">&lt;-</span> p <span class="sc">+</span></span>
 <span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Tema minimalista que serve de template</span></span>
 <span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_minimal</span>() <span class="sc">+</span></span>
@@ -471,13 +1128,20 @@ gtag('config', 'G-EJF8PGT67H', { 'anonymize_ip': true});
 <span id="cb12-12"><a href="#cb12-12" aria-hidden="true" tabindex="-1"></a>  )</span>
 <span id="cb12-13"><a href="#cb12-13" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb12-14"><a href="#cb12-14" aria-hidden="true" tabindex="-1"></a>p</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output-display">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="11-grafico-calor_files/figure-html/unnamed-chunk-14-1.png" class="img-fluid quarto-figure quarto-figure-center figure-img" style="width:100.0%"></p>
+</figure>
+</div>
+</div>
 </div>
 </section>
 <section id="adicionar-linhas-de-grade" class="level3">
 <h3 class="anchored" data-anchor-id="adicionar-linhas-de-grade">Adicionar linhas de grade</h3>
 <p>As linhas de grade de um gráfico facilitam a interpretação dos dados, mas a função <code>geom_tile()</code> fica por cima delas. Podemos sobrepor linhas verticais no gráfico para sinalizar o início de cada uma das décadas.</p>
 <p>O código abaixo faz isto com a função <code>geom_vline()</code> que serve para desenhar linhas verticais num gráfico com o argumento <code>xintercept</code>. O argumento <code>linetype = 2</code> indica que a linha deve ser tracejada.</p>
-<div class="cell">
+<div class="cell" data-layout-align="center">
 <div class="sourceCode cell-code" id="cb13"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a>p <span class="ot">&lt;-</span> p <span class="sc">+</span></span>
 <span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Desenha linhas verticais no gráfico</span></span>
 <span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_vline</span>(</span>
@@ -490,11 +1154,18 @@ gtag('config', 'G-EJF8PGT67H', { 'anonymize_ip': true});
 <span id="cb13-10"><a href="#cb13-10" aria-hidden="true" tabindex="-1"></a>  )</span>
 <span id="cb13-11"><a href="#cb13-11" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb13-12"><a href="#cb13-12" aria-hidden="true" tabindex="-1"></a>p</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output-display">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="11-grafico-calor_files/figure-html/unnamed-chunk-15-1.png" class="img-fluid quarto-figure quarto-figure-center figure-img" style="width:100.0%"></p>
+</figure>
+</div>
+</div>
 </div>
 </section>
 <section id="ajustar-o-nome-dos-eixos" class="level3">
 <h3 class="anchored" data-anchor-id="ajustar-o-nome-dos-eixos">Ajustar o nome dos eixos</h3>
-<div class="cell">
+<div class="cell" data-layout-align="center">
 <div class="sourceCode cell-code" id="cb14"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a>p <span class="ot">&lt;-</span> p <span class="sc">+</span></span>
 <span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(</span>
 <span id="cb14-3"><a href="#cb14-3" aria-hidden="true" tabindex="-1"></a>    <span class="at">title =</span> <span class="st">"Growth/Recession across Latin America"</span>,</span>
@@ -503,12 +1174,19 @@ gtag('config', 'G-EJF8PGT67H', { 'anonymize_ip': true});
 <span id="cb14-6"><a href="#cb14-6" aria-hidden="true" tabindex="-1"></a>  )</span>
 <span id="cb14-7"><a href="#cb14-7" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb14-8"><a href="#cb14-8" aria-hidden="true" tabindex="-1"></a>p</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output-display">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="11-grafico-calor_files/figure-html/unnamed-chunk-16-1.png" class="img-fluid quarto-figure quarto-figure-center figure-img" style="width:100.0%"></p>
+</figure>
+</div>
+</div>
 </div>
 </section>
 <section id="o-gráfico-final" class="level3">
 <h3 class="anchored" data-anchor-id="o-gráfico-final">O gráfico final</h3>
 <p>O código abaixo gera o gráfico finalizado.</p>
-<div class="cell">
+<div class="cell" data-layout-align="center">
 <div class="sourceCode cell-code" id="cb15"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>(<span class="at">data =</span> latam, <span class="fu">aes</span>(<span class="at">x =</span> year, <span class="at">y =</span> country)) <span class="sc">+</span></span>
 <span id="cb15-2"><a href="#cb15-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_tile</span>(<span class="fu">aes</span>(<span class="at">fill =</span> growth), <span class="at">height =</span> <span class="fl">0.9</span>) <span class="sc">+</span></span>
 <span id="cb15-3"><a href="#cb15-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_vline</span>(</span>
@@ -539,6 +1217,13 @@ gtag('config', 'G-EJF8PGT67H', { 'anonymize_ip': true});
 <span id="cb15-28"><a href="#cb15-28" aria-hidden="true" tabindex="-1"></a>    <span class="at">panel.grid.minor =</span> <span class="fu">element_blank</span>(),</span>
 <span id="cb15-29"><a href="#cb15-29" aria-hidden="true" tabindex="-1"></a>    <span class="at">legend.position =</span> <span class="st">"top"</span></span>
 <span id="cb15-30"><a href="#cb15-30" aria-hidden="true" tabindex="-1"></a>  )</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output-display">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="11-grafico-calor_files/figure-html/unnamed-chunk-17-1.png" class="img-fluid quarto-figure quarto-figure-center figure-img" style="width:100.0%"></p>
+</figure>
+</div>
+</div>
 </div>
 </section>
 </section>
@@ -550,7 +1235,7 @@ gtag('config', 'G-EJF8PGT67H', { 'anonymize_ip': true});
 <p>O código abaixo mostra a implementação da função.</p>
 <section id="funções" class="level3">
 <h3 class="anchored" data-anchor-id="funções">Funções</h3>
-<div class="cell">
+<div class="cell" data-layout-align="center">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="sourceCode cell-code" id="cb16"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Cria um tema para os gráficos</span></span>
@@ -596,7 +1281,7 @@ gtag('config', 'G-EJF8PGT67H', { 'anonymize_ip': true});
 <h3 class="anchored" data-anchor-id="pib-per-capita">PIB per capita</h3>
 <p>Como exemplo vamos olhar para o PIB per capita dos países da América Latina. Para melhorar a visualização uso os dados em escala logarítmica.</p>
 <p>No código abaixo eu utilizo a função <code>gg_heatmap()</code> criada acima. Primeiro eu crio um gráfico de calor “base” usando apenas <code>geom_tile()</code> e modificando a escala de cor. Depois, aplico a função neste objeto e o resultado é o gráfico final.</p>
-<div class="cell">
+<div class="cell" data-layout-align="center">
 <div class="sourceCode cell-code" id="cb17"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Monta o mapa</span></span>
 <span id="cb17-2"><a href="#cb17-2" aria-hidden="true" tabindex="-1"></a>p <span class="ot">&lt;-</span> <span class="fu">ggplot</span>(<span class="at">data =</span> latam, <span class="fu">aes</span>(<span class="at">x =</span> year, <span class="at">y =</span> country)) <span class="sc">+</span></span>
 <span id="cb17-3"><a href="#cb17-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_tile</span>(<span class="fu">aes</span>(<span class="at">fill =</span> <span class="fu">log</span>(gdppc)), <span class="at">height =</span> <span class="fl">0.9</span>) <span class="sc">+</span></span>
@@ -607,20 +1292,34 @@ gtag('config', 'G-EJF8PGT67H', { 'anonymize_ip': true});
 <span id="cb17-8"><a href="#cb17-8" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb17-9"><a href="#cb17-9" aria-hidden="true" tabindex="-1"></a><span class="co"># Aplica a função</span></span>
 <span id="cb17-10"><a href="#cb17-10" aria-hidden="true" tabindex="-1"></a><span class="fu">gg_heatmap</span>(p)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output-display">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="11-grafico-calor_files/figure-html/unnamed-chunk-19-1.png" class="img-fluid quarto-figure quarto-figure-center figure-img" style="width:100.0%"></p>
+</figure>
+</div>
+</div>
 </div>
 <p>O gráfico de calor abaixo apresenta o PIB per capita em nível e com uma paleta de cores diferente. Note como o uso da função <code>gg_heatmap()</code> economiza muitas linhas de código.</p>
-<div class="cell">
+<div class="cell" data-layout-align="center">
 <div class="sourceCode cell-code" id="cb18"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a>p <span class="ot">&lt;-</span> <span class="fu">ggplot</span>(<span class="at">data =</span> latam, <span class="fu">aes</span>(<span class="at">x =</span> year, <span class="at">y =</span> country)) <span class="sc">+</span></span>
 <span id="cb18-2"><a href="#cb18-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_tile</span>(<span class="fu">aes</span>(<span class="at">fill =</span> gdppc <span class="sc">/</span> <span class="dv">1000</span>), <span class="at">height =</span> <span class="fl">0.9</span>) <span class="sc">+</span></span>
 <span id="cb18-3"><a href="#cb18-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_fill_viridis_c</span>(<span class="at">name =</span> <span class="st">"PIB per capita (mil)"</span>)</span>
 <span id="cb18-4"><a href="#cb18-4" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb18-5"><a href="#cb18-5" aria-hidden="true" tabindex="-1"></a><span class="fu">gg_heatmap</span>(p)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output-display">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="11-grafico-calor_files/figure-html/unnamed-chunk-20-1.png" class="img-fluid quarto-figure quarto-figure-center figure-img" style="width:100.0%"></p>
+</figure>
+</div>
+</div>
 </div>
 </section>
 <section id="inflação" class="level3">
 <h3 class="anchored" data-anchor-id="inflação">Inflação</h3>
 <p>Mapas de calor também podem servir para construir visualizações no formato de um “calendário de observações”. A visualização abaixo é adaptada do meu post <a href="https://restateinsight.com/posts/general-posts/repost-ipca-visualizacao/">Visualizando o IPCA</a> e mostra o valor acumulado do IPCA em 12 meses a cada mês, desde janeiro de 2010. Os dados são importados do Banco Central do Brasil usando o pacote <code>GetBCBData</code> e uso o pacote <code>lubridate</code> para transformar os dados.</p>
-<div class="cell">
+<div class="cell" data-layout-align="center">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="sourceCode cell-code" id="cb19"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Importa a série do IPCA a partir da API do Banco Central</span></span>
@@ -646,7 +1345,7 @@ gtag('config', 'G-EJF8PGT67H', { 'anonymize_ip': true});
 <span id="cb19-21"><a href="#cb19-21" aria-hidden="true" tabindex="-1"></a>  )</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details>
 </div>
-<div class="cell">
+<div class="cell" data-layout-align="center">
 <div class="sourceCode cell-code" id="cb20"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>(ipca, <span class="fu">aes</span>(<span class="at">x =</span> month, <span class="at">y =</span> year, <span class="at">fill =</span> acum12m)) <span class="sc">+</span></span>
 <span id="cb20-2"><a href="#cb20-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_tile</span>(<span class="at">color =</span> <span class="st">"gray90"</span>) <span class="sc">+</span></span>
 <span id="cb20-3"><a href="#cb20-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_x_discrete</span>(<span class="at">position =</span> <span class="st">"top"</span>) <span class="sc">+</span></span>
@@ -662,6 +1361,13 @@ gtag('config', 'G-EJF8PGT67H', { 'anonymize_ip': true});
 <span id="cb20-13"><a href="#cb20-13" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme</span>(</span>
 <span id="cb20-14"><a href="#cb20-14" aria-hidden="true" tabindex="-1"></a>    <span class="at">axis.text =</span> <span class="fu">element_text</span>(<span class="at">size =</span> <span class="dv">11</span>, <span class="at">color =</span> <span class="st">"gray15"</span>)</span>
 <span id="cb20-15"><a href="#cb20-15" aria-hidden="true" tabindex="-1"></a>  )</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output-display">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="11-grafico-calor_files/figure-html/unnamed-chunk-22-1.png" class="img-fluid quarto-figure quarto-figure-center figure-img" style="width:100.0%"></p>
+</figure>
+</div>
+</div>
 </div>
 <p>Na visualização vê-se como os anos iniciais de 2010-14 foram marcados por uma inflação moderadamente alta, oscilando entre 4-6%. Em 2015, libera-se os preços administrados, que ficaram artificialmente represados durante o período eleitoral, e a inflação estoura, chegando e depois superando a casa de 10%. Nos anos seguintes, a inflação é mais baixa, caindo até a casa de 2-3%. A quebra da série acontece durante a pandemia, quando a inflação chega a 12% e passa vários meses acima de 10%.</p>
 <p>Tecnicamente, vale notar o uso da função <code>scale_x_discrete</code> já que a variável de mês é armazenada como <code>factor</code>. Inverte-se a escala dos anos usando <code>scale_y_reverse</code>, assim os anos vão “de cima para baixo”, na direção mais natural de leitura. Por fim, especifico manualmente os valores de quebras na legenda de cores, dentro da função <code>scale_fill_viridis_c</code>.</p>
@@ -670,7 +1376,7 @@ gtag('config', 'G-EJF8PGT67H', { 'anonymize_ip': true});
 <h3 class="anchored" data-anchor-id="energia-elétrica">Energia elétrica</h3>
 <p>Pode-se usar mapas de calor para explorar a presença de padrões sazonais nos dados. A visualização abaixo é adaptada do meu post sobre <a href="https://restateinsight.com/posts/general-posts/2023-10-wv-nascimentos-brasil/">nascimentos no Brasil</a> mas olha para o consumo mensal de energia elétrica. Mais especificamente, a série apresenta o consumo residencial de energia elétrica desde 2002: escolhe-se este ano para evitar o apagão de 2021, que distorceria muito a visualização. Cada quadrado apresenta o consumo do mês, relativamente ao consumo total naquele ano.</p>
 <p>Como podia-se imaginar, o consumo de energia é mais elevado nos meses quentes: dezembro, janeiro, fevereiro e março apresentam os maiores valores. Já nos meses de inverno, em contraste, o consumo costuma ser menor. O pico da série aparece em janeiro de 2015, quande <a href="https://g1.globo.com/sao-paulo/noticia/2015/01/janeiro-de-2015-e-o-4-mes-mais-quente-da-historia-em-sp-diz-inmet.html">houve um verão particularmente quente</a><a href="#fn1" class="footnote-ref" id="fnref1" role="doc-noteref"><sup>1</sup></a>.</p>
-<div class="cell">
+<div class="cell" data-layout-align="center">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="sourceCode cell-code" id="cb21"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb21-1"><a href="#cb21-1" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Importa a série de consumo residencial de energia elétrica a partir da</span></span>
@@ -695,7 +1401,7 @@ gtag('config', 'G-EJF8PGT67H', { 'anonymize_ip': true});
 <span id="cb21-20"><a href="#cb21-20" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(ano <span class="sc">&gt;</span> <span class="dv">2002</span>, ano <span class="sc">&lt;</span> <span class="dv">2023</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details>
 </div>
-<div class="cell">
+<div class="cell" data-layout-align="center">
 <div class="sourceCode cell-code" id="cb22"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb22-1"><a href="#cb22-1" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>(energia, <span class="fu">aes</span>(<span class="at">x =</span> ano, <span class="at">y =</span> mes, <span class="at">fill =</span> cons_rel)) <span class="sc">+</span></span>
 <span id="cb22-2"><a href="#cb22-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_tile</span>(<span class="at">color =</span> <span class="st">"gray90"</span>) <span class="sc">+</span></span>
 <span id="cb22-3"><a href="#cb22-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_x_continuous</span>(<span class="at">breaks =</span> <span class="dv">2001</span><span class="sc">:</span><span class="dv">2022</span>, <span class="at">expand =</span> <span class="fu">c</span>(<span class="dv">0</span>, <span class="dv">0</span>), <span class="at">position =</span> <span class="st">"top"</span>) <span class="sc">+</span></span>
@@ -705,6 +1411,13 @@ gtag('config', 'G-EJF8PGT67H', { 'anonymize_ip': true});
 <span id="cb22-7"><a href="#cb22-7" aria-hidden="true" tabindex="-1"></a>    <span class="at">legend.title =</span> <span class="fu">element_text</span>(<span class="at">vjust =</span> <span class="fl">0.8</span>),</span>
 <span id="cb22-8"><a href="#cb22-8" aria-hidden="true" tabindex="-1"></a>    <span class="at">axis.text =</span> <span class="fu">element_text</span>(<span class="at">size =</span> <span class="dv">11</span>, <span class="at">color =</span> <span class="st">"gray15"</span>)</span>
 <span id="cb22-9"><a href="#cb22-9" aria-hidden="true" tabindex="-1"></a>  )</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output-display">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="11-grafico-calor_files/figure-html/unnamed-chunk-24-1.png" class="img-fluid quarto-figure quarto-figure-center figure-img" style="width:100.0%"></p>
+</figure>
+</div>
+</div>
 </div>
 </section>
 </section>
@@ -720,7 +1433,7 @@ gtag('config', 'G-EJF8PGT67H', { 'anonymize_ip': true});
 <h3 class="anchored" data-anchor-id="aquecimento-global">Aquecimento Global</h3>
 <p>O exemplo abaixo usa a base <code>gtemp_ocean</code> que mensura as “anomalias de temperatura” nos últimos anos. Por anomalia de temperatura, entende-se, o desvio da temperatura média anual em relação à média histórica (1951-1980). Esta visualização é adaptada do meu post <a href="https://restateinsight.com/posts/general-posts/repost-aquecimento-global/">Aquecimento Global</a>.</p>
 <p>Na visualização, fica evidente que os anos recentes concentram um grande número de “anomalias positivas”, isto é, anos em que a temperatura média esteve acima da média histórica. Este exemplo é bastante simples pois existe apenas um “grupo”, logo, os valores estão representados como desvios em relação à média na “linha”.</p>
-<div class="cell">
+<div class="cell" data-layout-align="center">
 <div class="sourceCode cell-code" id="cb23"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb23-1"><a href="#cb23-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Carrega a base de dados 'gtemp_ocean'</span></span>
 <span id="cb23-2"><a href="#cb23-2" aria-hidden="true" tabindex="-1"></a><span class="fu">data</span>(<span class="st">"gtemp_ocean"</span>)</span>
 <span id="cb23-3"><a href="#cb23-3" aria-hidden="true" tabindex="-1"></a><span class="co"># Converte o objeto para data.frame</span></span>
@@ -738,13 +1451,20 @@ gtag('config', 'G-EJF8PGT67H', { 'anonymize_ip': true});
 <span id="cb23-15"><a href="#cb23-15" aria-hidden="true" tabindex="-1"></a>    <span class="at">colors =</span> <span class="fu">rev</span>(<span class="fu">met.brewer</span>(<span class="st">"Hiroshige"</span>)),</span>
 <span id="cb23-16"><a href="#cb23-16" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">+</span></span>
 <span id="cb23-17"><a href="#cb23-17" aria-hidden="true" tabindex="-1"></a>  theme_heatmap</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output-display">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="11-grafico-calor_files/figure-html/unnamed-chunk-25-1.png" class="img-fluid quarto-figure quarto-figure-center figure-img" style="width:100.0%"></p>
+</figure>
+</div>
+</div>
 </div>
 </section>
 <section id="correlação" class="level3">
 <h3 class="anchored" data-anchor-id="correlação">Correlação</h3>
 <p>A correlação é uma medida da relação linear entre um par de variáveis. Na construção de um modelo linear, ou modelo de regressão de forma geral, é interessante visualizar a relação de correlação entre as variáveis. Por construção, a correlação (de Pearson) é padronizada pelo desvio-padrão das variáveis, logo, varia entre -1 e 1. Uma correlação igual a -1 indica uma correlação negativa “perfeita” e uma correlação igual a 1 indica uma correlação positiva “perfeita”. Se a correlação entre duas variáveis for próxima de 0, não há dependência linear entre as variáveis.</p>
 <p>O código abaixo seleciona algumas das colunas da base de dados <code>hprice2</code> exportada junto com o pacote wooldridge. Esta base contém o preço de alguns imóveis junto de algumas outras variáveis. Para consultar a definição das variáveis use <code>?hprice2</code>.</p>
-<div class="cell">
+<div class="cell" data-layout-align="center">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="sourceCode cell-code" id="cb24"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb24-1"><a href="#cb24-1" aria-hidden="true" tabindex="-1"></a>dat <span class="ot">&lt;-</span> wooldridge<span class="sc">::</span>hprice2</span>
@@ -768,7 +1488,7 @@ gtag('config', 'G-EJF8PGT67H', { 'anonymize_ip': true});
 </details>
 </div>
 <p>O mapa de calor abaixo mostra a correlação entre algumas variáveis. A variável <code>lprice</code> é o logaritmo natural do preço do imóvel. Nota-se que esta variável tem uma correlação positiva com <code>rooms</code> (número de quartos) e <code>dist</code> (distância até polo de emprego). Por outro lado, há uma correlação negativa entre o preço e <code>nox</code> (medida de poluição do ar) e <code>crime</code> (proporção de crimes).</p>
-<div class="cell">
+<div class="cell" data-layout-align="center">
 <div class="sourceCode cell-code" id="cb25"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb25-1"><a href="#cb25-1" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>(tbl_cor, <span class="fu">aes</span>(<span class="at">x =</span> name_1, <span class="at">y =</span> name_2, <span class="at">fill =</span> correl)) <span class="sc">+</span></span>
 <span id="cb25-2"><a href="#cb25-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_tile</span>() <span class="sc">+</span></span>
 <span id="cb25-3"><a href="#cb25-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_text</span>(<span class="fu">aes</span>(<span class="at">label =</span> <span class="fu">round</span>(correl, <span class="dv">2</span>)), <span class="at">size =</span> <span class="dv">4</span>) <span class="sc">+</span></span>
@@ -783,6 +1503,13 @@ gtag('config', 'G-EJF8PGT67H', { 'anonymize_ip': true});
 <span id="cb25-12"><a href="#cb25-12" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">title =</span> <span class="st">"Correlação entre variáveis"</span>) <span class="sc">+</span></span>
 <span id="cb25-13"><a href="#cb25-13" aria-hidden="true" tabindex="-1"></a>  theme_heatmap <span class="sc">+</span></span>
 <span id="cb25-14"><a href="#cb25-14" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme</span>(<span class="at">axis.text =</span> <span class="fu">element_text</span>(<span class="at">size =</span> <span class="dv">12</span>))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output-display">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="11-grafico-calor_files/figure-html/unnamed-chunk-27-1.png" class="img-fluid quarto-figure quarto-figure-center figure-img" style="width:100.0%"></p>
+</figure>
+</div>
+</div>
 </div>
 <p>O valor da correlação foi plotado usando <code>geom_text</code>. Como a escala da correlação varia sempre entre -1 e 1, suprime-se a legenda de cores. Para construir a escala divergente utiliza-se <code>scale_fill_gradient2</code> com a mesma paleta de cores do Met Brewer (Hiroshige). Vale notar que existe um pacote dedicado a este tipo de visualização chamado <code>ggcorplot</code> - para mais detalhes <a href="https://rpkgs.datanovia.com/ggcorrplot/index.html">veja o GitHub do pacote</a>.</p>
 </section>
@@ -791,7 +1518,7 @@ gtag('config', 'G-EJF8PGT67H', { 'anonymize_ip': true});
 <p>Vamos retornar, novamente, ao exemplo do PIB per capita. Restringindo a análise somente à América Latina, há duas maneiras intuitivas de olhar os dados: (1) relativamente ao ano (coluna); (2) relativamente ao país (linha).</p>
 <p>No primeiro caso, compara-se a <strong>performance entre os países em cada ano</strong>: vê-se quais foram os países que cresceram mais ou menos em determinado ano. No segundo caso, <strong>compara-se a trajetória de cada país individualmente</strong>: fica mais evidente quais foram os anos de maior ou de menor crescimento.</p>
 <p>O código abaixo usa a função <code>scale</code> para “normalizar” os dados<a href="#fn2" class="footnote-ref" id="fnref2" role="doc-noteref"><sup>2</sup></a>.</p>
-<div class="cell">
+<div class="cell" data-layout-align="center">
 <div class="sourceCode cell-code" id="cb26"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb26-1"><a href="#cb26-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Escala os dados em relação ao país</span></span>
 <span id="cb26-2"><a href="#cb26-2" aria-hidden="true" tabindex="-1"></a>scale_country <span class="ot">&lt;-</span> latam <span class="sc">|&gt;</span></span>
 <span id="cb26-3"><a href="#cb26-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">group_by</span>(country) <span class="sc">|&gt;</span></span>
@@ -804,7 +1531,7 @@ gtag('config', 'G-EJF8PGT67H', { 'anonymize_ip': true});
 </div>
 <p>O primeiro gráfico mostra o crescimento do PIB per capita anual relativamente ao crescimento médio do país. Note como oscila o crescimento da Argentina: anos de crescimento acima da média são imediatamente seguidos por anos de crescimento abaixo da média durante quase toda a sua história.</p>
 <p>Já o Brasil parece ter um crescimento mais ao estilo “voos de galinha”, com alguns poucos anos de crescimento excepcionais aglomerados. Vale notar, também, como a presença da Venezuela entre os países acaba distorcendo a escala.</p>
-<div class="cell">
+<div class="cell" data-layout-align="center">
 <div class="sourceCode cell-code" id="cb27"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb27-1"><a href="#cb27-1" aria-hidden="true" tabindex="-1"></a>p <span class="ot">&lt;-</span> <span class="fu">ggplot</span>(<span class="at">data =</span> scale_country, <span class="fu">aes</span>(<span class="at">x =</span> year, <span class="at">y =</span> country)) <span class="sc">+</span></span>
 <span id="cb27-2"><a href="#cb27-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_tile</span>(<span class="fu">aes</span>(<span class="at">fill =</span> scaled)) <span class="sc">+</span></span>
 <span id="cb27-3"><a href="#cb27-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_fill_gradientn</span>(</span>
@@ -815,10 +1542,17 @@ gtag('config', 'G-EJF8PGT67H', { 'anonymize_ip': true});
 <span id="cb27-8"><a href="#cb27-8" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb27-9"><a href="#cb27-9" aria-hidden="true" tabindex="-1"></a><span class="fu">gg_heatmap</span>(p) <span class="sc">+</span></span>
 <span id="cb27-10"><a href="#cb27-10" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ggtitle</span>(<span class="st">"Crescimento relativo ao país"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output-display">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="11-grafico-calor_files/figure-html/unnamed-chunk-29-1.png" class="img-fluid quarto-figure quarto-figure-center figure-img" style="width:100.0%"></p>
+</figure>
+</div>
+</div>
 </div>
 <p>O segundo gráfico mostra o crescimento anual de cada país em comparação com os demais países latinoamericanos. O padrão revela quais países cresceram mais ou menos em cada ano.</p>
 <p>De maneira geral, o Brasil parece crescer ligeiramente acima da média da região. A Venezuela, que no gráfico anterior parecia exibir um crescimento relativamente estável ao longo dos anos, agora apresenta um padrão com maior oscilação. Dos anos 2000 em diante, Bolivia, Chile, Colombia e Peru são os países que consistentemente crescem acima da média da região. Novamente o colapso econômico da Venezuela acaba distorcendo a escala de cores.</p>
-<div class="cell">
+<div class="cell" data-layout-align="center">
 <div class="sourceCode cell-code" id="cb28"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb28-1"><a href="#cb28-1" aria-hidden="true" tabindex="-1"></a>p <span class="ot">&lt;-</span> <span class="fu">ggplot</span>(<span class="at">data =</span> scale_year, <span class="fu">aes</span>(<span class="at">x =</span> year, <span class="at">y =</span> country)) <span class="sc">+</span></span>
 <span id="cb28-2"><a href="#cb28-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_tile</span>(<span class="fu">aes</span>(<span class="at">fill =</span> scaled)) <span class="sc">+</span></span>
 <span id="cb28-3"><a href="#cb28-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_fill_gradientn</span>(</span>
@@ -829,9 +1563,16 @@ gtag('config', 'G-EJF8PGT67H', { 'anonymize_ip': true});
 <span id="cb28-8"><a href="#cb28-8" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb28-9"><a href="#cb28-9" aria-hidden="true" tabindex="-1"></a><span class="fu">gg_heatmap</span>(p) <span class="sc">+</span></span>
 <span id="cb28-10"><a href="#cb28-10" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ggtitle</span>(<span class="st">"Crescimento relativo ao ano"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output-display">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="11-grafico-calor_files/figure-html/unnamed-chunk-30-1.png" class="img-fluid quarto-figure quarto-figure-center figure-img" style="width:100.0%"></p>
+</figure>
+</div>
+</div>
 </div>
 <p>Suponha que seja interessante descobrir quais países estão crescendo acima ou abaixo da média mundial. Para chegar nesta resposta precisa-se primeiro fazer um pouco de manipulação nos dados.</p>
-<div class="cell">
+<div class="cell" data-layout-align="center">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="sourceCode cell-code" id="cb29"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb29-1"><a href="#cb29-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Calcula o PIB per capita mundial e o seu crescimento</span></span>
@@ -869,7 +1610,7 @@ gtag('config', 'G-EJF8PGT67H', { 'anonymize_ip': true});
 </div>
 <p>Após a manipulação de dados acima, pode-se visualizar o crescimento da América Latina em relação ao resto do mundo. O primeiro gráfico abaixo mostra o desvio percentual do crescimento doméstico em relação à média mundial naquele ano.</p>
 <p>Vê-se como, de maneira geral, os países latino-americanos tiveram dificuldades para acompanhar o resto do mundo nos anos 1980. Além disso, a maior parte dos países parece ficar próxima ou abaixo da média. A exceção é durante o começo dos anos 1990 e os anos do boom de commodities (2000-2012). Além disso, vê-se como a recessão brasileira de 2015-17, apesar de ter sido influenciada por uma leve desaceleração global, foi majoritariamente uma crise interna.</p>
-<div class="cell">
+<div class="cell" data-layout-align="center">
 <div class="sourceCode cell-code" id="cb30"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb30-1"><a href="#cb30-1" aria-hidden="true" tabindex="-1"></a>p <span class="ot">&lt;-</span> <span class="fu">ggplot</span>(<span class="at">data =</span> latam_scaled, <span class="fu">aes</span>(<span class="at">x =</span> year, <span class="at">y =</span> country)) <span class="sc">+</span></span>
 <span id="cb30-2"><a href="#cb30-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_tile</span>(<span class="fu">aes</span>(<span class="at">fill =</span> deviation_trunc), <span class="at">height =</span> <span class="fl">0.8</span>) <span class="sc">+</span></span>
 <span id="cb30-3"><a href="#cb30-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_fill_gradientn</span>(</span>
@@ -879,6 +1620,13 @@ gtag('config', 'G-EJF8PGT67H', { 'anonymize_ip': true});
 <span id="cb30-7"><a href="#cb30-7" aria-hidden="true" tabindex="-1"></a>  )</span>
 <span id="cb30-8"><a href="#cb30-8" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb30-9"><a href="#cb30-9" aria-hidden="true" tabindex="-1"></a><span class="fu">gg_heatmap</span>(p)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output-display">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="11-grafico-calor_files/figure-html/unnamed-chunk-32-1.png" class="img-fluid quarto-figure quarto-figure-center figure-img" style="width:100.0%"></p>
+</figure>
+</div>
+</div>
 </div>
 </section>
 </section>
