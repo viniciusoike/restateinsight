@@ -5,7 +5,7 @@ description: "Nesta semana resolvi olhar os nascimentos no Brasil. Há menos pes
 date: "2023-10-13"
 image: "/static/images/wv_nascimentos_brasil.png"
 image-alt: "/static/images/wv_nascimentos_brasil.png"
-execute: 
+execute:
   echo: false
   message: false
   warning: false
@@ -28,7 +28,7 @@ knitr::opts_chunk$set(
   out.width = "90%",
   fig.dev = "svg",
   fig.retina = 2
-  )
+)
 ```
 
 ```{r showtext}
@@ -47,8 +47,16 @@ theme_vini <- theme_minimal() +
     plot.title = element_text(size = 20, hjust = 0, vjust = 1),
     plot.subtitle = element_text(color = "gray20", size = 10),
     plot.caption = element_text(color = "gray20", size = 8),
-    axis.text = element_text(family = "Roboto Mono", color = "gray20", size = 8),
-    legend.text = element_text(family = "Roboto Mono", color = "gray20", size = 8),
+    axis.text = element_text(
+      family = "Roboto Mono",
+      color = "gray20",
+      size = 8
+    ),
+    legend.text = element_text(
+      family = "Roboto Mono",
+      color = "gray20",
+      size = 8
+    ),
     panel.grid = element_blank(),
     panel.background = element_rect(fill = "#ffffff", color = "#ffffff"),
     plot.background = element_rect(fill = "#ffffff", color = "#ffffff"),
@@ -65,13 +73,13 @@ nasc <- get_sidra(
   classific = "c235",
   category = list("all"),
   geo = "Region"
-  )
+)
 ```
 
 ```{r clean-data}
-tbl_birth = nasc |> 
+tbl_birth = nasc |>
   as_tibble() %>%
-  janitor::clean_names() |> 
+  janitor::clean_names() |>
   select(
     code_region = grande_regiao_codigo,
     name_region = grande_regiao,
@@ -93,10 +101,10 @@ tbl_birth <- tbl_birth %>%
     trend = RcppRoll::roll_mean(birth, n = 12, fill = NA),
     trend = RcppRoll::roll_mean(trend, n = 2, fill = NA),
     .by = c("code_region", "name_region")
-    )
+  )
 
 tbl_brazil <- tbl_birth %>%
-  summarise(total = sum(birth, na.rm = TRUE), .by = "date") |> 
+  summarise(total = sum(birth, na.rm = TRUE), .by = "date") |>
   mutate(
     month_abb = lubridate::month(date, label = TRUE, locale = "pt_BR"),
     month_abb = fct_rev(month_abb),
@@ -107,8 +115,8 @@ tbl_brazil <- tbl_birth %>%
 ```
 
 ```{r plot-heatmap-abs}
-p_heatmap_abs <- 
-  ggplot(tbl_brazil, aes(x = year, y = month_abb, fill = total)) + 
+p_heatmap_abs <-
+  ggplot(tbl_brazil, aes(x = year, y = month_abb, fill = total)) +
   geom_tile(color = "gray80", linewidth = 0.1) +
   scale_x_continuous(breaks = 2003:2021, position = "top", expand = c(0, 0)) +
   scale_fill_viridis_c(
@@ -122,16 +130,17 @@ p_heatmap_abs <-
     y = NULL,
     title = "Queda nos nascimentos não altera padrão sazonal",
     subtitle = "Número absoluto de nascidos vivos no Brasil entre 2003 e 2021 a cada mês.",
-    caption = "Fonte: Estatísticas do Registro Civil (IBGE). @viniciusoike") +
+    caption = "Fonte: Estatísticas do Registro Civil (IBGE). @viniciusoike"
+  ) +
   theme_vini
 ```
 
 ```{r plot-heatmap-rel}
-p_heatmap_rel <- 
-  tbl_brazil |> 
-  group_by(year) |> 
+p_heatmap_rel <-
+  tbl_brazil |>
+  group_by(year) |>
   mutate(share = total / sum(total)) %>%
-  ggplot(aes(x = year, y = month_abb, fill = share)) + 
+  ggplot(aes(x = year, y = month_abb, fill = share)) +
   geom_tile(color = "gray80", linewidth = 0.1) +
   scale_x_continuous(breaks = 2003:2021, position = "top", expand = c(0, 0)) +
   scale_fill_viridis_c(
@@ -143,19 +152,21 @@ p_heatmap_rel <-
     y = NULL,
     title = "Arianos e taurinos formam maioria dos nascidos",
     subtitle = "Número de nascidos vivos no Brasil entre 2003 e 2021 a cada mês. Valores representam o percentual de nascidos vivos em cada ano.",
-    caption = "Fonte: Estatísticas do Registro Civil (IBGE). @viniciusoike") +
+    caption = "Fonte: Estatísticas do Registro Civil (IBGE). @viniciusoike"
+  ) +
   theme_vini +
   theme(
     legend.title = element_text(
       family = "Roboto Mono",
       size = 8,
       vjust = 1,
-      hjust = 0.5)
+      hjust = 0.5
     )
+  )
 ```
 
 ```{r plot-lineplot-trend}
-p_lineplot <- 
+p_lineplot <-
   ggplot(tbl_brazil, aes(x = date)) +
   geom_line(aes(y = total), alpha = 0.6, linewidth = 1, color = "#26828EFF") +
   geom_line(aes(y = trend), linewidth = 1, color = "#26828EFF") +
@@ -164,16 +175,17 @@ p_lineplot <-
       as.Date("2003-01-01"),
       seq(as.Date("2005-01-01"), as.Date("2020-01-01"), by = "1 year"),
       as.Date("2021-01-01")
-      ),
+    ),
     date_labels = "%Y"
-    ) +
+  ) +
   scale_y_continuous(labels = scales::label_number(big.mark = ".")) +
   labs(
     title = "Nascidos vivos no Brasil",
     subtitle = "Linha representa média móvel centrada de 12 meses.",
     x = NULL,
     y = "Pessoas",
-    caption = "Fonte: Estatísticas do Registro Civil (IBGE). @viniciusoike") +
+    caption = "Fonte: Estatísticas do Registro Civil (IBGE). @viniciusoike"
+  ) +
   theme_vini +
   theme(
     panel.grid.major = element_line(color = "gray90")

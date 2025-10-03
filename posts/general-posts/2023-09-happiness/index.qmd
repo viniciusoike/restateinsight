@@ -1,9 +1,9 @@
 ---
-title: 'Life Satisfaction and GDP per capita' 
+title: 'Life Satisfaction and GDP per capita'
 date: '2023-09-22'
 categories: ['data-visualization', 'tutorial-R', 'ggplot2', 'english']
 description: 'In this post I make a step-by-step replication of a plot from OurWorldInData. The plot shows the correlation between average self-reported life satisfaction and GDP per capita.'
-execute: 
+execute:
   message: false
   warning: false
 format:
@@ -27,7 +27,7 @@ knitr::opts_chunk$set(
   out.width = "100%",
   fig.width = 9,
   fig.dev = "svg"
-  )
+)
 
 showtext::showtext_auto()
 ```
@@ -63,30 +63,30 @@ owid <- janitor::clean_names(owid)
 #| eval: false
 owid <- readr::read_csv(
   "https://github.com/viniciusoike/restateinsight/raw/main/static/data/gdp-vs-happiness.csv"
-  )
+)
 ```
 
 The data shows both the GDP per capita and the Happiness Indicator for several countries across many years. The code below selects only the most recent that is available for each country.
 
 ```{r}
 #| code-fold: true
-dat <- owid |> 
-  janitor::clean_names() |> 
+dat <- owid |>
+  janitor::clean_names() |>
   rename(
     life_satisfaction = cantril_ladder_score,
     gdppc = gdp_per_capita_ppp_constant_2017_international,
     pop = population_historical_estimates
   ) |>
-  filter(!is.na(gdppc), !is.na(life_satisfaction)) |> 
-  mutate(gdppc = log10(gdppc)) |> 
-  group_by(entity) |> 
-  filter(year == max(year)) |> 
-  ungroup() |> 
+  filter(!is.na(gdppc), !is.na(life_satisfaction)) |>
+  mutate(gdppc = log10(gdppc)) |>
+  group_by(entity) |>
+  filter(year == max(year)) |>
+  ungroup() |>
   select(entity, pop, gdppc, life_satisfaction)
 
-dim_continent <- owid |> 
-  select(entity, continent) |> 
-  filter(!is.na(continent), !is.na(entity)) |> 
+dim_continent <- owid |>
+  select(entity, continent) |>
+  filter(!is.na(continent), !is.na(entity)) |>
   distinct()
 
 dat <- left_join(dat, dim_continent, by = "entity")
@@ -107,7 +107,7 @@ ggplot(dat, aes(x = gdppc, y = life_satisfaction)) +
     color = "#A5A9A9",
     alpha = 0.8,
     shape = 21
-    )
+  )
 ```
 
 ## Highlighting the countries
@@ -119,15 +119,43 @@ I `ggrepel` to avoid overlapping the text labels.
 ```{r}
 #> Countries to highlight
 sel_countries <- c(
-  "Ireland", "Qatar", "Hong Kong", "Switzerland", "United States", "France",
-  "Japan", "Costa Rica", "Russia", "Turkey", "China", "Brazil", "Indonesia",
-  "Iran", "Egypt", "Botswana", "Lebanon", "Philippines", "Bolivia", "Pakistan",
-  "Bangladesh", "Nepal", "Senegal", "Burkina Faso", "Ethiopia", "Tanzania",
-  "Democratic Republic of Congo", "Mozambique", " Somalia", "Chad", "Malawi",
-  "Burundi", "India")
+  "Ireland",
+  "Qatar",
+  "Hong Kong",
+  "Switzerland",
+  "United States",
+  "France",
+  "Japan",
+  "Costa Rica",
+  "Russia",
+  "Turkey",
+  "China",
+  "Brazil",
+  "Indonesia",
+  "Iran",
+  "Egypt",
+  "Botswana",
+  "Lebanon",
+  "Philippines",
+  "Bolivia",
+  "Pakistan",
+  "Bangladesh",
+  "Nepal",
+  "Senegal",
+  "Burkina Faso",
+  "Ethiopia",
+  "Tanzania",
+  "Democratic Republic of Congo",
+  "Mozambique",
+  " Somalia",
+  "Chad",
+  "Malawi",
+  "Burundi",
+  "India"
+)
 
 #> Auxiliar tibble with names of countries to highlight
-dftext <- dat |> 
+dftext <- dat |>
   mutate(highlight = if_else(entity %in% sel_countries, entity, NA))
 
 #> Creates a base plot with the bubbles plus the text labels
@@ -137,12 +165,12 @@ base_plot <- ggplot(dat, aes(x = gdppc, y = life_satisfaction)) +
     color = "#A5A9A9",
     alpha = 0.8,
     shape = 21
-    ) +
+  ) +
   ggrepel::geom_text_repel(
     data = dftext,
     aes(x = gdppc, y = life_satisfaction, label = highlight, color = continent),
     size = 3
-    )
+  )
 
 base_plot
 ```
@@ -178,7 +206,7 @@ base_plot <- base_plot +
     size = "none",
     #> Override default behaviour to get solid colors
     fill = guide_legend(override.aes = list(shape = 22, alpha = 1))
-    )
+  )
 
 base_plot
 ```
@@ -201,7 +229,7 @@ base_plot <- base_plot +
     x = "GDP per capita",
     y = "Life satisfaction (country average; 0-10)",
     caption = caption
-    )
+  )
 
 base_plot
 ```
@@ -233,7 +261,7 @@ base_plot +
     #> Background grid
     panel.grid.minor = element_blank(),
     panel.grid.major = element_line(linetype = 3, color = "#DDDDDD"),
-    
+
     #> Text elements (change font)
     text = element_text(family = "Lato"),
     title = element_text(family = "Lato"),
@@ -242,7 +270,8 @@ base_plot +
     plot.title = element_text(
       color = "#444444",
       family = "Playfair Display",
-      size = 18),
+      size = 18
+    ),
     plot.subtitle = element_text(color = "#666666", size = 11),
     #> Axis text
     axis.title = element_text(color = "#000000", size = 9),
@@ -268,37 +297,66 @@ theme_owid <- theme_minimal() +
   theme(
     panel.grid.minor = element_blank(),
     panel.grid.major = element_line(linetype = 3, color = "#DDDDDD"),
-    
+
     text = element_text(family = "Lato"),
     title = element_text(family = "Lato"),
-    
+
     plot.caption = element_text(color = "#777777", hjust = 0, size = 8),
     plot.title = element_text(
       color = "#444444",
       family = "Playfair Display",
-      size = 18),
+      size = 18
+    ),
     plot.subtitle = element_text(color = "#666666", size = 11),
-    
+
     axis.title = element_text(color = "#000000", size = 9),
     axis.text = element_text(color = "#666666", size = 12),
-    
+
     legend.key.size = unit(5, "pt"),
     legend.position = "right",
     legend.text = element_text(size = 10),
-    
+
     plot.margin = margin(rep(10, 4))
   )
 
 #> Countries to highlight
 sel_countries <- c(
-  "Ireland", "Qatar", "Hong Kong", "Switzerland", "United States", "France",
-  "Japan", "Costa Rica", "Russia", "Turkey", "China", "Brazil", "Indonesia",
-  "Iran", "Egypt", "Botswana", "Lebanon", "Philippines", "Bolivia", "Pakistan",
-  "Bangladesh", "Nepal", "Senegal", "Burkina Faso", "Ethiopia", "Tanzania",
-  "Democratic Republic of Congo", "Mozambique", " Somalia", "Chad", "Malawi",
-  "Burundi", "India")
+  "Ireland",
+  "Qatar",
+  "Hong Kong",
+  "Switzerland",
+  "United States",
+  "France",
+  "Japan",
+  "Costa Rica",
+  "Russia",
+  "Turkey",
+  "China",
+  "Brazil",
+  "Indonesia",
+  "Iran",
+  "Egypt",
+  "Botswana",
+  "Lebanon",
+  "Philippines",
+  "Bolivia",
+  "Pakistan",
+  "Bangladesh",
+  "Nepal",
+  "Senegal",
+  "Burkina Faso",
+  "Ethiopia",
+  "Tanzania",
+  "Democratic Republic of Congo",
+  "Mozambique",
+  " Somalia",
+  "Chad",
+  "Malawi",
+  "Burundi",
+  "India"
+)
 
-dftext <- dat |> 
+dftext <- dat |>
   mutate(highlight = if_else(entity %in% sel_countries, entity, NA))
 
 #> x-axis labels
@@ -318,7 +376,7 @@ ggplot(dat, aes(x = gdppc, y = life_satisfaction)) +
     color = "#A5A9A9",
     alpha = 0.8,
     shape = 21
-    ) +
+  ) +
   ggrepel::geom_label_repel(
     data = dftext,
     aes(x = gdppc, y = life_satisfaction, label = highlight, color = continent),
@@ -327,7 +385,7 @@ ggplot(dat, aes(x = gdppc, y = life_satisfaction)) +
     family = "Lato",
     label.padding = unit(0.05, "lines"),
     label.size = NA
-    ) +
+  ) +
   scale_x_continuous(breaks = xbreaks, labels = xlabels) +
   scale_y_continuous(breaks = 3:7) +
   scale_size_continuous(range = c(1, 15)) +
@@ -337,13 +395,13 @@ ggplot(dat, aes(x = gdppc, y = life_satisfaction)) +
     color = "none",
     size = "none",
     fill = guide_legend(override.aes = list(shape = 22, alpha = 1))
-    ) +
+  ) +
   labs(
     title = "Self-reported life satisfaction vs. GDP per capita, 2022",
     subtitle = subtitle,
     x = "GDP per capita",
     y = "Life satisfaction (country average; 0-10)",
     caption = caption
-    ) +
+  ) +
   theme_owid
 ```

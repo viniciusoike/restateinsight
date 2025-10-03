@@ -110,8 +110,13 @@ qr_med_streets <- add_osm_feature(
 qr_small_streets <- add_osm_feature(
   qr,
   key = "highway",
-  value = c("residential", "living_street", "unclassified", "service",
-            "footway")
+  value = c(
+    "residential",
+    "living_street",
+    "unclassified",
+    "service",
+    "footway"
+  )
 )
 
 # Download
@@ -140,26 +145,28 @@ dictionary <- tibble(
 
 # Streets - classify ------------------------------------------------------
 
-#> Group into categories: historical personalities, names of other cities or 
+#> Group into categories: historical personalities, names of other cities or
 #> states, jobs, holiday, religious figure, army, nameless
 
 #> Get names of all cities and states in Brazil
 muni <- sidrar::get_sidra(4709, geo = "City", variable = 93)
 
-name_muni <- muni |> 
-  janitor::clean_names() |> 
-  filter(valor > 1e5) |> 
-  tidyr::separate(municipio, into = c("name_muni", "abb"), sep = " - ") |> 
-  pull(name_muni) |> 
+name_muni <- muni |>
+  janitor::clean_names() |>
+  filter(valor > 1e5) |>
+  tidyr::separate(municipio, into = c("name_muni", "abb"), sep = " - ") |>
+  pull(name_muni) |>
   unique()
- 
+
 state <- geobr::read_state()
 state_name <- state$name_state
 
 state_lower <- c(
-  "Rio Grande do Sul", "Rio de Janeiro", "Rio Grande do Norte",
+  "Rio Grande do Sul",
+  "Rio de Janeiro",
+  "Rio Grande do Norte",
   "Mato Grosso do Sul"
-  )
+)
 
 state_name <- c(state_name, state_lower)
 
@@ -170,15 +177,33 @@ geostring <- paste(glue::glue("({geonames})"), collapse = "|")
 #> personalities
 
 posto_exercito <- c(
-  "Marechal", "Almirante", "General", "Comandante", "Coronel", "Cabo",
-  "Capitão", "Brigadeiro", "Tenente", "(Castello Branco)",
-  "(Costa e Silva)", "(Ernesto Geisel)", "PM", "Major"
-  )
+  "Marechal",
+  "Almirante",
+  "General",
+  "Comandante",
+  "Coronel",
+  "Cabo",
+  "Capitão",
+  "Brigadeiro",
+  "Tenente",
+  "(Castello Branco)",
+  "(Costa e Silva)",
+  "(Ernesto Geisel)",
+  "PM",
+  "Major"
+)
 
 #> Common prefixes for job titles
 profissao <- c(
-  "Engenheir", "Doutor", "Profess", "Desembargador", "Economista", "Jornalista", "Escrivão", "Contabilista"
-  )
+  "Engenheir",
+  "Doutor",
+  "Profess",
+  "Desembargador",
+  "Economista",
+  "Jornalista",
+  "Escrivão",
+  "Contabilista"
+)
 
 #> Common names for religious figures
 santidade <- c("Frei", "Santo", "Santa", "São", "Padre", "Papa", "Reverendo")
@@ -194,20 +219,58 @@ politico <- paste(politico, collapse = "|")
 # Proxy for closed condominiums / favelas
 
 cardinais <- c(
-  "Um", "Dois", "Três", "Quatro", "Cinco", "Seis", "Sete", "Oito",
-  "Nove", "Dez", "Onze", "Doze", "Treze", "Catorze", "Quatorze",
-  "Quinze", "Dezesseis", "Dezesete", "Dezoito", "Dezenove", "Vinte",
-  "Vinte e Um", "Vinte e Dois", "Vinte e Três", "Vinte e Quatro",
-  "Vinte e Cinco", "Vinte e Seis", "Vinte e Sete", "Vinte e Oito",
-  "Vinte e Nove", "Trinta", "Quarenta", "Cinquenta", "Sessenta",
-  "Setenta", "Oitenta", "Noventa", "Cem"
-  )
+  "Um",
+  "Dois",
+  "Três",
+  "Quatro",
+  "Cinco",
+  "Seis",
+  "Sete",
+  "Oito",
+  "Nove",
+  "Dez",
+  "Onze",
+  "Doze",
+  "Treze",
+  "Catorze",
+  "Quatorze",
+  "Quinze",
+  "Dezesseis",
+  "Dezesete",
+  "Dezoito",
+  "Dezenove",
+  "Vinte",
+  "Vinte e Um",
+  "Vinte e Dois",
+  "Vinte e Três",
+  "Vinte e Quatro",
+  "Vinte e Cinco",
+  "Vinte e Seis",
+  "Vinte e Sete",
+  "Vinte e Oito",
+  "Vinte e Nove",
+  "Trinta",
+  "Quarenta",
+  "Cinquenta",
+  "Sessenta",
+  "Setenta",
+  "Oitenta",
+  "Noventa",
+  "Cem"
+)
 
 cardinais <- paste(paste0("(Rua ", cardinais, ")"), collapse = "|")
 
 #> "nameless" streets
 name_vias <- c(
-  "Alameda", "Avenida", "Acesso", "Beco", "Caminho", "Passagem", "Via", "Viela"
+  "Alameda",
+  "Avenida",
+  "Acesso",
+  "Beco",
+  "Caminho",
+  "Passagem",
+  "Via",
+  "Viela"
 )
 
 rx_vias <- paste(name_vias, "[A-Z0-9]+[A-Z]?$")
@@ -238,32 +301,77 @@ dictionary <- dictionary |>
   )
 
 pers <- c(
-  "Carlos Gomes", "Protásio Alves", "Salgado Filho", "Mário Tavares Haussen",
-  "Donário Braga", "Joracy Camargo", "Goethe", "Mozart", "Schiller",
-  "Edgar Pires de Castro", "Plínio Brasil Milano", "Santos Dumont"
-  )
+  "Carlos Gomes",
+  "Protásio Alves",
+  "Salgado Filho",
+  "Mário Tavares Haussen",
+  "Donário Braga",
+  "Joracy Camargo",
+  "Goethe",
+  "Mozart",
+  "Schiller",
+  "Edgar Pires de Castro",
+  "Plínio Brasil Milano",
+  "Santos Dumont"
+)
 
 exercito <- c(
-  "Bento Gonçalves", "Luís Carlos Prestes", "Presidente Castello Branco",
+  "Bento Gonçalves",
+  "Luís Carlos Prestes",
+  "Presidente Castello Branco",
   "João Antônio da Silveira"
-  )
+)
 
 politicos <- c(
-  "Getúlio Vargas", "João Pessoa", "Protásio Alves", "Loureiro da Silva"
-  )
+  "Getúlio Vargas",
+  "João Pessoa",
+  "Protásio Alves",
+  "Loureiro da Silva"
+)
 
 coisas <- c(
-  "Azenha", "Rua da Conceição", "Túnel da Conceição", "Elevada da Conceição",
-  "Viaduto da Conceição", "Ipiranga", "Beira Rio", "Rio Jacuí", " Banco",
-  "Lago das ", "Lago do", "Rio dos Frades", "Rio Pardo", "Rio Claro",
-  "Rio dos Sinos", "Rio Negro", "Rio Grande", "Rio Tejo", "Rio Maria",
-  "Rio Verde", "Rio Solimoes", "Rio Xingu", "Rio Tapajos", "Avenida da Cavalhada",
-  "Estrada do Varejão", "Estrada da Taquara", "Sarandi"
-  )
+  "Azenha",
+  "Rua da Conceição",
+  "Túnel da Conceição",
+  "Elevada da Conceição",
+  "Viaduto da Conceição",
+  "Ipiranga",
+  "Beira Rio",
+  "Rio Jacuí",
+  " Banco",
+  "Lago das ",
+  "Lago do",
+  "Rio dos Frades",
+  "Rio Pardo",
+  "Rio Claro",
+  "Rio dos Sinos",
+  "Rio Negro",
+  "Rio Grande",
+  "Rio Tejo",
+  "Rio Maria",
+  "Rio Verde",
+  "Rio Solimoes",
+  "Rio Xingu",
+  "Rio Tapajos",
+  "Avenida da Cavalhada",
+  "Estrada do Varejão",
+  "Estrada da Taquara",
+  "Sarandi"
+)
 
 locais <- c(
-  "Chicago", "Madri", "Nova York", "Nova Zelândia", "Quito", "Brasil",
-  "Europa", "Estados Unidos", "Japão", "Itália", "Polônia", "Caracas",
+  "Chicago",
+  "Madri",
+  "Nova York",
+  "Nova Zelândia",
+  "Quito",
+  "Brasil",
+  "Europa",
+  "Estados Unidos",
+  "Japão",
+  "Itália",
+  "Polônia",
+  "Caracas",
   "Buenos Aires"
 )
 
@@ -276,15 +384,23 @@ exercito <- paste(glue::glue("({exercito})"), collapse = "|")
 # Ajustes manuais
 dictionary <- dictionary |>
   mutate(
-    class = if_else(str_detect(street_name, pers), "Personalidade Histórica", class),
+    class = if_else(
+      str_detect(street_name, pers),
+      "Personalidade Histórica",
+      class
+    ),
     class = if_else(str_detect(street_name, coisas), "Coisa", class),
-    class = if_else(str_detect(street_name, locais), "Nome de Cidade/UF", class),
+    class = if_else(
+      str_detect(street_name, locais),
+      "Nome de Cidade/UF",
+      class
+    ),
     class = if_else(str_detect(street_name, politicos), "Político", class),
     class = if_else(str_detect(street_name, exercito), "Exército", class)
   )
 
-dictionary |> 
-  count(class, sort = TRUE) |> 
+dictionary |>
+  count(class, sort = TRUE) |>
   mutate(share = n / sum(n) * 100)
 
 # Streets ---------------------------------------------------------------
@@ -312,7 +428,7 @@ cores <- c(
   "politico" = "#a6cee3",
   "profissao" = "#984ea3",
   "sem_nome" = "#e78ac3"
-  )
+)
 
 bg_color <- "#F5F5F5"
 
@@ -358,7 +474,7 @@ p1 <- ggplot() +
       hjust = 0.5
     ),
     panel.border = element_rect(colour = "gray20", fill = "transparent"),
-    #> Legend 
+    #> Legend
     legend.position = c(0.16, 0.8),
     #legend.position = "right",
     legend.title = element_blank(),

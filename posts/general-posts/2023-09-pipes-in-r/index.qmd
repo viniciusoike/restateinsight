@@ -78,8 +78,8 @@ Quando o resultado da função anterior não vai diretamente no primeiro argumen
 carros_4 <- subset(mtcars, cyl == 4)
 fit <- lm(mpg ~ wt, data = carros_4)
 
-mtcars |> 
-  subset(cyl == 4) |> 
+mtcars |>
+  subset(cyl == 4) |>
   lm(mpg ~ wt, data = _)
 ```
 
@@ -101,9 +101,9 @@ O exemplo repete o código acima, mas agora usa uma função anônima para pegar
 
 ```{r}
 #| eval: false
-mtcars |> 
-  subset(cyl == 4) |> 
-  lm(mpg ~ wt, data = _) |> 
+mtcars |>
+  subset(cyl == 4) |>
+  lm(mpg ~ wt, data = _) |>
   (\(x) {summary(x)$adj.r.squared})()
 
 ```
@@ -180,9 +180,9 @@ filtered_df <- filter(mtcars, wt == 2)
 grouped_df <- group_by(filtered_df, cyl)
 tbl <- summarise(grouped_df, avg = mean(mpg), count = n())
 
-mtcars |> 
-  filter(wt > 2) |> 
-  group_by(cyl) |> 
+mtcars |>
+  filter(wt > 2) |>
+  group_by(cyl) |>
   summarise(avg = mean(mpg))
 ```
 
@@ -191,10 +191,10 @@ A leitura do código fica mais "gramatical": pegue o objeto `mtcars` filtre as l
 Pode-se terminar um pipe com uma chamada para um plot em `ggplot2` para uma rápida visualização dos resultados
 
 ```{r}
-mtcars |> 
-  filter(wt > 2) |> 
-  group_by(cyl) |> 
-  summarise(avg = mean(mpg)) |> 
+mtcars |>
+  filter(wt > 2) |>
+  group_by(cyl) |>
+  summarise(avg = mean(mpg)) |>
   ggplot(aes(x = as.factor(cyl), y = avg)) +
   geom_col()
 ```
@@ -206,13 +206,13 @@ library(realestatebr)
 
 abecip <- get_abecip_indicators(cached = TRUE)
 
-abecip$units |> 
-  pivot_longer(-date) |> 
-  mutate(yq = lubridate::floor_date(date, unit = "quarter")) |> 
-  group_by(yq, name) |> 
-  summarise(total = sum(value)) |> 
-  separate(name, into = c("category", "type")) |> 
-  filter(category == "units", type != "total") |> 
+abecip |>
+  pivot_longer(-date) |>
+  mutate(yq = lubridate::floor_date(date, unit = "quarter")) |>
+  group_by(yq, name) |>
+  summarise(total = sum(value)) |>
+  separate(name, into = c("category", "type")) |>
+  filter(category == "units", type != "total") |>
   ggplot(aes(x = yq, y = total, fill = type)) +
   geom_area() +
   scale_fill_brewer() +
@@ -224,18 +224,17 @@ abecip$units |>
 
 ```{r}
 #| eval: false
-units <- abecip$units
 
 #> Converte em long e agrega os dados por trimestre
-tab_quarter <- units |> 
-  pivot_longer(-date) |> 
-  mutate(yq = lubridate::floor_date(date, unit = "quarter")) |> 
-  group_by(yq, name) |> 
-  summarise(total = sum(value)) |> 
-  separate(name, into = c("category", "type")) 
+tab_quarter <- abecip |>
+  pivot_longer(-date) |>
+  mutate(yq = lubridate::floor_date(date, unit = "quarter")) |>
+  group_by(yq, name) |>
+  summarise(total = sum(value)) |>
+  separate(name, into = c("category", "type"))
 
 #> Filtra apenas dados de unidades e retira o 'total'
-tab_units <- tab_quarter |> 
+tab_units <- tab_quarter |>
   filter(category == "units", type != "total")
 
 #> Faz o gráfico
@@ -255,10 +254,10 @@ O pacote `sf` também funciona bem com pipes pois há vários casos em que se qu
 # depois faz a interseção dos pontos num polígono e
 # por fim limpa as geometrias
 
-dat |> 
-  st_as_sf(coords = c("lng", "lat"), crs = 4326) |> 
-  st_join(poly) |> 
-  filter(!is.na(gid)) |> 
+dat |>
+  st_as_sf(coords = c("lng", "lat"), crs = 4326) |>
+  st_join(poly) |>
+  filter(!is.na(gid)) |>
   st_make_valid()
 ```
 
@@ -285,13 +284,13 @@ df <- pop |>
 # Import o shape das áreas de ponderação do Censo
 areas <- read_weighting_area(3304557, showProgress = FALSE)
 
-areas |> 
+areas |>
   # Converte o CRS da geometria
-  st_transform(crs = 4326) |> 
+  st_transform(crs = 4326) |>
   # "Limpa" as geometrias
-  st_make_valid() |> 
+  st_make_valid() |>
   # Junta com os dados do Censo
-  left_join(df, by = "code_weighting") |> 
+  left_join(df, by = "code_weighting") |>
   # Visualiza os dados num mapa interativo
   mapview(zcol = "total_pop")
 ```
@@ -308,23 +307,23 @@ Primeiro, deve-se evitar de fazer um pipe long numa mesma linha. Esta recomenda�
 # Bom
 iris |>
   group_by(Species) |>
-  summarise(across(where(is.numeric), mean)) |> 
-  ungroup() |> 
-  pivot_longer(-Species, names_to = "measure") |> 
+  summarise(across(where(is.numeric), mean)) |>
+  ungroup() |>
+  pivot_longer(-Species, names_to = "measure") |>
   arrange(value)
-  
+
 # Ruim
 iris |> group_by(Species)|>
-  summarise(across(where(is.numeric), mean))|>ungroup() |> 
+  summarise(across(where(is.numeric), mean))|>ungroup() |>
   pivot_longer(-Species, names_to = "measure") |> arrange(value)
 ```
 
 ```{r, echo = FALSE}
 iris |>
   group_by(Species) |>
-  summarise(across(where(is.numeric), mean)) |> 
-  ungroup() |> 
-  pivot_longer(-Species, names_to = "measure") |> 
+  summarise(across(where(is.numeric), mean)) |>
+  ungroup() |>
+  pivot_longer(-Species, names_to = "measure") |>
   arrange(value)
 ```
 
@@ -382,27 +381,27 @@ O código abaixo, por exemplo, usa a base `economics_long`, que reúne um conjun
 Para chegar neste cálculo eu uso um pipe, dentro de uma sequência de pipes.
 
 ```{r, eval = FALSE}
-economics_long |> 
-  left_join(economics_long |> 
-              filter(date == min(date)) |> 
+economics_long |>
+  left_join(economics_long |>
+              filter(date == min(date)) |>
               select(variable, base = value)
-            ) |> 
-  group_by(variable) |> 
-  mutate(index = value / base * 100) |> 
+            ) |>
+  group_by(variable) |>
+  mutate(index = value / base * 100) |>
   filter(date <= as.Date("1980-01-01"))
 ```
 
 A versão alternativa do código cria um objeto intermediário com os valores iniciais de cada uma das séries.
 
 ```{r}
-base_index <- economics_long |> 
-  filter(date == min(date)) |> 
+base_index <- economics_long |>
+  filter(date == min(date)) |>
   select(variable, base = value)
 
-economics_index <- economics_long |> 
-  left_join(base_index, by = "variable") |> 
-  group_by(variable) |> 
-  mutate(index = value / base * 100) |> 
+economics_index <- economics_long |>
+  left_join(base_index, by = "variable") |>
+  group_by(variable) |>
+  mutate(index = value / base * 100) |>
   filter(date <= as.Date("1980-01-01"))
 ```
 
@@ -440,8 +439,8 @@ mtcars %>%
 Isto não funciona com o pipe nativo.
 
 ```{r, error = TRUE}
-mtcars |> 
-  filter(cyl == 6) |> 
+mtcars |>
+  filter(cyl == 6) |>
   mutate(label = rownames(_))
 ```
 
@@ -486,7 +485,7 @@ mtcars %>%
 ```
 
 ```{r, error = TRUE}
-mtcars |> 
+mtcars |>
   anti_join(x = _, y = _)
 ```
 

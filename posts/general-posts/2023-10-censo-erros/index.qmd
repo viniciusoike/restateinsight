@@ -3,7 +3,7 @@ title: "Censo 2022: O que houve de errado?"
 date: "2023-11-17"
 description: "Houve certo rebuliço nas redes sociais, quando do lançamento dos dados mais recentes do Censo Demográfico de 2022. O fato carregado na maior parte das manchetes do Brasil foi a queda na população brasileira. Até 2021, projetava-se que a população brasileira estivesse em torno de 213 milhões de habitantes. O número que o Censo trouxe foi de 203 milhões, queda de 10 milhões de habitantes em relação ao previsto."
 categories: ["brasil", "demografia", "censo"]
-execute: 
+execute:
   echo: false
   warning: false
   message: false
@@ -42,35 +42,61 @@ theme_vini <- theme_minimal(base_family = "Lato") +
     plot.subtitle = element_text(size = 10),
     plot.caption = element_text(size = 10, hjust = 0),
     text = element_text(color = "gray40")
-    )
+  )
 ```
 
 ```{r data-census}
 census_pop <- tibble::tribble(
-  ~year, ~population, ~growth,
-  1872,	9930478, NA,
-  1890,	14333915, 44.3,
-  1900,	17438434, 21.7,
-  1920,	30635605, 75.7,
-  1940,	41236315, 34.6,
-  1950,	51944397, 26.0,
-  1960,	70992343, 36.7,
-  1970,	94508583, 33.1,
-  1980,	121150573, 28.2,
-  1991,	146917459, 21.3,
-  2000,	169590693, 15.4,
-  2010,	190755799, 12.5,
-  2022,	203062512, 6.5
+  ~year,
+  ~population,
+  ~growth,
+  1872,
+  9930478,
+  NA,
+  1890,
+  14333915,
+  44.3,
+  1900,
+  17438434,
+  21.7,
+  1920,
+  30635605,
+  75.7,
+  1940,
+  41236315,
+  34.6,
+  1950,
+  51944397,
+  26.0,
+  1960,
+  70992343,
+  36.7,
+  1970,
+  94508583,
+  33.1,
+  1980,
+  121150573,
+  28.2,
+  1991,
+  146917459,
+  21.3,
+  2000,
+  169590693,
+  15.4,
+  2010,
+  190755799,
+  12.5,
+  2022,
+  203062512,
+  6.5
 )
 ```
 
 ```{r plot-tgc}
 fcast_tgc <- function(x) {
-  
   p0 = 190755799
   t = 12
   p0 * (1 + x / 100)^t
-  
 }
 
 tbl_tgc <- tibble(
@@ -88,14 +114,15 @@ tbl_text <- tibble(
   label = glue::glue("r = {tgc}%")
 )
 
-tbl_tgc <- tbl_tgc |> 
+tbl_tgc <- tbl_tgc |>
   pivot_longer(-year)
 
 plot_tgc <- ggplot() +
   geom_line(
     data = tbl_tgc,
     aes(x = year, y = value / 1e6, color = name),
-    linewidth = 0.9) +
+    linewidth = 0.9
+  ) +
   geom_text(
     data = tbl_text,
     aes(x = x, y = y / 1e6, label = label),
@@ -118,7 +145,7 @@ plot_tgc <- ggplot() +
 ```
 
 ```{r plot-pop}
-plot_pop <- 
+plot_pop <-
   ggplot(census_pop, aes(x = year, y = population / 1e6)) +
   geom_area(fill = "#224B5E") +
   geom_point(color = "gray20") +
@@ -127,7 +154,8 @@ plot_pop <-
     color = "gray10",
     family = "Lato",
     size = 3,
-    nudge_y = 10) +
+    nudge_y = 10
+  ) +
   geom_hline(yintercept = 0) +
   scale_x_continuous(breaks = census_pop$year, expand = c(0.05, 0)) +
   labs(
@@ -144,24 +172,28 @@ plot_pop <-
 ```{r data-state}
 projecao <- get_sidra(7358, geo = "State", classific = "c1933")
 
-tbl_proj <- projecao |> 
-  janitor::clean_names() |> 
-  as_tibble() |> 
-  filter(sexo == "Total") |> 
-  select(year = ano_2, code_state = unidade_da_federacao_codigo, pop_proj = valor) |>
+tbl_proj <- projecao |>
+  janitor::clean_names() |>
+  as_tibble() |>
+  filter(sexo == "Total") |>
+  select(
+    year = ano_2,
+    code_state = unidade_da_federacao_codigo,
+    pop_proj = valor
+  ) |>
   mutate(across(everything(), as.numeric))
 
 census_pop <- get_sidra(4709, variable = 93, geo = "State")
 
-tbl_census <- census_pop |> 
-  janitor::clean_names() |> 
-  as_tibble() |> 
-  select(year = ano, code_state = unidade_da_federacao_codigo, pop = valor) |> 
+tbl_census <- census_pop |>
+  janitor::clean_names() |>
+  as_tibble() |>
+  select(year = ano, code_state = unidade_da_federacao_codigo, pop = valor) |>
   mutate(across(everything(), as.numeric))
 
 tbl_census <- inner_join(tbl_census, tbl_proj, by = c("year", "code_state"))
 
-tbl_census <- tbl_census |> 
+tbl_census <- tbl_census |>
   mutate(
     diff = pop - pop_proj,
     diff_rel = pop / pop_proj - 1
@@ -190,7 +222,7 @@ map_state <- ggplot(pop_state) +
     size = 3,
     family = "Lato",
     color = "gray10"
-    ) +
+  ) +
   geom_label_repel(
     data = filter(pop_state, repel == 1),
     aes(x = x, y = y, label = label),
@@ -198,12 +230,12 @@ map_state <- ggplot(pop_state) +
     family = "Lato",
     color = "gray10",
     nudge_x = 5
-    ) +
+  ) +
   scale_fill_manual(
     name = "Dif. Censo x Projetado (%)",
     values = c("#543005", "#8c510a", "#bf812d", "#dfc27d", "#35978f"),
     labels = c("< -10%", "-10% a -5%", "-5% a -2,5%", "-2,5% a 0%", " > 0%")
-    ) +
+  ) +
   labs(
     title = "Projeções superestimaram crescimento\nem quase todas as UFs"
   ) +
@@ -215,7 +247,7 @@ map_state <- ggplot(pop_state) +
     legend.text = element_text(size = 9),
     legend.key.size = unit(1, "cm"),
     legend.background = element_rect(fill = NA, color = NA)
-    )
+  )
 ```
 
 ```{r data-birth-death}
@@ -225,17 +257,21 @@ nasc <- get_sidra(
   classific = "c235",
   geo = "Brazil",
   period = "2003-2021"
-  )
+)
 
-tbl_nasc <- nasc |> 
-  janitor::clean_names() |> 
-  as_tibble() |> 
-  rename(year = ano, month = mes_do_nascimento, births = valor) |> 
-  filter(!(month %in% c("Total", "Ignorado"))) |> 
+tbl_nasc <- nasc |>
+  janitor::clean_names() |>
+  as_tibble() |>
+  rename(year = ano, month = mes_do_nascimento, births = valor) |>
+  filter(!(month %in% c("Total", "Ignorado"))) |>
   mutate(
     date = glue::glue("{year}-{month}-01"),
-    date = readr::parse_date(date, format = "%Y-%B-%d", locale = readr::locale("pt"))
-  ) |> 
+    date = readr::parse_date(
+      date,
+      format = "%Y-%B-%d",
+      locale = readr::locale("pt")
+    )
+  ) |>
   select(date, births)
 
 mort <- get_sidra(
@@ -246,22 +282,26 @@ mort <- get_sidra(
   period = "2003-2021"
 )
 
-tbl_mort <- mort |> 
-  janitor::clean_names() |> 
-  as_tibble() |> 
-  rename(year = ano, month = mes_de_ocorrencia, deaths = valor) |> 
-  filter(!(month %in% c("Total", "Ignorado"))) |> 
+tbl_mort <- mort |>
+  janitor::clean_names() |>
+  as_tibble() |>
+  rename(year = ano, month = mes_de_ocorrencia, deaths = valor) |>
+  filter(!(month %in% c("Total", "Ignorado"))) |>
   mutate(
     date = glue::glue("{year}-{month}-01"),
-    date = readr::parse_date(date, format = "%Y-%B-%d", locale = readr::locale("pt"))
-  ) |> 
+    date = readr::parse_date(
+      date,
+      format = "%Y-%B-%d",
+      locale = readr::locale("pt")
+    )
+  ) |>
   select(date, deaths)
 
 tbl_stat <- inner_join(tbl_nasc, tbl_mort, by = "date")
 
-tbl_stat <- tbl_stat |> 
-  mutate(diff = births - deaths) |> 
-  pivot_longer(cols = -date, names_to = "series") |> 
+tbl_stat <- tbl_stat |>
+  mutate(diff = births - deaths) |>
+  pivot_longer(cols = -date, names_to = "series") |>
   mutate(
     trend = RcppRoll::roll_mean(value, n = 12, fill = NA),
     trend = RcppRoll::roll_mean(trend, n = 2, fill = NA),
@@ -327,22 +367,30 @@ panel_pop <- (p1 + p2) + plot_layout(widths = c(2, 1))
 
 ```{r data-proj}
 tab_proj <- tribble(
-  ~year, ~births_proj, ~deaths_proj,
-  2019, 2984414,	1368954,
-  2020, 2963516,	1389144,
-  2021, 2940629,	1410602
+  ~year,
+  ~births_proj,
+  ~deaths_proj,
+  2019,
+  2984414,
+  1368954,
+  2020,
+  2963516,
+  1389144,
+  2021,
+  2940629,
+  1410602
 )
 
-tab_stat_year <- tbl_stat |> 
-  filter(series %in% c("births", "deaths")) |> 
-  mutate(year = lubridate::year(date)) |> 
-  summarise(total = sum(value), .by = c("year", "series")) |> 
+tab_stat_year <- tbl_stat |>
+  filter(series %in% c("births", "deaths")) |>
+  mutate(year = lubridate::year(date)) |>
+  summarise(total = sum(value), .by = c("year", "series")) |>
   pivot_wider(id_cols = "year", names_from = "series", values_from = "total")
 
-tab_bd <- tab_stat_year |> 
-  filter(year >= 2019) |> 
-  left_join(tab_proj, by = "year") |> 
-  pivot_longer(-year) |> 
+tab_bd <- tab_stat_year |>
+  filter(year >= 2019) |>
+  left_join(tab_proj, by = "year") |>
+  pivot_longer(-year) |>
   mutate(
     value = value / 1e6,
     cat = if_else(str_detect(name, "births"), "Nascimentos", "Mortes"),
@@ -351,13 +399,14 @@ tab_bd <- tab_stat_year |>
 ```
 
 ```{r plot-compare}
-plot_compare <- 
+plot_compare <-
   ggplot(tab_bd, aes(x = year, y = value, group = is_forecast)) +
   geom_col(aes(fill = is_forecast), position = position_dodge()) +
   geom_text(
     aes(y = value + 0.1, label = format(round(value, 1), decimal.mark = ",")),
     family = "Lato",
-    position = position_dodge(width = 0.9)) +
+    position = position_dodge(width = 0.9)
+  ) +
   geom_hline(yintercept = 0) +
   facet_wrap(vars(cat)) +
   scale_fill_manual(
@@ -380,15 +429,15 @@ plot_compare <-
     axis.text = element_text(size = 12),
     strip.background = element_rect(color = "gray10"),
     strip.text = element_text(size = 12)
-    )
+  )
 ```
 
 ```{r fcast-deaths}
 library(forecast)
 
 #> Get only deaths and signal if in_sample or out_sample
-tbl_death <- tbl_stat |> 
-  filter(series == "deaths") |> 
+tbl_death <- tbl_stat |>
+  filter(series == "deaths") |>
   mutate(train = if_else(date <= as.Date("2019-12-01"), 1L, 0L))
 
 #> Convert to time-series
@@ -396,17 +445,21 @@ y <- ts(
   pull(filter(tbl_death, train == 1L), value),
   start = c(2003, 1),
   frequency = 12
-  )
+)
 #> BoxCox Transformation to reduce variance
 lambda <- BoxCox.lambda(y)
 ly <- BoxCox(y, lambda)
 #> Simple STL model
 model <- mstl(ly, robust = TRUE)
-#> Forecast 
+#> Forecast
 fcast <- forecast(model, h = nrow(tbl_death) - length(y), lambda = lambda)
 #> Convert forecast into tibble
 tbl_fcast <- tibble(
-  date = seq(as.Date("2020-01-01"), length.out = length(fcast$mean), by = "month"),
+  date = seq(
+    as.Date("2020-01-01"),
+    length.out = length(fcast$mean),
+    by = "month"
+  ),
   mean = fcast$mean,
   upper = fcast$upper[, 2],
   lower = fcast$lower[, 2]
@@ -417,26 +470,27 @@ tbl <- tibble(
   date = seq(as.Date("2018-01-01"), max(tbl_stat$date), by = "month")
 )
 
-tbl <- tbl |> 
-  left_join(tbl_death, by = "date") |> 
-  select(date, original = value) |> 
-  left_join(tbl_fcast, by = "date") |> 
-  pivot_longer(-date, names_to = "series") |> 
-  mutate(is_fcast = factor(
-    if_else(date >= as.Date("2020-01-01") & series != "original", 1L, 0L)
+tbl <- tbl |>
+  left_join(tbl_death, by = "date") |>
+  select(date, original = value) |>
+  left_join(tbl_fcast, by = "date") |>
+  pivot_longer(-date, names_to = "series") |>
+  mutate(
+    is_fcast = factor(
+      if_else(date >= as.Date("2020-01-01") & series != "original", 1L, 0L)
     )
   )
 
-tbl_excess_deaths <- tbl |> 
+tbl_excess_deaths <- tbl |>
   filter(
     series %in% c("original", "mean"),
     date >= as.Date("2020-01-01")
-    ) |> 
-  pivot_wider(id_cols = "date", names_from = "series", values_from = "value") |> 
+  ) |>
+  pivot_wider(id_cols = "date", names_from = "series", values_from = "value") |>
   mutate(
     abs_diff = original - mean,
     acum = cumsum(abs_diff)
-    )
+  )
 ```
 
 ```{r plot-fcast}
@@ -466,10 +520,10 @@ plot_fcast <- ggplot() +
     x = NULL,
     y = "Óbitos",
     caption = "Fonte: IBGE (Estatísticas do Registro Civil, 2022). Previsão de modelo STL."
-    ) +
+  ) +
   scale_y_continuous(labels = scales::label_number(big.mark = ".")) +
   theme_vini
-  
+
 ```
 
 ```{r}
@@ -479,7 +533,7 @@ plot_acum <- ggplot(tbl_excess_deaths, aes(x = date, y = acum)) +
     color = "#224B5E",
     alpha = 0.8,
     linewidth = 1
-    ) +
+  ) +
   geom_hline(yintercept = 0) +
   scale_x_date(date_breaks = "1 year", date_labels = "%Y") +
   scale_y_continuous(labels = scales::label_number(big.mark = ".")) +
@@ -488,7 +542,7 @@ plot_acum <- ggplot(tbl_excess_deaths, aes(x = date, y = acum)) +
     subtitle = "Número acumulado de óbitos acima do previsto no período.",
     x = NULL,
     y = "Óbitos acima do previsto (acumulado)"
-    ) +
+  ) +
   theme_vini +
   theme(panel.grid.major.x = element_blank())
 ```
@@ -499,26 +553,24 @@ pop_age <- get_sidra(9514, variable = 93, geo = "Brazil")
 age_codes_proj <- c(93070, 93084:93098, 113623)
 
 get_proj_state <- function(state) {
-  
   projecao <- get_sidra(
     7358,
     geo = "State",
     geo.filter = list("State" = as.numeric(state))
-    )
-  
-  df <- projecao |> 
-    janitor::clean_names() |> 
-    as_tibble() |> 
-    filter(sexo != "Total", ano_2 == 2022, idade_codigo %in% age_codes_proj) |> 
+  )
+
+  df <- projecao |>
+    janitor::clean_names() |>
+    as_tibble() |>
+    filter(sexo != "Total", ano_2 == 2022, idade_codigo %in% age_codes_proj) |>
     select(
       code_state = unidade_da_federacao_codigo,
       sex = sexo,
       population = valor,
       age_group = idade
     )
-  
+
   return(df)
-  
 }
 
 dim_state <- geobr::read_state()
@@ -526,54 +578,72 @@ proj_states <- parallel::mclapply(dim_state$code_state, get_proj_state)
 
 tbl_states <- bind_rows(proj_states)
 
-tbl_states <- tbl_states |> 
-  summarise(total = sum(population), .by = c("sex", "age_group")) |> 
-  separate(age_group, into = c("age_min", "age_max"), sep = " a ", remove = FALSE) |> 
+tbl_states <- tbl_states |>
+  summarise(total = sum(population), .by = c("sex", "age_group")) |>
+  separate(
+    age_group,
+    into = c("age_min", "age_max"),
+    sep = " a ",
+    remove = FALSE
+  ) |>
   mutate(
-    sex = factor(sex, levels = c("Homens", "Mulheres"), labels = c("Masculino", "Feminino")),
+    sex = factor(
+      sex,
+      levels = c("Homens", "Mulheres"),
+      labels = c("Masculino", "Feminino")
+    ),
     age_min = str_remove(age_min, " anos ou mais"),
     age_min = as.numeric(age_min),
     age_group = factor(age_group),
     age_group = str_remove(age_group, "(anos)|( anos ou mais)"),
     age_group = str_trim(age_group),
     age_group = fct_reorder(age_group, age_min)
-    ) |> 
+  ) |>
   select(sex, age_group, total)
 
-tbl_pyramid_proj <- tbl_states |> 
-  mutate(share = total / sum(total) * 100, .by = "sex") |> 
+tbl_pyramid_proj <- tbl_states |>
+  mutate(share = total / sum(total) * 100, .by = "sex") |>
   mutate(
     share = if_else(sex == "Masculino", -share, share),
     total = if_else(sex == "Masculino", -total, total)
-    )
+  )
 
 
 age_codes <- c(93070, 93084:93098, 49108, 49109, 60040, 60041, 6653)
 
 
-tbl_pop_age <- pop_age |> 
-  as_tibble() |> 
-  janitor::clean_names() |> 
+tbl_pop_age <- pop_age |>
+  as_tibble() |>
+  janitor::clean_names() |>
   filter(
     idade_codigo %in% age_codes,
     forma_de_declaracao_da_idade == "Total",
     sexo != "Total"
-    ) |> 
+  ) |>
   select(
     age_group = idade,
     population = valor,
     sex = sexo
   )
 
-tbl_pop_age <- tbl_pop_age |> 
-  separate(age_group, into = c("age_min", "age_max"), sep = " a ", remove = FALSE) |> 
+tbl_pop_age <- tbl_pop_age |>
+  separate(
+    age_group,
+    into = c("age_min", "age_max"),
+    sep = " a ",
+    remove = FALSE
+  ) |>
   mutate(
     age_min = str_remove(age_min, " anos ou mais"),
     age_min = as.numeric(age_min),
-    sex = factor(sex, levels = c("Homens", "Mulheres"), labels = c("Masculino", "Feminino"))
+    sex = factor(
+      sex,
+      levels = c("Homens", "Mulheres"),
+      labels = c("Masculino", "Feminino")
+    )
   )
 
-tbl_pyramid <- tbl_pop_age |> 
+tbl_pyramid <- tbl_pop_age |>
   mutate(
     age_group = as.character(age_group),
     age_group = if_else(age_min >= 80, "80 anos ou mais", age_group),
@@ -581,13 +651,14 @@ tbl_pyramid <- tbl_pop_age |>
     age_group = str_trim(age_group),
     age_group = factor(age_group),
     age_group = fct_reorder(age_group, age_min)
-    ) |> 
-  summarise(total = sum(population), .by = c("sex", "age_group")) |> 
+  ) |>
+  summarise(total = sum(population), .by = c("sex", "age_group")) |>
   mutate(
-    share = total / sum(total) * 100, .by = "sex",
+    share = total / sum(total) * 100,
+    .by = "sex",
     share = if_else(sex == "Masculino", -share, share),
     total = if_else(sex == "Masculino", -total, total)
-    )
+  )
 ```
 
 ```{r pyramid}
@@ -598,13 +669,17 @@ tbl_pyramid_proj <- pyramid$pyramid_proj
 
 plot_pyramid <- ggplot() +
   geom_col(
-    data = tbl_pyramid, aes(x = age_group, y = total, fill = sex),
+    data = tbl_pyramid,
+    aes(x = age_group, y = total, fill = sex),
     width = 0.7,
-    color = "gray10") +
+    color = "gray10"
+  ) +
   geom_col(
-    data = tbl_pyramid_proj, aes(x = age_group, y = total, fill = sex),
+    data = tbl_pyramid_proj,
+    aes(x = age_group, y = total, fill = sex),
     width = 0.6,
-    alpha = 0.6) +
+    alpha = 0.6
+  ) +
   scale_y_continuous(
     name = "Pop. (milhao)",
     breaks = c(-8, -6, -4, -2, 0, 2, 4, 6, 8) * 1e6,
@@ -646,13 +721,22 @@ plot_error_popage <- ggplot(tbl_compare, aes(x = age_group, y = diff)) +
   geom_point(size = 3, color = "#264653") +
   geom_segment(
     aes(x = age_group, xend = age_group, y = 0, yend = diff),
-    color = "#264653") +
-  scale_y_continuous(breaks = seq(0, 15, 2.5), expand = c(0, 0), limits = c(NA, 16)) +
+    color = "#264653"
+  ) +
+  scale_y_continuous(
+    breaks = seq(0, 15, 2.5),
+    expand = c(0, 0),
+    limits = c(NA, 16)
+  ) +
   coord_flip() +
   labs(
-    subtitle = str_wrap("Diferença percentual entre população\nverificada no Censo e população projetada", 30),
+    subtitle = str_wrap(
+      "Diferença percentual entre população\nverificada no Censo e população projetada",
+      30
+    ),
     x = NULL,
-    y = "(%) Projetado / Observado") +
+    y = "(%) Projetado / Observado"
+  ) +
   theme_vini +
   theme(
     legend.position = "bottom",
@@ -803,7 +887,7 @@ O gráfico da direita mostra a diferença percentual entre o valor projetado e o
 #| fig-width: 10
 panel <- plot_pyramid + plot_error_popage
 panel +
-  plot_layout(widths = c(2/3, 1/3)) +
+  plot_layout(widths = c(2 / 3, 1 / 3)) +
   plot_annotation(
     title = "Projeções superestimaram população em todos grupos idade",
     caption = "Fontes: IBGE (Censo 2022, Projeções da População 2018)"
