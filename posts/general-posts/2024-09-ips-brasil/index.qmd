@@ -1,4 +1,325 @@
 ---
-title: "IPS-Brasil"
-draft: true
+title: "Índice de Progresso Social nos Municípios Brasileiros"
+date: "2024-09-15"
+categories: ['data-visualization', 'brasil', 'desenvolvimento-social', 'municipios']
+description: "Análise do Índice de Progresso Social (IPS) nos municípios brasileiros, revelando disparidades no acesso a necessidades básicas, bem-estar e oportunidades sociais em todo o território nacional."
+execute:
+  warning: false
+  message: false
+draft: false
 ---
+
+# Índice de Progresso Social
+
+O Índice de Progresso Social (IPS) oferece uma medida abrangente do desenvolvimento social que vai além do PIB per capita. Enquanto indicadores econômicos capturam a riqueza material, o IPS mensura diretamente a qualidade de vida e as oportunidades disponíveis à população. Neste post, exploramos os dados do IPS para municípios brasileiros, revelando disparidades significativas no acesso a necessidades básicas, bem-estar e oportunidades sociais.
+
+## O que é o IPS?
+
+O IPS é um índice composto que avalia o progresso social através de três dimensões fundamentais:
+
+1. **Necessidades Humanas Básicas** - Nutrição e cuidados médicos, água e saneamento, moradia adequada e segurança pessoal.
+
+2. **Fundamentos do Bem-estar** - Acesso ao conhecimento básico, informação e comunicação, saúde e qualidade do meio ambiente.
+
+3. **Oportunidades** - Direitos individuais, liberdades pessoais, inclusão social e acesso à educação superior.
+
+Cada dimensão é composta por múltiplos indicadores objetivos que, em conjunto, formam uma visão holística do desenvolvimento social. Diferentemente do IDH (Índice de Desenvolvimento Humano), o IPS não incorpora variáveis econômicas, focando exclusivamente em resultados sociais e ambientais.
+
+## Contexto
+
+O projeto IPS-Brasil, desenvolvido pelo Instituto do Homem e Meio Ambiente da Amazônia (Imazon) em parceria com a Social Progress Imperative, adapta a metodologia internacional do Social Progress Index para a realidade brasileira. A iniciativa busca fornecer aos gestores públicos e à sociedade civil ferramentas para avaliar e monitorar o progresso social em nível municipal.
+
+Os dados analisados neste post cobrem todos os municípios brasileiros e incluem mais de 70 indicadores divididos nas três dimensões do IPS. Esta granularidade permite identificar não apenas quais regiões apresentam melhores condições de vida, mas também quais aspectos específicos do desenvolvimento social requerem atenção prioritária.
+
+# Dados
+
+```{r}
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+library(gt)
+library(gtExtras)
+
+ips <- readr::read_csv(here::here("static/data/ips_brasil_municipios.csv"))
+```
+
+O conjunto de dados contém informações sobre `r nrow(ips)` municípios brasileiros. Além do IPS geral, os dados incluem as três dimensões principais e diversos sub-componentes que permitem análises detalhadas sobre diferentes aspectos do desenvolvimento social.
+
+```{r}
+basic_sum <- list(
+  min = \(x) min(x, na.rm = TRUE),
+  avg = \(x) mean(x, na.rm = TRUE),
+  med = \(x) median(x, na.rm = TRUE),
+  max = \(x) max(x, na.rm = TRUE),
+  non_na = \(x) sum(!is.na(x))
+)
+
+old_names <- names(ips)
+new_names <- janitor::make_clean_names(old_names)
+
+vl_names <- old_names
+names(vl_names) <- new_names
+
+tab_ips_summary <- ips |> 
+  janitor::clean_names() |> 
+  summarise(
+    across(where(is.numeric), basic_sum, .names = "{.fn}-{.col}")
+  ) |> 
+  pivot_longer(
+    cols = everything(),
+    names_to = c("statistic", "variable"),
+    names_sep = "-"
+    )
+
+rm_vars <- c(
+  "codigo_ibge",
+  "populacao_2022",
+  "pib_per_capita_2021",
+  "area_km2"
+  )
+
+tab_ips_summary <- tab_ips_summary |> 
+  filter(!variable %in% rm_vars) |> 
+  pivot_wider(
+    id_cols = "variable",
+    names_from = "statistic"
+  ) |> 
+  mutate(
+    variable_label = unname(vl_names[variable])
+  )
+```
+
+## Estatísticas Descritivas
+
+A tabela abaixo apresenta estatísticas descritivas das principais dimensões do IPS. Os valores variam de 0 a 100, onde valores mais altos indicam melhor desempenho social.
+
+```{r}
+tab_ips_subset <- tab_ips_summary |>
+  head(15) |>
+  select(-variable, -non_na) |>
+  select(variable_label, everything())
+
+old_names <- names(tab_ips_subset)
+new_names <- c("Variável", "Mínimo", "Média", "Mediana", "Máximo")
+names(new_names) <- names(tab_ips_subset)
+
+gt(tab_ips_subset) |>
+  cols_label(.list = new_names) |>
+  fmt_number(where(is.numeric), dec_mark = ",", decimals = 1) |>
+  opt_stylize(style = 6)
+```
+
+Os dados revelam disparidades significativas entre municípios brasileiros. O IPS geral apresenta amplitude de mais de 30 pontos, variando entre o município com pior desempenho e o melhor. Nota-se que a dimensão "Oportunidades" apresenta os valores médios mais baixos, indicando que o acesso a direitos, liberdades e educação superior representa o maior desafio para o desenvolvimento social no país.
+
+# Análise
+
+## Distribuição do IPS
+
+O gráfico abaixo mostra a distribuição do Índice de Progresso Social entre os municípios brasileiros.
+
+```{r}
+#| fig-width: 8
+#| fig-height: 5
+ips_clean <- ips |>
+  janitor::clean_names()
+
+ggplot(ips_clean, aes(x = indice_de_progresso_social)) +
+  geom_histogram(bins = 50, fill = "#2E86AB", alpha = 0.8, color = "white") +
+  geom_vline(
+    aes(xintercept = median(indice_de_progresso_social, na.rm = TRUE)),
+    linetype = "dashed",
+    color = "#A23B72",
+    linewidth = 1
+  ) +
+  labs(
+    title = "Distribuição do IPS nos Municípios Brasileiros",
+    subtitle = "Linha tracejada indica a mediana",
+    x = "Índice de Progresso Social",
+    y = "Número de Municípios"
+  ) +
+  theme_minimal(base_size = 12) +
+  theme(
+    plot.title = element_text(face = "bold"),
+    panel.grid.minor = element_blank()
+  )
+```
+
+A distribuição apresenta concentração em torno dos valores intermediários (50-60), com uma cauda longa de municípios com baixo desempenho social. Esta assimetria indica que, apesar de haver municípios com condições sociais comparáveis a países desenvolvidos, uma parcela significativa da população brasileira vive em localidades com severas deficiências em infraestrutura e serviços básicos.
+
+## Comparação entre Dimensões
+
+Analisando as três dimensões do IPS, podemos identificar onde o Brasil apresenta maiores desafios.
+
+```{r}
+#| fig-width: 8
+#| fig-height: 6
+ips_dimensions <- ips_clean |>
+  select(
+    municipio,
+    necessidades = necessidades_humanas_basicas,
+    bem_estar = fundamentos_do_bem_estar,
+    oportunidades
+  ) |>
+  pivot_longer(
+    cols = -municipio,
+    names_to = "dimensao",
+    values_to = "valor"
+  ) |>
+  mutate(
+    dimensao = case_when(
+      dimensao == "necessidades" ~ "Necessidades\nHumanas Básicas",
+      dimensao == "bem_estar" ~ "Fundamentos do\nBem-estar",
+      dimensao == "oportunidades" ~ "Oportunidades"
+    ),
+    dimensao = factor(dimensao, levels = c(
+      "Necessidades\nHumanas Básicas",
+      "Fundamentos do\nBem-estar",
+      "Oportunidades"
+    ))
+  )
+
+ggplot(ips_dimensions, aes(x = dimensao, y = valor, fill = dimensao)) +
+  geom_boxplot(alpha = 0.7, outlier.alpha = 0.3) +
+  scale_fill_manual(values = c("#2E86AB", "#A23B72", "#F18F01")) +
+  labs(
+    title = "Comparação entre as Dimensões do IPS",
+    subtitle = "Distribuição dos valores para cada dimensão",
+    x = NULL,
+    y = "Pontuação"
+  ) +
+  theme_minimal(base_size = 12) +
+  theme(
+    plot.title = element_text(face = "bold"),
+    panel.grid.minor = element_blank(),
+    panel.grid.major.x = element_blank(),
+    legend.position = "none"
+  )
+```
+
+O gráfico revela que a dimensão "Necessidades Humanas Básicas" apresenta, em geral, melhor desempenho, com mediana próxima de 70 pontos. Já a dimensão "Oportunidades" apresenta os valores mais baixos e maior variabilidade, refletindo desigualdades no acesso à educação superior, direitos individuais e inclusão social.
+
+## Desempenho Regional
+
+Agregando os dados por estado, podemos observar padrões regionais no desenvolvimento social brasileiro.
+
+```{r}
+#| fig-width: 10
+#| fig-height: 6
+ips_by_state <- ips_clean |>
+  group_by(uf) |>
+  summarise(
+    ips_medio = mean(indice_de_progresso_social, na.rm = TRUE),
+    n_municipios = n()
+  ) |>
+  arrange(desc(ips_medio))
+
+ggplot(ips_by_state, aes(x = reorder(uf, ips_medio), y = ips_medio)) +
+  geom_col(aes(fill = ips_medio), show.legend = FALSE) +
+  geom_text(
+    aes(label = sprintf("%.1f", ips_medio)),
+    hjust = -0.2,
+    size = 3
+  ) +
+  scale_fill_gradient(low = "#F18F01", high = "#2E86AB") +
+  coord_flip() +
+  labs(
+    title = "IPS Médio por Estado",
+    subtitle = "Valores médios considerando todos os municípios de cada estado",
+    x = NULL,
+    y = "IPS Médio"
+  ) +
+  theme_minimal(base_size = 12) +
+  theme(
+    plot.title = element_text(face = "bold"),
+    panel.grid.minor = element_blank(),
+    panel.grid.major.y = element_blank()
+  )
+```
+
+Os estados das regiões Sul e Sudeste lideram o ranking de desenvolvimento social, enquanto estados do Norte e Nordeste apresentam os menores índices. Esta distribuição espacial reflete desigualdades históricas e estruturais no desenvolvimento econômico e social brasileiro.
+
+## Melhores e Piores Desempenhos
+
+As tabelas abaixo destacam os municípios com melhor e pior desempenho no IPS.
+
+```{r}
+top_10 <- ips_clean |>
+  select(municipio, uf, indice_de_progresso_social,
+         necessidades_humanas_basicas, fundamentos_do_bem_estar, oportunidades) |>
+  arrange(desc(indice_de_progresso_social)) |>
+  head(10) |>
+  mutate(across(where(is.numeric), ~round(.x, 1)))
+
+gt(top_10) |>
+  cols_label(
+    municipio = "Município",
+    uf = "UF",
+    indice_de_progresso_social = "IPS",
+    necessidades_humanas_basicas = "Necessidades",
+    fundamentos_do_bem_estar = "Bem-estar",
+    oportunidades = "Oportunidades"
+  ) |>
+  tab_header(title = "Top 10 Municípios com Maior IPS") |>
+  opt_stylize(style = 6) |>
+  tab_options(table.font.size = px(12))
+```
+
+Os municípios com melhor desempenho social concentram-se nas regiões Sul e Sudeste, especialmente em áreas metropolitanas e cidades de médio porte com forte economia local.
+
+```{r}
+bottom_10 <- ips_clean |>
+  select(municipio, uf, indice_de_progresso_social,
+         necessidades_humanas_basicas, fundamentos_do_bem_estar, oportunidades) |>
+  arrange(indice_de_progresso_social) |>
+  head(10) |>
+  mutate(across(where(is.numeric), ~round(.x, 1)))
+
+gt(bottom_10) |>
+  cols_label(
+    municipio = "Município",
+    uf = "UF",
+    indice_de_progresso_social = "IPS",
+    necessidades_humanas_basicas = "Necessidades",
+    fundamentos_do_bem_estar = "Bem-estar",
+    oportunidades = "Oportunidades"
+  ) |>
+  tab_header(title = "Top 10 Municípios com Menor IPS") |>
+  opt_stylize(style = 6) |>
+  tab_options(table.font.size = px(12))
+```
+
+Os municípios com menor IPS enfrentam múltiplos desafios simultâneos, com baixo desempenho em todas as três dimensões do índice. Muitos destes municípios localizam-se em regiões remotas, com economia baseada em agricultura de subsistência e infraestrutura precária.
+
+# Principais Conclusões
+
+A análise do Índice de Progresso Social nos municípios brasileiros revela importantes insights sobre o desenvolvimento social do país:
+
+1. **Disparidades Regionais**: Existe forte concentração do desenvolvimento social nas regiões Sul e Sudeste, enquanto Norte e Nordeste apresentam desafios mais significativos, especialmente em áreas rurais e remotas.
+
+2. **Oportunidades como Gargalo**: A dimensão "Oportunidades" apresenta os valores mais baixos e maior variabilidade, indicando que o acesso à educação superior, direitos individuais e inclusão social representa o maior desafio para o desenvolvimento social brasileiro.
+
+3. **Necessidades Básicas Parcialmente Atendidas**: Apesar dos avanços, ainda há municípios com deficiências graves em água, saneamento, moradia e segurança pessoal, especialmente em áreas mais isoladas.
+
+4. **Heterogeneidade Municipal**: A ampla variação entre municípios, mesmo dentro de um mesmo estado, sugere que políticas de desenvolvimento social precisam ser adaptadas às realidades locais, considerando as especificidades de cada território.
+
+## Implicações para Políticas Públicas
+
+Os resultados apontam para a necessidade de:
+
+- **Investimentos Regionalizados**: Priorizar recursos federais e estaduais para municípios com baixo IPS, especialmente nas regiões Norte e Nordeste.
+
+- **Foco em Oportunidades**: Expandir o acesso à educação superior, fortalecimento de direitos e promoção da inclusão social, áreas onde o Brasil apresenta os maiores déficits.
+
+- **Abordagem Multidimensional**: Reconhecer que o desenvolvimento social vai além do crescimento econômico, exigindo políticas integradas que abordem simultaneamente necessidades básicas, bem-estar e oportunidades.
+
+- **Monitoramento Contínuo**: Utilizar o IPS como ferramenta de acompanhamento da efetividade de políticas públicas em nível municipal, permitindo ajustes e correções de rota.
+
+## Referências e Dados
+
+- Dados: [IPS-Brasil - Imazon](https://imazon.org.br/ips-amazonia/)
+- Metodologia: [Social Progress Index](https://www.socialprogress.org/)
+
+## Posts Relacionados
+
+- [Demografia do Brasil](https://restateinsight.com/posts/general-posts/2025-07-demografia-brasil/)
+- [Índice de Envelhecimento por Município](https://restateinsight.com/posts/general-posts/2024-04-wz-age-index/)

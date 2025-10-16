@@ -2,12 +2,12 @@
 title: "Modelo ARIMA no R"
 date: "2025-07-01"
 categories: ['data-science', 'time-series', 'econometria']
-description: ""
+description: "Demonstração prática da aplicação de modelos ARIMA em séries macroeconômicas brasileiras usando a metodologia Box-Jenkins, desde a identificação da ordem do modelo até a previsão de valores futuros."
 format: html
 execute:
   warning: false
   message: false
-draft: true
+draft: false
 ---
 
 ```{r}
@@ -346,7 +346,7 @@ Queremos verificar as seguintes propriedades nos resíduos:
 -   Variância constante (homocedasticidade).
 -   Normalidade.
 
-Em termos de previsão, o mais importante é verificar se a média do resíduo é zero. Qualquer valor diferente de zero indica que a previsão do modelo será enviesada. Em termos econométricos, o mais importante é verificar a ausência de autocorrelação. A hipótese de homocedasticidade é importante
+Em termos de previsão, o mais importante é verificar se a média do resíduo é zero. Qualquer valor diferente de zero indica que a previsão do modelo será enviesada. Em termos econométricos, o mais importante é verificar a ausência de autocorrelação. A hipótese de homocedasticidade é importante para a validade dos intervalos de confiança das previsões, embora violações moderadas costumem ser toleradas na prática
 
 Para selecionar os resíduos de um modelo usa-se `residuals`. O valor de $\sigma^2$ já foi calculado pela função `Arima` então precisamos somente selecionar o valor.
 
@@ -510,7 +510,7 @@ p2 = autoplot(u2^2) +
 
 ### Arch test
 
-O test ARCH (autoregressive conditional heteroskedasticity**)** é, conceitualmente, muito similar ao teste Breusch-Godfrey, visto anteriormente. A ideia é fazer uma regressão do quadrado do resíduo contra seus valores defasados para verificar a presença de alguma
+O test ARCH (autoregressive conditional heteroskedasticity) é, conceitualmente, muito similar ao teste Breusch-Godfrey, visto anteriormente. A ideia é fazer uma regressão do quadrado do resíduo contra seus valores defasados para verificar a presença de heteroscedasticidade condicional. A hipótese nula do teste é de que não há efeitos ARCH presentes.
 
 ```{r}
 FinTS::ArchTest(u1, lags = 4)
@@ -518,10 +518,133 @@ FinTS::ArchTest(u1, lags = 4)
 
 ## Normalidade dos resíduos
 
+O teste Jarque-Bera avalia se os resíduos seguem uma distribuição normal. A normalidade dos resíduos é importante para a validade dos intervalos de confiança das previsões.
+
 ```{r}
 tseries::jarque.bera.test(u1)
 ```
 
+A função `checkresiduals` oferece uma visualização completa dos diagnósticos do modelo, combinando o gráfico da série dos resíduos, a FAC e um histograma com o resultado do teste Ljung-Box.
+
 ```{r}
 checkresiduals(m1) + theme_ts
 ```
+
+# 5. Comparação de Modelos
+
+Após estimar os quatro modelos e verificar seus diagnósticos, o próximo passo é compará-los para selecionar o mais apropriado. A tabela abaixo mostra os critérios de informação para cada modelo estimado.
+
+```{r}
+# Extrai informações dos modelos
+tab_models <- data.frame(
+  Modelo = c("ARIMA(0,1,0)", "ARIMA(1,1,1)", "ARIMA(1,1,0)", "ARIMA(0,1,1)"),
+  AIC = c(m1$aic, m2$aic, m3$aic, m4$aic),
+  AICc = c(m1$aicc, m2$aicc, m3$aicc, m4$aicc),
+  BIC = c(m1$bic, m2$bic, m3$bic, m4$bic),
+  sigma2 = c(m1$sigma2, m2$sigma2, m3$sigma2, m4$sigma2)
+)
+```
+
+```{r}
+#| echo: false
+tab_models %>%
+  print_table()
+```
+
+Os critérios de informação penalizam modelos mais complexos, buscando encontrar o melhor equilíbrio entre ajuste aos dados e parcimônia. Menores valores indicam melhores modelos. Tanto o AIC quanto o BIC indicam que o modelo ARIMA(1,1,1) apresenta o melhor ajuste.
+
+Vale notar que o modelo ARIMA(0,1,0), também conhecido como random walk, apresenta os piores critérios. Este modelo assume que a melhor previsão para o próximo período é simplesmente o valor atual, sem considerar a estrutura de dependência temporal da série.
+
+## Modelo final
+
+Com base nos diagnósticos e critérios de informação, selecionamos o modelo ARIMA(1,1,1) como o mais apropriado para a série de consumo. O modelo final estimado é:
+
+$$
+\Delta y_{t} = 0.9449 \Delta y_{t-1} - 0.7277 \varepsilon_{t-1}
+$$
+
+Este modelo indica que a primeira diferença do consumo possui alta persistência (coeficiente AR próximo de 1) e também incorpora choques passados através do componente MA.
+
+# 6. Previsão
+
+Com o modelo final estimado, podemos gerar previsões para períodos futuros. O código abaixo gera previsões para os próximos 8 trimestres (2 anos) usando o modelo ARIMA(1,1,1).
+
+```{r}
+# Gera previsões
+h = 8
+fcst = forecast(m2, h = h)
+```
+
+O gráfico abaixo mostra a série histórica junto com as previsões e seus respectivos intervalos de confiança de 80% e 95%.
+
+```{r}
+#| echo: false
+autoplot(fcst) +
+  labs(
+    title = "Previsão do Consumo das Famílias",
+    subtitle = "Modelo ARIMA(1,1,1) com intervalos de confiança de 80% e 95%",
+    x = NULL,
+    y = "Index (100 = 1995)"
+  ) +
+  theme_ts
+```
+
+Os intervalos de confiança aumentam à medida que avançamos no horizonte de previsão, refletindo a crescente incerteza sobre valores futuros. Esta é uma característica comum de modelos de séries temporais.
+
+## Avaliando a precisão
+
+Para avaliar a qualidade das previsões, podemos compará-las com os valores observados no conjunto de teste que separamos anteriormente.
+
+```{r}
+# Calcula métricas de erro
+accuracy(fcst, test)
+```
+
+A função `accuracy` calcula diversas métricas de erro de previsão. O RMSE (Root Mean Squared Error) e o MAE (Mean Absolute Error) medem o tamanho típico dos erros de previsão. O MAPE (Mean Absolute Percentage Error) expressa o erro em termos percentuais.
+
+Note que as métricas calculadas sobre o conjunto de treino (Training set) são naturalmente melhores do que as calculadas sobre o conjunto de teste (Test set), pois o modelo foi estimado usando os dados de treino.
+
+# 7. Resumo
+
+Neste post, demonstramos a aplicação completa da metodologia Box-Jenkins para estimar modelos ARIMA em séries temporais macroeconômicas brasileiras. Seguindo as etapas de identificação, estimação, verificação e previsão, modelamos a série de consumo das famílias brasileiras.
+
+## Principais Conclusões
+
+1. **Estacionaridade**: A série de consumo apresentou raiz unitária, exigindo uma diferenciação (d=1) para torná-la estacionária.
+
+2. **Identificação**: A análise das funções de autocorrelação (FAC e FACP) sugeriu um modelo ARIMA(1,1,1) como candidato de ordem máxima.
+
+3. **Diagnóstico**: A verificação dos resíduos através de testes estatísticos e análise gráfica confirmou que o modelo ARIMA(1,1,1) apresenta resíduos bem comportados, sem autocorrelação significativa.
+
+4. **Comparação**: Os critérios AIC e BIC confirmaram que o modelo ARIMA(1,1,1) oferece o melhor equilíbrio entre ajuste e parcimônia.
+
+5. **Previsão**: O modelo final foi usado para gerar previsões fora da amostra, com intervalos de confiança apropriados que refletem a incerteza crescente ao longo do horizonte de previsão.
+
+## Quando usar modelos ARIMA
+
+Modelos ARIMA são apropriados quando:
+
+- Trabalha-se com séries temporais univariadas
+- Há evidência de dependência temporal nos dados
+- O objetivo é fazer previsões de curto a médio prazo
+- Busca-se um modelo parcimonioso e interpretável
+
+**Limitações importantes:**
+
+- ARIMA assume linearidade nas relações temporais
+- Não incorpora informação de outras variáveis (para isso, considere modelos ARIMAX ou VAR)
+- A capacidade preditiva tende a deteriorar rapidamente em horizontes longos
+- Quebras estruturais podem invalidar o modelo
+
+## Alternativas e extensões
+
+- **auto.arima()**: O pacote `forecast` oferece a função `auto.arima()` que seleciona automaticamente a ordem do modelo usando critérios de informação
+- **Modelos sazonais**: Para séries com sazonalidade, considere modelos SARIMA
+- **Modelos multivariados**: Para incorporar múltiplas séries, considere modelos VAR ou VECM
+- **Não-linearidade**: Para capturar assimetrias e não-linearidades, considere modelos GARCH ou TAR
+
+## Posts Relacionados
+
+- [Modelos ARMA: exemplo simples](https://restateinsight.com/posts/general-posts/repost-arma-exemplo-simples/)
+- [Médias móveis em R](https://restateinsight.com/posts/general-posts/2024-02-media-movel/)
+- [Sazonalidade em séries de tempo](https://restateinsight.com/posts/general-posts/2024-01-sazonalidade/)
