@@ -3,14 +3,13 @@ library(ggplot2)
 library(ggtext)
 library(sf)
 library(showtext)
+library(stringr)
 # library(basemaps)
 
 import::from(here, here)
-import::from(tidyr, nest, unnest)
 import::from(forcats, fct_reorder)
 import::from(readr, read_csv)
 import::from(lubridate, `%m+%`, `%m-%`, month)
-import::from(stringr, str_wrap, str_remove)
 
 dat <- read_csv(here("static/data/metro_sp.csv"))
 station <- read_csv(here("static/data/metro_sp_line_5_stations.csv"))
@@ -76,41 +75,48 @@ df_labels <- tibble(
   yend_line = c(20000, 1750, 1750, 20000, 1750)
 )
 
-total_passengers <- dat |> 
+total_passengers <- dat |>
   filter(
     variable == "transport",
     metric == "total",
     metro_line_num == 5
-    ) |> 
-  filter(!is.na(value)) |> 
+  ) |>
+  filter(!is.na(value)) |>
   summarise(
     value = sum(value),
     .by = names(dat)[-8]
   )
 
-total_passengers <- trendseries::add_trend(total_passengers)
+total_passengers <- trendseries::augment_trends(
+  total_passengers,
+  methods = "stl"
+)
 
 df_labels <- inner_join(df_labels, total_passengers, by = "date")
 
 ## Plot --------------------------------------------------------------------
 
-total_passengers |> 
+total_passengers |>
   slice_max(value)
 
 base_plot <- ggplot() +
   geom_rect(
-    aes(xmin = as.Date("2020-03-16"),
-        xmax = as.Date("2023-05-12"),
-        ymin = -Inf,
-        ymax = Inf),
+    aes(
+      xmin = as.Date("2020-03-16"),
+      xmax = as.Date("2023-05-12"),
+      ymin = -Inf,
+      ymax = Inf
+    ),
     fill = "gray70",
-    alpha = 0.4) +
+    alpha = 0.4
+  ) +
   geom_line(
     data = total_passengers,
     aes(x = date, y = value),
     color = colors,
     alpha = 0.5,
-    lwd = 0.8) +
+    lwd = 0.8
+  ) +
   geom_point(
     data = total_passengers,
     aes(x = date, y = value),
@@ -172,18 +178,22 @@ plot_labels <- base_plot +
   ) +
   # Covid text label
   geom_text(
-    aes(x = as.Date("2021-10-13"),
-        y = 20000,
-        label = "Pandemia Covid-19\n(mar/20-mai/23)"),
+    aes(
+      x = as.Date("2021-10-13"),
+      y = 20000,
+      label = "Pandemia Covid-19\n(mar/20-mai/23)"
+    ),
     family = "Fira Sans",
-    size = 3)
+    size = 3
+  )
 
 p_flow_total <- plot_labels +
   scale_x_date(date_breaks = "1 year", date_labels = "%Y") +
   scale_y_continuous(
     labels = scales::label_number(big.mark = ".", scale = 0.001),
     breaks = seq(5000, 20000, 5000),
-    limits = c(-1000, NA)) +
+    limits = c(-1000, NA)
+  ) +
   labs(
     title = "Total de Passageiros (Linha-5, Lilás)",
     subtitle = "Numero total de passageiros transportados na linha-5 Lilás (incluindo baldeações) a cada mês.",
@@ -198,12 +208,12 @@ p_flow_total <- plot_labels +
 ## Auxiliar data -----------------------------------------------------------
 
 # Aggregate data (line-5 has info from Metro and ViaMobilidade)
-passenger <- dat |> 
+passenger <- dat |>
   filter(
     variable == "transport",
     metro_line_num == 5
-  ) |> 
-  filter(!is.na(value)) |> 
+  ) |>
+  filter(!is.na(value)) |>
   # Aggregate by all variables except 'value'
   summarise(
     value = mean(value, na.rm = TRUE),
@@ -211,52 +221,64 @@ passenger <- dat |>
   )
 
 # Compute pre-pandemic base line (avg. values 2019)
-pre_pandemic_baseline <- passenger |> 
-  mutate(month = month(date)) |> 
-  filter(year == 2019) |> 
+pre_pandemic_baseline <- passenger |>
+  mutate(month = month(date)) |>
+  filter(year == 2019) |>
   summarise(base_index = mean(value, na.rm = TRUE), .by = c("metric", "month"))
 
 # Join baseline with data and compute indexed values
-df1 <- passenger |> 
-  mutate(month = month(date)) |> 
-  left_join(pre_pandemic_baseline, by = c("metric", "month")) |> 
+df1 <- passenger |>
+  mutate(month = month(date)) |>
+  left_join(pre_pandemic_baseline, by = c("metric", "month")) |>
   mutate(
     index = value / base_index * 100,
     cat = case_when(
       metric_label == "Média dos Dias Úteis" ~ "Workday",
-      metric_label %in% c("Média dos Sábados", "Média dos Domingos") ~ "Weekend",
+      metric_label %in%
+        c("Média dos Sábados", "Média dos Domingos") ~ "Weekend",
       TRUE ~ NA_character_
-    )) |> 
-  filter(!is.na(cat)) |> 
+    )
+  ) |>
+  filter(!is.na(cat)) |>
   summarise(
     index_2 = mean(index),
     .by = c("date", "cat")
   )
 
-# Smooth both series using STL
-df1 <- df1 |> 
-  group_by(cat) |> 
-  nest() |> 
-  mutate(trend = lapply(data, \(x) trendseries::add_trend(x, value_colname = "index_2", trend = "stl"))) |> 
-  unnest(trend) |> 
-  ungroup()
-
+df1 <- trendseries::augment_trends(
+  df1,
+  value_col = "index_2",
+  group_vars = "cat",
+  methods = "stl",
+  window = 17
+)
 
 ## Plot --------------------------------------------------------------------
 
+colors_days <- c("#807dba", "#3f007d")
+
+subtitle <- str_glue(
+  "Indexed average Line-5 Subway passenger flow for <b><span style='color:{colors_days[1]}'>weekdays</span></b> and <b><span style='color:{colors_days[2]}'>workdays</span></b>."
+)
+
 p_flow <- ggplot(df1, aes(date, trend_stl, color = cat)) +
   geom_hline(yintercept = 100) +
-  geom_line(lwd = 1) +
+  geom_line(lwd = 0.8) +
   geom_text(
     data = df1 |> group_by(cat) |> slice_max(date, n = 1),
-    aes(x = date + months(3), y = trend_stl, label = round(trend_stl, 1), color = cat)
+    aes(
+      x = date + months(3),
+      y = trend_stl,
+      label = round(trend_stl, 1),
+      color = cat
+    )
   ) +
   scale_x_date(date_breaks = "1 year", date_labels = "%Y") +
-  scale_color_manual(values = c("#2a9d8f", "#e76f51")) +
+  scale_color_manual(values = colors_days) +
   guides(color = "none") +
   labs(
-    title = "Workday passenger flow is still down 10% from pre-pandemic values",
-    subtitle = "Indexed average Line-4 Subway passenger flow for <b><span style='color:#2a9d8f'>weekdays</span></b> and <b><span style='color:#e76f51'>workdays</span></b>.",
+    title = "Weekend passenger flow has exceeded pre-pandemic values",
+    subtitle = subtitle,
     y = "Index (100 = 2019 average)",
     x = NULL,
   ) +
@@ -266,7 +288,8 @@ p_flow <- ggplot(df1, aes(date, trend_stl, color = cat)) +
     plot.subtitle = element_textbox_simple(
       size = 10,
       padding = margin(5.5, 5.5, 5.5, 0),
-      margin = margin(0, 0, 0, 0))
+      margin = margin(0, 0, 0, 0)
+    )
   )
 
 
@@ -274,25 +297,40 @@ p_flow <- ggplot(df1, aes(date, trend_stl, color = cat)) +
 
 ## Auxiliar Data -----------------------------------------------------------
 
-rank_station <- station |> 
+format_date <- function(x) {
+  mes <- lubridate::month(x, label = TRUE, abbr = TRUE)
+  ano <- lubridate::year(x)
+  return(paste(mes, ano, sep = "/"))
+}
+
+rank_station <- station |>
   mutate(
     # Compute moving sum 12-months by station
     rolling_year = RcppRoll::roll_sumr(value, n = 12),
     .by = "name_station"
-  ) |> 
+  ) |>
   # Get most recent value (jun-24)
-  filter(date == max(date)) |> 
+  filter(date == max(date)) |>
   mutate(
     name_station = factor(name_station),
-    name_station = fct_reorder(name_station, rolling_year)
-  ) |> 
+    name_station = fct_reorder(name_station, rolling_year),
+    date_start = date %m+% months(-11),
+    date_range = stringr::str_glue(
+      "{format_date(date_start)} - {format_date(date)}"
+    )
+  ) |>
   arrange(name_station)
 
 ## Plot -------------------------------------------------------------------
 
+subtitle <- str_glue(
+  "Total passengers by station (L12M) — {unique(rank_station$date_range)}"
+)
+
 p_rank_station <- ggplot(
   rank_station,
-  aes(x = name_station, y = rolling_year)) +
+  aes(x = name_station, y = rolling_year)
+) +
   geom_col(fill = colors) +
   # Label: station name
   geom_text(
@@ -304,8 +342,10 @@ p_rank_station <- ggplot(
   ) +
   # Label: number of passengers
   geom_text(
-    aes(y = ifelse(rolling_year < 200, 231, rolling_year + 30),
-        label = format(round(rolling_year), big.mark = ".")),
+    aes(
+      y = ifelse(rolling_year < 200, 231, rolling_year + 30),
+      label = format(round(rolling_year), big.mark = ".")
+    ),
     family = "Fira Sans",
     fontface = "bold",
     size = 3
@@ -314,7 +354,8 @@ p_rank_station <- ggplot(
   coord_flip() +
   labs(
     title = "Station Ranking",
-    subtitle = "Total passengers by station (L12M)"
+    subtitle = subtitle,
+    caption = "Source: ViaMobilidade | @viniciusoike"
   ) +
   theme_metro +
   theme(
@@ -334,50 +375,61 @@ metro_line <- st_read(here("static/data/spo_metro_line.gpkg"))
 metro_line_future <- st_read(here("static/data/spo_metro_line_future.gpkg"))
 
 # Filter data for line-4
-metro_station <- metro_station |> 
+metro_station <- metro_station |>
   filter(line_number == 5)
 
-metro_line <- metro_line |> 
+metro_line <- metro_line |>
   filter(line_number == 5)
 
-metro_line_future <- metro_line_future |> 
+metro_line_future <- metro_line_future |>
   filter(line_number == 5)
 
 # Create a bounding box for the basemap
-ext <- metro_station |> 
+ext <- metro_station |>
   # Convert to UTM-Mercator (m)
-  st_transform(crs = 32722) |> 
+  st_transform(crs = 32722) |>
   # Create a 1km buffer
   st_buffer(dist = 1000) |>
   # Convert to Web Mercator
   st_transform(crs = 3857) |>
   # Create the bounding box
-  st_bbox() |> 
+  st_bbox() |>
   st_as_sfc()
 
 p_basemap <- ggplot() +
   # Carto basemap
-  basemaps::basemap_gglayer(ext = ext, map_service = "carto", map_type = "light") +
-  scale_fill_identity() + 
+  basemaps::basemap_gglayer(
+    ext = ext,
+    map_service = "carto",
+    map_type = "light"
+  ) +
+  scale_fill_identity() +
   coord_sf()
 
-metro_station <- metro_station |> 
+metro_station <- metro_station |>
   mutate(
-    ytext = if_else(station_name %in% c("Hospital São Paulo", "Largo Treze"),
-                    -400,
-                    300)
+    ytext = if_else(
+      station_name %in% c("Hospital São Paulo", "Largo Treze"),
+      -400,
+      300
+    )
   )
 
 p_map <- p_basemap +
   geom_sf(data = st_transform(metro_station, 3857), color = colors) +
   geom_sf(data = st_transform(metro_line, 3857), color = colors) +
-  geom_sf(data = st_transform(metro_line_future, 3857), linetype = 3, color = colors) +
+  geom_sf(
+    data = st_transform(metro_line_future, 3857),
+    linetype = 3,
+    color = colors
+  ) +
   geom_sf_label(
     data = st_transform(metro_station, 3857),
-    aes(label = station_name),
+    aes(label = str_wrap(station_name, 17)),
     nudge_y = metro_station$ytext,
     size = 2,
-    family = "Helvetica") +
+    family = "Helvetica"
+  ) +
   theme_void()
 
 # Export plots ------------------------------------------------------------
@@ -390,27 +442,17 @@ ggsave(here("static/images/spo_metro/line_5_map.png"), p_map)
 cowplot::save_plot(
   here("static/images/spo_metro/line_5_overview.png"),
   p_flow_total,
-  base_height = 6)
+  base_height = 6
+)
 
 cowplot::save_plot(
   here("static/images/spo_metro/line_5_pandemic.png"),
   p_flow,
-  base_height = 5)
+  base_height = 5
+)
 
 cowplot::save_plot(
   here("static/images/spo_metro/line_5_station_ranking.png"),
   p_rank_station,
   base_height = 6
 )
-
-# library(tmap)
-# library(tmaptools)
-# tmap_mode("view")
-# 
-# tm_shape(metro_station) +
-#   tm_dots() +
-#   tm_shape(metro_line) +
-#   tm_lines() +
-#   tm_shape(metro_line_future) +
-#   tm_lines(lty = 3) +
-#   tm_basemap(server = "CartoDB.Positron")
