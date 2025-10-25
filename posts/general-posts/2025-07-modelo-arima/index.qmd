@@ -7,7 +7,7 @@ format: html
 execute:
   warning: false
   message: false
-draft: false
+
 ---
 
 ```{r}
@@ -58,17 +58,15 @@ library(patchwork)
 library(ggplot2)
 library(ragg)
 
-print_table <- function(dat) {
-  
+print_table = function(dat, digits = 5) {
   dat %>%
-    kable(align = "c", full_width = FALSE) %>%
+    kable(align = "c", full_width = FALSE, digits = digits) %>%
     kable_styling(bootstrap_options = c("bordered", "hover", "striped"))
-  
 }
 
-font <- "Avenir"
+font = "Avenir"
 
-theme_ts <- theme_minimal(base_family = font, base_size = 12) +
+theme_ts = theme_minimal(base_family = font, base_size = 12) +
   theme(
     plot.background = element_rect(fill = "#fefefe", color = "#fefefe"),
     panel.background = element_rect(fill = "#fefefe", color = "#fefefe"),
@@ -79,7 +77,7 @@ theme_ts <- theme_minimal(base_family = font, base_size = 12) +
     text = element_text(color = "gray30")
   )
 
-macro <- qs::qread(here::here("static", "data", "macro_br_contas_nacionais.qs"))
+macro = qs::qread(here::here("static", "data", "macro_br_contas_nacionais.qs"))
 ```
 
 # Metodologia
@@ -104,12 +102,7 @@ Aplicaremos esta metodologia completa à série de consumo das famílias brasile
 
 ## Macroeconomia: consumo no Brasil
 
-Para acompanhar estes exemplos vamos usar as séries das contas nacionais brasileiras. Estas séries são trimestrais e dessazonalizadas. Além disso, os seus valores são indexados, em base-100, em 1995, o primeiro ano da série completa. O código abaixo importa os dados
-
-```{r}
-#| eval: false
-macro <- qs::qread("...")
-```
+Para acompanhar estes exemplos vamos usar as séries das contas nacionais brasileiras. Estas séries são trimestrais e dessazonalizadas. Além disso, os seus valores são indexados, em base-100, em 1995, o primeiro ano da série completa.
 
 ```{r}
 #| echo: false
@@ -120,7 +113,7 @@ Inicialmente, vamos usar somente a série de consumo.
 
 ```{r}
 # Série de consumo
-cons <- ts(macro$consumo, start = c(1996, 1), frequency = 4)
+cons = ts(macro$consumo, start = c(1996, 1), frequency = 4)
 ```
 
 ## 1. Estacionaridade
@@ -139,40 +132,37 @@ Costuma ser fácil enxergar se uma série é estacionária ou não-estacionária
 
 ```{r}
 #| echo: false
-create_series <- function(x) {
-  
+create_series = function(x) {
   ts(x, start = start(AirPassengers), frequency = frequency(AirPassengers))
-  
 }
 
-format_plot <- function(ts) {
-  
+format_plot = function(ts) {
   autoplot(ts) +
     theme_ts +
     theme(axis.text.y = element_blank()) +
     labs(x = NULL, y = NULL)
-  
 }
 
-N <- length(AirPassengers)
-w1 <- create_series(rnorm(N))
-w2 <- create_series(cumsum(rnorm(N)))
-w3 <- arima.sim(list(order = c(1, 0, 0), ar = 0.5), n = length(AirPassengers))
-w3 <- create_series(w3)
+N = length(AirPassengers)
+w1 = create_series(rnorm(N))
+w2 = create_series(cumsum(rnorm(N)))
+w3 = arima.sim(list(order = c(1, 0, 0), ar = 0.5), n = length(AirPassengers))
+w3 = create_series(w3)
 
-p1 <- format_plot(AirPassengers)
-p2 <- format_plot(w1)
-p3 <- format_plot(w2)
-p4 <- format_plot(w3)
+p1 = format_plot(AirPassengers)
+p2 = format_plot(w1)
+p3 = format_plot(w2)
+p4 = format_plot(w3)
 
-panel <- (p1 | p2) / (p3 | p4)
+panel = (p1 | p2) / (p3 | p4)
 
-panel + plot_annotation(
-  title = "Séries estacionárias e não-estacionárias",
-  subtitle = "Séries estacionárias (direita) oscilam regularmente ao redor de uma média constante.\nSéries não-estacionárias (esquerda) apresentam crescimento/queda e oscilação variável.\nNa prática, é mais comum encontrar séries parecidas com as da esquerda."
-) &
+panel +
+  plot_annotation(
+    title = "Séries estacionárias e não-estacionárias",
+    subtitle = "Séries estacionárias (direita) oscilam regularmente ao redor de uma média constante.\nSéries não-estacionárias (esquerda) apresentam crescimento/queda e oscilação variável.\nNa prática, é mais comum encontrar séries parecidas com as da esquerda."
+  ) &
   theme_ts +
-  theme(axis.text.y = element_blank())
+    theme(axis.text.y = element_blank())
 
 ```
 
@@ -213,23 +203,26 @@ ggPacf(cons, lag.max = frequency(cons) * 5)
 ```{r}
 #| echo: false
 
-plot_acf <- function(series) {
-  
-  p1 <- ggAcf(series, lag.max = frequency(series) * 5) + ggtitle("ACF") + theme_ts
-  p2 <- ggPacf(series, lag.max = frequency(series) * 5) + ggtitle("PACF") + theme_ts
+plot_acf = function(series) {
+  p1 = ggAcf(series, lag.max = frequency(series) * 5) +
+    ggtitle("ACF") +
+    theme_ts
+  p2 = ggPacf(series, lag.max = frequency(series) * 5) +
+    ggtitle("PACF") +
+    theme_ts
 
-  panel <- p1 / p2
-  
+  panel = p1 / p2
+
   return(panel)
-  
 }
 
-panel <- plot_acf(cons)
+panel = plot_acf(cons)
 
-panel + plot_annotation(
-  title = "Correlogramas da série de Consumo",
-  subtitle = "Indícios de série não-estacionária: ACF com decaimento muito lento."
-)
+panel +
+  plot_annotation(
+    title = "Correlogramas da série de Consumo",
+    subtitle = "Indícios de série não-estacionária: ACF com decaimento muito lento."
+  )
 
 ```
 
@@ -288,7 +281,7 @@ O gráfico abaixo mostra a FAC e FACP da primeira diferença. Agora, temos somen
 
 ```{r}
 #| eval: false
-dcons <- diff(train)
+dcons = diff(train)
 
 ggAcf(train)
 ggPacf(train)
@@ -296,7 +289,7 @@ ggPacf(train)
 
 ```{r}
 #| echo: false
-dcons <- diff(train)
+dcons = diff(train)
 plot_acf(dcons)
 ```
 
@@ -317,6 +310,7 @@ m1 = Arima(train, order = c(0, 1, 0), include.drift = TRUE)
 m2 = Arima(train, order = c(1, 1, 1))
 m3 = Arima(train, order = c(1, 1, 0))
 m4 = Arima(train, order = c(0, 1, 1))
+m5 = Arima(train, order = c(1, 1, 1), include.drift = TRUE)
 ```
 
 A saída do modelo ARIMA (1, 1, 1) indica a estimativa dos coeficientes junto com a estimativa da variância do erro e o cálculo dos critérios de informação. O modelo estimado tem a forma:
@@ -356,15 +350,16 @@ u2 = residuals(m2) / sqrt(m2$sigma2)
 ```
 
 ```{r}
-p1 <- autoplot(u1) + labs(subtitle = "ARIMA (0, 1, 0)")
-p2 <- autoplot(u2) + labs(subtitle = "ARIMA (1, 1, 1)")
-panel <- p1 / p2
+p1 = autoplot(u1) + labs(subtitle = "ARIMA (0, 1, 0)")
+p2 = autoplot(u2) + labs(subtitle = "ARIMA (1, 1, 1)")
+panel = p1 / p2
 
-panel & plot_annotation(
-  title = "Resíduo dos modelos ARIMA (0, 1, 0) e ARIMA (1, 1, 1)"
-) &
+panel &
+  plot_annotation(
+    title = "Resíduo dos modelos ARIMA (0, 1, 0) e ARIMA (1, 1, 1)"
+  ) &
   theme_ts +
-  theme(axis.title = element_blank())
+    theme(axis.title = element_blank())
 ```
 
 Novamente, faz-se uma verificação tanto visual como estatística.
@@ -383,12 +378,13 @@ ggAcf(u2, lag.max = 20)
 
 ```{r}
 #| echo: false
-p1 <- ggAcf(u1, lag.max = 20) + ggtitle("FAC do resíduo do ARIMA (0, 1, 0)")
-p2 <- ggAcf(u2, lag.max = 20) + ggtitle("FAC do resíduo do ARIMA (1, 1, 1)")
+p1 = ggAcf(u1, lag.max = 20) + ggtitle("FAC do resíduo do ARIMA (0, 1, 0)")
+p2 = ggAcf(u2, lag.max = 20) + ggtitle("FAC do resíduo do ARIMA (1, 1, 1)")
 
-(p1 | p2) + plot_annotation(
-  title = "Gráficos de autocorrelação dos resíduos"
-) &
+(p1 | p2) +
+  plot_annotation(
+    title = "Gráficos de autocorrelação dos resíduos"
+  ) &
   theme_ts
 ```
 
@@ -423,10 +419,9 @@ lags = c(1, 4, 8, 12, 16, 20, 24)
 tabela = matrix(nrow = length(lags), ncol = 3)
 
 for (i in seq_along(lags)) {
-  
   lag = lags[[i]]
-  test = Box.test(u1, type = "Ljung-Box", fitdf = 0, lag = lag)
-	tabela[i, ] = c(lag, as.numeric(test$statistic), as.numeric(test$p.value))
+  lbtest = Box.test(u1, type = "Ljung-Box", fitdf = 0, lag = lag)
+  tabela[i, ] = c(lag, as.numeric(lbtest$statistic), as.numeric(lbtest$p.value))
 }
 
 ```
@@ -435,15 +430,17 @@ A tabela abaixo mostra o resultado do teste Ljung-Box para diversas defasagens.
 
 ```{r}
 #| echo: false
-colnames(tabela) <- c("Lag", "Estatística", "P-valor")
+colnames(tabela) = c("Lag", "Estatística", "P-valor")
 tabela %>%
-  kable(align = "c",
-  	    caption = "Resultados do teste Ljung-Box sobre os resíduos do modelo",
-        digits = 5) %>%
+  kable(
+    align = "c",
+    caption = "Resultados do teste Ljung-Box sobre os resíduos do modelo",
+    digits = 5
+  ) %>%
   kable_styling(
-  	bootstrap_options = c("hover", "bordered", "striped"),
-  	full_width = FALSE
-  	)
+    bootstrap_options = c("hover", "bordered", "striped"),
+    full_width = FALSE
+  )
 ```
 
 ### Breusch-Godfrey
@@ -464,18 +461,23 @@ A hipótese nula do teste é de que $\rho_{i} = 0$, ou seja, novamente queremos 
 
 ```{r}
 # Monta um data.frame com o resíduo e suas defasagens
-udata <- ts.union(
+udata = ts.union(
   u = u1,
   ul1 = lag(u1, -1),
   ul2 = lag(u1, -2),
   ul3 = lag(u1, -3),
   ul4 = lag(u1, -4),
   dframe = TRUE
-  )
+)
 # Roda o BG test com uma defasagem
 lmtest::bgtest(u ~ 1 + ul1, data = udata, fill = NA, type = "F")
 # Roda o BG test com quatro defasagens
-lmtest::bgtest(u ~ 1 + ul1 + ul2 + ul3 + ul4, data = udata, fill = NA, type = "F")
+lmtest::bgtest(
+  u ~ 1 + ul1 + ul2 + ul3 + ul4,
+  data = udata,
+  fill = NA,
+  type = "F"
+)
 ```
 
 ## Heterocedasticidade
@@ -489,22 +491,25 @@ autoplot(u2^2)
 ```
 
 ```{r}
-p1 = autoplot(u1^2) + 
+p1 = autoplot(u1^2) +
   labs(
     subtitle = "Quadrado dos resíduos do modelo ARIMA (0, 1, 0)",
     x = NULL,
-    y = latex2exp::TeX("$u_{t}^2$"))
+    y = latex2exp::TeX("$u_{t}^2$")
+  )
 
-p2 = autoplot(u2^2) + 
+p2 = autoplot(u2^2) +
   labs(
     subtitle = "Quadrado dos resíduos do modelo ARIMA (1, 1, 1)",
     x = NULL,
-    y = latex2exp::TeX("$u_{t}^2$"))
+    y = latex2exp::TeX("$u_{t}^2$")
+  )
 
-(p1 | p2) + plot_annotation(
-  title = "Verificando homocedasticidade",
-  subtitle = "Picos na série do quadrado dos resíduos indicam a presença de heterocedasticidade."
-) &
+(p1 | p2) +
+  plot_annotation(
+    title = "Verificando homocedasticidade",
+    subtitle = "Picos na série do quadrado dos resíduos indicam a presença de heterocedasticidade."
+  ) &
   theme_ts
 ```
 
@@ -536,12 +541,18 @@ Após estimar os quatro modelos e verificar seus diagnósticos, o próximo passo
 
 ```{r}
 # Extrai informações dos modelos
-tab_models <- data.frame(
-  Modelo = c("ARIMA(0,1,0)", "ARIMA(1,1,1)", "ARIMA(1,1,0)", "ARIMA(0,1,1)"),
-  AIC = c(m1$aic, m2$aic, m3$aic, m4$aic),
-  AICc = c(m1$aicc, m2$aicc, m3$aicc, m4$aicc),
-  BIC = c(m1$bic, m2$bic, m3$bic, m4$bic),
-  sigma2 = c(m1$sigma2, m2$sigma2, m3$sigma2, m4$sigma2)
+tab_models = data.frame(
+  Modelo = c(
+    "ARIMA(0,1,0)",
+    "ARIMA(1,1,1)",
+    "ARIMA(1,1,0)",
+    "ARIMA(0,1,1)",
+    "ARIMA(1,1,1) com drift"
+  ),
+  AIC = c(m1$aic, m2$aic, m3$aic, m4$aic, m5$aic),
+  AICc = c(m1$aicc, m2$aicc, m3$aicc, m4$aicc, m5$aicc),
+  BIC = c(m1$bic, m2$bic, m3$bic, m4$bic, m5$bic),
+  sigma2 = c(m1$sigma2, m2$sigma2, m3$sigma2, m4$sigma2, m5$sigma2)
 )
 ```
 
@@ -571,7 +582,7 @@ Com o modelo final estimado, podemos gerar previsões para períodos futuros. O 
 
 ```{r}
 # Gera previsões
-h = 8
+h = length(test)
 fcst = forecast(m2, h = h)
 ```
 
@@ -580,6 +591,7 @@ O gráfico abaixo mostra a série histórica junto com as previsões e seus resp
 ```{r}
 #| echo: false
 autoplot(fcst) +
+  autolayer(test) +
   labs(
     title = "Previsão do Consumo das Famílias",
     subtitle = "Modelo ARIMA(1,1,1) com intervalos de confiança de 80% e 95%",
@@ -604,6 +616,93 @@ A função `accuracy` calcula diversas métricas de erro de previsão. O RMSE (R
 
 Note que as métricas calculadas sobre o conjunto de treino (Training set) são naturalmente melhores do que as calculadas sobre o conjunto de teste (Test set), pois o modelo foi estimado usando os dados de treino.
 
+Podemos fazer os mesmos cálculos para todos os modelos usando `lapply` e definindo uma função que extrai as métricas de erro somente para o conjunto de teste.
+
+```{r}
+models = list(
+  "ARIMA(0,1,0)" = m1,
+  "ARIMA (1,1,1)" = m2,
+  "ARIMA (1,1,0)" = m3,
+  "ARIMA (0,1,1)" = m4,
+  "ARIMA (1,1,1) com drift" = m5
+)
+
+collect_measures = function(m) {
+  fcast = forecast(m, h = length(test))
+  measures = accuracy(fcast, test)
+  measures = measures[2, c("ME", "RMSE", "MAE", "MAPE")]
+  return(measures)
+}
+
+measures = lapply(models, collect_measures)
+tab_measures = do.call(rbind, measures)
+```
+
+```{r}
+#| echo: false
+print_table(tab_measures)
+```
+
+Note como, apesar do ARIMA (1,1,1) ter os melhores critérios de informação, os modelos ARIMA (0,1,1) e ARIMA (1,1,0) apresentaram melhores métricas de erro. O modelo ARIMA (1,1,1), sobretudo, as melhores métricas de erro.
+
+Visualmente, podemos ver estes modelos tem uma melhor performance pois eles não seguem a trajetória de queda recente da série. Na verdade, ambos os modelos ARIMA (0,1,1) e ARIMA (1,1,0) geram uma previsão "naive" onde o último valor da série é repetido diversas vezes.
+
+Vale notar, que nosso período de train termina no último trimestre de 2015, em meio à crise econômica. Nosso modelo ARIMA (1,1,1) tem ótima performance durante os primeiros 4 trimestres de 2016: ele continua prevendo a queda no consumo acuradamente. Contudo, dada a sua estrutura matemática, ele continua a gerar previsões de que o consumo vai continuar diminuindo. Já no modelo ARIMA (1,1,1) com drift as previsões voltam a aumentar em valor à medida que o tempo passa.
+
+```{r}
+#| code-fold: true
+f1 = forecast(m2, h = length(test))
+f2 = forecast(m3, h = length(test))
+f3 = forecast(m5, h = length(test))
+
+autoplot(train) +
+  autolayer(test, series = "Obsevado") +
+  autolayer(f1$mean, series = "ARIMA (1,1,1)") +
+  autolayer(f2$mean, series = "ARIMA (1,1,0)") +
+  autolayer(f3$mean, series = "ARIMA (1,1,1) com drift") +
+  labs(
+    title = "Previsão do Consumo das Famílias",
+    subtitle = "Modelo ARIMA(1,1,1) com intervalos de confiança de 80% e 95%",
+    x = NULL,
+    y = "Index (100 = 1995)"
+  ) +
+  scale_color_manual(
+    name = "",
+    values = c("#2C6BB3", "#1abc9c", "#f39c12", "#34495e")
+  ) +
+  theme_ts
+```
+
+O gráfico abaixo faz uma previsão 12 anos à frente para enfatizar o comportamento de longo prazo destes modelos. Os modelos ARIMA (1, 1, 0) rapidamente converge para um valor constante. As previsões de longo prazo do ARIMA (1,1,1) com drift seguem uma tendência linear simples, enquanto o modelo sem drift converge lentamente para uma constante.
+
+```{r}
+#| code-fold: true
+f1 = forecast(m2, h = 48)
+f2 = forecast(m3, h = 48)
+f3 = forecast(m5, h = 48)
+
+
+autoplot(train) +
+  autolayer(f1$mean, series = "ARIMA (1,1,1)") +
+  autolayer(f2$mean, series = "ARIMA (1,1,0)") +
+  autolayer(f3$mean, series = "ARIMA (1,1,1) com drift") +
+  labs(
+    title = "Previsão do Consumo das Famílias",
+    subtitle = "Modelo ARIMA(1,1,1) com intervalos de confiança de 80% e 95%",
+    x = NULL,
+    y = "Index (100 = 1995)"
+  ) +
+  scale_color_manual(
+    name = "",
+    values = c("#2C6BB3", "#1abc9c", "#f39c12", "#34495e")
+  ) +
+  theme_ts
+```
+
+Esta discussão mostra a complexidade da previsão de séries de tempo e como seguir roteiros automatizados podem levar a erros. No nosso exemplo, a escolha do corte train/test levou a série ao meio de uma crise econômica, o que tem impactos grandes sobre a estimação dos modelos. Há maneiras de contornar isto usando, por exemplo, cross-validation para selecionar janelas de train/test variáveis, ou incorporando outros dados para ajudar a melhor lidar com o período de recessão.
+
+Também fica evidente como os modelos ARIMA geram previsões de longo prazo questionáveis. Dada a estrutura matemática destes modelos, eles geram previsões que podem ser bastante irrealistas em horizontes grandes de tempo. Assim, tipicamente, deve-se usar modelos ARIMA como uma ferramenta de previsão de curto prazo.
+
 # 7. Resumo
 
 Neste post, demonstramos a aplicação completa da metodologia Box-Jenkins para estimar modelos ARIMA em séries temporais macroeconômicas brasileiras. Seguindo as etapas de identificação, estimação, verificação e previsão, modelamos a série de consumo das famílias brasileiras.
@@ -618,23 +717,22 @@ Neste post, demonstramos a aplicação completa da metodologia Box-Jenkins para 
 
 4. **Comparação**: Os critérios AIC e BIC confirmaram que o modelo ARIMA(1,1,1) oferece o melhor equilíbrio entre ajuste e parcimônia.
 
-5. **Previsão**: O modelo final foi usado para gerar previsões fora da amostra, com intervalos de confiança apropriados que refletem a incerteza crescente ao longo do horizonte de previsão.
+5. **Previsão**: O modelo final foi usado para gerar previsões fora da amostra, com intervalos de confiança apropriados que refletem a incerteza crescente ao longo do horizonte de previsão. A previsão do modelo escolhido foi inicialmente boa, mas se deteriorou ao longo do intervalo. Modelos alternativos tiveram melhor performance preditiva.
 
 ## Quando usar modelos ARIMA
 
 Modelos ARIMA são apropriados quando:
 
-- Trabalha-se com séries temporais univariadas
-- Há evidência de dependência temporal nos dados
-- O objetivo é fazer previsões de curto a médio prazo
-- Busca-se um modelo parcimonioso e interpretável
+- Trabalha-se com séries temporais univariadas.
+- Há evidência de dependência temporal nos dados.
+- O objetivo é fazer previsões de curto a médio prazo.
+- Busca-se um modelo parcimonioso e fácil de estimar.
 
 **Limitações importantes:**
 
-- ARIMA assume linearidade nas relações temporais
-- Não incorpora informação de outras variáveis (para isso, considere modelos ARIMAX ou VAR)
-- A capacidade preditiva tende a deteriorar rapidamente em horizontes longos
-- Quebras estruturais podem invalidar o modelo
+- Não incorpora informação de outras variáveis (para isso, considere modelos ARIMAX ou VAR).
+- A capacidade preditiva tende a deteriorar rapidamente em horizontes longos.
+- Quebras estruturais podem invalidar o modelo.
 
 ## Alternativas e extensões
 
