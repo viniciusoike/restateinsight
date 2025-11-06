@@ -1,0 +1,436 @@
+---
+title: "Dominando o filter() do dplyr"
+subtitle: "Filtrando dados como um profissional"
+learning_time: "30 minutos"
+difficulty: "beginner"
+date: "2025-01-15"
+categories: ["tidyverse", "data-wrangling", "tutorial"]
+prerequisites:
+  - "R básico instalado"
+  - "Conhecimento de operadores lógicos"
+  - "Familiaridade com data.frames"
+learning_objectives:
+  - "Filtrar linhas usando condições simples e complexas"
+  - "Aplicar filtros em grupos de dados"
+  - "Usar as funções auxiliares if_any e if_all"
+  - "Combinar múltiplas condições de forma eficiente"
+tools_needed:
+  - "dplyr (>= 1.1.0)"
+  - "readr"
+format:
+  html:
+    toc: true
+    toc-depth: 3
+    code-fold: false
+    code-tools: true
+execute:
+  warning: false
+  message: false
+  eval: false
+draft: true
+---
+
+```{r setup}
+#| include: false
+library(kableExtra)
+library(dplyr)
+library(readr)
+
+# Função auxiliar para tabelas bonitas
+print_table <- function(x, max_rows = 10) {
+  x |>
+    head(max_rows) |>
+    knitr::kable(
+      align = "c",
+      digits = 0,
+      format.args = list(big.mark = '.', decimal.mark = ",")
+    ) |>
+    kableExtra::kable_styling(
+      full_width = FALSE,
+      bootstrap_options = c("condensed", "responsive", "hover", "striped")
+    )
+}
+```
+
+## 🎯 O que você vai aprender
+
+Neste tutorial, você dominará a função `filter()` do pacote `dplyr`, uma das ferramentas mais importantes para manipulação de dados em R. Ao final, você será capaz de:
+
+- ✅ Filtrar dados com confiança usando condições lógicas
+- ✅ Combinar múltiplas condições de forma eficiente
+- ✅ Aplicar filtros dentro de grupos
+- ✅ Usar funções auxiliares avançadas para casos complexos
+
+## 📚 Checklist de Pré-requisitos
+
+Antes de começar, verifique se você:
+
+- [ ] Tem o R instalado (versão 4.0 ou superior)
+- [ ] Sabe o que é um data.frame
+- [ ] Conhece operadores básicos: `>`, `<`, `==`, `!=`
+- [ ] Entende a diferença entre `&` (E) e `|` (OU)
+
+::: {.callout-tip}
+**Não tem certeza?** Execute este código para verificar:
+```{r}
+#| eval: false
+# Verifica versão do R
+R.version.string
+
+# Testa operadores básicos
+5 > 3  # Deve retornar TRUE
+2 == 2 # Deve retornar TRUE
+TRUE & FALSE # Deve retornar FALSE
+TRUE | FALSE # Deve retornar TRUE
+```
+:::
+
+## 🔧 Preparação do Ambiente
+
+### Instalação e carregamento de pacotes
+
+```{r}
+#| eval: false
+# Instalar pacotes necessários (se ainda não tiver)
+install.packages(c("dplyr", "readr"))
+```
+
+```{r}
+# Carregar pacotes
+library(dplyr)
+library(readr)
+```
+
+### Dados para prática
+
+Vamos trabalhar com dados reais de cidades brasileiras:
+
+```{r}
+# Baixar dados de cidades brasileiras
+dat <- readr::read_csv(
+  "https://github.com/viniciusoike/restateinsight/raw/main/static/data/cities_brazil.csv",
+  show_col_types = FALSE
+)
+
+# Visualizar estrutura dos dados
+glimpse(dat)
+```
+
+::: {.callout-note}
+**Sobre os dados**: Este dataset contém informações de 5.570 municípios brasileiros, incluindo população, PIB, densidade demográfica e outras métricas socioeconômicas.
+:::
+
+## 📖 Conceito: O que é filter()?
+
+A função `filter()` **seleciona linhas** de uma tabela baseada em condições lógicas. É como aplicar um filtro no Excel, mas muito mais poderoso.
+
+**Sintaxe básica:**
+```r
+filter(dados, condição)
+```
+
+**Analogia**: Imagine que você tem uma pilha de fichas e quer separar apenas as azuis. O `filter()` faz exatamente isso com suas linhas de dados!
+
+## 💻 Prática Guiada
+
+### Nível 1: Filtros Simples
+
+#### Exemplo 1.1: Filtrar por valores numéricos
+
+```{r}
+# Cidades com população acima de 1 milhão
+grandes_cidades <- filter(dat, population > 1000000)
+
+print_table(grandes_cidades |> select(name_muni, population))
+```
+
+::: {.callout-tip collapse="true"}
+## 💡 Dica
+Use notação científica para números grandes: `1e6` = 1.000.000
+:::
+
+#### Exemplo 1.2: Filtrar por texto
+
+```{r}
+# Apenas cidades de São Paulo
+cidades_sp <- filter(dat, abbrev_state == "SP")
+nrow(cidades_sp)
+```
+
+### 🧪 Checkpoint 1: Teste seu conhecimento
+
+**Exercício**: Filtre todas as cidades da região Nordeste.
+
+```{r}
+#| eval: false
+#| code-fold: true
+#| code-summary: "Clique para ver a solução"
+
+# Solução:
+nordeste <- filter(dat, name_region == "Nordeste")
+nrow(nordeste) # Deve retornar 1794
+```
+
+### Nível 2: Combinando Condições
+
+#### Exemplo 2.1: Usando múltiplas condições (E)
+
+```{r}
+# Cidades grandes E da região Sul
+resultado <- dat |>
+  filter(
+    population > 500000,
+    name_region == "Sul"
+  )
+
+print_table(resultado |> select(name_muni, abbrev_state, population))
+```
+
+::: {.callout-important}
+**Importante**: Vírgulas entre condições significam "E" (todas devem ser verdadeiras)
+:::
+
+#### Exemplo 2.2: Usando OU
+
+```{r}
+# Cidades de SP OU RJ
+sp_ou_rj <- dat |>
+  filter(abbrev_state == "SP" | abbrev_state == "RJ")
+
+# Forma mais elegante usando %in%
+sp_ou_rj <- dat |>
+  filter(abbrev_state %in% c("SP", "RJ"))
+
+unique(sp_ou_rj$abbrev_state)
+```
+
+### 🧪 Checkpoint 2: Combinações
+
+**Exercício**: Encontre cidades com:
+- População entre 100.000 e 500.000 habitantes
+- Localizadas nas regiões Sul ou Sudeste
+
+```{r}
+#| eval: false
+#| code-fold: true
+#| code-summary: "Clique para ver a solução"
+
+# Solução:
+resultado <- dat |>
+  filter(
+    population >= 100000,
+    population <= 500000,
+    name_region %in% c("Sul", "Sudeste")
+  )
+
+nrow(resultado) # Deve retornar 141
+```
+
+### Nível 3: Filtros Avançados
+
+#### Exemplo 3.1: Filtros com funções
+
+```{r}
+# Cidades com PIB acima da média nacional
+pib_alto <- dat |>
+  filter(pib > mean(pib, na.rm = TRUE))
+
+paste("Cidades com PIB acima da média:", nrow(pib_alto))
+```
+
+#### Exemplo 3.2: Filtros por grupo
+
+```{r}
+# A maior cidade de cada estado
+maior_por_estado <- dat |>
+  filter(population == max(population), .by = "abbrev_state")
+
+print_table(maior_por_estado |> select(name_muni, abbrev_state, population))
+```
+
+::: {.callout-note}
+**Nova sintaxe**: `.by = "coluna"` aplica o filtro dentro de cada grupo
+:::
+
+### Nível 4: Funções Auxiliares
+
+#### if_any() e if_all()
+
+```{r}
+# Cidades onde QUALQUER indicador econômico está no top 1%
+top_economico <- dat |>
+  filter(if_any(c(pib, pib_per_capita), ~ . > quantile(., 0.99, na.rm = TRUE)))
+
+paste("Cidades no top 1% econômico:", nrow(top_economico))
+```
+
+```{r}
+# Cidades onde TODOS os indicadores são positivos
+todos_positivos <- dat |>
+  filter(if_all(where(is.numeric), ~ . > 0 | is.na(.)))
+
+paste("Cidades com todos indicadores positivos:", nrow(todos_positivos))
+```
+
+## 🚀 Sua Vez: Desafio Prático
+
+### Desafio 1: Análise Regional
+
+Crie uma análise que responda: Quais são as 5 cidades mais populosas de cada região que NÃO são capitais estaduais?
+
+```{r}
+#| eval: false
+# Seu código aqui:
+resultado <- dat |>
+  filter(___) |>
+  ___
+```
+
+::: {.callout-tip collapse="true"}
+## 💡 Dica
+1. Primeiro, identifique as capitais (talvez pela população?)
+2. Use `!` para negar a condição
+3. Use `.by = "name_region"` para agrupar
+:::
+
+```{r}
+#| eval: false
+#| code-fold: true
+#| code-summary: "Solução completa"
+
+# Solução:
+# Primeiro, identificar as capitais (geralmente as maiores cidades do estado)
+capitais <- dat |>
+  slice_max(population, n = 1, by = abbrev_state) |>
+  pull(name_muni)
+
+# Filtrar não-capitais e pegar top 5 por região
+top5_nao_capitais <- dat |>
+  filter(!name_muni %in% capitais) |>
+  slice_max(population, n = 5, by = name_region) |>
+  arrange(name_region, desc(population))
+
+print_table(top5_nao_capitais |>
+  select(name_region, name_muni, abbrev_state, population))
+```
+
+### Desafio 2: Filtro Complexo
+
+Encontre cidades que atendam TODOS estes critérios:
+1. População entre 50.000 e 200.000
+2. PIB per capita acima da média do seu estado
+3. Localizada no interior (não litorânea)
+
+```{r}
+#| eval: false
+#| code-fold: true
+#| code-summary: "Solução completa"
+
+# Solução:
+resultado <- dat |>
+  filter(
+    population >= 50000,
+    population <= 200000,
+    pib_per_capita > mean(pib_per_capita, na.rm = TRUE),
+    .by = "abbrev_state"
+  ) |>
+  # Assumindo que temos uma variável indicando cidade litorânea
+  # filter(!coastal)
+
+  select(name_muni, abbrev_state, population, pib_per_capita)
+
+# Como não temos variável de litoral nos dados,
+# este é um exemplo conceitual
+```
+
+## ✅ Soluções Detalhadas
+
+### Por que estas soluções funcionam?
+
+1. **Combinação de condições**: Usar vírgulas é mais legível que `&`
+2. **Operador %in%**: Mais eficiente que múltiplos `|` (OU)
+3. **Filtros por grupo**: Permitem comparações relativas
+4. **if_any/if_all**: Simplificam condições em múltiplas colunas
+
+## 🎓 Principais Aprendizados
+
+✅ **filter()** seleciona linhas baseadas em condições lógicas
+
+✅ **Vírgulas** entre condições = E (AND)
+
+✅ **%in%** verifica se valor está em um vetor
+
+✅ **.by** aplica filtros dentro de grupos
+
+✅ **if_any()** e **if_all()** trabalham com múltiplas colunas
+
+## 📊 Referência Rápida
+
+```r
+# Sintaxe básica
+filter(dados, condição)
+
+# Operadores principais
+==   # igual a
+!=   # diferente de
+>    # maior que
+<    # menor que
+>=   # maior ou igual
+<=   # menor ou igual
+%in% # está contido em
+!    # negação
+
+# Combinações
+filter(dados, cond1, cond2)      # E
+filter(dados, cond1 | cond2)     # OU
+filter(dados, !(condição))       # NÃO
+
+# Por grupo
+filter(dados, condição, .by = "coluna")
+
+# Múltiplas colunas
+filter(dados, if_any(cols, ~ . > 0))
+filter(dados, if_all(cols, ~ . > 0))
+```
+
+## 🔍 Problemas Comuns e Soluções
+
+| Problema | Causa | Solução |
+|----------|-------|---------|
+| "Error: object not found" | Variável não existe | Verifique nomes com `names(dados)` |
+| Resultado vazio | Condição muito restritiva | Teste condições separadamente |
+| Resultado inesperado | Confusão entre `&` e `\|` | Revise lógica booleana |
+| NA nos resultados | Valores ausentes | Use `!is.na()` na condição |
+
+## 🚦 Auto-avaliação
+
+Rate seu entendimento:
+
+- [ ] Consigo filtrar por uma condição simples
+- [ ] Combino múltiplas condições com confiança
+- [ ] Uso %in% para múltiplos valores
+- [ ] Aplico filtros por grupo
+- [ ] Domino if_any() e if_all()
+
+Se você marcou 4+ itens, parabéns! 🎉 Você dominou o filter()!
+
+## 🔗 Próximos Passos
+
+**Pronto para mais?** Continue sua jornada tidyverse:
+
+1. 📘 [select() - Escolhendo colunas](../02-tidyverse-select)
+2. 📗 [mutate() - Criando variáveis](../03-tidyverse-mutate)
+3. 📙 [summarise() - Resumindo dados](../04-tidyverse-summarise)
+4. 📕 [Combinando todos os verbos](../05-tidyverse-completo)
+
+## 💬 Feedback
+
+Como foi sua experiência com este tutorial?
+
+::: {.callout-note}
+**Compartilhe**: Encontrou um erro ou tem sugestões? Abra uma issue no [GitHub](https://github.com/viniciusoike/restateinsight/issues)
+:::
+
+---
+
+**Tempo estimado gasto**: 30 minutos | **Nível**: Iniciante | **Última atualização**: Janeiro 2025

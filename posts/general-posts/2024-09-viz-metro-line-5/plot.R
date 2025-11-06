@@ -4,6 +4,7 @@ library(ggtext)
 library(sf)
 library(showtext)
 library(stringr)
+library(trendseries)
 # library(basemaps)
 
 import::from(here, here)
@@ -233,9 +234,8 @@ df1 <- passenger |>
   mutate(
     index = value / base_index * 100,
     cat = case_when(
-      metric_label == "Média dos Dias Úteis" ~ "Workday",
-      metric_label %in%
-        c("Média dos Sábados", "Média dos Domingos") ~ "Weekend",
+      metric == "mdu" ~ "Workday",
+      metric %in% c("msa", "mdo") ~ "Weekend",
       TRUE ~ NA_character_
     )
   ) |>
@@ -258,14 +258,14 @@ df1 <- trendseries::augment_trends(
 colors_days <- c("#807dba", "#3f007d")
 
 subtitle <- str_glue(
-  "Indexed average Line-5 Subway passenger flow for <b><span style='color:{colors_days[1]}'>weekdays</span></b> and <b><span style='color:{colors_days[2]}'>workdays</span></b>."
+  "Indexed average Line-5 Subway passenger flow for <b style='color:{colors_days[1]}'>weekdays</b> and <b style='color:{colors_days[2]}'>workdays</b>."
 )
 
 p_flow <- ggplot(df1, aes(date, trend_stl, color = cat)) +
   geom_hline(yintercept = 100) +
   geom_line(lwd = 0.8) +
   geom_text(
-    data = df1 |> group_by(cat) |> slice_max(date, n = 1),
+    data = df1 |> dplyr::group_by(cat) |> dplyr::slice_max(date, n = 1),
     aes(
       x = date + months(3),
       y = trend_stl,
@@ -437,22 +437,29 @@ p_map <- p_basemap +
 showtext_opts(dpi = 300)
 showtext_auto()
 
-ggsave(here("static/images/spo_metro/line_5_map.png"), p_map)
+ggsave(
+  here("static/images/spo_metro/line_5_map.png"),
+  p_map,
+  device = ragg::agg_png
+)
 
 cowplot::save_plot(
   here("static/images/spo_metro/line_5_overview.png"),
   p_flow_total,
-  base_height = 6
+  base_height = 6,
+  device = ragg::agg_png
 )
 
 cowplot::save_plot(
   here("static/images/spo_metro/line_5_pandemic.png"),
   p_flow,
-  base_height = 5
+  base_height = 5,
+  device = ragg::agg_png
 )
 
 cowplot::save_plot(
   here("static/images/spo_metro/line_5_station_ranking.png"),
   p_rank_station,
-  base_height = 6
+  base_height = 6,
+  device = ragg::agg_png
 )
