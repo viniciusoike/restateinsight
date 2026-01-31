@@ -4,9 +4,9 @@ date: "2024-05-05"
 categories: ['brazil', 'demographics', 'data-visualization', 'ggplot2', 'english']
 description: "Brazil has an enormous 'young' population that will both boost its labor force in the years to come. Failures in the education system and unequal access to opportunities, however, may dampen this potential economic gain. Recent statistics indicate that Brazil has one of the largest NEET populations in the world."
 format:
-  html: 
+  html:
     code-tools: true
-execute: 
+execute:
   echo: false
   message: false
   warning: false
@@ -22,14 +22,14 @@ pop <- get_sidra(9514)
 
 codes = c(93070, 93084:93098, 49108:49109, 60040:60041, 6653)
 
-tbl_pop <- pop |> 
-  as_tibble() |> 
-  janitor::clean_names() |> 
+tbl_pop <- pop |>
+  as_tibble() |>
+  janitor::clean_names() |>
   filter(
     forma_de_declaracao_da_idade == "Total",
     idade_codigo %in% codes
-  ) |> 
-  select(sexo, idade, valor) |> 
+  ) |>
+  select(sexo, idade, valor) |>
   mutate(
     age_min = as.integer(str_extract(idade, "[0-9]+(?= )")),
     age_max = as.integer(str_extract(idade, "(?<=a )[0-9]+(?= )")),
@@ -47,7 +47,7 @@ tbl_pop <- pop |>
     generation = fct_reorder(generation, age_min)
   )
 
-tbl_pop <- tbl_pop |> 
+tbl_pop <- tbl_pop |>
   mutate(
     age_label = factor(str_remove(idade, " anos")),
     age_label = fct_reorder(age_label, age_min)
@@ -59,14 +59,14 @@ tbl_pop <- tbl_pop |>
 ```{r}
 codes = 6558:6659
 
-tbl_gen <- pop |> 
-  as_tibble() |> 
-  janitor::clean_names() |> 
+tbl_gen <- pop |>
+  as_tibble() |>
+  janitor::clean_names() |>
   filter(
     forma_de_declaracao_da_idade == "Total",
     idade_codigo %in% codes
-  ) |> 
-  select(sexo, idade, valor) |> 
+  ) |>
+  select(sexo, idade, valor) |>
   mutate(
     age = as.numeric(str_remove(idade, "(ano$)|(anos$)|(anos ou mais$)")),
     generation = case_when(
@@ -82,17 +82,17 @@ tbl_gen <- pop |>
 ```
 
 ```{r}
-gen_share <- tbl_gen |> 
-  filter(sexo == "Total") |> 
+gen_share <- tbl_gen |>
+  filter(sexo == "Total") |>
   mutate(share = valor / sum(valor) * 100)
 
-tbl_text <- gen_share |> 
+tbl_text <- gen_share |>
   summarise(
     age_min = min(age),
     age_max = max(age),
     total = sum(share),
     total_pop = sum(valor),
-    .by = "generation") |> 
+    .by = "generation") |>
   mutate(
     age_med = age_min + (age_max - age_min) / 2,
     num_label = paste0(round(total, 1), "%")
@@ -153,36 +153,36 @@ p_col <- ggplot() +
 ```
 
 ```{r}
-tbl_generations <- tbl_text |> 
+tbl_generations <- tbl_text |>
   mutate(
     age_range = str_c(age_min, "-", age_max)
-  ) |> 
-  select(generation, age_range, total_pop, total) |> 
+  ) |>
+  select(generation, age_range, total_pop, total) |>
   mutate(acum = cumsum(total))
 
 library(gt)
 library(gtExtras)
 
-gt_gen <- gt(tbl_generations) |> 
+gt_gen <- gt(tbl_generations) |>
   cols_label(
     generation = "Generation",
     age_range = "Age Range",
     total_pop = "Population",
     total = "Share",
     acum = "Cumulative Share"
-  ) |> 
-  fmt_number(3, decimals = 0, sep_mark = ".") |> 
-  fmt_percent(4:5, scale_values = FALSE, dec_mark = ",") |> 
-  opt_stylize(style = 6, color = "gray") |> 
+  ) |>
+  fmt_number(3, decimals = 0, sep_mark = ".") |>
+  fmt_percent(4:5, scale_values = FALSE, dec_mark = ",") |>
+  opt_stylize(style = 6, color = "gray") |>
   opt_table_font(font = google_font("Fira Sans"))
 ```
 
 ```{r, get_unemp_data}
 unemp <- get_sidra(6397, variable = 4099, period = "202202-202401")
 
-tbl_unemp <- unemp |> 
-  janitor::clean_names() |> 
-  as_tibble() |> 
+tbl_unemp <- unemp |>
+  janitor::clean_names() |>
+  as_tibble() |>
   mutate(
     date = zoo::as.Date(zoo::as.yearqtr(trimestre_codigo, format = "%Y%q")),
     age_group = str_remove(grupo_de_idade, "(anos$)|(anos ou mais$)"),
@@ -191,12 +191,12 @@ tbl_unemp <- unemp |>
     age_group = str_replace(age_group, " a ", "-"),
     age_group = str_replace(age_group, "60", "60+"),
     age_group = factor(age_group, levels = c("14-17", "18-24", "25-39", "40-59", "60+", "Overall"))
-  ) |> 
+  ) |>
   select(date, age_group, value = valor)
 ```
 
 ```{r, plot_unemp}
-tbl_unemp <- tbl_unemp |> 
+tbl_unemp <- tbl_unemp |>
   filter(age_group != "14-17")
 
 p_unemp <- ggplot(tbl_unemp, aes(date, value, color = age_group)) +
