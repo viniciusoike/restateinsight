@@ -7,7 +7,6 @@ format: html
 execute:
   warning: false
   message: false
-
 ---
 
 ```{r}
@@ -37,7 +36,7 @@ A modelagem de séries temporais no `R` é um tanto caótica. Isto acontece pela
 
 Com o tempo, as funções base do `R` se tornaram um tanto defasadas. Os gráficos do `R` foram revolucionados pelo pacote `ggplot2` mas a sua sintaxe não funciona tão diretamente com séries de tempo; como resultado, alguns ajustes são necessários para compatibilizar os dois.
 
-Neste post, tentei manter o código o mais simples possível usando somente o pacote `forecast`[^1], que é excelente para o tratamento de séries de tempo univariadas[^2]. Abaixo segue a lista dos pacotes necessários para acompanhar este post[^3].
+Neste post, tentei manter o código o mais simples possível usando somente o pacote `forecast`[^1], que é excelente para o tratamento de séries de tempo univariadas[^2]. Infelizmente, as funções para o diagnóstico de resíduos estão espalhadas em diversos pacotes. Abaixo segue a lista dos pacotes necessários para acompanhar este post[^3].
 
 [^1]: Para mais sobre o pacote `forecast` vale consultar o livro [Forecasting: Principles and Practice](https://otexts.com/fpp2/).
 
@@ -48,15 +47,15 @@ Neste post, tentei manter o código o mais simples possível usando somente o pa
 ```{r}
 library(forecast)
 library(urca)
-library(qs)
+other_packages <- c("tseries", "lmtest", "FinTS", "ggplot2")
 ```
 
 ```{r}
-#| include: false
+#| code-fold: true
+#| echo: true
 library(kableExtra)
 library(patchwork)
 library(ggplot2)
-library(ragg)
 
 print_table = function(dat, digits = 5) {
   dat %>%
@@ -66,7 +65,7 @@ print_table = function(dat, digits = 5) {
 
 font = "Avenir"
 
-theme_ts = theme_minimal(base_family = font, base_size = 12) +
+theme_ts = theme_minimal(base_family = font, base_size = 11) +
   theme(
     plot.background = element_rect(fill = "#fefefe", color = "#fefefe"),
     panel.background = element_rect(fill = "#fefefe", color = "#fefefe"),
@@ -76,6 +75,9 @@ theme_ts = theme_minimal(base_family = font, base_size = 12) +
     plot.subtitle = element_text(color = "gray20"),
     text = element_text(color = "gray30")
   )
+
+# opcional: para aplicar o tema em todos os gráficos
+set_theme(theme_ts)
 
 macro = qs::qread(here::here("static", "data", "macro_br_contas_nacionais.qs"))
 ```
@@ -491,6 +493,7 @@ autoplot(u2^2)
 ```
 
 ```{r}
+#| out-width: "100%"
 p1 = autoplot(u1^2) +
   labs(
     subtitle = "Quadrado dos resíduos do modelo ARIMA (0, 1, 0)",
@@ -505,7 +508,7 @@ p2 = autoplot(u2^2) +
     y = latex2exp::TeX("$u_{t}^2$")
   )
 
-(p1 | p2) +
+(p1 / p2) +
   plot_annotation(
     title = "Verificando homocedasticidade",
     subtitle = "Picos na série do quadrado dos resíduos indicam a presença de heterocedasticidade."
@@ -532,7 +535,7 @@ tseries::jarque.bera.test(u1)
 A função `checkresiduals` oferece uma visualização completa dos diagnósticos do modelo, combinando o gráfico da série dos resíduos, a FAC e um histograma com o resultado do teste Ljung-Box.
 
 ```{r}
-checkresiduals(m1) + theme_ts
+checkresiduals(m1)
 ```
 
 # 5. Comparação de Modelos
@@ -709,40 +712,40 @@ Neste post, demonstramos a aplicação completa da metodologia Box-Jenkins para 
 
 ## Principais Conclusões
 
-1. **Estacionaridade**: A série de consumo apresentou raiz unitária, exigindo uma diferenciação (d=1) para torná-la estacionária.
+1.  **Estacionaridade**: A série de consumo apresentou raiz unitária, exigindo uma diferenciação (d=1) para torná-la estacionária.
 
-2. **Identificação**: A análise das funções de autocorrelação (FAC e FACP) sugeriu um modelo ARIMA(1,1,1) como candidato de ordem máxima.
+2.  **Identificação**: A análise das funções de autocorrelação (FAC e FACP) sugeriu um modelo ARIMA(1,1,1) como candidato de ordem máxima.
 
-3. **Diagnóstico**: A verificação dos resíduos através de testes estatísticos e análise gráfica confirmou que o modelo ARIMA(1,1,1) apresenta resíduos bem comportados, sem autocorrelação significativa.
+3.  **Diagnóstico**: A verificação dos resíduos através de testes estatísticos e análise gráfica confirmou que o modelo ARIMA(1,1,1) apresenta resíduos bem comportados, sem autocorrelação significativa.
 
-4. **Comparação**: Os critérios AIC e BIC confirmaram que o modelo ARIMA(1,1,1) oferece o melhor equilíbrio entre ajuste e parcimônia.
+4.  **Comparação**: Os critérios AIC e BIC confirmaram que o modelo ARIMA(1,1,1) oferece o melhor equilíbrio entre ajuste e parcimônia.
 
-5. **Previsão**: O modelo final foi usado para gerar previsões fora da amostra, com intervalos de confiança apropriados que refletem a incerteza crescente ao longo do horizonte de previsão. A previsão do modelo escolhido foi inicialmente boa, mas se deteriorou ao longo do intervalo. Modelos alternativos tiveram melhor performance preditiva.
+5.  **Previsão**: O modelo final foi usado para gerar previsões fora da amostra, com intervalos de confiança apropriados que refletem a incerteza crescente ao longo do horizonte de previsão. A previsão do modelo escolhido foi inicialmente boa, mas se deteriorou ao longo do intervalo. Modelos alternativos tiveram melhor performance preditiva.
 
 ## Quando usar modelos ARIMA
 
 Modelos ARIMA são apropriados quando:
 
-- Trabalha-se com séries temporais univariadas.
-- Há evidência de dependência temporal nos dados.
-- O objetivo é fazer previsões de curto a médio prazo.
-- Busca-se um modelo parcimonioso e fácil de estimar.
+-   Trabalha-se com séries temporais univariadas.
+-   Há evidência de dependência temporal nos dados.
+-   O objetivo é fazer previsões de curto a médio prazo.
+-   Busca-se um modelo parcimonioso e fácil de estimar.
 
 **Limitações importantes:**
 
-- Não incorpora informação de outras variáveis (para isso, considere modelos ARIMAX ou VAR).
-- A capacidade preditiva tende a deteriorar rapidamente em horizontes longos.
-- Quebras estruturais podem invalidar o modelo.
+-   Não incorpora informação de outras variáveis (para isso, considere modelos ARIMAX ou VAR).
+-   A capacidade preditiva tende a deteriorar rapidamente em horizontes longos.
+-   Quebras estruturais podem invalidar o modelo.
 
 ## Alternativas e extensões
 
-- **auto.arima()**: O pacote `forecast` oferece a função `auto.arima()` que seleciona automaticamente a ordem do modelo usando critérios de informação
-- **Modelos sazonais**: Para séries com sazonalidade, considere modelos SARIMA
-- **Modelos multivariados**: Para incorporar múltiplas séries, considere modelos VAR ou VECM
-- **Não-linearidade**: Para capturar assimetrias e não-linearidades, considere modelos GARCH ou TAR
+-   **auto.arima()**: O pacote `forecast` oferece a função `auto.arima()` que seleciona automaticamente a ordem do modelo usando critérios de informação
+-   **Modelos sazonais**: Para séries com sazonalidade, considere modelos SARIMA
+-   **Modelos multivariados**: Para incorporar múltiplas séries, considere modelos VAR ou VECM
+-   **Não-linearidade**: Para capturar assimetrias e não-linearidades, considere modelos GARCH ou TAR
 
 ## Posts Relacionados
 
-- [Modelos ARMA: exemplo simples](https://restateinsight.com/posts/general-posts/repost-arma-exemplo-simples/)
-- [Médias móveis em R](https://restateinsight.com/posts/general-posts/2024-02-media-movel/)
-- [Sazonalidade em séries de tempo](https://restateinsight.com/posts/general-posts/2024-01-sazonalidade/)
+-   [Modelos ARMA: exemplo simples](https://restateinsight.com/posts/general-posts/repost-arma-exemplo-simples/)
+-   [Médias móveis em R](https://restateinsight.com/posts/general-posts/2024-02-media-movel/)
+-   [Sazonalidade em séries de tempo](https://restateinsight.com/posts/general-posts/2024-01-sazonalidade/)

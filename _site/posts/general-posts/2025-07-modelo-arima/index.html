@@ -2,7 +2,7 @@
 <html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
 
 <meta charset="utf-8">
-<meta name="generator" content="quarto-1.7.33">
+<meta name="generator" content="quarto-1.8.25">
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
@@ -70,14 +70,15 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <meta name="quarto:offset" content="../../../">
 <script src="../../../site_libs/quarto-html/quarto.js" type="module"></script>
 <script src="../../../site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="../../../site_libs/quarto-html/axe/axe-check.js" type="module"></script>
 <script src="../../../site_libs/quarto-html/popper.min.js"></script>
 <script src="../../../site_libs/quarto-html/tippy.umd.min.js"></script>
 <script src="../../../site_libs/quarto-html/anchor.min.js"></script>
 <link href="../../../site_libs/quarto-html/tippy.css" rel="stylesheet">
-<link href="../../../site_libs/quarto-html/quarto-syntax-highlighting-65ceba22b1a2bc45b1f8c349a1513ec1.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<link href="../../../site_libs/quarto-html/quarto-syntax-highlighting-0a0d8714bb2068ad57d7983a1e93eaba.css" rel="stylesheet" id="quarto-text-highlighting-styles">
 <script src="../../../site_libs/bootstrap/bootstrap.min.js"></script>
 <link href="../../../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
-<link href="../../../site_libs/bootstrap/bootstrap-1d3a31d95e5cb5c8e68bd63598ea7077.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<link href="../../../site_libs/bootstrap/bootstrap-06479d3fb5a75f2e792efe0cd6aeae75.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
 <script id="quarto-search-options" type="application/json">{
   "location": "navbar",
   "copy-button": false,
@@ -131,7 +132,7 @@ const typesetMath = (el) => {
     var macros = [];
     for (var i = 0; i < mathElements.length; i++) {
       var texText = mathElements[i].firstChild;
-      if (mathElements[i].tagName == "SPAN") {
+      if (mathElements[i].tagName == "SPAN" && texText && texText.data) {
         window.katex.render(texText.data, mathElements[i], {
           displayMode: mathElements[i].classList.contains('display'),
           throwOnError: false,
@@ -163,6 +164,8 @@ window.Quarto = {
     <nav class="navbar navbar-expand-lg " data-bs-theme="dark">
       <div class="navbar-container container-fluid">
       <div class="navbar-brand-container mx-auto">
+    <a href="../../../index.html" class="navbar-brand navbar-brand-logo">
+    </a>
     <a class="navbar-brand" href="../../../index.html">
     <span class="navbar-title">Vinicius Oike</span>
     </a>
@@ -338,11 +341,43 @@ window.Quarto = {
 <h3 class="anchored" data-anchor-id="r">R</h3>
 <p>A modelagem de séries temporais no <code>R</code> é um tanto caótica. Isto acontece pela diversidade e complexidade de dados em séries de tempo. Via de regra, as funções-base do <code>R</code> servem muito bem para séries mensais, trimestrais e anuais. Quando se lida, por exemplo, com dados financeiros diários ou intra-diários costuma ser necessário usar pacotes especializados.</p>
 <p>Com o tempo, as funções base do <code>R</code> se tornaram um tanto defasadas. Os gráficos do <code>R</code> foram revolucionados pelo pacote <code>ggplot2</code> mas a sua sintaxe não funciona tão diretamente com séries de tempo; como resultado, alguns ajustes são necessários para compatibilizar os dois.</p>
-<p>Neste post, tentei manter o código o mais simples possível usando somente o pacote <code>forecast</code><a href="#fn1" class="footnote-ref" id="fnref1" role="doc-noteref"><sup>1</sup></a>, que é excelente para o tratamento de séries de tempo univariadas<a href="#fn2" class="footnote-ref" id="fnref2" role="doc-noteref"><sup>2</sup></a>. Abaixo segue a lista dos pacotes necessários para acompanhar este post<a href="#fn3" class="footnote-ref" id="fnref3" role="doc-noteref"><sup>3</sup></a>.</p>
+<p>Neste post, tentei manter o código o mais simples possível usando somente o pacote <code>forecast</code><a href="#fn1" class="footnote-ref" id="fnref1" role="doc-noteref"><sup>1</sup></a>, que é excelente para o tratamento de séries de tempo univariadas<a href="#fn2" class="footnote-ref" id="fnref2" role="doc-noteref"><sup>2</sup></a>. Infelizmente, as funções para o diagnóstico de resíduos estão espalhadas em diversos pacotes. Abaixo segue a lista dos pacotes necessários para acompanhar este post<a href="#fn3" class="footnote-ref" id="fnref3" role="doc-noteref"><sup>3</sup></a>.</p>
 <div class="cell" data-layout-align="center">
-<div class="sourceCode cell-code" id="cb1"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(forecast)</span>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(forecast)</span>
 <span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(urca)</span>
-<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(qs)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>other_packages <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="st">"tseries"</span>, <span class="st">"lmtest"</span>, <span class="st">"FinTS"</span>, <span class="st">"ggplot2"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<div class="cell" data-layout-align="center">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(kableExtra)</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(patchwork)</span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(ggplot2)</span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>print_table <span class="ot">=</span> <span class="cf">function</span>(dat, <span class="at">digits =</span> <span class="dv">5</span>) {</span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a>  dat <span class="sc">%&gt;%</span></span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a>    <span class="fu">kable</span>(<span class="at">align =</span> <span class="st">"c"</span>, <span class="at">full_width =</span> <span class="cn">FALSE</span>, <span class="at">digits =</span> digits) <span class="sc">%&gt;%</span></span>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a>    <span class="fu">kable_styling</span>(<span class="at">bootstrap_options =</span> <span class="fu">c</span>(<span class="st">"bordered"</span>, <span class="st">"hover"</span>, <span class="st">"striped"</span>))</span>
+<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a>font <span class="ot">=</span> <span class="st">"Avenir"</span></span>
+<span id="cb2-12"><a href="#cb2-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-13"><a href="#cb2-13" aria-hidden="true" tabindex="-1"></a>theme_ts <span class="ot">=</span> <span class="fu">theme_minimal</span>(<span class="at">base_family =</span> font, <span class="at">base_size =</span> <span class="dv">11</span>) <span class="sc">+</span></span>
+<span id="cb2-14"><a href="#cb2-14" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme</span>(</span>
+<span id="cb2-15"><a href="#cb2-15" aria-hidden="true" tabindex="-1"></a>    <span class="at">plot.background =</span> <span class="fu">element_rect</span>(<span class="at">fill =</span> <span class="st">"#fefefe"</span>, <span class="at">color =</span> <span class="st">"#fefefe"</span>),</span>
+<span id="cb2-16"><a href="#cb2-16" aria-hidden="true" tabindex="-1"></a>    <span class="at">panel.background =</span> <span class="fu">element_rect</span>(<span class="at">fill =</span> <span class="st">"#fefefe"</span>, <span class="at">color =</span> <span class="st">"#fefefe"</span>),</span>
+<span id="cb2-17"><a href="#cb2-17" aria-hidden="true" tabindex="-1"></a>    <span class="at">panel.grid.minor =</span> <span class="fu">element_blank</span>(),</span>
+<span id="cb2-18"><a href="#cb2-18" aria-hidden="true" tabindex="-1"></a>    <span class="at">legend.position =</span> <span class="st">"bottom"</span>,</span>
+<span id="cb2-19"><a href="#cb2-19" aria-hidden="true" tabindex="-1"></a>    <span class="at">plot.title =</span> <span class="fu">element_text</span>(<span class="at">color =</span> <span class="st">"#000000"</span>),</span>
+<span id="cb2-20"><a href="#cb2-20" aria-hidden="true" tabindex="-1"></a>    <span class="at">plot.subtitle =</span> <span class="fu">element_text</span>(<span class="at">color =</span> <span class="st">"gray20"</span>),</span>
+<span id="cb2-21"><a href="#cb2-21" aria-hidden="true" tabindex="-1"></a>    <span class="at">text =</span> <span class="fu">element_text</span>(<span class="at">color =</span> <span class="st">"gray30"</span>)</span>
+<span id="cb2-22"><a href="#cb2-22" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb2-23"><a href="#cb2-23" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-24"><a href="#cb2-24" aria-hidden="true" tabindex="-1"></a><span class="co"># opcional: para aplicar o tema em todos os gráficos</span></span>
+<span id="cb2-25"><a href="#cb2-25" aria-hidden="true" tabindex="-1"></a><span class="fu">set_theme</span>(theme_ts)</span>
+<span id="cb2-26"><a href="#cb2-26" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-27"><a href="#cb2-27" aria-hidden="true" tabindex="-1"></a>macro <span class="ot">=</span> qs<span class="sc">::</span><span class="fu">qread</span>(here<span class="sc">::</span><span class="fu">here</span>(<span class="st">"static"</span>, <span class="st">"data"</span>, <span class="st">"macro_br_contas_nacionais.qs"</span>))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
 </div>
 </section>
 </section>
@@ -369,7 +404,7 @@ window.Quarto = {
 <p>Para acompanhar estes exemplos vamos usar as séries das contas nacionais brasileiras. Estas séries são trimestrais e dessazonalizadas. Além disso, os seus valores são indexados, em base-100, em 1995, o primeiro ano da série completa.</p>
 <div class="cell" data-layout-align="center">
 <div class="cell-output-display">
-<table class="table table-bordered table-hover table-striped caption-top table-sm small" data-quarto-postprocess="true">
+<table class="table table-bordered table-hover table-striped caption-top table-sm small">
 <thead>
 <tr class="header">
 <th style="text-align: center;" data-quarto-table-cell-role="th">data</th>
@@ -442,8 +477,8 @@ window.Quarto = {
 </div>
 <p>Inicialmente, vamos usar somente a série de consumo.</p>
 <div class="cell" data-layout-align="center">
-<div class="sourceCode cell-code" id="cb2"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Série de consumo</span></span>
-<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>cons <span class="ot">=</span> <span class="fu">ts</span>(macro<span class="sc">$</span>consumo, <span class="at">start =</span> <span class="fu">c</span>(<span class="dv">1996</span>, <span class="dv">1</span>), <span class="at">frequency =</span> <span class="dv">4</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Série de consumo</span></span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>cons <span class="ot">=</span> <span class="fu">ts</span>(macro<span class="sc">$</span>consumo, <span class="at">start =</span> <span class="fu">c</span>(<span class="dv">1996</span>, <span class="dv">1</span>), <span class="at">frequency =</span> <span class="dv">4</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 </section>
 <section id="estacionaridade" class="level2">
@@ -477,12 +512,12 @@ window.Quarto = {
 </div>
 <p>O gráfico abaixo, feito com a função <code>autoplot</code>, mostra a série de consumo dessazonalizada. Como se vê, ela apresenta claros indícios de ser não-estacionária, pois a média dela não é constante no tempo.</p>
 <div class="cell" data-layout-align="center">
-<div class="sourceCode cell-code" id="cb3"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="co"># echo: false</span></span>
-<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="fu">autoplot</span>(cons) <span class="sc">+</span></span>
-<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ggtitle</span>(<span class="st">"Consumo das famílias (dessazonalizado)"</span>) <span class="sc">+</span></span>
-<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">xlab</span>(<span class="cn">NULL</span>) <span class="sc">+</span></span>
-<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ylab</span>(<span class="st">"Index (100 = 1995)"</span>) <span class="sc">+</span></span>
-<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a>  theme_ts</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="co"># echo: false</span></span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a><span class="fu">autoplot</span>(cons) <span class="sc">+</span></span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ggtitle</span>(<span class="st">"Consumo das famílias (dessazonalizado)"</span>) <span class="sc">+</span></span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">xlab</span>(<span class="cn">NULL</span>) <span class="sc">+</span></span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ylab</span>(<span class="st">"Index (100 = 1995)"</span>) <span class="sc">+</span></span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a>  theme_ts</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output-display">
 <div class="quarto-figure quarto-figure-center">
 <figure class="figure">
@@ -495,8 +530,8 @@ window.Quarto = {
 <h3 class="anchored" data-anchor-id="autocorrelação">Autocorrelação</h3>
 <p>Pode-se verificar o gráfico de autocorrelação e autocorrelação parcial da série como um critério informal para avaliar a estacionaridade<a href="#fn4" class="footnote-ref" id="fnref4" role="doc-noteref"><sup>4</sup></a>. Em geral, se a FAC demora muito para decair, a série é não-estacionária. O gráfico abaixo mostra a FAC e FACP de cinco “ciclos” da série.</p>
 <div class="cell" data-layout-align="center">
-<div class="sourceCode cell-code" id="cb4"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="fu">ggAcf</span>(cons, <span class="at">lag.max =</span> <span class="fu">frequency</span>(cons) <span class="sc">*</span> <span class="dv">5</span>)</span>
-<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a><span class="fu">ggPacf</span>(cons, <span class="at">lag.max =</span> <span class="fu">frequency</span>(cons) <span class="sc">*</span> <span class="dv">5</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="fu">ggAcf</span>(cons, <span class="at">lag.max =</span> <span class="fu">frequency</span>(cons) <span class="sc">*</span> <span class="dv">5</span>)</span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a><span class="fu">ggPacf</span>(cons, <span class="at">lag.max =</span> <span class="fu">frequency</span>(cons) <span class="sc">*</span> <span class="dv">5</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <div class="cell" data-layout-align="center">
 <div class="cell-output-display">
@@ -515,12 +550,12 @@ window.Quarto = {
 <p>Abaixo mostro como fazer o teste ADF, nas suas três versões, usando o critério BIC para seleção automática do número de defasagens. Neste caso, fica claro que a série possui uma ruiz unitária sem constante e sem tendência. A rigor, seria necessário aplicar os mesmos testes sobre a primeira diferença da série para verificar se há somente uma raiz unitária.</p>
 <p>Os resultados podem ser melhor detalhados usando <code>summary</code> , i.e., <code>summary(adf1)</code>.</p>
 <div class="cell" data-layout-align="center">
-<div class="sourceCode cell-code" id="cb5"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="fu">ur.df</span>(cons, <span class="at">type =</span> <span class="st">"trend"</span>, <span class="at">lags =</span> <span class="dv">12</span>, <span class="at">selectlags =</span> <span class="st">"BIC"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="fu">ur.df</span>(cons, <span class="at">type =</span> <span class="st">"trend"</span>, <span class="at">lags =</span> <span class="dv">12</span>, <span class="at">selectlags =</span> <span class="st">"BIC"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <div class="cell" data-layout-align="center">
-<div class="sourceCode cell-code" id="cb6"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>adf1 <span class="ot">=</span> <span class="fu">ur.df</span>(cons, <span class="at">type =</span> <span class="st">"trend"</span>, <span class="at">lags =</span> <span class="dv">12</span>, <span class="at">selectlags =</span> <span class="st">"BIC"</span>)</span>
-<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>adf2 <span class="ot">=</span> <span class="fu">ur.df</span>(cons, <span class="at">type =</span> <span class="st">"drift"</span>, <span class="at">lags =</span> <span class="dv">12</span>, <span class="at">selectlags =</span> <span class="st">"BIC"</span>)</span>
-<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>adf3 <span class="ot">=</span> <span class="fu">ur.df</span>(cons, <span class="at">type =</span> <span class="st">"none"</span>, <span class="at">lags =</span> <span class="dv">12</span>, <span class="at">selectlags =</span> <span class="st">"BIC"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb7"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>adf1 <span class="ot">=</span> <span class="fu">ur.df</span>(cons, <span class="at">type =</span> <span class="st">"trend"</span>, <span class="at">lags =</span> <span class="dv">12</span>, <span class="at">selectlags =</span> <span class="st">"BIC"</span>)</span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>adf2 <span class="ot">=</span> <span class="fu">ur.df</span>(cons, <span class="at">type =</span> <span class="st">"drift"</span>, <span class="at">lags =</span> <span class="dv">12</span>, <span class="at">selectlags =</span> <span class="st">"BIC"</span>)</span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>adf3 <span class="ot">=</span> <span class="fu">ur.df</span>(cons, <span class="at">type =</span> <span class="st">"none"</span>, <span class="at">lags =</span> <span class="dv">12</span>, <span class="at">selectlags =</span> <span class="st">"BIC"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 </section>
 </section>
@@ -533,10 +568,10 @@ window.Quarto = {
 <p>Uma prática comum em séries de tempo é remover um percentual das observações finais afim de testar a capacidade preditiva do modelo<a href="#fn5" class="footnote-ref" id="fnref5" role="doc-noteref"><sup>5</sup></a>. Esta abordagem também é bastente comum na literatura de Machine Learning, onde o objetivo costuma ser gerar previsões.</p>
 <p>O código abaixo cria uma série <code>train</code> com cerca de 85% das observações. Vale notar que há maneiras mais sofisticadas de fazer esta divisão e veremos como fazer uma delas mais adiante.</p>
 <div class="cell" data-layout-align="center">
-<div class="sourceCode cell-code" id="cb7"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>a <span class="ot">=</span> <span class="fl">0.15</span></span>
-<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>h <span class="ot">=</span> <span class="fu">floor</span>(a <span class="sc">*</span> <span class="fu">length</span>(cons))</span>
-<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>train <span class="ot">=</span> <span class="fu">head</span>(cons, <span class="fu">length</span>(cons) <span class="sc">-</span> h)</span>
-<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a>test <span class="ot">=</span> <span class="fu">tail</span>(cons, h)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb8"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>a <span class="ot">=</span> <span class="fl">0.15</span></span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>h <span class="ot">=</span> <span class="fu">floor</span>(a <span class="sc">*</span> <span class="fu">length</span>(cons))</span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a>train <span class="ot">=</span> <span class="fu">head</span>(cons, <span class="fu">length</span>(cons) <span class="sc">-</span> h)</span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a>test <span class="ot">=</span> <span class="fu">tail</span>(cons, h)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <div class="cell" data-layout-align="center">
 <div class="cell-output-display">
@@ -552,10 +587,10 @@ window.Quarto = {
 <h2 class="anchored" data-anchor-id="autocorrelação-1">Autocorrelação</h2>
 <p>O gráfico abaixo mostra a FAC e FACP da primeira diferença. Agora, temos somente a primeira defasagem significativa em cada um dos gráficos. Assim, podemos supor que o modelo de ordem máximo é um ARIMA (1, 1, 1).</p>
 <div class="cell" data-layout-align="center">
-<div class="sourceCode cell-code" id="cb8"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>dcons <span class="ot">=</span> <span class="fu">diff</span>(train)</span>
-<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a><span class="fu">ggAcf</span>(train)</span>
-<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a><span class="fu">ggPacf</span>(train)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb9"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>dcons <span class="ot">=</span> <span class="fu">diff</span>(train)</span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a><span class="fu">ggAcf</span>(train)</span>
+<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a><span class="fu">ggPacf</span>(train)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <div class="cell" data-layout-align="center">
 <div class="cell-output-display">
@@ -578,18 +613,18 @@ window.Quarto = {
 </ul>
 <p>Vale notar que algumas estatísticas comuns como o R² ou R² ajustado não fazem sentido nos modelos ARMA e ARIMA devido às características assintóticas dos estimadores. Até por isso, é comum omitir ambos.</p>
 <div class="cell" data-layout-align="center">
-<div class="sourceCode cell-code" id="cb9"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>m1 <span class="ot">=</span> <span class="fu">Arima</span>(train, <span class="at">order =</span> <span class="fu">c</span>(<span class="dv">0</span>, <span class="dv">1</span>, <span class="dv">0</span>), <span class="at">include.drift =</span> <span class="cn">TRUE</span>)</span>
-<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>m2 <span class="ot">=</span> <span class="fu">Arima</span>(train, <span class="at">order =</span> <span class="fu">c</span>(<span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>))</span>
-<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a>m3 <span class="ot">=</span> <span class="fu">Arima</span>(train, <span class="at">order =</span> <span class="fu">c</span>(<span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">0</span>))</span>
-<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a>m4 <span class="ot">=</span> <span class="fu">Arima</span>(train, <span class="at">order =</span> <span class="fu">c</span>(<span class="dv">0</span>, <span class="dv">1</span>, <span class="dv">1</span>))</span>
-<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a>m5 <span class="ot">=</span> <span class="fu">Arima</span>(train, <span class="at">order =</span> <span class="fu">c</span>(<span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>), <span class="at">include.drift =</span> <span class="cn">TRUE</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb10"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a>m1 <span class="ot">=</span> <span class="fu">Arima</span>(train, <span class="at">order =</span> <span class="fu">c</span>(<span class="dv">0</span>, <span class="dv">1</span>, <span class="dv">0</span>), <span class="at">include.drift =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a>m2 <span class="ot">=</span> <span class="fu">Arima</span>(train, <span class="at">order =</span> <span class="fu">c</span>(<span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>))</span>
+<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a>m3 <span class="ot">=</span> <span class="fu">Arima</span>(train, <span class="at">order =</span> <span class="fu">c</span>(<span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">0</span>))</span>
+<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a>m4 <span class="ot">=</span> <span class="fu">Arima</span>(train, <span class="at">order =</span> <span class="fu">c</span>(<span class="dv">0</span>, <span class="dv">1</span>, <span class="dv">1</span>))</span>
+<span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a>m5 <span class="ot">=</span> <span class="fu">Arima</span>(train, <span class="at">order =</span> <span class="fu">c</span>(<span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>), <span class="at">include.drift =</span> <span class="cn">TRUE</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <p>A saída do modelo ARIMA (1, 1, 1) indica a estimativa dos coeficientes junto com a estimativa da variância do erro e o cálculo dos critérios de informação. O modelo estimado tem a forma:</p>
 <p><span class="math display">\[
 \Delta y_{t} = 0.9449 \Delta y_{t-1} - 0.7277 \varepsilon_{t-1}
 \]</span></p>
 <div class="cell" data-layout-align="center">
-<div class="sourceCode cell-code" id="cb10"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a>m2</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb11"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a>m2</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>Series: train 
 ARIMA(1,1,1) 
@@ -621,20 +656,20 @@ e_{t} = \frac{y_{t} - \hat{y_{t}}}{\sqrt{\sigma^2}}
 <p>Em termos de previsão, o mais importante é verificar se a média do resíduo é zero. Qualquer valor diferente de zero indica que a previsão do modelo será enviesada. Em termos econométricos, o mais importante é verificar a ausência de autocorrelação. A hipótese de homocedasticidade é importante para a validade dos intervalos de confiança das previsões, embora violações moderadas costumem ser toleradas na prática</p>
 <p>Para selecionar os resíduos de um modelo usa-se <code>residuals</code>. O valor de <span class="math inline">\(\sigma^2\)</span> já foi calculado pela função <code>Arima</code> então precisamos somente selecionar o valor.</p>
 <div class="cell" data-layout-align="center">
-<div class="sourceCode cell-code" id="cb12"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a>u1 <span class="ot">=</span> <span class="fu">residuals</span>(m1) <span class="sc">/</span> <span class="fu">sqrt</span>(m1<span class="sc">$</span>sigma2)</span>
-<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a>u2 <span class="ot">=</span> <span class="fu">residuals</span>(m2) <span class="sc">/</span> <span class="fu">sqrt</span>(m2<span class="sc">$</span>sigma2)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb13"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a>u1 <span class="ot">=</span> <span class="fu">residuals</span>(m1) <span class="sc">/</span> <span class="fu">sqrt</span>(m1<span class="sc">$</span>sigma2)</span>
+<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a>u2 <span class="ot">=</span> <span class="fu">residuals</span>(m2) <span class="sc">/</span> <span class="fu">sqrt</span>(m2<span class="sc">$</span>sigma2)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <div class="cell" data-layout-align="center">
-<div class="sourceCode cell-code" id="cb13"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a>p1 <span class="ot">=</span> <span class="fu">autoplot</span>(u1) <span class="sc">+</span> <span class="fu">labs</span>(<span class="at">subtitle =</span> <span class="st">"ARIMA (0, 1, 0)"</span>)</span>
-<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a>p2 <span class="ot">=</span> <span class="fu">autoplot</span>(u2) <span class="sc">+</span> <span class="fu">labs</span>(<span class="at">subtitle =</span> <span class="st">"ARIMA (1, 1, 1)"</span>)</span>
-<span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a>panel <span class="ot">=</span> p1 <span class="sc">/</span> p2</span>
-<span id="cb13-4"><a href="#cb13-4" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-5"><a href="#cb13-5" aria-hidden="true" tabindex="-1"></a>panel <span class="sc">&amp;</span></span>
-<span id="cb13-6"><a href="#cb13-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">plot_annotation</span>(</span>
-<span id="cb13-7"><a href="#cb13-7" aria-hidden="true" tabindex="-1"></a>    <span class="at">title =</span> <span class="st">"Resíduo dos modelos ARIMA (0, 1, 0) e ARIMA (1, 1, 1)"</span></span>
-<span id="cb13-8"><a href="#cb13-8" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">&amp;</span></span>
-<span id="cb13-9"><a href="#cb13-9" aria-hidden="true" tabindex="-1"></a>  theme_ts <span class="sc">+</span></span>
-<span id="cb13-10"><a href="#cb13-10" aria-hidden="true" tabindex="-1"></a>    <span class="fu">theme</span>(<span class="at">axis.title =</span> <span class="fu">element_blank</span>())</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb14"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a>p1 <span class="ot">=</span> <span class="fu">autoplot</span>(u1) <span class="sc">+</span> <span class="fu">labs</span>(<span class="at">subtitle =</span> <span class="st">"ARIMA (0, 1, 0)"</span>)</span>
+<span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a>p2 <span class="ot">=</span> <span class="fu">autoplot</span>(u2) <span class="sc">+</span> <span class="fu">labs</span>(<span class="at">subtitle =</span> <span class="st">"ARIMA (1, 1, 1)"</span>)</span>
+<span id="cb14-3"><a href="#cb14-3" aria-hidden="true" tabindex="-1"></a>panel <span class="ot">=</span> p1 <span class="sc">/</span> p2</span>
+<span id="cb14-4"><a href="#cb14-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-5"><a href="#cb14-5" aria-hidden="true" tabindex="-1"></a>panel <span class="sc">&amp;</span></span>
+<span id="cb14-6"><a href="#cb14-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">plot_annotation</span>(</span>
+<span id="cb14-7"><a href="#cb14-7" aria-hidden="true" tabindex="-1"></a>    <span class="at">title =</span> <span class="st">"Resíduo dos modelos ARIMA (0, 1, 0) e ARIMA (1, 1, 1)"</span></span>
+<span id="cb14-8"><a href="#cb14-8" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">&amp;</span></span>
+<span id="cb14-9"><a href="#cb14-9" aria-hidden="true" tabindex="-1"></a>  theme_ts <span class="sc">+</span></span>
+<span id="cb14-10"><a href="#cb14-10" aria-hidden="true" tabindex="-1"></a>    <span class="fu">theme</span>(<span class="at">axis.title =</span> <span class="fu">element_blank</span>())</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output-display">
 <div class="quarto-figure quarto-figure-center">
 <figure class="figure">
@@ -649,8 +684,8 @@ e_{t} = \frac{y_{t} - \hat{y_{t}}}{\sqrt{\sigma^2}}
 <p>Visualmente, temos duas opções para verificar a autocorrelação serial nos resíduos: a FAC e um lag plot.</p>
 <p>Da mesma forma como fizemos antes, podemos fazer a FAC da série. Nota-se que a primeira defasagem é significativa (i.e.&nbsp;não é zero). Já a FAC do modelo ARIMA (1, 1, 1) não apresenta termos significativos, sugerindo que o resíduo não apresenta autocorrelação.</p>
 <div class="cell" data-layout-align="center">
-<div class="sourceCode cell-code" id="cb14"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a><span class="fu">ggAcf</span>(u1, <span class="at">lag.max =</span> <span class="dv">20</span>)</span>
-<span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a><span class="fu">ggAcf</span>(u2, <span class="at">lag.max =</span> <span class="dv">20</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb15"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a><span class="fu">ggAcf</span>(u1, <span class="at">lag.max =</span> <span class="dv">20</span>)</span>
+<span id="cb15-2"><a href="#cb15-2" aria-hidden="true" tabindex="-1"></a><span class="fu">ggAcf</span>(u2, <span class="at">lag.max =</span> <span class="dv">20</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <div class="cell" data-layout-align="center">
 <div class="cell-output-display">
@@ -663,7 +698,7 @@ e_{t} = \frac{y_{t} - \hat{y_{t}}}{\sqrt{\sigma^2}}
 </div>
 <p>Alternativamente, podemos fazer um gráfico de defasagens (lag plot). Em cada um dos quadrantes abaixo o resíduo é plotado contra seu valor defasado. Se não houver autocorrelação, os gráficos devem ser nuvens “aleatórias” de pontos.</p>
 <div class="cell" data-layout-align="center">
-<div class="sourceCode cell-code" id="cb15"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a><span class="fu">gglagplot</span>(u1, <span class="at">do.lines =</span> <span class="cn">FALSE</span>, <span class="at">colour =</span> <span class="cn">FALSE</span>, <span class="at">lags =</span> <span class="dv">4</span>) <span class="sc">+</span> theme_ts</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb16"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a><span class="fu">gglagplot</span>(u1, <span class="at">do.lines =</span> <span class="cn">FALSE</span>, <span class="at">colour =</span> <span class="cn">FALSE</span>, <span class="at">lags =</span> <span class="dv">4</span>) <span class="sc">+</span> theme_ts</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output-display">
 <div class="quarto-figure quarto-figure-center">
 <figure class="figure">
@@ -673,7 +708,7 @@ e_{t} = \frac{y_{t} - \hat{y_{t}}}{\sqrt{\sigma^2}}
 </div>
 </div>
 <div class="cell" data-layout-align="center">
-<div class="sourceCode cell-code" id="cb16"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a><span class="fu">gglagplot</span>(u2, <span class="at">do.lines =</span> <span class="cn">FALSE</span>, <span class="at">colour =</span> <span class="cn">FALSE</span>, <span class="at">lags =</span> <span class="dv">4</span>) <span class="sc">+</span> theme_ts</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb17"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a><span class="fu">gglagplot</span>(u2, <span class="at">do.lines =</span> <span class="cn">FALSE</span>, <span class="at">colour =</span> <span class="cn">FALSE</span>, <span class="at">lags =</span> <span class="dv">4</span>) <span class="sc">+</span> theme_ts</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output-display">
 <div class="quarto-figure quarto-figure-center">
 <figure class="figure">
@@ -691,7 +726,7 @@ e_{t} = \frac{y_{t} - \hat{y_{t}}}{\sqrt{\sigma^2}}
 <p>Note que, neste caso <code>fitdf = 0</code> pois não estimamos termos p e q no modelo ARIMA. A hipótese nula do teste Ljung-Box é de que a autocorrelação conjunta até defasagem k é igual a zero. Neste sentido, queremos não-rejeitar (aceitar) a hipótese nula.</p>
 <p>No caso abaixo, vemos que o p-valor do teste com oito defasagens é pequeno e menor que 0.05, indicando que há alguma autocorrelação no resíduo do modelo.</p>
 <div class="cell" data-layout-align="center">
-<div class="sourceCode cell-code" id="cb17"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a><span class="fu">Box.test</span>(u1, <span class="at">type =</span> <span class="st">"Ljung-Box"</span>, <span class="at">fitdf =</span> <span class="dv">0</span>, <span class="at">lag =</span> <span class="dv">8</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb18"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a><span class="fu">Box.test</span>(u1, <span class="at">type =</span> <span class="st">"Ljung-Box"</span>, <span class="at">fitdf =</span> <span class="dv">0</span>, <span class="at">lag =</span> <span class="dv">8</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>
     Box-Ljung test
@@ -702,19 +737,19 @@ X-squared = 16.311, df = 8, p-value = 0.03814</code></pre>
 </div>
 <p>Pode ser interessante testar vários valores diferentes no teste Ljung-Box. O código abaixo mostra como fazer um loop simples para calcular vários valores desta estatística.</p>
 <div class="cell" data-layout-align="center">
-<div class="sourceCode cell-code" id="cb19"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a>lags <span class="ot">=</span> <span class="fu">c</span>(<span class="dv">1</span>, <span class="dv">4</span>, <span class="dv">8</span>, <span class="dv">12</span>, <span class="dv">16</span>, <span class="dv">20</span>, <span class="dv">24</span>)</span>
-<span id="cb19-2"><a href="#cb19-2" aria-hidden="true" tabindex="-1"></a>tabela <span class="ot">=</span> <span class="fu">matrix</span>(<span class="at">nrow =</span> <span class="fu">length</span>(lags), <span class="at">ncol =</span> <span class="dv">3</span>)</span>
-<span id="cb19-3"><a href="#cb19-3" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb19-4"><a href="#cb19-4" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> (i <span class="cf">in</span> <span class="fu">seq_along</span>(lags)) {</span>
-<span id="cb19-5"><a href="#cb19-5" aria-hidden="true" tabindex="-1"></a>  lag <span class="ot">=</span> lags[[i]]</span>
-<span id="cb19-6"><a href="#cb19-6" aria-hidden="true" tabindex="-1"></a>  lbtest <span class="ot">=</span> <span class="fu">Box.test</span>(u1, <span class="at">type =</span> <span class="st">"Ljung-Box"</span>, <span class="at">fitdf =</span> <span class="dv">0</span>, <span class="at">lag =</span> lag)</span>
-<span id="cb19-7"><a href="#cb19-7" aria-hidden="true" tabindex="-1"></a>  tabela[i, ] <span class="ot">=</span> <span class="fu">c</span>(lag, <span class="fu">as.numeric</span>(lbtest<span class="sc">$</span>statistic), <span class="fu">as.numeric</span>(lbtest<span class="sc">$</span>p.value))</span>
-<span id="cb19-8"><a href="#cb19-8" aria-hidden="true" tabindex="-1"></a>}</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb20"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a>lags <span class="ot">=</span> <span class="fu">c</span>(<span class="dv">1</span>, <span class="dv">4</span>, <span class="dv">8</span>, <span class="dv">12</span>, <span class="dv">16</span>, <span class="dv">20</span>, <span class="dv">24</span>)</span>
+<span id="cb20-2"><a href="#cb20-2" aria-hidden="true" tabindex="-1"></a>tabela <span class="ot">=</span> <span class="fu">matrix</span>(<span class="at">nrow =</span> <span class="fu">length</span>(lags), <span class="at">ncol =</span> <span class="dv">3</span>)</span>
+<span id="cb20-3"><a href="#cb20-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-4"><a href="#cb20-4" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> (i <span class="cf">in</span> <span class="fu">seq_along</span>(lags)) {</span>
+<span id="cb20-5"><a href="#cb20-5" aria-hidden="true" tabindex="-1"></a>  lag <span class="ot">=</span> lags[[i]]</span>
+<span id="cb20-6"><a href="#cb20-6" aria-hidden="true" tabindex="-1"></a>  lbtest <span class="ot">=</span> <span class="fu">Box.test</span>(u1, <span class="at">type =</span> <span class="st">"Ljung-Box"</span>, <span class="at">fitdf =</span> <span class="dv">0</span>, <span class="at">lag =</span> lag)</span>
+<span id="cb20-7"><a href="#cb20-7" aria-hidden="true" tabindex="-1"></a>  tabela[i, ] <span class="ot">=</span> <span class="fu">c</span>(lag, <span class="fu">as.numeric</span>(lbtest<span class="sc">$</span>statistic), <span class="fu">as.numeric</span>(lbtest<span class="sc">$</span>p.value))</span>
+<span id="cb20-8"><a href="#cb20-8" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <p>A tabela abaixo mostra o resultado do teste Ljung-Box para diversas defasagens.</p>
 <div class="cell" data-layout-align="center">
 <div class="cell-output-display">
-<table class="table table-hover table-bordered table-striped caption-top table-sm small" data-quarto-postprocess="true">
+<table class="table table-hover table-bordered table-striped caption-top table-sm small">
 <caption>Resultados do teste Ljung-Box sobre os resíduos do modelo</caption>
 <thead>
 <tr class="header">
@@ -775,17 +810,17 @@ X-squared = 16.311, df = 8, p-value = 0.03814</code></pre>
 <p>No código abaixo uso a função <code>ts.union</code> para reunir todas as séries (funciona como um <code>full_join</code>). A função <code>lmtest::bgtest</code> aceita uma sintaxe de <code>formula</code> similar a da função <code>lm</code> do tipo <code>y ~ x1 + x2</code>.</p>
 <p>A hipótese nula do teste é de que <span class="math inline">\(\rho_{i} = 0\)</span>, ou seja, novamente queremos não-rejeitar a hipótese nula. Como se abaixo, em ambos os casos temos evidência de autocorrelação.</p>
 <div class="cell" data-layout-align="center">
-<div class="sourceCode cell-code" id="cb20"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Monta um data.frame com o resíduo e suas defasagens</span></span>
-<span id="cb20-2"><a href="#cb20-2" aria-hidden="true" tabindex="-1"></a>udata <span class="ot">=</span> <span class="fu">ts.union</span>(</span>
-<span id="cb20-3"><a href="#cb20-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">u =</span> u1,</span>
-<span id="cb20-4"><a href="#cb20-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">ul1 =</span> <span class="fu">lag</span>(u1, <span class="sc">-</span><span class="dv">1</span>),</span>
-<span id="cb20-5"><a href="#cb20-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">ul2 =</span> <span class="fu">lag</span>(u1, <span class="sc">-</span><span class="dv">2</span>),</span>
-<span id="cb20-6"><a href="#cb20-6" aria-hidden="true" tabindex="-1"></a>  <span class="at">ul3 =</span> <span class="fu">lag</span>(u1, <span class="sc">-</span><span class="dv">3</span>),</span>
-<span id="cb20-7"><a href="#cb20-7" aria-hidden="true" tabindex="-1"></a>  <span class="at">ul4 =</span> <span class="fu">lag</span>(u1, <span class="sc">-</span><span class="dv">4</span>),</span>
-<span id="cb20-8"><a href="#cb20-8" aria-hidden="true" tabindex="-1"></a>  <span class="at">dframe =</span> <span class="cn">TRUE</span></span>
-<span id="cb20-9"><a href="#cb20-9" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb20-10"><a href="#cb20-10" aria-hidden="true" tabindex="-1"></a><span class="co"># Roda o BG test com uma defasagem</span></span>
-<span id="cb20-11"><a href="#cb20-11" aria-hidden="true" tabindex="-1"></a>lmtest<span class="sc">::</span><span class="fu">bgtest</span>(u <span class="sc">~</span> <span class="dv">1</span> <span class="sc">+</span> ul1, <span class="at">data =</span> udata, <span class="at">fill =</span> <span class="cn">NA</span>, <span class="at">type =</span> <span class="st">"F"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb21"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb21-1"><a href="#cb21-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Monta um data.frame com o resíduo e suas defasagens</span></span>
+<span id="cb21-2"><a href="#cb21-2" aria-hidden="true" tabindex="-1"></a>udata <span class="ot">=</span> <span class="fu">ts.union</span>(</span>
+<span id="cb21-3"><a href="#cb21-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">u =</span> u1,</span>
+<span id="cb21-4"><a href="#cb21-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">ul1 =</span> <span class="fu">lag</span>(u1, <span class="sc">-</span><span class="dv">1</span>),</span>
+<span id="cb21-5"><a href="#cb21-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">ul2 =</span> <span class="fu">lag</span>(u1, <span class="sc">-</span><span class="dv">2</span>),</span>
+<span id="cb21-6"><a href="#cb21-6" aria-hidden="true" tabindex="-1"></a>  <span class="at">ul3 =</span> <span class="fu">lag</span>(u1, <span class="sc">-</span><span class="dv">3</span>),</span>
+<span id="cb21-7"><a href="#cb21-7" aria-hidden="true" tabindex="-1"></a>  <span class="at">ul4 =</span> <span class="fu">lag</span>(u1, <span class="sc">-</span><span class="dv">4</span>),</span>
+<span id="cb21-8"><a href="#cb21-8" aria-hidden="true" tabindex="-1"></a>  <span class="at">dframe =</span> <span class="cn">TRUE</span></span>
+<span id="cb21-9"><a href="#cb21-9" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb21-10"><a href="#cb21-10" aria-hidden="true" tabindex="-1"></a><span class="co"># Roda o BG test com uma defasagem</span></span>
+<span id="cb21-11"><a href="#cb21-11" aria-hidden="true" tabindex="-1"></a>lmtest<span class="sc">::</span><span class="fu">bgtest</span>(u <span class="sc">~</span> <span class="dv">1</span> <span class="sc">+</span> ul1, <span class="at">data =</span> udata, <span class="at">fill =</span> <span class="cn">NA</span>, <span class="at">type =</span> <span class="st">"F"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>
     Breusch-Godfrey test for serial correlation of order up to 1
@@ -793,13 +828,13 @@ X-squared = 16.311, df = 8, p-value = 0.03814</code></pre>
 data:  u ~ 1 + ul1
 LM test = 0.44503, df1 = 1, df2 = 75, p-value = 0.5068</code></pre>
 </div>
-<div class="sourceCode cell-code" id="cb22"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb22-1"><a href="#cb22-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Roda o BG test com quatro defasagens</span></span>
-<span id="cb22-2"><a href="#cb22-2" aria-hidden="true" tabindex="-1"></a>lmtest<span class="sc">::</span><span class="fu">bgtest</span>(</span>
-<span id="cb22-3"><a href="#cb22-3" aria-hidden="true" tabindex="-1"></a>  u <span class="sc">~</span> <span class="dv">1</span> <span class="sc">+</span> ul1 <span class="sc">+</span> ul2 <span class="sc">+</span> ul3 <span class="sc">+</span> ul4,</span>
-<span id="cb22-4"><a href="#cb22-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">data =</span> udata,</span>
-<span id="cb22-5"><a href="#cb22-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">fill =</span> <span class="cn">NA</span>,</span>
-<span id="cb22-6"><a href="#cb22-6" aria-hidden="true" tabindex="-1"></a>  <span class="at">type =</span> <span class="st">"F"</span></span>
-<span id="cb22-7"><a href="#cb22-7" aria-hidden="true" tabindex="-1"></a>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb23"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb23-1"><a href="#cb23-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Roda o BG test com quatro defasagens</span></span>
+<span id="cb23-2"><a href="#cb23-2" aria-hidden="true" tabindex="-1"></a>lmtest<span class="sc">::</span><span class="fu">bgtest</span>(</span>
+<span id="cb23-3"><a href="#cb23-3" aria-hidden="true" tabindex="-1"></a>  u <span class="sc">~</span> <span class="dv">1</span> <span class="sc">+</span> ul1 <span class="sc">+</span> ul2 <span class="sc">+</span> ul3 <span class="sc">+</span> ul4,</span>
+<span id="cb23-4"><a href="#cb23-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">data =</span> udata,</span>
+<span id="cb23-5"><a href="#cb23-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">fill =</span> <span class="cn">NA</span>,</span>
+<span id="cb23-6"><a href="#cb23-6" aria-hidden="true" tabindex="-1"></a>  <span class="at">type =</span> <span class="st">"F"</span></span>
+<span id="cb23-7"><a href="#cb23-7" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>
     Breusch-Godfrey test for serial correlation of order up to 1
@@ -814,34 +849,34 @@ LM test = 3.2901, df1 = 1, df2 = 69, p-value = 0.07405</code></pre>
 <h2 class="anchored" data-anchor-id="heterocedasticidade">Heterocedasticidade</h2>
 <p>A maneira mais simples de verificar heterocedasticidade é procurar pela presença de picos na série do quadrado do resíduo. O gráfico abaixo mostra os dois gráficos lado a lado. Vê-se que há picos de volatilidade em ambos os resíduos.</p>
 <div class="cell" data-layout-align="center">
-<div class="sourceCode cell-code" id="cb24"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb24-1"><a href="#cb24-1" aria-hidden="true" tabindex="-1"></a><span class="fu">autoplot</span>(u1<span class="sc">^</span><span class="dv">2</span>)</span>
-<span id="cb24-2"><a href="#cb24-2" aria-hidden="true" tabindex="-1"></a><span class="fu">autoplot</span>(u2<span class="sc">^</span><span class="dv">2</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb25"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb25-1"><a href="#cb25-1" aria-hidden="true" tabindex="-1"></a><span class="fu">autoplot</span>(u1<span class="sc">^</span><span class="dv">2</span>)</span>
+<span id="cb25-2"><a href="#cb25-2" aria-hidden="true" tabindex="-1"></a><span class="fu">autoplot</span>(u2<span class="sc">^</span><span class="dv">2</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <div class="cell" data-layout-align="center">
-<div class="sourceCode cell-code" id="cb25"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb25-1"><a href="#cb25-1" aria-hidden="true" tabindex="-1"></a>p1 <span class="ot">=</span> <span class="fu">autoplot</span>(u1<span class="sc">^</span><span class="dv">2</span>) <span class="sc">+</span></span>
-<span id="cb25-2"><a href="#cb25-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(</span>
-<span id="cb25-3"><a href="#cb25-3" aria-hidden="true" tabindex="-1"></a>    <span class="at">subtitle =</span> <span class="st">"Quadrado dos resíduos do modelo ARIMA (0, 1, 0)"</span>,</span>
-<span id="cb25-4"><a href="#cb25-4" aria-hidden="true" tabindex="-1"></a>    <span class="at">x =</span> <span class="cn">NULL</span>,</span>
-<span id="cb25-5"><a href="#cb25-5" aria-hidden="true" tabindex="-1"></a>    <span class="at">y =</span> latex2exp<span class="sc">::</span><span class="fu">TeX</span>(<span class="st">"$u_{t}^2$"</span>)</span>
-<span id="cb25-6"><a href="#cb25-6" aria-hidden="true" tabindex="-1"></a>  )</span>
-<span id="cb25-7"><a href="#cb25-7" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb25-8"><a href="#cb25-8" aria-hidden="true" tabindex="-1"></a>p2 <span class="ot">=</span> <span class="fu">autoplot</span>(u2<span class="sc">^</span><span class="dv">2</span>) <span class="sc">+</span></span>
-<span id="cb25-9"><a href="#cb25-9" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(</span>
-<span id="cb25-10"><a href="#cb25-10" aria-hidden="true" tabindex="-1"></a>    <span class="at">subtitle =</span> <span class="st">"Quadrado dos resíduos do modelo ARIMA (1, 1, 1)"</span>,</span>
-<span id="cb25-11"><a href="#cb25-11" aria-hidden="true" tabindex="-1"></a>    <span class="at">x =</span> <span class="cn">NULL</span>,</span>
-<span id="cb25-12"><a href="#cb25-12" aria-hidden="true" tabindex="-1"></a>    <span class="at">y =</span> latex2exp<span class="sc">::</span><span class="fu">TeX</span>(<span class="st">"$u_{t}^2$"</span>)</span>
-<span id="cb25-13"><a href="#cb25-13" aria-hidden="true" tabindex="-1"></a>  )</span>
-<span id="cb25-14"><a href="#cb25-14" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb25-15"><a href="#cb25-15" aria-hidden="true" tabindex="-1"></a>(p1 <span class="sc">|</span> p2) <span class="sc">+</span></span>
-<span id="cb25-16"><a href="#cb25-16" aria-hidden="true" tabindex="-1"></a>  <span class="fu">plot_annotation</span>(</span>
-<span id="cb25-17"><a href="#cb25-17" aria-hidden="true" tabindex="-1"></a>    <span class="at">title =</span> <span class="st">"Verificando homocedasticidade"</span>,</span>
-<span id="cb25-18"><a href="#cb25-18" aria-hidden="true" tabindex="-1"></a>    <span class="at">subtitle =</span> <span class="st">"Picos na série do quadrado dos resíduos indicam a presença de heterocedasticidade."</span></span>
-<span id="cb25-19"><a href="#cb25-19" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">&amp;</span></span>
-<span id="cb25-20"><a href="#cb25-20" aria-hidden="true" tabindex="-1"></a>  theme_ts</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb26"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb26-1"><a href="#cb26-1" aria-hidden="true" tabindex="-1"></a>p1 <span class="ot">=</span> <span class="fu">autoplot</span>(u1<span class="sc">^</span><span class="dv">2</span>) <span class="sc">+</span></span>
+<span id="cb26-2"><a href="#cb26-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(</span>
+<span id="cb26-3"><a href="#cb26-3" aria-hidden="true" tabindex="-1"></a>    <span class="at">subtitle =</span> <span class="st">"Quadrado dos resíduos do modelo ARIMA (0, 1, 0)"</span>,</span>
+<span id="cb26-4"><a href="#cb26-4" aria-hidden="true" tabindex="-1"></a>    <span class="at">x =</span> <span class="cn">NULL</span>,</span>
+<span id="cb26-5"><a href="#cb26-5" aria-hidden="true" tabindex="-1"></a>    <span class="at">y =</span> latex2exp<span class="sc">::</span><span class="fu">TeX</span>(<span class="st">"$u_{t}^2$"</span>)</span>
+<span id="cb26-6"><a href="#cb26-6" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb26-7"><a href="#cb26-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb26-8"><a href="#cb26-8" aria-hidden="true" tabindex="-1"></a>p2 <span class="ot">=</span> <span class="fu">autoplot</span>(u2<span class="sc">^</span><span class="dv">2</span>) <span class="sc">+</span></span>
+<span id="cb26-9"><a href="#cb26-9" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(</span>
+<span id="cb26-10"><a href="#cb26-10" aria-hidden="true" tabindex="-1"></a>    <span class="at">subtitle =</span> <span class="st">"Quadrado dos resíduos do modelo ARIMA (1, 1, 1)"</span>,</span>
+<span id="cb26-11"><a href="#cb26-11" aria-hidden="true" tabindex="-1"></a>    <span class="at">x =</span> <span class="cn">NULL</span>,</span>
+<span id="cb26-12"><a href="#cb26-12" aria-hidden="true" tabindex="-1"></a>    <span class="at">y =</span> latex2exp<span class="sc">::</span><span class="fu">TeX</span>(<span class="st">"$u_{t}^2$"</span>)</span>
+<span id="cb26-13"><a href="#cb26-13" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb26-14"><a href="#cb26-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb26-15"><a href="#cb26-15" aria-hidden="true" tabindex="-1"></a>(p1 <span class="sc">/</span> p2) <span class="sc">+</span></span>
+<span id="cb26-16"><a href="#cb26-16" aria-hidden="true" tabindex="-1"></a>  <span class="fu">plot_annotation</span>(</span>
+<span id="cb26-17"><a href="#cb26-17" aria-hidden="true" tabindex="-1"></a>    <span class="at">title =</span> <span class="st">"Verificando homocedasticidade"</span>,</span>
+<span id="cb26-18"><a href="#cb26-18" aria-hidden="true" tabindex="-1"></a>    <span class="at">subtitle =</span> <span class="st">"Picos na série do quadrado dos resíduos indicam a presença de heterocedasticidade."</span></span>
+<span id="cb26-19"><a href="#cb26-19" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">&amp;</span></span>
+<span id="cb26-20"><a href="#cb26-20" aria-hidden="true" tabindex="-1"></a>  theme_ts</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output-display">
 <div class="quarto-figure quarto-figure-center">
 <figure class="figure">
-<p><img src="index_files/figure-html/unnamed-chunk-29-1.png" class="img-fluid quarto-figure quarto-figure-center figure-img" width="672"></p>
+<p><img src="index_files/figure-html/unnamed-chunk-29-1.png" class="img-fluid quarto-figure quarto-figure-center figure-img" style="width:100.0%"></p>
 </figure>
 </div>
 </div>
@@ -850,7 +885,7 @@ LM test = 3.2901, df1 = 1, df2 = 69, p-value = 0.07405</code></pre>
 <h3 class="anchored" data-anchor-id="arch-test">Arch test</h3>
 <p>O test ARCH (autoregressive conditional heteroskedasticity) é, conceitualmente, muito similar ao teste Breusch-Godfrey, visto anteriormente. A ideia é fazer uma regressão do quadrado do resíduo contra seus valores defasados para verificar a presença de heteroscedasticidade condicional. A hipótese nula do teste é de que não há efeitos ARCH presentes.</p>
 <div class="cell" data-layout-align="center">
-<div class="sourceCode cell-code" id="cb26"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb26-1"><a href="#cb26-1" aria-hidden="true" tabindex="-1"></a>FinTS<span class="sc">::</span><span class="fu">ArchTest</span>(u1, <span class="at">lags =</span> <span class="dv">4</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb27"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb27-1"><a href="#cb27-1" aria-hidden="true" tabindex="-1"></a>FinTS<span class="sc">::</span><span class="fu">ArchTest</span>(u1, <span class="at">lags =</span> <span class="dv">4</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>
     ARCH LM-test; Null hypothesis: no ARCH effects
@@ -865,7 +900,7 @@ Chi-squared = 11.216, df = 4, p-value = 0.02424</code></pre>
 <h2 class="anchored" data-anchor-id="normalidade-dos-resíduos">Normalidade dos resíduos</h2>
 <p>O teste Jarque-Bera avalia se os resíduos seguem uma distribuição normal. A normalidade dos resíduos é importante para a validade dos intervalos de confiança das previsões.</p>
 <div class="cell" data-layout-align="center">
-<div class="sourceCode cell-code" id="cb28"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb28-1"><a href="#cb28-1" aria-hidden="true" tabindex="-1"></a>tseries<span class="sc">::</span><span class="fu">jarque.bera.test</span>(u1)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb29"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb29-1"><a href="#cb29-1" aria-hidden="true" tabindex="-1"></a>tseries<span class="sc">::</span><span class="fu">jarque.bera.test</span>(u1)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>
     Jarque Bera Test
@@ -876,7 +911,7 @@ X-squared = 4.8301, df = 2, p-value = 0.08936</code></pre>
 </div>
 <p>A função <code>checkresiduals</code> oferece uma visualização completa dos diagnósticos do modelo, combinando o gráfico da série dos resíduos, a FAC e um histograma com o resultado do teste Ljung-Box.</p>
 <div class="cell" data-layout-align="center">
-<div class="sourceCode cell-code" id="cb30"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb30-1"><a href="#cb30-1" aria-hidden="true" tabindex="-1"></a><span class="fu">checkresiduals</span>(m1) <span class="sc">+</span> theme_ts</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb31"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb31-1"><a href="#cb31-1" aria-hidden="true" tabindex="-1"></a><span class="fu">checkresiduals</span>(m1)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output-display">
 <div class="quarto-figure quarto-figure-center">
 <figure class="figure">
@@ -893,9 +928,6 @@ Q* = 16.311, df = 8, p-value = 0.03814
 
 Model df: 0.   Total lags used: 8</code></pre>
 </div>
-<div class="cell-output cell-output-stdout">
-<pre><code>NULL</code></pre>
-</div>
 </div>
 </section>
 </section>
@@ -903,7 +935,7 @@ Model df: 0.   Total lags used: 8</code></pre>
 <h1>5. Comparação de Modelos</h1>
 <p>Após estimar os quatro modelos e verificar seus diagnósticos, o próximo passo é compará-los para selecionar o mais apropriado. A tabela abaixo mostra os critérios de informação para cada modelo estimado.</p>
 <div class="cell" data-layout-align="center">
-<div class="sourceCode cell-code" id="cb33"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb33-1"><a href="#cb33-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Extrai informações dos modelos</span></span>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb33"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb33-1"><a href="#cb33-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Extrai informações dos modelos</span></span>
 <span id="cb33-2"><a href="#cb33-2" aria-hidden="true" tabindex="-1"></a>tab_models <span class="ot">=</span> <span class="fu">data.frame</span>(</span>
 <span id="cb33-3"><a href="#cb33-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">Modelo =</span> <span class="fu">c</span>(</span>
 <span id="cb33-4"><a href="#cb33-4" aria-hidden="true" tabindex="-1"></a>    <span class="st">"ARIMA(0,1,0)"</span>,</span>
@@ -916,11 +948,11 @@ Model df: 0.   Total lags used: 8</code></pre>
 <span id="cb33-11"><a href="#cb33-11" aria-hidden="true" tabindex="-1"></a>  <span class="at">AICc =</span> <span class="fu">c</span>(m1<span class="sc">$</span>aicc, m2<span class="sc">$</span>aicc, m3<span class="sc">$</span>aicc, m4<span class="sc">$</span>aicc, m5<span class="sc">$</span>aicc),</span>
 <span id="cb33-12"><a href="#cb33-12" aria-hidden="true" tabindex="-1"></a>  <span class="at">BIC =</span> <span class="fu">c</span>(m1<span class="sc">$</span>bic, m2<span class="sc">$</span>bic, m3<span class="sc">$</span>bic, m4<span class="sc">$</span>bic, m5<span class="sc">$</span>bic),</span>
 <span id="cb33-13"><a href="#cb33-13" aria-hidden="true" tabindex="-1"></a>  <span class="at">sigma2 =</span> <span class="fu">c</span>(m1<span class="sc">$</span>sigma2, m2<span class="sc">$</span>sigma2, m3<span class="sc">$</span>sigma2, m4<span class="sc">$</span>sigma2, m5<span class="sc">$</span>sigma2)</span>
-<span id="cb33-14"><a href="#cb33-14" aria-hidden="true" tabindex="-1"></a>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb33-14"><a href="#cb33-14" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <div class="cell" data-layout-align="center">
 <div class="cell-output-display">
-<table class="table table-bordered table-hover table-striped caption-top table-sm small" data-quarto-postprocess="true">
+<table class="table table-bordered table-hover table-striped caption-top table-sm small">
 <thead>
 <tr class="header">
 <th style="text-align: center;" data-quarto-table-cell-role="th">Modelo</th>
@@ -985,9 +1017,9 @@ Model df: 0.   Total lags used: 8</code></pre>
 <h1>6. Previsão</h1>
 <p>Com o modelo final estimado, podemos gerar previsões para períodos futuros. O código abaixo gera previsões para os próximos 8 trimestres (2 anos) usando o modelo ARIMA(1,1,1).</p>
 <div class="cell" data-layout-align="center">
-<div class="sourceCode cell-code" id="cb34"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb34-1"><a href="#cb34-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Gera previsões</span></span>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb34"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb34-1"><a href="#cb34-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Gera previsões</span></span>
 <span id="cb34-2"><a href="#cb34-2" aria-hidden="true" tabindex="-1"></a>h <span class="ot">=</span> <span class="fu">length</span>(test)</span>
-<span id="cb34-3"><a href="#cb34-3" aria-hidden="true" tabindex="-1"></a>fcst <span class="ot">=</span> <span class="fu">forecast</span>(m2, <span class="at">h =</span> h)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb34-3"><a href="#cb34-3" aria-hidden="true" tabindex="-1"></a>fcst <span class="ot">=</span> <span class="fu">forecast</span>(m2, <span class="at">h =</span> h)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <p>O gráfico abaixo mostra a série histórica junto com as previsões e seus respectivos intervalos de confiança de 80% e 95%.</p>
 <div class="cell" data-layout-align="center">
@@ -1004,8 +1036,8 @@ Model df: 0.   Total lags used: 8</code></pre>
 <h2 class="anchored" data-anchor-id="avaliando-a-precisão">Avaliando a precisão</h2>
 <p>Para avaliar a qualidade das previsões, podemos compará-las com os valores observados no conjunto de teste que separamos anteriormente.</p>
 <div class="cell" data-layout-align="center">
-<div class="sourceCode cell-code" id="cb35"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb35-1"><a href="#cb35-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Calcula métricas de erro</span></span>
-<span id="cb35-2"><a href="#cb35-2" aria-hidden="true" tabindex="-1"></a><span class="fu">accuracy</span>(fcst, test)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb35"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb35-1"><a href="#cb35-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Calcula métricas de erro</span></span>
+<span id="cb35-2"><a href="#cb35-2" aria-hidden="true" tabindex="-1"></a><span class="fu">accuracy</span>(fcst, test)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>                    ME     RMSE      MAE        MPE      MAPE      MASE
 Training set 0.0923341 1.672860 1.253162 0.08911013 0.9504304 0.2512341
@@ -1019,7 +1051,7 @@ Test set     0.8172789  8.097087</code></pre>
 <p>Note que as métricas calculadas sobre o conjunto de treino (Training set) são naturalmente melhores do que as calculadas sobre o conjunto de teste (Test set), pois o modelo foi estimado usando os dados de treino.</p>
 <p>Podemos fazer os mesmos cálculos para todos os modelos usando <code>lapply</code> e definindo uma função que extrai as métricas de erro somente para o conjunto de teste.</p>
 <div class="cell" data-layout-align="center">
-<div class="sourceCode cell-code" id="cb37"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb37-1"><a href="#cb37-1" aria-hidden="true" tabindex="-1"></a>models <span class="ot">=</span> <span class="fu">list</span>(</span>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb37"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb37-1"><a href="#cb37-1" aria-hidden="true" tabindex="-1"></a>models <span class="ot">=</span> <span class="fu">list</span>(</span>
 <span id="cb37-2"><a href="#cb37-2" aria-hidden="true" tabindex="-1"></a>  <span class="st">"ARIMA(0,1,0)"</span> <span class="ot">=</span> m1,</span>
 <span id="cb37-3"><a href="#cb37-3" aria-hidden="true" tabindex="-1"></a>  <span class="st">"ARIMA (1,1,1)"</span> <span class="ot">=</span> m2,</span>
 <span id="cb37-4"><a href="#cb37-4" aria-hidden="true" tabindex="-1"></a>  <span class="st">"ARIMA (1,1,0)"</span> <span class="ot">=</span> m3,</span>
@@ -1035,11 +1067,11 @@ Test set     0.8172789  8.097087</code></pre>
 <span id="cb37-14"><a href="#cb37-14" aria-hidden="true" tabindex="-1"></a>}</span>
 <span id="cb37-15"><a href="#cb37-15" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb37-16"><a href="#cb37-16" aria-hidden="true" tabindex="-1"></a>measures <span class="ot">=</span> <span class="fu">lapply</span>(models, collect_measures)</span>
-<span id="cb37-17"><a href="#cb37-17" aria-hidden="true" tabindex="-1"></a>tab_measures <span class="ot">=</span> <span class="fu">do.call</span>(rbind, measures)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb37-17"><a href="#cb37-17" aria-hidden="true" tabindex="-1"></a>tab_measures <span class="ot">=</span> <span class="fu">do.call</span>(rbind, measures)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <div class="cell" data-layout-align="center">
 <div class="cell-output-display">
-<table class="table table-bordered table-hover table-striped caption-top table-sm small" data-quarto-postprocess="true">
+<table class="table table-bordered table-hover table-striped caption-top table-sm small">
 <thead>
 <tr class="header">
 <th style="text-align: left;" data-quarto-table-cell-role="th"></th>
@@ -1095,7 +1127,7 @@ Test set     0.8172789  8.097087</code></pre>
 <div class="cell" data-layout-align="center">
 <details class="code-fold">
 <summary>Code</summary>
-<div class="sourceCode cell-code" id="cb38"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb38-1"><a href="#cb38-1" aria-hidden="true" tabindex="-1"></a>f1 <span class="ot">=</span> <span class="fu">forecast</span>(m2, <span class="at">h =</span> <span class="fu">length</span>(test))</span>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb38"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb38-1"><a href="#cb38-1" aria-hidden="true" tabindex="-1"></a>f1 <span class="ot">=</span> <span class="fu">forecast</span>(m2, <span class="at">h =</span> <span class="fu">length</span>(test))</span>
 <span id="cb38-2"><a href="#cb38-2" aria-hidden="true" tabindex="-1"></a>f2 <span class="ot">=</span> <span class="fu">forecast</span>(m3, <span class="at">h =</span> <span class="fu">length</span>(test))</span>
 <span id="cb38-3"><a href="#cb38-3" aria-hidden="true" tabindex="-1"></a>f3 <span class="ot">=</span> <span class="fu">forecast</span>(m5, <span class="at">h =</span> <span class="fu">length</span>(test))</span>
 <span id="cb38-4"><a href="#cb38-4" aria-hidden="true" tabindex="-1"></a></span>
@@ -1114,7 +1146,7 @@ Test set     0.8172789  8.097087</code></pre>
 <span id="cb38-17"><a href="#cb38-17" aria-hidden="true" tabindex="-1"></a>    <span class="at">name =</span> <span class="st">""</span>,</span>
 <span id="cb38-18"><a href="#cb38-18" aria-hidden="true" tabindex="-1"></a>    <span class="at">values =</span> <span class="fu">c</span>(<span class="st">"#2C6BB3"</span>, <span class="st">"#1abc9c"</span>, <span class="st">"#f39c12"</span>, <span class="st">"#34495e"</span>)</span>
 <span id="cb38-19"><a href="#cb38-19" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">+</span></span>
-<span id="cb38-20"><a href="#cb38-20" aria-hidden="true" tabindex="-1"></a>  theme_ts</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb38-20"><a href="#cb38-20" aria-hidden="true" tabindex="-1"></a>  theme_ts</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </details>
 <div class="cell-output-display">
 <div class="quarto-figure quarto-figure-center">
@@ -1128,7 +1160,7 @@ Test set     0.8172789  8.097087</code></pre>
 <div class="cell" data-layout-align="center">
 <details class="code-fold">
 <summary>Code</summary>
-<div class="sourceCode cell-code" id="cb39"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb39-1"><a href="#cb39-1" aria-hidden="true" tabindex="-1"></a>f1 <span class="ot">=</span> <span class="fu">forecast</span>(m2, <span class="at">h =</span> <span class="dv">48</span>)</span>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb39"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb39-1"><a href="#cb39-1" aria-hidden="true" tabindex="-1"></a>f1 <span class="ot">=</span> <span class="fu">forecast</span>(m2, <span class="at">h =</span> <span class="dv">48</span>)</span>
 <span id="cb39-2"><a href="#cb39-2" aria-hidden="true" tabindex="-1"></a>f2 <span class="ot">=</span> <span class="fu">forecast</span>(m3, <span class="at">h =</span> <span class="dv">48</span>)</span>
 <span id="cb39-3"><a href="#cb39-3" aria-hidden="true" tabindex="-1"></a>f3 <span class="ot">=</span> <span class="fu">forecast</span>(m5, <span class="at">h =</span> <span class="dv">48</span>)</span>
 <span id="cb39-4"><a href="#cb39-4" aria-hidden="true" tabindex="-1"></a></span>
@@ -1147,7 +1179,7 @@ Test set     0.8172789  8.097087</code></pre>
 <span id="cb39-17"><a href="#cb39-17" aria-hidden="true" tabindex="-1"></a>    <span class="at">name =</span> <span class="st">""</span>,</span>
 <span id="cb39-18"><a href="#cb39-18" aria-hidden="true" tabindex="-1"></a>    <span class="at">values =</span> <span class="fu">c</span>(<span class="st">"#2C6BB3"</span>, <span class="st">"#1abc9c"</span>, <span class="st">"#f39c12"</span>, <span class="st">"#34495e"</span>)</span>
 <span id="cb39-19"><a href="#cb39-19" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">+</span></span>
-<span id="cb39-20"><a href="#cb39-20" aria-hidden="true" tabindex="-1"></a>  theme_ts</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb39-20"><a href="#cb39-20" aria-hidden="true" tabindex="-1"></a>  theme_ts</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </details>
 <div class="cell-output-display">
 <div class="quarto-figure quarto-figure-center">
@@ -1273,13 +1305,14 @@ Test set     0.8172789  8.097087</code></pre>
       e.clearSelection();
     }
     const getTextToCopy = function(trigger) {
-        const codeEl = trigger.previousElementSibling.cloneNode(true);
-        for (const childEl of codeEl.children) {
-          if (isCodeAnnotation(childEl)) {
-            childEl.remove();
-          }
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
         }
-        return codeEl.innerText;
+      }
+      return codeEl.innerText;
     }
     const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
       text: getTextToCopy
