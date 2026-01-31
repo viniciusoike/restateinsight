@@ -13,10 +13,10 @@ clean_sidra <- function(df, name_value = "pop") {
   cols <- c("code_muni" = "municipio_codigo", "year" = "ano", x = "valor")
   names(cols)[3] <- name_value
 
-  df %>%
-    as_tibble() %>%
-    janitor::clean_names() %>%
-    dplyr::select(dplyr::all_of(cols)) %>%
+  df |>
+    as_tibble() |>
+    janitor::clean_names() |>
+    dplyr::select(dplyr::all_of(cols)) |>
     dplyr::mutate(dplyr::across(dplyr::everything(), as.numeric))
 }
 
@@ -236,18 +236,18 @@ pib <- get_sidra(
   geo = "City"
 )
 
-tab_pib <- pib %>%
-  janitor::clean_names() %>%
-  as_tibble() %>%
+tab_pib <- pib |>
+  janitor::clean_names() |>
+  as_tibble() |>
   select(
     code_muni = municipio_codigo,
     pib = valor
-  ) %>%
+  ) |>
   mutate(code_muni = as.numeric(code_muni))
 
-tab_cities <- tab_cities %>%
-  filter(year == 2022) %>%
-  left_join(tab_pib) %>%
+tab_cities <- tab_cities |>
+  filter(year == 2022) |>
+  left_join(tab_pib) |>
   mutate(pibpc = pib / pop * 1000)
 
 sub_cities <- tab_cities |>
@@ -255,7 +255,7 @@ sub_cities <- tab_cities |>
 
 avg_growth <- weighted.mean(sub_cities$chg_rel, sub_cities$pop)
 
-sub_cities %>%
+sub_cities |>
   slice_min(chg_rel, n = 10)
 
 sel_cities <- c(
@@ -278,7 +278,7 @@ sel_cities <- c(
   "Paulínia"
 )
 
-sub_cities <- sub_cities %>%
+sub_cities <- sub_cities |>
   mutate(
     label_city = if_else(name_muni %in% sel_cities, name_muni, "")
   )
@@ -288,7 +288,7 @@ ylabels <- format(ybreaks, big.mark = ".", scientific = FALSE)
 ylabels[length(ylabels)] <- "PIB per capita\nR$ 500.000 (Escala Log)"
 
 df_axis <- tibble(x = -0.45, y = log(ybreaks) + 0.15, label = ylabels)
-df_axis <- df_axis %>%
+df_axis <- df_axis |>
   mutate(y = ifelse(y == max(y), y + 0.15, y))
 
 theme_scatterplot <- theme_minimal(base_family = "Avenir") +
@@ -368,14 +368,14 @@ plot_scatter_region <- function(code_region) {
 
   name_region <- swap_region[as.character(region)]
 
-  sub_region <- sub_cities %>%
+  sub_region <- sub_cities |>
     mutate(
       highlight_region = factor(if_else(code_region == local(region), 1L, 0L))
     )
 
-  avg_growth_region <- sub_region %>%
-    filter(code_region == local(region)) %>%
-    summarise(x = weighted.mean(chg_rel, pop)) %>%
+  avg_growth_region <- sub_region |>
+    filter(code_region == local(region)) |>
+    summarise(x = weighted.mean(chg_rel, pop)) |>
     pull(x)
 
   cols_regions <- c(
@@ -390,14 +390,14 @@ plot_scatter_region <- function(code_region) {
   names(cols_highlight) <- names(cols_regions)
   cols_highlight[name_region] <- cols_regions[name_region]
 
-  sel_region <- sub_region %>%
-    filter(code_region == region) %>%
-    slice_max(chg_rel, n = 10) %>%
+  sel_region <- sub_region |>
+    filter(code_region == region) |>
+    slice_max(chg_rel, n = 10) |>
     pull(name_muni)
 
   sel_labels <- c(sel_region, sample(sel_cities, 7))
 
-  sub_region <- sub_region %>%
+  sub_region <- sub_region |>
     mutate(
       label_city = if_else(name_muni %in% sel_labels, name_muni, "")
     )
@@ -504,14 +504,14 @@ swap_region <- c(
 
 name_region <- swap_region[as.character(region)]
 
-sub_region <- sub_cities %>%
+sub_region <- sub_cities |>
   mutate(
     highlight_region = factor(if_else(code_region == local(region), 1L, 0L))
   )
 
-avg_growth_region <- sub_region %>%
-  filter(code_region == local(region)) %>%
-  summarise(x = weighted.mean(chg_rel, pop)) %>%
+avg_growth_region <- sub_region |>
+  filter(code_region == local(region)) |>
+  summarise(x = weighted.mean(chg_rel, pop)) |>
   pull(x)
 
 cols_regions <- c(
@@ -526,15 +526,15 @@ cols_highlight <- rep("#bfbfbf", 5)
 names(cols_highlight) <- names(cols_regions)
 cols_highlight[name_region] <- cols_regions[name_region]
 
-sel_region <- sub_region %>%
-  filter(code_region == region) %>%
-  slice_max(chg_rel, n = 10) %>%
+sel_region <- sub_region |>
+  filter(code_region == region) |>
+  slice_max(chg_rel, n = 10) |>
   pull(name_muni)
 
 sel_labels <- c(sel_region, sample(sel_cities, 7))
 
 
-sub_region <- sub_region %>%
+sub_region <- sub_region |>
   mutate(
     label_city = if_else(name_muni %in% sel_labels, name_muni, "")
   )
@@ -607,8 +607,8 @@ ggplot(sub_region, aes(x = chg_rel, y = log(pibpc))) +
 
 as.character(MetBrewer::met.brewer("Hokusai1", n = 20))
 
-sub_cities %>%
+sub_cities |>
   slice_max(chg_rel, n = 15)
 
-sub_cities %>%
+sub_cities |>
   slice_max(pibpc, n = 15)

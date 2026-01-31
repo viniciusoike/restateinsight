@@ -134,7 +134,14 @@ gt_theme_ekio <- function(
   return(fmt_table)
 }
 
-table_state <- function(dat, dat_long, code) {
+table_state <- function(
+  dat,
+  dat_long,
+  code,
+  method = "quantile",
+  domain = NULL,
+  palette = pal_rdbu
+) {
   subdat <- dat %>%
     filter(code_state %in% code) %>%
     select(name_metro, total_round_2022, starts_with("tcg"))
@@ -158,23 +165,54 @@ table_state <- function(dat, dat_long, code) {
 
   subdat <- left_join(subdat, timeline)
 
-  gt(subdat) %>%
+  gtable <- gt(subdat) %>%
     cols_hide(columns = starts_with("class")) %>%
     cols_label(.list = gt_colnames) %>%
     tab_spanner("Crescimento (%)", columns = 3:5) %>%
-    fmt_number(starts_with("total"), decimals = 0, sep_mark = ".") %>%
-    fmt_percent(starts_with("tcg"), decimals = 2, dec_mark = ",") %>%
+    fmt_number(
+      starts_with("total"),
+      decimals = 0,
+      sep_mark = ".",
+      dec_mark = ","
+    ) %>%
+    fmt_percent(
+      starts_with("tcg"),
+      decimals = 2,
+      sep_mark = ".",
+      dec_mark = ","
+    ) %>%
     ## Target Timeline column
     gt_plt_sparkline(
       column = TCG,
       palette = c("gray30", "black", "firebrick", "dodgerblue", "lightgrey"),
       fig_dim = c(5, 28)
     ) %>%
-    gt_theme_ekio() %>%
-    data_color(
-      columns = tcg_2000:tcg_2022,
-      palette = pal_rdbu,
-      method = "quantile",
-      quantiles = 5
-    )
+    gt_theme_ekio()
+
+  if (method == "quantile") {
+    gtable |>
+      data_color(
+        columns = tcg_2000:tcg_2022,
+        palette = palette,
+        method = method,
+        quantiles = 5
+      )
+  } else if (method == "numeric") {
+    gtable |>
+      data_color(
+        columns = tcg_2000:tcg_2022,
+        palette = palette,
+        method = method,
+        domain = domain
+      )
+  }
 }
+
+table_state(
+  metro_wide,
+  metro,
+  27,
+  method = "numeric",
+  c(-0.0106, 0.02135),
+  palette = RColorBrewer::brewer.pal(9, "RdBu")[c(1, 2, 5:9)]
+)
