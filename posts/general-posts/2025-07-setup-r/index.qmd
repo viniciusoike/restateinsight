@@ -1,489 +1,331 @@
 ---
-title: ""
-date: "2025-07-15"
-description: ""
+title: "Instalando o R (Guia Completo)"
+date: "2025-04-15"
+description: "Dicas de como aproveitar melhor o uso do R incluindo recomendações de pacotes, configurações adicionais do RStudio e escolha de IDE."
 categories: ["data-science", "tutorial-R"]
-format: html
-execute: 
-  warning: false
-  message: false
-draft: true
+image: "/static/images/setup_r/print_positron.png"
+format:
+  html:
+    code-fold: true
+execute:
+  eval: false
 ---
 
 # Instalando o R
 
-Recentemente, ...
+Recentemente, tive que me adaptar a um fluxo de trabalho em que estou frequentemente reinstalando o R e seus pacotes do zero. Por isto, comecei a criar certos scripts para facilitar este tedioso processo. O [primeiro passo é instalar o R](https://cran.r-project.org).
+
+### Usando o `pak`
+
+O `pak` é um pacote muito útil para facilitar a instalação de pacotes. Ele permite instalar pacotes de forma rápida e conveniente. Usando o `pak`, não precisamos usar funções diferentes para instalar pacotes do CRAN e do GitHub, por exemplo.
 
 ```{r}
+#| code-fold: false
 library(pak)
+
+pak::pkg_install("tidyverse")
+pak::pkg_install("viniciusoike/realestatebr")
 ```
 
 ## Pacotes
 
+No passado, já fiz alguns posts comentando sobre ["pacotes" essenciais para o R](https://restateinsight.com/posts/general-posts/repost-pacotes-essenciais-r/). A verdade, é que os pacotes essenciais variam muito segundo cada pessoa. A lista de pacotes abaixo é uma coleção dos pacotes que eu costumo usar com mais frequência, junto de outros que são úteis mas que eu raramente uso.
+
 ### Data Cleaning
 
 ```{r}
-
 packs_core_data <- c(
-    "tidyverse",
-    "data.table",
-    "janitor",
-    "lubridate",
-    "glue",
-    "fs",
-    "here",
-    "dtplyr"
+  "tidyverse",
+  "data.table",
+  "janitor",
+  "lubridate",
+  "glue",
+  "fs",
+  "here",
+  "dtplyr"
 )
 
 packs_import_data <- c(
-    "foreign",
-    "readxl",
-    "haven",
-    "jsonlite",
-    "vroom",
-    "qs",
-    "arrow",
-    "rio"
+  "foreign",
+  "readxl",
+  "haven",
+  "jsonlite",
+  "vroom",
+  "qs2",
+  "arrow",
+  "rio"
 )
 
 packs_database <- c(
-    "RPostgres",
-    "DBI",
-    "odbc",
-    "dbplyr",
-    "RSQLite",         
-    "bigrquery",       
-    "googledrive",
-    "sparklyr"        
+  "RPostgres",
+  "DBI",
+  "odbc",
+  "dbplyr",
+  "RSQLite",
+  "bigrquery",
+  "googledrive",
+  "sparklyr"
 )
 ```
 
 ### Data Visualization
 
 ```{r}
-packs_data_viz <- c(
-  # Core package (already should be installed by 'tidyverse')
-  "ggplot2",         
-  # ggplot2 extensions
-  "patchwork",       # Combining ggplot2 plots
-  "ggrepel",         # Avoid overlapping text labels
-  "ggcorrplot",      # Correlation matrix visualization
-  "gganimate",       # Animated plots
-  "ggtext",          # Improved text rendering
+core_data_viz <- c(
+  "ggplot2",
+  "patchwork",
+  "ggiraph",
+  "ggrepel",
+  "ggtext",
+  "paletteer"
+)
 
-  # Specialized visualizations
-  "ggalluvial",      # Alluvial diagrams
+packs_ggplot_extensions <- c(
+  "ggcorrplot",
+  "ggalluvial",
   "ggbump",
-  "ggridges",        # Ridge plots
-  "ggdist",          # Visualizing distributions
+  "ggridges",
+  "ggdist",
   "GGally",
-
-  # Interactive visualization
-  "plotly",          # Interactive plots
-  "DT",              # Interactive data tables
-  "htmlwidgets",     # HTML widgets framework
-  
-  # Color palettes, custom fonts, and extra themes
+  "gganimate",
+  "ggnewscale",
   "ggthemes",
+  "ggsci",
+  "ggradar",
+  "ggforce",
+  "ggfittext"
+)
+
+packs_interactive_viz <- c(
+  "dygraphs",
+  "plotly",
+  "DT"
+)
+
+packs_maps <- c(
+  "leaflet",
+  "ggmap",
+  "tmap",
+  "tmaptools",
+  "mapview"
+)
+
+packs_viz_others <- c(
   "hrbrthemes",
+  # OBS: ragg is better than showtext
   "showtext",
   "ragg",
-  "viridis",         # Colorblind-friendly palettes
-  "RColorBrewer",    # Color palettes for maps and charts
-  "ggsci",           # Scientific journal color palettes
-  "wesanderson"      # Wes Anderson movie color palettes
+  "viridis",
+  "wesanderson",
   "MetBrewer",
-  "paletteer"
+  "htmlwidgets",
+  "waffle"
+)
+```
+
+### Time Series
+
+```{r}
+packs_core_ts <- c(
+  "forecast",
+  "tseries",
+  "urca",
+  "vars",
+  "xts",
+  "tsbox",
+  # disclaimer: I am the maintainer of the trendseries package
+  "trendseries"
+)
+
+packs_econometrics <- c(
+  "AER",
+  "lmtest",
+  "fGarch",
+  "rugarch",
+  "tsDyn",
+  "seasonal",
+  "bsts",
+  "urca",
+  "vars",
+  "strucchange",
+  "astsa"
+)
+
+packs_ts_fcasting <- c(
+  # Best for univariate or few series
+  "forecast",
+  # Best for multivariate or many series
+  "fable",
+  "fabletools",
+  # Standard prophet API
+  "prophet",
+  # ML Suite for time series
+  "modeltime",
+  # Generic ML suite for R
+  "tidymodels"
+)
+
+packs_ts_filters <- c(
+  # disclaimer: I am the maintainer of the trendseries package
+  "trendseries",
+  "mFilter",
+  "signal",
+  "robfilter",
+  "hpfilter",
+  "neverhpfilter"
+)
+
+packs_ts_others <- c(
+  "dygraphs",
+  "RcppRoll",
+  "feasts",
+  "lubridate"
 )
 ```
 
 ### Spatial
----
 
-```{r}
+```{r, eval = FALSE}
 packs_core_spatial <- c(
   "sf",
   "terra",
   "lwgeom",
-  ""
+  "spdep"
 )
 
 packs_spatial_web <- c(
-  "tidygeocoder",
-  "tidygtfs",
   "osmdata",
   "osrm",
-  "mapview"
+  "mapview",
+  "mapgl",
+  "leaflet"
 )
 
+packs_spatial_others <- c(
+  "elevatr",
+  "raster",
+  "stars",
+  "tidygeocoder",
+  "tidygtfs",
+  "geobr",
+  "r5r"
+)
+```
 
-  # Core spatial packages
-  "sf",              # Simple features for vector data
-  "terra",           # Spatial data analysis (successor to raster)
-  "stars",           # Spatiotemporal arrays
-  "lwgeom",          # Advanced geometric operations
-  
-  # Spatial statistics
-  "spdep",           # Spatial dependence analysis
-  "spatstat",        # Spatial point pattern analysis
-  "gstat",           # Geostatistics
-  "automap",         # Automated kriging
-  
-  # Geocoding and web services
-  "tidygeocoder",    # Geocoding interface
-  "osmdata",         # OpenStreetMap data
-  "elevatr",         # Elevation data access
-  
-  # Spatial visualization
-  "leaflet",         # Interactive maps
-  "mapview",         # Interactive spatial data viewing
-  "tmap",            # Thematic mapping
-  "ggmap",           # ggplot2 extension for maps
-  "rayshader",       # 3D mapping and visualization
-  
-  # Coordinate reference systems
-  "rmapshaper",      # Spatial data simplification
-  "units"            # Measurement units handling
+## Reports
+
+```{r}
+packs <- c(
+  "shiny",
+  "bslib",
+  "shinydashboard",
+  "shinydashboardPlus",
+  "shinythemes",
+  "gt",
+  "gtExtras",
+  "kableExtra",
+  "DT",
+  "flextable",
+  "reactable",
+  "fontawesome",
+  "rmdformats"
+)
 ```
 
 ## Configurando o RStudio
 
+Há algumas configurações básicas que já deveriam ser padrão para o RStudio. Acredito que o essencial seja a opção de não salvar os dados da sessão (RData), mas há muitas outras opções que melhoram muito a experiência de trabalho.
 
+### Básico
+
+Entre as configurações básicas o mais importante, como comentado acima, é nunca criar o `.RData`. Além de tornar o seu fluxo de trabalho mais rápido, não salvar o `.RData` é considerado uma boa prática pois deixa o ambiente de trabalho sempre limpo. Na prática, diminui a chance do seu código quebrar. Do ponto de vista dos gráficos, o AGG como backend garante imagens de maior qualidade.
+
+::: panel-tabset
+## Basic
+
+![](/static/images/setup_r/print_01_general.png){fig-align="center" width="50%"}
+
+## Graphics
+
+![](/static/images/setup_r/print_02_graphics.png){fig-align="center" width="50%"}
+:::
+
+A lista de configurações sobre código é muito mais opcional do que as básicas acima. Em linhas gerais, recomendo o uso do pipe nativo, o uso de "rainbow parenthesis", mostrar o número das linhas, incluir prévia das cores, entre várias outras opções listadas abaixo.
+
+::: panel-tabset
+## Editing
+
+![](/static/images/setup_r/print_03_editing.png){fig-align="center" width="50%"}
+
+## Display
+
+![](/static/images/setup_r/print_04_display.png){fig-align="center" width="50%"}
+
+## Diagnostics
+
+![](/static/images/setup_r/print_05_diagnostics.png){fig-align="center" width="50%"}
+:::
+
+### Temas e Fontes
+
+Como fonte padrão, recomendo o uso do [Fira Code](https://github.com/tonsky/FiraCode), que é uma fonte de código aberto e gratuita. As instruções de instalação estão disponíveis no próprio GitHub linkado anteriormente. O Fira Code usa "ligaturas" para representar caracteres especiais como `==`, `!=`, `<=`, `>=`, `|>`, `<-` etc. Em particular, acho que o Fira Code melhora muito a legibilidade do operador pipe nativo `|>` e do operador de atribuição `<-`.
+
+Eu não gosto muito de nenhum dos temas padrão do RStudio. Se necessário, uso ou o 'Material' ou o 'Idle Hands'. Sempre que possível instalo o `rsthemes` ([disponível aqui](https://github.com/gadenbuie/rsthemes)) e aplico o "Material Palenight" ou "Material Ocean" como temas escuros e o "Flat White" ou "a11y-light" como temas claros.
+
+Abaixo deixo como exemplo o que tenho no meu `.Rprofile` global para aplicar o Material Palenight como tema escuro e o Flat White como tema claro.
 
 ```{r}
+if (interactive() && requireNamespace("rsthemes", quietly = TRUE)) {
+  rsthemes::set_theme_favorite(c(
+    "a11y-light {rsthemes}",
+    "Flat White {rsthemes}",
+    "Material Ocean {rsthemes}",
+    "Material Palenight {rsthemes}",
+    "Material {rsthemes}",
+    "One Light {rsthemes}"
+  ))
 
+  rsthemes::set_theme_dark("Material Palenight {rsthemes}")
+  rsthemes::set_theme_light("Flat White {rsthemes}")
+}
 ```
 
-# Essential R Packages for Data Science
-# Author: [Your Name]
-# Date: July 2025
-# Description: Comprehensive package installation for spatial analysis, 
-#              time series, data visualization, and machine learning
+Toda esta configuração resulta no print abaixo.
 
-# Install pak if not already installed
-if (!requireNamespace("pak", quietly = TRUE)) {
-  install.packages("pak")
-}
+![](/static/images/setup_r/print_rstudio.png){fig-align="center"}
 
-library(pak)
+## Usando Positron
 
-# =============================================================================
-# CORE DATA MANIPULATION & GENERAL UTILITIES
-# =============================================================================
-cat("Installing core data manipulation packages...\n")
-pak::pak(c(
-  "tidyverse",        # Complete data science toolkit (dplyr, ggplot2, etc.)
-  "data.table",       # Fast data manipulation
-  "dtplyr",          # dplyr backend for data.table
-  "janitor",         # Data cleaning utilities
-  "here",            # Project-relative file paths
-  "fs",              # File system operations
-  "glue",            # String interpolation
-  "lubridate",       # Date/time manipulation
-  "readxl",          # Excel file reading
-  "writexl",         # Excel file writing
-  "haven",           # SPSS, Stata, SAS file import
-  "jsonlite",        # JSON data handling
-  "httr2"            # HTTP requests (successor to httr)
-))
+Recentemente, a empresa Posit, desenvolvedora do RStudio, lançou uma nova versão do IDE, chamada [Positron](https://positron.posit.co). Esta nova versão é construída com base no VSCode, da Microsoft, e tem objetivo de ser uma IDE otimizada para cientistas de dados. O Positron suporta tanto R quanto Python e acompanha algumas excelentes extensões pré-instaladas.
 
-# =============================================================================
-# SPATIAL ANALYSIS & GIS
-# =============================================================================
-cat("Installing spatial analysis packages...\n")
-pak::pak(c(
-  # Core spatial packages
-  "sf",              # Simple features for vector data
-  "terra",           # Spatial data analysis (successor to raster)
-  "stars",           # Spatiotemporal arrays
-  "lwgeom",          # Advanced geometric operations
-  
-  # Spatial statistics
-  "spdep",           # Spatial dependence analysis
-  "spatstat",        # Spatial point pattern analysis
-  "gstat",           # Geostatistics
-  "automap",         # Automated kriging
-  
-  # Geocoding and web services
-  "tidygeocoder",    # Geocoding interface
-  "osmdata",         # OpenStreetMap data
-  "elevatr",         # Elevation data access
-  
-  # Spatial visualization
-  "leaflet",         # Interactive maps
-  "mapview",         # Interactive spatial data viewing
-  "tmap",            # Thematic mapping
-  "ggmap",           # ggplot2 extension for maps
-  "rayshader",       # 3D mapping and visualization
-  
-  # Coordinate reference systems
-  "rmapshaper",      # Spatial data simplification
-  "units"            # Measurement units handling
-))
+Atualmente, uso o Positron com maior frequência no meu dia-a-dia. O Positron é um pouco mais leve e rápido do que o RStudio, além de ter melhor integração com ferramentas de AI.
 
-# =============================================================================
-# TIME SERIES ANALYSIS
-# =============================================================================
-cat("Installing time series analysis packages...\n")
-pak::pak(c(
-  # Core time series
-  "forecast",        # Comprehensive forecasting methods
-  "fable",           # Tidy time series forecasting
-  "tsibble",         # Tidy time series data frames
-  "feasts",          # Feature extraction and statistics
-  "fabletools",      # Tools for time series modeling
-  
-  # Advanced time series methods
-  "prophet",         # Facebook's forecasting procedure
-  "bsts",            # Bayesian structural time series
-  "vars",            # Vector autoregression
-  "urca",            # Unit root and cointegration tests
-  "rugarch",         # Univariate GARCH models
-  
-  # Time series decomposition
-  "seasonal",        # X-13ARIMA-SEATS seasonal adjustment
-  "x12",             # X-12-ARIMA seasonal adjustment
-  "stl",             # Seasonal-trend decomposition
-  
-  # High-frequency time series
-  "xts",             # Extensible time series
-  "zoo",             # Z's ordered observations
-  "quantmod",        # Quantitative financial modeling
-  "TTR",             # Technical trading rules
-  
-  # Time series visualization
-  "dygraphs",        # Interactive time series plots
-  "plotly"           # Interactive plots (also useful for other viz)
-))
+![](/static/images/setup_r/print_positron.png){fig-align="center"}
 
-# =============================================================================
-# DATA VISUALIZATION
-# =============================================================================
-cat("Installing data visualization packages...\n")
-pak::pak(c(
-  # ggplot2 extensions
-  "ggplot2",         # Grammar of graphics (included in tidyverse)
-  "patchwork",       # Combining ggplot2 plots
-  "ggrepel",         # Avoid overlapping text labels
-  "ggridges",        # Ridge plots
-  "ggdist",          # Visualizing distributions
-  "ggcorrplot",      # Correlation matrix visualization
-  "ggalluvial",      # Alluvial diagrams
-  "ggraph",          # Network visualization with ggplot2
-  "gganimate",       # Animated plots
-  "ggtext",          # Improved text rendering
-  
-  # Specialized visualization
-  "corrplot",        # Correlation matrix plots
-  "pheatmap",        # Pretty heatmaps
-  "ComplexHeatmap",  # Advanced heatmap visualization
-  "circlize",        # Circular visualization
-  "networkD3",       # D3 network visualizations
-  "visNetwork",      # Network visualization
-  "DiagrammeR",      # Graph and flowchart creation
-  
-  # Interactive visualization
-  "plotly",          # Interactive plots
-  "DT",              # Interactive data tables
-  "crosstalk",       # Inter-widget communication
-  "htmlwidgets",     # HTML widgets framework
-  
-  # Color palettes
-  "viridis",         # Colorblind-friendly palettes
-  "RColorBrewer",    # Color palettes for maps and charts
-  "ggsci",           # Scientific journal color palettes
-  "wesanderson"      # Wes Anderson movie color palettes
-))
+Entre as vantagens do Positron:
 
-# =============================================================================
-# MACHINE LEARNING & STATISTICAL MODELING
-# =============================================================================
-cat("Installing machine learning packages...\n")
-pak::pak(c(
-  # ML frameworks
-  "tidymodels",      # Tidy modeling framework
-  "caret",           # Classification and regression training
-  "mlr3",            # Machine learning in R (next generation)
-  "mlr3verse",       # Extended mlr3 ecosystem
-  
-  # Specific algorithms
-  "randomForest",    # Random forests
-  "ranger",          # Fast random forests
-  "xgboost",         # Gradient boosting
-  "lightgbm",        # Microsoft's gradient boosting
-  "glmnet",          # Regularized linear models
-  "e1071",           # SVM and other algorithms
-  "kernlab",         # Kernel methods
-  "nnet",            # Neural networks
-  "neuralnet",       # Neural network training
-  
-  # Deep learning
-  "torch",           # PyTorch for R
-  "luz",             # High-level torch interface
-  "torchvision",     # Computer vision for torch
-  "tensorflow",      # TensorFlow for R
-  "keras",           # High-level neural networks API
-  
-  # Model interpretation
-  "lime",            # Local interpretable model explanations
-  "DALEX",           # Descriptive machine learning explanations
-  "iml",             # Interpretable machine learning
-  "fastshap",        # Fast SHAP values
-  "pdp",             # Partial dependence plots
-  
-  # Model validation
-  "yardstick",       # Tidy model evaluation (part of tidymodels)
-  "cvms",            # Cross-validation for model selection
-  "rsample",         # Resampling methods (part of tidymodels)
-  
-  # Feature engineering
-  "recipes",         # Preprocessing and feature engineering
-  "embed",           # Embedding methods for categorical variables
-  "textrecipes",     # Text preprocessing recipes
-  
-  # Clustering
-  "cluster",         # Cluster analysis
-  "factoextra",      # Cluster analysis and visualization
-  "NbClust",         # Determining optimal number of clusters
-  
-  # Dimensionality reduction
-  "umap",            # Uniform manifold approximation
-  "Rtsne",           # t-SNE implementation
-  "FactoMineR",      # Multivariate exploratory data analysis
-  "corrr"            # Correlation analysis
-))
+-   Melhor exibição de gráficos (usa agg como padrão).
 
-# =============================================================================
-# STATISTICAL ANALYSIS & SPECIALIZED METHODS
-# =============================================================================
-cat("Installing statistical analysis packages...\n")
-pak::pak(c(
-  # Bayesian analysis
-  "brms",            # Bayesian regression models using Stan
-  "rstanarm",        # Applied regression modeling via Stan
-  "bayesplot",       # Bayesian model visualization
-  "posterior",       # Tools for posterior analysis
-  "tidybayes",       # Tidy data and geoms for Bayesian models
-  
-  # Survival analysis
-  "survival",        # Survival analysis
-  "survminer",       # Survival analysis visualization
-  "flexsurv",        # Flexible parametric survival models
-  
-  # Mixed effects models
-  "lme4",            # Linear mixed-effects models
-  "nlme",            # Nonlinear mixed-effects models
-  "glmmTMB",         # Generalized linear mixed models
-  "broom.mixed",     # Tidy mixed-effects models
-  
-  # Robust statistics
-  "robust",          # Robust statistics
-  "robustbase",      # Basic robust statistics
-  "MASS",            # Modern applied statistics
-  
-  # Experimental design
-  "DoE.base",        # Design of experiments
-  "FrF2",            # Fractional factorial designs
-  "rsm"              # Response surface methodology
-))
+-   Melhor integração com ferramentas de AI (Claude Code, Windsurf, Supermaven, etc.)
 
-# =============================================================================
-# REPORTING & REPRODUCIBLE RESEARCH
-# =============================================================================
-cat("Installing reporting packages...\n")
-pak::pak(c(
-  # Document generation
-  "rmarkdown",       # Dynamic documents
-  "quarto",          # Next-generation scientific publishing
-  "knitr",           # Literate programming
-  "bookdown",        # Authoring books and long documents
-  "blogdown",        # Creating websites with R Markdown
-  
-  # Table formatting
-  "kableExtra",      # Enhanced table formatting
-  "gt",              # Grammar of tables
-  "gtsummary",       # Publication-ready summary tables
-  "flextable",       # Flexible table formatting
-  "DT",              # Interactive data tables
-  
-  # Parameterized reporting
-  "officer",         # Manipulate Word and PowerPoint documents
-  "openxlsx",        # Excel file manipulation
-  "writexl"          # Simple Excel export
-))
+-   Explorer de arquivos muito mais funcional.
 
-# =============================================================================
-# PERFORMANCE & PARALLEL COMPUTING
-# =============================================================================
-cat("Installing performance packages...\n")
-pak::pak(c(
-  # Parallel computing
-  "parallel",        # Parallel computation (base R)
-  "foreach",         # Foreach looping construct
-  "doParallel",      # Parallel backend for foreach
-  "future",          # Unified parallel and distributed processing
-  "furrr",           # Apply purrr functions in parallel
-  
-  # Performance profiling
-  "profvis",         # Interactive profiling
-  "bench",           # High precision timing
-  "microbenchmark",  # Accurate timing functions
-  
-  # Memory management
-  "pryr",            # Memory usage and profiling tools
-  "lobstr"           # Visualize R data structures
-))
+-   Mais extensões e mais opções no geral.
 
-# =============================================================================
-# DATABASE & BIG DATA
-# =============================================================================
-cat("Installing database and big data packages...\n")
-pak::pak(c(
-  # Database connections
-  "DBI",             # Database interface
-  "RSQLite",         # SQLite database interface
-  "RPostgres",       # PostgreSQL database interface
-  "odbc",            # ODBC database connectivity
-  "bigrquery",       # Google BigQuery interface
-  
-  # Big data processing
-  "arrow",           # Apache Arrow R interface
-  "sparklyr",        # R interface for Apache Spark
-  "disk.frame",      # Disk-based data manipulation
-  
-  # Data import/export
-  "vroom",           # Fast reading of delimited files
-  "fst",             # Fast serialization of data frames
-  "qs"               # Quick serialization of R objects
-))
+Entre as desvantagens do Positron:
 
-# =============================================================================
-# VERIFICATION & FINAL SETUP
-# =============================================================================
-cat("Installation complete! Verifying key packages...\n")
+-   Não tem alguns add-ins muito úteis do RStudio.
 
-# Test loading critical packages
-test_packages <- c("tidyverse", "sf", "forecast", "tidymodels", "plotly")
-for(pkg in test_packages) {
-  if(requireNamespace(pkg, quietly = TRUE)) {
-    cat("✓", pkg, "installed successfully\n")
-  } else {
-    cat("✗", pkg, "installation failed\n")
-  }
-}
+-   Gerenciamento de atalhos e personalização muito mais complexa.
 
-cat("\n=============================================================================\n")
-cat("SETUP COMPLETE!\n")
-cat("=============================================================================\n")
-cat("Your R environment is now equipped with packages for:\n")
-cat("• Spatial analysis and GIS\n")
-cat("• Time series analysis and forecasting\n")
-cat("• Advanced data visualization\n")
-cat("• Machine learning and statistical modeling\n")
-cat("• Reproducible research and reporting\n")
-cat("• High-performance computing\n")
-cat("• Database connectivity and big data processing\n")
-cat("\nHappy analyzing! 🚀\n")
+-   IDE com "excesso de informação". Enquanto é possível reduzir o ruído visual, ainda assim ele traz muito mais informação do que o RStudio.
 
-# Optional: Create a session info snapshot
-# writeLines(capture.output(sessionInfo()), "session_info.txt")
+-   Muitos mais bugs do que o RStudio. Algumas coisas só param de funcionar de vez em quando; alguns botões desaparecem.
+
+## Outros IDEs
+
+Pessoalmente, só usei o Sublime Text 3 e o VSCode, além do RStudio e do Positron, citados acima. O Sublime Text 3 tem a vantagem de ser muito rápido e versátil, mas exige um setup considerável. Além disso, o Sublime tem pouquíssimo suporte para R, RMarkdown e Quarto; muitas vezes você está escrevendo tudo do zero, sem atalhos, sem autocomplete, e com render questionável. Na prática, acredito que não compensa usar. O VSCode é muito mais conveniente do que o Sublime Text 3, mas ainda acho que ele carece de algumas coisas básicas e exige um tempo de setup considerável para um bom uso de R. Sobretudo, após o lançamento do Positron, acho que não faz sentido algum usar o VSCode, já que o Positron é, essencialmente, o VSCode otimizado para R.
+
+## Posts relacionados
+
+-   [Pacotes Essenciais R](https://restateinsight.com/posts/general-posts/repost-pacotes-essenciais-r/)
