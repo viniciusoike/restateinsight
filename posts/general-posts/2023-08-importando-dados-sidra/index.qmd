@@ -10,7 +10,7 @@ image-alt: "/static/images/thumbnails/sidra_logo.png"
 ```{r}
 #| echo: false
 #| results: 'hide'
-renv::use(lockfile = "renv.lock")
+# renv::use(lockfile = "renv.lock")
 ```
 
 ```{r setup, include = FALSE}
@@ -27,14 +27,11 @@ library(sidrar)
 library(dplyr)
 library(tidyr)
 library(janitor)
-library(tmap)
-library(tmaptools)
-tmap_mode(mode = "view")
 
 print_table <- function(x) {
-  
-  x |> 
-    knitr::kable(align = "c", digits = 0) |> 
+
+  x |>
+    knitr::kable(align = "c", digits = 0) |>
     kableExtra::kable_styling(
         full_width = FALSE,
         bootstrap_options = c("condensed", "responsive", "hover", "striped")
@@ -79,22 +76,17 @@ info_sidra(6579)
 
 A tabela, neste caso, é bastante simples. Os dados são anuais e estão disponíveis de 2001 a 2021. Há apenas uma variável: `População residente estimada (Pessoas)` com código `9324`. Por fim, os dados estão desagregados no nível nacional, regional, estadual e municipal.
 
-Vamos importar a população de todos os municipios em 2021. Note que no código abaixo o argumento do ano é inserido como um `character`.
+Vamos importar a população de todos os municipios em 2021. Note que no código abaixo o argumento do ano é inserido como um `character`. A tabela já vem formatada dentro do R.
 
-```{r, eval = FALSE}
+```{r}
 pop21 <- get_sidra(6579, period = "2021", geo = "City")
-
-pop21
 ```
 
-A tabela já vem formatada dentro do R.
-
-```{r, echo = TRUE}
-pop21 <- get_sidra(6579, period = "2021", geo = "City")
-head(pop21)
+```{r, echo = FALSE}
+print_table(head(pop21))
 ```
 
-Ainda que os dados não estejam "sujos", eles não estão num formato agradável para se trabalhar. Vamos fazer uma limpeza básica dos dados. Primeiro, vamos simplificar os nomes das colunas e selecionar apenas as colunas de maior interesse.
+Ainda que os dados não estejam "sujos", eles também não estão num formato agradável para se trabalhar. Vamos fazer uma limpeza básica dos dados. Primeiro, vamos simplificar os nomes das colunas e selecionar apenas as colunas de maior interesse.
 
 ```{r}
 pop21 <- janitor::clean_names(pop21)
@@ -166,7 +158,7 @@ pop <- get_sidra(6579, period = c("2010", "2020"), geo = "City")
 pop <- get_sidra(6579, period = c("2010-2020"), geo = "City")
 ```
 
-Um detalhe curioso é que a função não retorna erros quando o período extrapola os valores disponíveis nos dados. Assim a função abaixo retorna apenas os valores de 2021.
+Um detalhe curioso é que a função não retorna erros quando o período extrapola os valores disponíveis nos dados. Assim a função abaixo retorna apenas os valores de 2021 (ou até o ano mais recente disponível).
 
 ```{r, eval = FALSE}
 # Importa todos os dados de 2021 até 2030
@@ -185,33 +177,21 @@ Vamos importar todos as observações da taxa de desocupação em 2012. Note que
 unemp <- get_sidra(4099, period = "201201-201204")
 ```
 
-```{r}
-head(unemp)
-```
-
 Para refinar a busca acima temos de usar o argumento `variable`.
 
 ```{r}
 unemp <- get_sidra(4099, period = "201201-202203", variable = 4099)
 ```
 
-```{r}
-head(unemp)
-```
-
 Agora temos a série completa apenas da taxa de desocupação no Brasil. Podemos buscar também a taxa em cada uma das cidades do Brasil.
 
-```{r}
+```{r, eval = FALSE}
 unemp <- get_sidra(
   4099,
   period = "201201-202203",
   variable = 4099,
   geo = "City"
   )
-```
-
-```{r, echo = FALSE}
-head(arrange(unemp, Trimestre))
 ```
 
 Note, contudo, que temos o resultado somente nas capitais. Apesar do argumento "City" ser o mesmo que usamos na pesquisa de Estimativas da População, aqui o argumento "City" retorna apenas as capitais. Isto acontece porque a PNADC é uma pesquisa que é feita apenas nas capitais brasileiras e não tem uma desagregação a nível municipal para todos os municípios do Brasil. Este importante detalhe não fica evidente e depende do conhecimento prévio do usuário a respeito das pesquisas do IBGE.
@@ -262,8 +242,8 @@ resp <- get_sidra(
 Após um pouco de limpeza no nome das colunas podemos ver o resultado abaixo.
 
 ```{r, echo = FALSE}
-tbl_resp <- resp |> 
-  janitor::clean_names() |> 
+tbl_resp <- resp |>
+  janitor::clean_names() |>
   select(
     bairro,
     cond_domi = condicao_no_domicilio_e_o_compartilhamento_da_responsabilidade_pelo_domicilio,
@@ -271,7 +251,7 @@ tbl_resp <- resp |>
     idade,
     situacao_domi = situacao_do_domicilio,
     valor
-  )  |> 
+  )  |>
   mutate(bairro = stringr::str_remove(bairro, " - Porto Alegre - RS"))
 
 print_table(head(tbl_resp, 15))
@@ -308,9 +288,9 @@ library(geobr)
 # Importa o shapefile de todos os bairros IBGE (2010)
 bairros <- geobr::read_neighborhood()
 
-bairros_poa <- bairros |> 
+bairros_poa <- bairros |>
   # Pega apenas os códigos dos bairros de POA
-  filter(code_muni == 4314902) |> 
+  filter(code_muni == 4314902) |>
   # O código do bairro tem alguns números sobrando no meio
   mutate(code_nb = paste0(
     str_sub(code_neighborhood, 1, 7),
@@ -357,19 +337,19 @@ json <- jsonlite::fromJSON(json, simplifyVector = FALSE)
 # 3. Limpar os dados
 
 # Simplificar os dados de JSON para um tibble
-valores <- json |> 
-  spread_all() |> 
-  enter_object(resultados) |> 
-  gather_array() |> 
-  spread_all() |> 
-  enter_object(series) |> 
-  gather_array() |> 
+valores <- json |>
+  spread_all() |>
+  enter_object(resultados) |>
+  gather_array() |>
+  spread_all() |>
+  enter_object(series) |>
+  gather_array() |>
   spread_all()
 
 # Extrair somente os valores da série
-valores <- valores |> 
-  as_tibble() |> 
-  mutate(serie.2010 = as.numeric(serie.2010)) |> 
+valores <- valores |>
+  as_tibble() |>
+  mutate(serie.2010 = as.numeric(serie.2010)) |>
   pivot_wider(
     id_cols = "array.index",
     names_from = "localidade.id",
@@ -377,21 +357,21 @@ valores <- valores |>
   )
 
 # Extrair a classificação das variáveis (sexo, idade)
-classificacao <- json |> 
-  spread_all() |> 
-  enter_object(resultados) |> 
-  gather_array() |> 
-  spread_all() |> 
-  enter_object(classificacoes) |> 
-  gather_array() |> 
+classificacao <- json |>
+  spread_all() |>
+  enter_object(resultados) |>
+  gather_array() |>
+  spread_all() |>
+  enter_object(classificacoes) |>
+  gather_array() |>
   spread_all()
 
 # Extrai somente a coluna com os grupos de idade
-tblage <- classificacao |> 
+tblage <- classificacao |>
   select(contains("93")) |>
-  as_tibble() |> 
-  unite("age_group", everything(), na.rm = TRUE) |> 
-  filter(age_group != "") |> 
+  as_tibble() |>
+  unite("age_group", everything(), na.rm = TRUE) |>
+  filter(age_group != "") |>
   distinct()
 
 # Cria um grid com todas as classificações na ordem correta
@@ -402,25 +382,25 @@ tblclass <- expand_grid(
   age_group = tblage$age_group
 )
 
-# Junta as classificações com os valores 
+# Junta as classificações com os valores
 tab <- cbind(valores, tblclass)
 
 # Converte os dados para wide
-tab <- tab |> 
-  pivot_longer(starts_with("431"), names_to = "code_nb") |> 
+tab <- tab |>
+  pivot_longer(starts_with("431"), names_to = "code_nb") |>
   select(code_nb, situacao_domicilio, resp, sex, age_group, value)
 
 # Converte os dados para uma tabela final
-respnb <- tab |> 
+respnb <- tab |>
   pivot_wider(
     id_cols = c("code_nb", "age_group"),
     names_from = "sex",
     values_from = "value"
-  ) |> 
-  mutate(total = male + female)|> 
-  group_by(code_nb) |> 
-  mutate(total_nb = sum(total)) |> 
-  ungroup() |> 
+  ) |>
+  mutate(total = male + female)|>
+  group_by(code_nb) |>
+  mutate(total_nb = sum(total)) |>
+  ungroup() |>
   mutate(share_nb = total / total_nb * 100)
 ```
 
@@ -429,8 +409,8 @@ A tabela abaixo mostra o resultado final do código. A tabela apresenta o númer
 ```{r, echo = FALSE}
 respnb <- readRDS(here::here("static/data/sidra_1378.rds"))
 
-respnb |> 
-  head(15) |> 
+respnb |>
+  head(15) |>
   print_table()
 ```
 
@@ -440,9 +420,9 @@ Apesar de claramente não ser o foco do post, pareceu um desperdício de esforç
 #| code-fold: true
 bairros <- geobr::read_neighborhood(showProgress = FALSE)
 
-bairros_poa <- bairros |> 
+bairros_poa <- bairros |>
   # Pega apenas os códigos dos bairros de POA
-  filter(code_muni == 4314902) |> 
+  filter(code_muni == 4314902) |>
   # O código do bairro tem alguns números sobrando no meio
   mutate(code_nb = paste0(
     stringr::str_sub(code_neighborhood, 1, 7),
@@ -451,7 +431,7 @@ bairros_poa <- bairros |>
 
 
 respnb <- respnb |>
-  separate(age_group, into = c("age_min", "age_max"), sep = " a ") |> 
+  separate(age_group, into = c("age_min", "age_max"), sep = " a ") |>
   mutate(
     age_generation = case_when(
       age_min >= 25 & age_min < 40 ~ "25-39",
@@ -462,12 +442,12 @@ respnb <- respnb |>
     )
   )
 
-resp_grouped_nb <- respnb |> 
-  group_by(code_nb, age_generation) |> 
-  summarise(pop = sum(total, na.rm = TRUE)) |> 
-  group_by(code_nb) |> 
-  mutate(total_nb = sum(pop)) |> 
-  ungroup() |> 
+resp_grouped_nb <- respnb |>
+  group_by(code_nb, age_generation) |>
+  summarise(pop = sum(total, na.rm = TRUE)) |>
+  group_by(code_nb) |>
+  mutate(total_nb = sum(pop)) |>
+  ungroup() |>
   mutate(share_nb = pop / total_nb * 100)
 
 resp_ages <- pivot_wider(
@@ -487,31 +467,63 @@ O mapa é gerado pelo código abaixo. O mapa mostra o share de domicílios, em c
 
 ```{r}
 #| code-fold: true
-library(tmap)
-library(tmaptools)
-tmap_mode(mode = "view")
+library(leaflet)
 
-m <- tm_shape(resp_bairros) +
-  tm_fill(
-    col = "age_25_39",
-    palette = "inferno",
-    alpha = 0.8,
-    style = "jenks",
-    n = 7,
-    id = "name_neighborhood",
-    title = "Percentual de domicílios<br>chefiados por pessoas<br>de 25 a 39 anos (%).",
-    popup.vars = c(
-      "Menos de 25 anos" = "age_25",
-      "25 a 39 anos" = "age_25_39",
-      "40 a 59 anos" = "age_40_59",
-      "60 a 79 anos" = "age_60_79",
-      "80 anos ou mais" = "age_80"),
-    popup.format = list(digits = 1),
-    legend.format = list(digits = 0)) +
-  tm_borders() +
-  tm_basemap(server = "CartoDB.Positron") +
-  tm_view(set.view = c(-51.179152, -30.025976, 13))
+# Pre-compute Jenks breaks (7 classes = 8 break points)
+breaks <- BAMMtools::getJenksBreaks(
+  na.omit(resp_bairros$age_25_39),
+  k = 8
+)
+breaks <- round(breaks, 0)
 
-leaf <- tmap_leaflet(m)
-widgetframe::frameWidget(leaf, width = "100%")
+# Inferno color palette binned to Jenks breaks
+pal <- colorBin(
+  palette = "Spectral",
+  domain = resp_bairros$age_25_39,
+  bins = breaks,
+  na.color = "transparent"
+)
+
+# HTML popup content with all age groups
+popup_content <- sprintf(
+  "<b>%s</b><br>
+   Menos de 25 anos: %.1f%%<br>
+   25 a 39 anos: %.1f%%<br>
+   40 a 59 anos: %.1f%%<br>
+   60 a 79 anos: %.1f%%<br>
+   80 anos ou mais: %.1f%%",
+  resp_bairros$name_neighborhood,
+  resp_bairros$age_25,
+  resp_bairros$age_25_39,
+  resp_bairros$age_40_59,
+  resp_bairros$age_60_79,
+  resp_bairros$age_80
+)
+popup_content <- lapply(popup_content, htmltools::HTML)
+
+leaflet(resp_bairros) |>
+  addProviderTiles("CartoDB.Positron") |>
+  setView(lng = -51.179152, lat = -30.025976, zoom = 13) |>
+  addPolygons(
+    fillColor    = ~pal(age_25_39),
+    fillOpacity  = 0.8,
+    color        = "white",
+    weight       = 2,
+    opacity      = 1,
+    popup        = popup_content,
+    label        = ~name_neighborhood,
+    highlightOptions = highlightOptions(
+      weight       = 4,
+      color        = "#666",
+      fillOpacity  = 0.7,
+      bringToFront = TRUE
+    )
+  ) |>
+  addLegend(
+    position  = "bottomright",
+    pal       = pal,
+    values    = ~age_25_39,
+    title     = "% domicílios chefiados<br>por pessoas de 25-39 anos",
+    labFormat = labelFormat(suffix = "%", digits = 0)
+  )
 ```
