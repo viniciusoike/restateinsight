@@ -3,7 +3,7 @@ title: "Replicando gráficos"
 date: '2023-11-30'
 categories: ['data-visualization', 'ggplot2']
 description: "Neste post mostro como replicar alguns gráficos de publicações usando apenas o ggplot2."
-execute: 
+execute:
   message: false
   warning: false
 ---
@@ -25,15 +25,18 @@ library(stringr)
 library(forcats)
 library(dplyr)
 library(tidyr)
-library(showtext)
 library(patchwork)
 
-showtext_auto()
+import::from(sysfonts, font_add, font_add_google)
 ```
 
 ```{r}
-# Para fins de replicabilidade
+#| eval: false
+#| # Para fins de replicabilidade
 sessionInfo()
+#  other attached packages:
+# [1] patchwork_1.3.1 tidyr_1.3.2     dplyr_1.2.1     forcats_1.0.1
+# [5] stringr_1.6.0   ggplot2_4.0.2
 ```
 
 ```{r}
@@ -56,23 +59,23 @@ Neste exemplo vamos reproduzir apenas o gráfico de colunas. Para reproduzir o g
 
 ```{r}
 #| code-fold: true
-
 #> Dados do HAI
+#| fmt: skip
 dados <- tibble::tribble(
-  ~nome,             ~hai, ~type,
-  "República",       80.1,    1L,
-  "Tatuapé",         70.4,    1L,
-  "Jabaquara",       68.3,    1L,
-  "Vila Mazzei",     66.4,    1L,
-  "Santana",         62.8,    1L,
-  "Jardim Brasil",   51.9,    0L,
-  "Belém",           48.5,    0L,
-  "Jardim Umarizal", 42.1,    0L,
-  "Parque Arariba",  42.1,    0L,
-  "Brasilândia",     42.1,    0L
+  ~nome             , ~hai , ~type ,
+  "República"       , 80.1 , 1L    ,
+  "Tatuapé"         , 70.4 , 1L    ,
+  "Jabaquara"       , 68.3 , 1L    ,
+  "Vila Mazzei"     , 66.4 , 1L    ,
+  "Santana"         , 62.8 , 1L    ,
+  "Jardim Brasil"   , 51.9 , 0L    ,
+  "Belém"           , 48.5 , 0L    ,
+  "Jardim Umarizal" , 42.1 , 0L    ,
+  "Parque Arariba"  , 42.1 , 0L    ,
+  "Brasilândia"     , 42.1 , 0L
 )
 
-dados <- dados |> 
+dados <- dados |>
   mutate(nome = factor(nome), nome = fct_reorder(nome, hai))
 
 #> Cores dos grupos
@@ -99,7 +102,8 @@ ggplot(dados) +
     values = c("#B9D4EE", "#348ACA"),
     labels = c(
       "Para um casal com dois\nfilhos e renda mediana**",
-      "Para quem mora sozinho\ne tem renda mediana**")
+      "Para quem mora sozinho\ne tem renda mediana**"
+    )
   )
 ```
 
@@ -121,14 +125,15 @@ ggplot(dados) +
   geom_col(
     aes(x = nome, y = hai, fill = as.factor(type)),
     width = 0.5
-    ) +
+  ) +
   geom_text(
     aes(x = nome, y = hai + 5, label = format(hai, decimal.mark = ",")),
     size = 4,
     vjust = 0.5,
     family = "Roboto",
     color = "#000000",
-    fontface = "bold") +
+    fontface = "bold"
+  ) +
   scale_y_continuous(expand = c(0, 0), limits = c(NA, 95)) +
   coord_flip() +
   labs(x = NULL, y = NULL, title = "") +
@@ -137,7 +142,8 @@ ggplot(dados) +
     values = c("#B9D4EE", "#348ACA"),
     labels = c(
       "Para um casal com dois\nfilhos e renda mediana**",
-      "Para quem mora sozinho\ne tem renda mediana**")
+      "Para quem mora sozinho\ne tem renda mediana**"
+    )
   ) +
   theme_minimal() +
   theme(
@@ -153,7 +159,8 @@ ggplot(dados) +
       family = "Roboto",
       color = "#000000",
       size = 12,
-      vjust = 0.4),
+      vjust = 0.4
+    ),
     #> Remove o texto no eixo-x
     axis.text.x = element_blank(),
     #> Aumenta. margem superior para dar espaço para a legenda
@@ -183,31 +190,31 @@ dataset <- "HOUSE_PRICES"
 hp <- get_dataset(dataset)
 countries <- c("CAN", "DEU", "USA", "ITA", "GBR", "FRA", "ESP")
 
-dat <- hp |> 
-  janitor::clean_names() |> 
-  filter(ind == "RHP", cou %in% countries, stringr::str_length(time) > 4) |> 
+dat <- hp |>
+  janitor::clean_names() |>
+  filter(ind == "RHP", cou %in% countries, stringr::str_length(time) > 4) |>
   mutate(
     date = zoo::as.Date(zoo::as.yearqtr(time, format = "%Y-Q%q")),
     obs_value = as.numeric(obs_value)
-    ) |> 
-  filter(date >= as.Date("2000-01-01"), date <= as.Date("2022-10-01")) |> 
+  ) |>
+  filter(date >= as.Date("2000-01-01"), date <= as.Date("2022-10-01")) |>
   select(country = cou, date, index = obs_value)
 
-dat <- dat |> 
-  mutate(reindex = index / first(index) * 100, .by = "country") 
+dat <- dat |>
+  mutate(reindex = index / first(index) * 100, .by = "country")
 
-country_order <- dat |> 
-  filter(date == max(date)) |> 
-  arrange(desc(reindex)) |> 
+country_order <- dat |>
+  filter(date == max(date)) |>
+  arrange(desc(reindex)) |>
   pull(country)
 
-dat <- dat |> 
+dat <- dat |>
   mutate(country = factor(country, levels = country_order))
 ```
 
 ```{r}
 #| echo: false
-dat <- readr::read_rds("here::here("posts/tutorial-ggplot2/oecd_rppi.rds")")
+dat <- readr::read_rds(here::here("posts/tutorial-ggplot2/oecd_rppi.rds"))
 ```
 
 ## Replicando o gráfico
@@ -226,11 +233,24 @@ Para recriar o gráfico vou precisar das cores das linhas. Tentei encontrar core
 ```{r}
 #> Cores
 cores <- c(
-  "#1A48B0", "#EB5F8E", "#73DAE4", "#A1BC4B", "#2F8CC9", "#7B052D", "#BBB7B4")
+  "#1A48B0",
+  "#EB5F8E",
+  "#73DAE4",
+  "#A1BC4B",
+  "#2F8CC9",
+  "#7B052D",
+  "#BBB7B4"
+)
 #> Nomes dos países
 country_labels <- c(
-  "Canada", "UK", "France", "US", "Spain", "Germany", "Italy"
-  )
+  "Canada",
+  "UK",
+  "France",
+  "US",
+  "Spain",
+  "Germany",
+  "Italy"
+)
 ```
 
 As quebras no eixo-x são um pouco difíceis de emular, pois elas fogem do comportamento padrão do ggplot2. Assim, eu preciso definir ela manualmente e ainda fazer um pequeno "hack": essencialmente, eu crio um vetor que destaca os anos "cheios" (2000, 2005, ... 2020) e coloca valores vazios nos anos intermediários.
@@ -239,7 +259,9 @@ As quebras no eixo-x são um pouco difíceis de emular, pois elas fogem do compo
 date_breaks <- seq(as.Date("2000-01-01"), as.Date("2022-01-01"), by = "year")
 date_labels <- c(date_breaks[c(1, 6, 11, 16, 21)])
 labels_year <- format(date_labels, "%Y")
-labs <- c(sapply(labels_year, function(x) {c(x, rep("", 4))}))
+labs <- c(sapply(labels_year, function(x) {
+  c(x, rep("", 4))
+}))
 labs <- labs[1:length(date_breaks)]
 
 labs
@@ -250,7 +272,7 @@ Eu mantive a ordem das cores, mas como a ordem dos países mudou com a atualiza�
 ```{r}
 #| code-fold: true
 ggplot(dat, aes(x = date, y = reindex, color = country)) +
-  geom_line(linewidth = 1) + 
+  geom_line(linewidth = 1) +
   scale_color_manual(name = "", values = cores, labels = country_labels) +
   scale_y_continuous(position = "right") +
   scale_x_date(breaks = date_breaks, labels = labs) +
@@ -259,7 +281,8 @@ ggplot(dat, aes(x = date, y = reindex, color = country)) +
     subtitle = "Real house prices (Q1 2000 = 100)",
     caption = "Source: OECD (replica FT)",
     x = NULL,
-    y = NULL) +
+    y = NULL
+  ) +
   theme_minimal()
 ```
 
@@ -269,12 +292,10 @@ Para chegar num resultado mais próximo do original é necessário mexer em vár
 
 ```{r}
 #| code-fold: true
-
-font_add("Gill Sans", "GillSans.ttc")
-showtext_auto()
+# font_add("Gill Sans", "GillSans.ttc")
 
 ggplot(dat, aes(x = date, y = reindex, color = country)) +
-  geom_line(linewidth = 1.1) + 
+  geom_line(linewidth = 1.1) +
   scale_color_manual(name = "", values = cores, labels = country_labels) +
   scale_y_continuous(position = "right") +
   scale_x_date(breaks = date_breaks, labels = labs) +
@@ -283,7 +304,8 @@ ggplot(dat, aes(x = date, y = reindex, color = country)) +
     subtitle = "Real house prices (Q1 2000 = 100)",
     caption = "Source: OECD (replica)",
     x = NULL,
-    y = NULL) +
+    y = NULL
+  ) +
   guides(color = guide_legend(nrow = 1)) +
   theme_minimal() +
   theme(
@@ -295,7 +317,7 @@ ggplot(dat, aes(x = date, y = reindex, color = country)) +
     panel.grid.major.x = element_blank(),
     #> Altera a cor das linhas de grade "horizontais" que partem do eixo-y
     panel.grid.major.y = element_line(color = "#EAE3DF"),
-    
+
     #> Altera a fonte e a cor de todos os elementos textuais
     text = element_text(family = "Gill Sans", color = "#686261"),
     #> Ajusta o título do gráfico para ser maior e em preto
@@ -306,18 +328,17 @@ ggplot(dat, aes(x = date, y = reindex, color = country)) +
     plot.caption = element_text(hjust = 0),
     #> Altera o tamanho e a cor do texto nos eixos
     axis.text = element_text(size = 11, color = "#6B6865"),
-    
+
     #> Aumenta as margens do gráfico
     plot.margin = margin(rep(10, 4)),
-    
+
     #> Muda a cor do "tiquezinho" no eixo-x e deixa ele mais comprido
     axis.ticks.x = element_line(color = "#EADFD8"),
     axis.ticks.length = unit(7, "pt"),
-    
+
     #> Altera a posição da legenda
     legend.position = c(0.4, 1)
-    
-    )
+  )
 ```
 
 # G1
@@ -340,18 +361,18 @@ unemp <- sidrar::get_sidra(
   6381,
   variable = 4099,
   period = "202206-202306"
-  )
+)
 
 #> Limpeza de dados
-tbl_unemp <- unemp |> 
+tbl_unemp <- unemp |>
   # simplifica nome das colunas
-  janitor::clean_names() |> 
+  janitor::clean_names() |>
   # seleciona e renomeia colunas
   select(
     qtr = trimestre_movel_codigo,
     date_label = trimestre_movel,
     unemp = valor
-  ) |> 
+  ) |>
   # faz alguns ajustes estéticos nos dados
   mutate(
     date_label = str_remove(date_label, " 202[0-9]"),
@@ -360,7 +381,7 @@ tbl_unemp <- unemp |>
     year = lubridate::year(date),
     date_label = str_glue("{date_label}/{substr(year, 3, 4)}"),
     pct_label = paste(format(round(unemp, 1), decimal.mark = ","), "%")
-    )
+  )
 ```
 
 ## Replicando o gráfico
@@ -396,7 +417,7 @@ ggplot(tbl_unemp, aes(x = date_label, y = unemp, fill = "a")) +
       size = 10,
       hjust = 1,
       vjust = 1.5
-      )
+    )
   )
 ```
 
@@ -409,7 +430,7 @@ Para melhor reproduzir o gráfico, uso o pacote `ggtext` que me permite maior fl
 library(ggtext)
 
 ggplot(tbl_unemp, aes(x = date_label, y = unemp, fill = "a", color = "a")) +
-  geom_col(alpha = 0.9, width = 0.8, key_glyph='point') +
+  geom_col(alpha = 0.9, width = 0.8, key_glyph = 'point') +
   geom_hline(yintercept = 0) +
   geom_text(
     aes(label = pct_label),
@@ -435,7 +456,8 @@ ggplot(tbl_unemp, aes(x = date_label, y = unemp, fill = "a", color = "a")) +
 <span style='font-size:16px'>&Iacute;ndice no trimestre</span>",
     caption = "Fonte: IBGE",
     x = NULL,
-    y = NULL) +
+    y = NULL
+  ) +
   theme_minimal() +
   theme(
     legend.position = c(0.05, 1.1),
@@ -444,9 +466,18 @@ ggplot(tbl_unemp, aes(x = date_label, y = unemp, fill = "a", color = "a")) +
     panel.background = element_rect(fill = "#ffffff", color = NA),
     panel.grid.minor = element_blank(),
     panel.grid.major.x = element_line(linetype = 2),
-    axis.text.x = element_text(angle = 90, color = "gray50", size = 10, hjust = 1.85, vjust = 1.5),
+    axis.text.x = element_text(
+      angle = 90,
+      color = "gray50",
+      size = 10,
+      hjust = 1.85,
+      vjust = 1.5
+    ),
     axis.ticks = element_blank(),
-    plot.title = element_textbox(margin = margin(t = 0, r = 0, b = 30, l = 0), hjust = 0)
+    plot.title = element_textbox(
+      margin = margin(t = 0, r = 0, b = 30, l = 0),
+      hjust = 0
+    )
   )
 ```
 
@@ -487,21 +518,34 @@ O código abaixo faz a manipulação de dados necessária. Seleciona-se os país
 
 ```{r}
 latam_countries <- c(
-  "ARG", "BOL", "BRA", "CHL", "COL", "CUB", "DOM", "ECU", "GTM", "HND", "HTI",
-  "MEX", "PER", "VEN")
+  "ARG",
+  "BOL",
+  "BRA",
+  "CHL",
+  "COL",
+  "CUB",
+  "DOM",
+  "ECU",
+  "GTM",
+  "HND",
+  "HTI",
+  "MEX",
+  "PER",
+  "VEN"
+)
 
-latam <- mad |> 
+latam <- mad |>
   # Filtra apenas as linhas dos países selecionados
   filter(
     countrycode %in% latam_countries,
     year >= 1900
-    ) |> 
+  ) |>
   # Agrupa por país
-  group_by(country) |> 
+  group_by(country) |>
   mutate(
     # Calcula a variação do PIB per capita de cada país
     d_gdppc = gdppc / lag(gdppc) - 1,
-    # Cria uma variável binária para indicar se houve crescimento 
+    # Cria uma variável binária para indicar se houve crescimento
     growth = factor(if_else(d_gdppc > 0, 1L, 0L)),
     # Remove parêntesis e o texto dentro dele
     country = str_remove(country, " \\(.+\\)"),
@@ -509,7 +553,7 @@ latam <- mad |>
     country = str_replace(country, "Dominican Republic", "Dominican Rep."),
     country = factor(country),
     country = fct_rev(country)
-  ) |> 
+  ) |>
   ungroup()
 ```
 
@@ -521,17 +565,17 @@ A visualização é, essencialmente, um gráfico de calor de clusters, isto é, 
 
 ```{r}
 ggplot(latam, aes(year, country)) +
-    geom_tile(aes(fill = growth), height = .85, width = 1) +
-    geom_vline(
-      xintercept = c(1900, 1925, 1950, 1975, 2000, 2016),      
-      linetype = 2,                                           
-      colour = "gray65"
-      ) +                                      
-    scale_x_continuous(
-      breaks = c(1900, 1925, 1950, 1975, 2000, 2016),
-      expand = c(0,0),
-      sec.axis = dup_axis()
-      )
+  geom_tile(aes(fill = growth), height = .85, width = 1) +
+  geom_vline(
+    xintercept = c(1900, 1925, 1950, 1975, 2000, 2016),
+    linetype = 2,
+    colour = "gray65"
+  ) +
+  scale_x_continuous(
+    breaks = c(1900, 1925, 1950, 1975, 2000, 2016),
+    expand = c(0, 0),
+    sec.axis = dup_axis()
+  )
 ```
 
 ### Completo
@@ -539,6 +583,7 @@ ggplot(latam, aes(year, country)) +
 O gráfico completo faz algumas modificações na legenda de cores e diversas alterações temáticas no gráfico. O portal Nexo utiliza a fonte [Gotham Rounded](https://fontsgeek.com/gotham-rounded-font) em algumas variantes. Para usar esta fonte é preciso tê-la instalada. Para evitar problemas, o código abaixo verifica se as fontes necessárias estão instaladas; caso contrário, usa-se a fonte Montserrat, do Google Fonts.
 
 ```{r}
+#| eval: false
 # Verifica a fonte do texto
 
 dbfonts <- font_files()
@@ -554,37 +599,42 @@ if (check_fonts) {
   # Adiciona as fonts Gotham Rounded Bold e Light
   font_add("Gotham Rounded Bold", "Gotham Rounded Bold.otf")
   font_add("Gotham Rounded Light", "Gotham Rounded Light.otf")
-  } else {
+} else {
   # Adiciona Montserrat caso as fontes Gotham nao estejam disponiveis
   font_add_google("Montserrat", "Montserrat")
-  }
+}
 
 font_add_google("Crimson Pro", "Crimson Text")
+```
 
-showtext_auto()
+```{r}
+#| include: false
+check_fonts <- TRUE
+font <- ifelse(check_fonts, "Gotham Rounded Bold", "Montserrat")
+font_axis <- ifelse(check_fonts, "Gotham Rounded Light", "Montserrat")
+font_title <- "Crimson Text"
 ```
 
 ```{r}
 #| code-fold: true
-
 ggplot(latam, aes(year, country)) +
   geom_tile(aes(fill = growth), height = .85, width = 1) +
   geom_vline(
-    xintercept = c(1900, 1925, 1950, 1975, 2000, 2016),      
-    linetype = 2,                                           
+    xintercept = c(1900, 1925, 1950, 1975, 2000, 2016),
+    linetype = 2,
     colour = "gray65"
-    ) +                                      
+  ) +
   scale_x_continuous(
     breaks = c(1900, 1925, 1950, 1975, 2000, 2016),
-    expand = c(0,0),
+    expand = c(0, 0),
     sec.axis = dup_axis()
-    ) +                         
+  ) +
   scale_fill_discrete(
-    breaks = c(0,1),
+    breaks = c(0, 1),
     name = "VARIAÇÃO DO PIB NO MUNDO\nPor ano",
-    labels = c("PIB EM QUEDA", "PIB EM CRESCIMENTO"), 
+    labels = c("PIB EM QUEDA", "PIB EM CRESCIMENTO"),
     na.value = "gray90"
-    ) +
+  ) +
   labs(title = "América Latina", x = NULL, y = NULL) +
   theme(
     # Fundo do gráfico
@@ -594,22 +644,22 @@ ggplot(latam, aes(year, country)) +
     # Eixos
     axis.text.y = element_text(vjust = .4),
     axis.ticks = element_line(size = .4),
-    axis.text = element_text(family  = font_axis, size = 8),
+    axis.text = element_text(family = font_axis, size = 8),
     # Legenda
     legend.position = "top",
     legend.text = element_text(
       size = 8,
       colour = "gray20",
       family = font
-      ),
+    ),
     legend.title = element_text(
       size = 12,
       colour = "gray20",
       family = font
-      ),
+    ),
     # Título
     plot.title = element_text(family = font_title, size = 18)
-    )
+  )
 ```
 
 ## Gráfico 2
@@ -626,27 +676,28 @@ Já que nosso foco é somente em replicar a visualização, vamos copiar os dado
 
 ```{r}
 #| code-fold: true
-
 # Copia os dados do gráfico
+#| fmt: skip
 tabela <- tribble(
-  ~age_label, ~masc, ~femi,
-  "18 a 30", 0.627, 0.373,
-  "31 a 40", 0.622, 0.378,
-  "41 a 50", 0.641, 0.359,
-  "51 a 60", 0.674, 0.326,
-  "61 a 70", 0.709, 0.291,
-  "71 ou +", 0.774, 0.291
+  ~age_label , ~masc , ~femi ,
+  "18 a 30"  , 0.627 , 0.373 ,
+  "31 a 40"  , 0.622 , 0.378 ,
+  "41 a 50"  , 0.641 , 0.359 ,
+  "51 a 60"  , 0.674 , 0.326 ,
+  "61 a 70"  , 0.709 , 0.291 ,
+  "71 ou +"  , 0.774 , 0.291
 )
 
 # Formata os dados
-dados <- tabela |> 
-  pivot_longer(cols = -"age_label", names_to = "sex", values_to = "share") |> 
+dados <- tabela |>
+  pivot_longer(cols = -"age_label", names_to = "sex", values_to = "share") |>
   mutate(
     # Converte as variáveis categóricas para factor
-    sex = factor(sex,
-                 levels = c("femi", "masc"),
-                 labels = c("Feminino", "Masculino")
-                 ),
+    sex = factor(
+      sex,
+      levels = c("femi", "masc"),
+      labels = c("Feminino", "Masculino")
+    ),
     age_min = as.numeric(str_sub(age_label, 1, 2)),
     age_label = factor(age_label),
     age_label = fct_reorder(age_label, -age_min),
@@ -719,7 +770,7 @@ ggplot(dados, aes(age_label, share, fill = sex)) +
     breaks = c(0, 0.5, 1),
     labels = c("0%", "50%", "100%"),
     position = "right"
-    ) +
+  ) +
   coord_flip() +
   scale_fill_manual(values = c("#40c2cf", "#22678c")) +
   guides(fill = "none") +
@@ -737,7 +788,7 @@ ggplot(dados, aes(age_label, share, fill = sex)) +
       size = 14,
       color = "#000000",
       family = "Gotham Rounded Bold"
-      ),
+    ),
     axis.text.x = element_text(
       size = 14,
       color = "#747474",
@@ -747,7 +798,8 @@ ggplot(dados, aes(age_label, share, fill = sex)) +
       family = "Crimson Text",
       size = 20,
       face = "bold",
-      hjust = -0.25),
+      hjust = -0.25
+    ),
     plot.subtitle = element_text(
       family = "Gotham Rounded Medium",
       size = 10,
@@ -760,7 +812,6 @@ Há várias maneiras de replicar a legenda do gráfico original. Talvez a mais s
 
 ```{r}
 #| code-fold: true
-
 # Gráfico com a legenda --------------------------------------------
 
 # data.frame auxiliar para montar a legenda
@@ -778,7 +829,8 @@ p_legend <- ggplot(df_aux, aes(x, y, fill = label)) +
     aes(y = ypos, label = label),
     color = "white",
     family = "Gotham Rounded Bold",
-    size = 3) +
+    size = 3
+  ) +
   scale_fill_manual(values = c("#40c2cf", "#22678c")) +
   guides(fill = 'none') +
   coord_flip() +
@@ -814,7 +866,7 @@ p_main <- ggplot(dados, aes(age_label, share, fill = sex)) +
   coord_flip() +
   scale_fill_manual(values = c("#40c2cf", "#22678c")) +
   guides(fill = "none") +
-  labs(x = NULL,y = NULL) +
+  labs(x = NULL, y = NULL) +
   theme_minimal() +
   theme(
     panel.grid = element_blank(),
@@ -851,7 +903,8 @@ panel +
       family = "Crimson Text",
       size = 20,
       face = "bold",
-      hjust = 0.05),
+      hjust = 0.05
+    ),
     plot.subtitle = element_text(
       family = "Gotham Rounded Medium",
       size = 10,
@@ -859,10 +912,6 @@ panel +
     )
   )
 ```
-
-## Gráfico 3
-
-![](/static/images/replications/nexo_piramide_etaria.png){fig-align="center"}
 
 # The Economist
 
@@ -882,22 +931,26 @@ Os dados originais estão disponíveis on [GitHub da The Economist](https://gith
 
 ```{r}
 #| code-fold: true
-dat <- readr::read_csv("/Users/viniciusoike/Documents/GitHub/restateinsight/static/data/gdp_over_hours_worked_with_estimated_hours_worked.csv")
+dat <- readr::read_csv(
+  here::here(
+    "static/data/gdp_over_hours_worked_with_estimated_hours_worked.csv"
+  )
+)
 
 countries_sel <- c("Norway", "Belgium", "Austria", "United States", "Germany")
 
 measures <- c("gdp_over_pop", "gdp_ppp_over_pop", "gdp_ppp_over_k_hours_worked")
 
-sub <- dat |> 
-  select(country, year, all_of(measures)) |> 
+sub <- dat |>
+  select(country, year, all_of(measures)) |>
   na.omit()
 
-ranking <- sub |> 
-  filter(year == max(year)) |> 
-  pivot_longer(cols = -c(country, year), names_to = "measure") |> 
+ranking <- sub |>
+  filter(year == max(year)) |>
+  pivot_longer(cols = -c(country, year), names_to = "measure") |>
   mutate(rank = rank(-value), .by = "measure")
 
-ranking <- ranking |> 
+ranking <- ranking |>
   mutate(
     highlight = if_else(country %in% countries_sel, country, ""),
     highlight = factor(highlight, levels = c(countries_sel, "")),
@@ -905,7 +958,7 @@ ranking <- ranking |>
     rank_labels = if_else(rank %in% c(1, 5, 10, 15, 20), rank, NA),
     rank_labels = stringr::str_replace(rank_labels, "^1$", "1st"),
     measure = factor(measure, levels = measures)
-    )
+  )
 
 cores <- c("#101010", "#f7443e", "#8db0cc", "#fa9494", "#225d9f", "#c7c7c7")
 
@@ -919,12 +972,12 @@ df_gdp <- tibble(
   position = -1.5
 )
 
-df_gdp <- df_gdp |> 
+df_gdp <- df_gdp |>
   mutate(
     measure = factor(measure, levels = measures),
     measure_label = stringr::str_wrap(measure_label, width = 12),
     measure_label = paste0("  ", measure_label)
-    )
+  )
 ```
 
 ### Replicando o gráfico
@@ -958,10 +1011,6 @@ O objetivo deste post é de sempre fazer o máximo possível usando `ggplot2` ma
 
 ```{r}
 #| code-fold: true
-font_add_google("Lato", "Lato")
-showtext_opts(dpi = 300)
-showtext_auto()
-
 ggplot(ranking, aes(measure, rank, group = country)) +
   geom_bump(aes(color = highlight, linewidth = is_highlight)) +
   geom_point(shape = 21, color = "white", aes(fill = highlight), size = 3) +
@@ -1060,9 +1109,6 @@ O gráfico original usa a paleta de cores do ColorBrewer: especificamente, ela c
 
 ```{r}
 #| code-fold: true
-font_add("Georgia", "Georgia.ttf")
-showtext_auto()
-
 # Paleta de cores
 blues <- RColorBrewer::brewer.pal(9, "Blues")[2:9]
 reds <- RColorBrewer::brewer.pal(9, "Reds")[2:9]
@@ -1084,13 +1130,15 @@ ggplot() +
     vjust = 1.5,
     colour = "white",
     size = 6,
-    family = "Georgia") +
+    family = "Georgia"
+  ) +
   geom_text(
     data = df_aux_title,
     aes(x = x, y = 0.05, label = label),
     family = "Georgia",
     size = 11,
-    colour = "white") +
+    colour = "white"
+  ) +
   geom_hline(yintercept = 0, colour = "white", size = 1) +
   scale_fill_gradientn(colors = palette) +
   guides(fill = "none") +
@@ -1124,12 +1172,12 @@ ggplot(temperature) +
     name = "",
     colors = palette,
     breaks = round(seq(-0.6, 1.2, 0.2), 1)
-    ) +
+  ) +
   theme_minimal() +
   theme(
     legend.position = "bottom",
     legend.key.size = unit(1.5, "cm")
-    )
+  )
 ```
 
 O resultado final (atualizado) fica assim.
@@ -1147,13 +1195,15 @@ ggplot() +
     vjust = 1.5,
     colour = "white",
     size = 5,
-    family = "Georgia") +
+    family = "Georgia"
+  ) +
   geom_text(
     data = df_aux_title,
     aes(x = x, y = 0.05, label = label),
     family = "Georgia",
     size = 10,
-    colour = "white") +
+    colour = "white"
+  ) +
   geom_hline(yintercept = 0, colour = "white", size = 1) +
   scale_fill_stepsn(colors = palette, breaks = round(seq(-0.6, 1.2, 0.2), 1)) +
   guides(fill = "none") +
@@ -1181,7 +1231,9 @@ Os dados podem ser baixados diretamente do site da [OWID](https://ourworldindata
 
 ```{r}
 #| echo: false
-owid <- readr::read_csv("/Users/viniciusoike/Documents/GitHub/restateinsight/static/data/gdp-vs-happiness.csv")
+owid <- readr::read_csv(
+  here::here("static/data/gdp-vs-happiness.csv")
+)
 owid <- janitor::clean_names(owid)
 ```
 
@@ -1189,30 +1241,30 @@ owid <- janitor::clean_names(owid)
 #| eval: false
 owid <- readr::read_csv(
   "https://github.com/viniciusoike/restateinsight/raw/main/static/data/gdp-vs-happiness.csv"
-  )
+)
 ```
 
 É preciso fazer apenas alguns ajustes nos dados. Em particular precisamos filtrar o ano e juntar a tabela de países com a de continentes.
 
 ```{r}
 #| code-fold: true
-dat <- owid |> 
-  janitor::clean_names() |> 
+dat <- owid |>
+  janitor::clean_names() |>
   rename(
     life_satisfaction = cantril_ladder_score,
     gdppc = gdp_per_capita_ppp_constant_2017_international,
     pop = population_historical_estimates
   ) |>
-  filter(!is.na(gdppc), !is.na(life_satisfaction)) |> 
-  mutate(gdppc = log10(gdppc)) |> 
-  group_by(entity) |> 
-  filter(year == max(year)) |> 
-  ungroup() |> 
+  filter(!is.na(gdppc), !is.na(life_satisfaction)) |>
+  mutate(gdppc = log10(gdppc)) |>
+  group_by(entity) |>
+  filter(year == max(year)) |>
+  ungroup() |>
   select(entity, pop, gdppc, life_satisfaction)
 
-dim_continent <- owid |> 
-  select(entity, continent) |> 
-  filter(!is.na(continent), !is.na(entity)) |> 
+dim_continent <- owid |>
+  select(entity, continent) |>
+  filter(!is.na(continent), !is.na(entity)) |>
   distinct()
 
 dat <- left_join(dat, dim_continent, by = "entity")
@@ -1231,7 +1283,7 @@ ggplot(dat, aes(x = gdppc, y = life_satisfaction)) +
     color = "#A5A9A9",
     alpha = 0.8,
     shape = 21
-    )
+  )
 ```
 
 ### Completo
@@ -1243,11 +1295,8 @@ A versão finalizada do gráfico exige bastante trabalho manual, já que é nece
 #| fig-asp: 0.618
 #| out-width: 100%
 #| fig-width: 9
-
-font_add_google("Lato", "Lato")
-font_add_google("Playfair Display", "Playfair Display")
-showtext_opts(dpi = 300)
-showtext_auto()
+# font_add_google("Lato", "Lato")
+# font_add_google("Playfair Display", "Playfair Display")
 
 # Tema do gráfico
 theme_owid <- theme_minimal() +
@@ -1255,16 +1304,17 @@ theme_owid <- theme_minimal() +
     # Linhas de grade
     panel.grid.minor = element_blank(),
     panel.grid.major = element_line(linetype = 3, color = "#DDDDDD"),
-    
+
     # Título, subtítulo e nota de rodapé
     text = element_text(family = "Lato"),
     title = element_text(family = "Lato"),
-    
+
     plot.caption = element_text(color = "#777777", hjust = 0, size = 8),
     plot.title = element_text(
       color = "#444444",
       family = "Playfair Display",
-      size = 18),
+      size = 18
+    ),
     plot.subtitle = element_text(color = "#666666", size = 11),
     # Textos nos eixos
     axis.title = element_text(color = "#000000", size = 9),
@@ -1279,19 +1329,47 @@ theme_owid <- theme_minimal() +
 
 #> Countries to highlight
 sel_countries <- c(
-  "Ireland", "Qatar", "Hong Kong", "Switzerland", "United States", "France",
-  "Japan", "Costa Rica", "Russia", "Turkey", "China", "Brazil", "Indonesia",
-  "Iran", "Egypt", "Botswana", "Lebanon", "Philippines", "Bolivia", "Pakistan",
-  "Bangladesh", "Nepal", "Senegal", "Burkina Faso", "Ethiopia", "Tanzania",
-  "Democratic Republic of Congo", "Mozambique", " Somalia", "Chad", "Malawi",
-  "Burundi", "India")
+  "Ireland",
+  "Qatar",
+  "Hong Kong",
+  "Switzerland",
+  "United States",
+  "France",
+  "Japan",
+  "Costa Rica",
+  "Russia",
+  "Turkey",
+  "China",
+  "Brazil",
+  "Indonesia",
+  "Iran",
+  "Egypt",
+  "Botswana",
+  "Lebanon",
+  "Philippines",
+  "Bolivia",
+  "Pakistan",
+  "Bangladesh",
+  "Nepal",
+  "Senegal",
+  "Burkina Faso",
+  "Ethiopia",
+  "Tanzania",
+  "Democratic Republic of Congo",
+  "Mozambique",
+  " Somalia",
+  "Chad",
+  "Malawi",
+  "Burundi",
+  "India"
+)
 
 #> Caption
 caption <- "Source: World Happiness Report (2023), Data compiled from multiple sources by World Bank\nNote: GDP per capita is expressed in international-$ at 2017 prices.\nOurWorldInData.org/happiness-and-life-satisfacation/"
 #> Subtitle
 subtitle <- "Self-reported life satisfaction is measured on a scale ranging from 0-10, where 10 is the highest possible life\nsatisfaction. GDP per capita is adjusted for inflation and differences in the cost of living between countries."
 
-dftext <- dat |> 
+dftext <- dat |>
   mutate(highlight = if_else(entity %in% sel_countries, entity, NA))
 
 #> x-axis labels
@@ -1309,7 +1387,7 @@ ggplot(dat, aes(x = gdppc, y = life_satisfaction)) +
     color = "#A5A9A9",
     alpha = 0.8,
     shape = 21
-    ) +
+  ) +
   ggrepel::geom_label_repel(
     data = dftext,
     aes(x = gdppc, y = life_satisfaction, label = highlight, color = continent),
@@ -1318,7 +1396,7 @@ ggplot(dat, aes(x = gdppc, y = life_satisfaction)) +
     family = "Lato",
     label.padding = unit(0.05, "lines"),
     label.size = NA
-    ) +
+  ) +
   scale_x_continuous(breaks = xbreaks, labels = xlabels) +
   scale_y_continuous(breaks = 3:7) +
   scale_size_continuous(range = c(1, 15)) +
@@ -1328,13 +1406,13 @@ ggplot(dat, aes(x = gdppc, y = life_satisfaction)) +
     color = "none",
     size = "none",
     fill = guide_legend(override.aes = list(shape = 22, alpha = 1))
-    ) +
+  ) +
   labs(
     title = "Self-reported life satisfaction vs. GDP per capita, 2022",
     subtitle = subtitle,
     x = "GDP per capita",
     y = "Life satisfaction (country average; 0-10)",
     caption = caption
-    ) +
+  ) +
   theme_owid
 ```
