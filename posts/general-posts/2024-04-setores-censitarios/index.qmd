@@ -3,7 +3,7 @@ title: "Census Tracts in Brazil"
 date: "2024-06-14"
 categories: ['census', 'brazil', 'sao-paulo', 'data-science', 'data-visualization', 'maps', 'leaflet', 'ggplot2']
 description: "Census tracts are the smallest administrative divisions that provide socio-economic and demographic data. They are highly useful for statistical and spatial analysis, offering a robust and reliable set of information at a fine geographical scale."
-execute: 
+execute:
   message: false
   warning: false
 ---
@@ -38,7 +38,7 @@ cur_setores_2010 <- st_read(
 #   here("static/data/census/spo_setores_2022.gpkg"),
 #   quiet = TRUE
 # )
-# 
+#
 # spo_setores_2010 <- st_read(
 #   here("static/data/census/spo_setores_2010.gpkg"),
 #   quiet = TRUE
@@ -85,10 +85,10 @@ labels <- lapply(labels, htmltools::HTML)
 
 curitiba_center <- c("lng" = -49.28824, "lat" = -25.47788)
 
-leaflet(curitiba_setores) |> 
-  addTiles() |> 
-  addPolygons(weight = 2, fillColor = "gray80", color = "#feb24c", label = labels) |> 
-  addProviderTiles(provider = "CartoDB.Positron") |> 
+leaflet(curitiba_setores) |>
+  addTiles() |>
+  addPolygons(weight = 2, fillColor = "gray80", color = "#feb24c", label = labels) |>
+  addProviderTiles(provider = "CartoDB.Positron") |>
   setView(curitiba_center[[1]], curitiba_center[[2]], zoom = 15)
 ```
 
@@ -122,9 +122,9 @@ The maps below show basic demographic information from the 2022 Census highlight
 
 ```{r}
 #| code-fold: true
-setores_centro <- cur_setores |> 
+setores_centro <- cur_setores |>
   # Administração Regional da Matriz
-  filter(code_subdistrict == 41069020501) |> 
+  filter(code_subdistrict == 41069020501) |>
   mutate(
     pop = as.numeric(pop),
     pop_quintile = ntile(pop, 5),
@@ -186,13 +186,13 @@ curitiba_income <- st_read(
   quiet = TRUE
 )
 
-curitiba_income <- curitiba_income |> 
+curitiba_income <- curitiba_income |>
   mutate(decile = ntile(income_pc, 10))
 ```
 
 ```{r}
 #| code-fold: true
-curitiba_income <- curitiba_income |> 
+curitiba_income <- curitiba_income |>
   mutate(decile = ntile(income_pc, 10))
 
 ggplot(curitiba_income) +
@@ -256,7 +256,7 @@ An obvious improvement from the 2010 census tracts is the gain in spatial resolu
 ```{r}
 #| out-width: 100%
 #| echo: false
-setores_centro_antigo <- cur_setores_2010 |> 
+setores_centro_antigo <- cur_setores_2010 |>
   filter(code_subdistrict == 41069020501)
 
 m1 <- ggplot(setores_centro_antigo) +
@@ -296,7 +296,7 @@ While the size of census tracts varies, the underlying demographic data can be m
 #| echo: false
 tab_curitiba <- as_tibble(st_drop_geometry(cur_setores))
 
-tab_curitiba <- tab_curitiba |> 
+tab_curitiba <- tab_curitiba |>
   mutate(
     name_short = stringr::str_replace(name_subdistrict, "Administração", "Adm."),
     name_short = stringr::str_replace(name_short, "Regional", "Reg.")
@@ -383,7 +383,7 @@ grid_centro <- setores_centro %>%
 # Join census data with the new grid
 grid_2010 <- setores_centro_antigo %>%
   select(dom) %>%
-  st_interpolate_aw(grid_centro, extensive = TRUE) 
+  st_interpolate_aw(grid_centro, extensive = TRUE)
 # Join 2020 census data with the new grid
 grid_2020 <- setores_centro %>%
   select(dom_prt) %>%
@@ -407,7 +407,7 @@ full_grid <- grid_centro %>%
   left_join(d1) %>%
   left_join(d2)
 
-bbox <- setores_centro |> 
+bbox <- setores_centro |>
   st_union() %>%
   st_transform(crs = 32722) %>%
   st_buffer(dist = 100) %>%
