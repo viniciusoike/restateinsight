@@ -3,118 +3,258 @@ library(dplyr)
 library(tidyr)
 library(readxl)
 library(stringr)
+library(sidrar)
 
 # Import data -------------------------------------------------------------
 
+parse_table <- function(json) {
+  parsed <- jsonlite::fromJSON(json, simplifyDataFrame = TRUE)
+
+  # First row is actually the header
+  col_names <- as.character(parsed[1, ])
+  parsed_data <- parsed[-1, ]
+
+  tbl <- tibble::as_tibble(parsed_data)
+  names(tbl) <- janitor::make_clean_names(col_names)
+
+  return(tbl)
+}
+
 ## Births by state ---------------------------------------------------------
 
-nx <- paste(rep(2003:2021, each = 14), c("total", month.abb, "ignorado"), sep = "_")
-nx <- paste(rep(nx, each = 3), c("total", "male", "female"), sep = "_")
-nx <- c("name_state", "number_of_children_born", "mother_age_group", nx)
+# fmt: skip
+categories <- c(
+  5371,5372,5373,5374,5375,5377,5378,5379,5380,5381,5383,5384,5385,5386,5387,
+  5389,5390,5391,5392,5393,5395,5396,5397,5398,5399,5401,5402,5403,5404,5405,
+  5407,5408,5409,5410,5411,5412
+)
 
-nascimentos <- readxl::read_excel(
-  here("static/data/raw/tabela2612.xlsx"),
-  range = "A8:ADU1249",
-  col_names = nx,
-  na = "-"
+categories <- paste(categories, collapse = ",")
+
+months <- paste(5325:5336, collapse = ",")
+base_url <- "https://apisidra.ibge.gov.br/values/"
+
+base_apicall <- "{base_url}t/2612/n3/all/v/allxp/p/{year_chunk}/c235/{months}/c2/4,5/c237/0/c238/0/c240/{categories}"
+
+# Split into groups of 2 years
+years <- 2003:2024
+year_chunks <- split(years, rep(1:11, each = 2))
+
+births <- vector("list", length(year_chunks))
+
+for (i in seq_along(year_chunks)) {
+  year_chunk <- year_chunks[[i]]
+  print(year_chunk)
+  year_chunk <- paste(year_chunk, collapse = ",")
+  apicall <- str_glue(base_apicall)
+  req <- httr::GET(apicall)
+  json <- httr::content(req, as = "text", encoding = "UTF-8")
+
+  tbl <- parse_table(json)
+
+  births[[i]] <- tbl
+}
+
+nascimentos <- bind_rows(births)
+
+nascimentos |>
+  head(10000) |>
+  count(idade_da_mae_na_ocasiao_do_parto) |>
+  print(n = 50)
+
+tbl_nascimento <- nascimentos |>
+  rename(
+    code_state = unidade_da_federacao_codigo,
+    age_mother = idade_da_mae_na_ocasiao_do_parto
+  ) |>
+  mutate(
+    date = readr::parse_date(
+      str_glue("{ano}-{mes_do_nascimento}-01"),
+      format = "%Y-%B-%d",
+      locale = readr::locale("pt")
+    ),
+    month = lubridate::month(date),
+    year = as.numeric(ano),
+    code_state = as.numeric(code_state),
+    total_births = as.numeric(valor),
+    age_mother = as.numeric(str_remove(age_mother, " ano.+"))
+  ) |>
+  select(date, year, month, age_mother, code_state, total_births)
+
+# Median and average age of mother by state by year
+
+tbl_nasc_medias <- tbl_nascimento |>
+  filter(!is.na(total_births)) |>
+  tidyr::uncount(weights = total_births) |>
+  summarise(
+    med_age = median(age_mother),
+    avg_age = mean(age_mother),
+    .by = c("code_state", "date")
   )
 
-tbl_nascimento <- nascimentos %>%
-  fill(name_state, number_of_children_born) %>%
-  select(where(~!all(is.na(.x)))) %>%
-  pivot_longer(
-    cols = -c(name_state, number_of_children_born, mother_age_group)
-    ) %>%
-  separate(name, into = c("year", "month", "sex"), sep = "_") %>%
-  mutate(
-    date = as.Date(paste(year, month, "01", sep = "-"), format = "%Y-%b-%d"),
-    value = as.numeric(value)
-    ) %>%
-  select(
-    date, year, month, name_state, number_of_children_born, mother_age_group,
-    sex_children_born = sex, total_births = value
-    ) %>%
-  filter(!is.na(date))
+tbl_nasc_median <- tbl_nascimento |>
+  summarise(
+    total_ano = sum(total_births, na.rm = TRUE),
+    .by = c("code_state", "year", "age_mother")
+  ) |>
+  tidyr::uncount(weights = total_ano) |>
+  summarise(med_age = median(age_mother), .by = c("code_state", "year"))
+
+library(ggplot2)
+
+ggplot(tbl_nasc_medias, aes(x = date, y = avg_age)) +
+  geom_line() +
+  scale_x_date(date_breaks = "5 year", date_labels = "%Y") +
+  facet_wrap(vars(code_state)) +
+  theme_minimal()
+
+ggplot(tbl_nasc_median, aes(x = year, y = med_age)) +
+  geom_step() +
+  facet_wrap(vars(code_state))
 
 ## Population projections by state -----------------------------------------
 
-pop <- readxl::read_excel(
-  here("static/data/raw/tabela7358.xlsx"),
-  range = "A6:LW1714")
+apicall <- "https://apisidra.ibge.gov.br/values/t/7358/n3/all/v/all/p/all/c2/6794/c287/93086,93087,93088,93089,93090,93091,93092,93093,93094,93095/c1933/all"
 
-names(pop)[1:2] <- c("name_state", "year")
-names(pop) <- str_remove(names(pop), "\\.\\.\\..+")
+req <- httr::GET(apicall)
 
-names(pop)[-(1:2)] <- paste(
-  rep(c("total", "male", "female"), each = 111),
-  names(pop)[-(1:2)],
-  sep = "_"
+pop <- jsonlite::fromJSON(
+  httr::content(req, as = "text"),
+  simplifyDataFrame = TRUE
+)
+
+# First row is actually the header
+col_names <- as.character(pop[1, ])
+pop_data <- pop[-1, ]
+
+pop <- tibble::as_tibble(pop_data)
+names(pop) <- janitor::make_clean_names(col_names)
+
+tbl_pop <- pop |>
+  rename(
+    year = ano_2,
+    code_state = unidade_da_federacao_codigo,
+    name_state = unidade_da_federacao
+  ) |>
+  mutate(
+    age = as.numeric(str_extract(idade, "[:digit:]+")),
+    valor = as.numeric(valor)
   )
 
-tbl_pop <- pop %>%
-  fill(name_state) %>%
-  mutate(across(-name_state, as.numeric)) %>%
-  pivot_longer(cols = -c(name_state, year)) %>%
-  separate(name, into = c("sex", "age_group"), sep = "_")
-
-tbl_pop_adult <- tbl_pop %>%
-  filter(!str_detect(age_group, "( a )|Total")) %>%
-  mutate(age = as.numeric(str_extract(age_group, "[:digit:]+"))) %>%
-  filter(age >= 15, age <= 65, sex == "total", year >= 2003) %>%
-  group_by(name_state, year) %>%
-  summarise(pop_adult = sum(value, na.rm = T))
+tbl_pop_adult <- pop |>
+  rename(
+    year = ano_2,
+    code_state = unidade_da_federacao_codigo,
+    name_state = unidade_da_federacao
+  ) |>
+  mutate(
+    age = as.numeric(str_extract(idade, "[:digit:]+")),
+    valor = as.numeric(valor)
+  ) |>
+  filter(sexo == "Total", age >= 15, age <= 65, year >= 2003) |>
+  summarise(
+    pop_adult = sum(valor, na.rm = TRUE),
+    .by = c("code_state", "name_state", "year")
+  )
 
 ## Weddings ----------------------------------------------------------------
 
-col_names <- paste(rep(2003:2021, each = 13), c("total", month.abb), sep = "-")
-col_names <- c(c("name_state", "age_male", "age_female"), col_names)
+categories <- c(107092:107116, 5616:5621)
+categories <- paste(categories, collapse = ",")
+years <- 2003:2024
 
-casamentos <- readxl::read_excel(
-  here("static/data/raw/tabela2759.xlsx"),
-  range = "A8:IP1060",
-  col_names = col_names,
-  na = "-"
+apicall <- str_glue(
+  "https://apisidra.ibge.gov.br/values/t/2759/n3/all/v/allxp/p/{years}/c236/allxt/c247/5622/c248/5625/c245/0/c246/{categories}"
+)
+
+# Break into chunks
+year_chunks <- list(
+  2003:2005,
+  2006:2008,
+  2009:2011,
+  2012:2014,
+  2015:2017,
+  2018:2020,
+  2021:2023,
+  2024
+)
+weddings <- vector("list", length(year_chunks))
+
+for (i in seq_along(year_chunks)) {
+  year_chunk <- year_chunks[[i]]
+  print(year_chunk)
+  year_chunk <- paste(year_chunk, collapse = ",")
+  apicall <- str_glue(
+    "https://apisidra.ibge.gov.br/values/t/2759/n3/all/v/allxp/p/{year_chunk}/c236/allxt/c247/5622/c248/5625/c245/0/c246/{categories}"
   )
+  req <- httr::GET(apicall)
+  json <- httr::content(req, as = "text", encoding = "UTF-8")
+  json <- jsonlite::fromJSON(json, simplifyDataFrame = TRUE)
 
-tbl_casamentos <- casamentos %>%
-  select(where(~!all(is.na(.x)))) %>%
-  fill(name_state, age_male, age_female) %>%
-  mutate(across(starts_with("2"), as.numeric)) %>%
-  pivot_longer(cols = -c(name_state, age_male, age_female)) %>%
+  # First row is actually the header
+  col_names <- as.character(json[1, ])
+  json_data <- json[-1, ]
+
+  tbl <- tibble::as_tibble(json_data)
+  names(tbl) <- janitor::make_clean_names(col_names)
+
+  weddings[[i]] <- tbl
+}
+
+tbl_casamentos <- bind_rows(weddings)
+
+tbl_casamentos <- tbl_casamentos |>
+  rename(
+    code_state = unidade_da_federacao_codigo,
+    name_state = unidade_da_federacao,
+    age_male = grupo_de_idade_do_homem,
+    age_female = grupo_de_idade_da_mulher
+  ) |>
   mutate(
-    date = as.Date(paste0(name, "-01"), format = "%Y-%b-%d"),
+    date = readr::parse_date(
+      paste0(ano, mes_do_registro, "01"),
+      format = "%Y%B%d",
+      locale = readr::locale("pt")
+    ),
     year = lubridate::year(date),
-    month = lubridate::month(date, label = TRUE, abbr = TRUE, locale = "pt_BR")
-  ) %>%
+    month = lubridate::month(date, label = TRUE, abbr = TRUE, locale = "pt_BR"),
+    valor = as.numeric(valor)
+  ) |>
   select(
-    date, year, month, age_male, age_female, name_state, total_weddings = value
-  ) %>%
-  filter(!is.na(date))
-
+    date,
+    year,
+    month,
+    age_male,
+    age_female,
+    name_state,
+    total_weddings = valor
+  )
 
 ## Join data ---------------------------------------------------------------
 
-tbl_nasc_state <- tbl_nascimento %>%
-  filter(
-    !is.na(date),
-    mother_age_group == "Total",
-    sex_children_born == "total"
-    ) %>%
-  select(date, name_state, total_births)
+# 1 - Nascimentos por UF por Ano
+# 2 - Casamentos por UF por Ano por grupo de idade da mulher
+# 3 - População adulta por UF por Ano
+
+tbl_nascimento
+
 
 tbl_casa_state <- tbl_casamentos %>%
   group_by(date, year, month, name_state) %>%
-  summarise(weddings_month = sum(total_weddings, na.rm = TRUE))
+  summarise(
+    weddings_month = sum(total_weddings, na.rm = TRUE),
+    .groups = "drop"
+  )
 
-data <- inner_join(tbl_nasc_state, tbl_casa_state, by = c("date", "name_state"))
-data <- inner_join(data, tbl_pop_adult, by = c("year", "name_state"))
+data <- inner_join(tbl_nascimento, tbl_casa_state, by = c("date", "code_state"))
+data <- inner_join(data, tbl_pop_adult, by = c("year", "code_state"))
 
 state_id <- geobr::read_state(showProgress = FALSE)
 state_id <- sf::st_drop_geometry(state_id)
 state_id <- mutate(
   state_id,
   name_state = str_replace(name_state, "Espirito Santo", "Espírito Santo")
-  )
+)
 
 data <- data %>%
   mutate(name_state = str_to_title(name_state)) %>%
@@ -133,22 +273,6 @@ temp <- list(
   weddings = tbl_casamentos,
   births = tbl_nascimento,
   pop = tbl_pop
-  )
+)
 
-readr::write_rds(temp, here("static/data/births_weddings.rds"))
-
-# tbl_casamentos_mes <- tbl_casamentos %>%
-#   group_by(date, year, month, name_state) %>%
-#   summarise(casamento_mes = sum(casamento, na.rm = T)) %>%
-#   left_join(tbl_pop_adult, by = c("year", "name_state")) %>%
-#   mutate(taxa = casamento_mes / (pop_adult / 100000),
-#          log_casamento = log(casamento_mes),
-#          ma6 = RcppRoll::roll_meanr(log_casamento, n = 6))
-# 
-# ggplot(casamentos_mes, aes(x = date, y = taxa)) +
-#   geom_line() +
-#   facet_wrap(~name_state, scales = "free")
-# 
-# ggplot(casamentos_ano, aes(x = year, y = log_casamento, colour = name_state)) +
-#   geom_line() +
-#   facet_wrap(~name_state)
+qs::qsave(temp, here("static/data/births_weddings.qs"))

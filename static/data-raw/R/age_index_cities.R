@@ -75,11 +75,10 @@ dim_muni <- geobr::read_municipality(year = 2020, showProgress = FALSE)
 
 age_muni <- left_join(dim_muni, tbl_age_index, by = "code_muni")
 
-readr::write_rds(
+qs::qsave(
   age_muni,
-  here::here("static/data/census_aging_index_city.rds")
+  here::here("static/data/census_aging_index_city.qs")
 )
-
 
 #> The Census table for 2022 has the Aging Index directly
 census22 <- get_sidra(9515, variable = 10612)
