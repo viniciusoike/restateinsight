@@ -1,0 +1,546 @@
+---
+title: "Data Visualization Gallery"
+description: "Charts, maps, and visual essays on economics, urbanism, demographics, and more — built with R and ggplot2."
+page-layout: full
+title-block-banner: true
+toc: false
+comments: false
+---
+
+```{=html}
+<style>
+/* ── RESET & TOKENS ─────────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --primary:  #06436e;
+  --bg:       #f7f8fa;
+  --card-bg:  #fff;
+  --text:     #1a1a2e;
+  --muted:    rgba(0,0,0,0.48);
+  --border:   #e2e6ea;
+  --radius:   10px;
+}
+
+/* ── STAT ROW (below Quarto title block) ────────────────────────────────── */
+.gallery-intro {
+  display: flex;
+  gap: 2.5rem;
+  justify-content: center;
+  padding: 1.5rem 1rem 0.25rem;
+  flex-wrap: wrap;
+}
+.g-stat .num {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--primary);
+  display: block;
+  text-align: center;
+}
+.g-stat .lbl {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+  display: block;
+  text-align: center;
+}
+
+/* ── FIXED FILTER BAR ───────────────────────────────────────────────────── */
+/*
+   position:fixed is used instead of sticky because Quarto's page layout
+   wraps content in containers that have overflow:hidden/auto, which silently
+   breaks sticky. JS below measures the navbar height at runtime and sets
+   filterBar.style.top so the bar sits flush under the navbar on any theme.
+   A matching padding-top spacer is injected before the bar to prevent content
+   from being hidden behind it.
+*/
+.filter-bar {
+  background: #fff;
+  border-bottom: 1px solid var(--border);
+  border-top: 1px solid var(--border);
+  padding: 0.8rem 1.5rem;
+  position: fixed;
+  left: 0;
+  right: 0;
+  z-index: 99;          /* below Bootstrap navbar (1030) but above page content */
+  display: flex;
+  gap: 1.75rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.filter-group { display: flex; gap: 0.4rem; align-items: center; flex-wrap: wrap; }
+.filter-label {
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  color: var(--muted);
+  margin-right: 0.15rem;
+  white-space: nowrap;
+}
+.chip {
+  padding: 0.28rem 0.75rem;
+  border-radius: 999px;
+  border: 1.5px solid var(--border);
+  background: #fff;
+  font-size: 0.78rem;
+  cursor: pointer;
+  color: var(--text);
+  transition: border-color 0.13s, background 0.13s, color 0.13s;
+  white-space: nowrap;
+  line-height: 1.4;
+}
+.chip:hover  { border-color: var(--primary); color: var(--primary); }
+.chip.active { background: var(--primary); border-color: var(--primary); color: #fff; font-weight: 600; }
+
+/* ── GALLERY WRAPPER ────────────────────────────────────────────────────── */
+.gallery-wrap {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 1.75rem 1.5rem 4rem;
+}
+.result-count { font-size: 0.82rem; color: var(--muted); margin-bottom: 1.25rem; }
+.result-count strong { color: var(--text); }
+
+/* ── GRID: 2 columns, fixed card height ─────────────────────────────────── */
+/*
+   Fixed height (not aspect-ratio) is intentional: ggplot2 exports are
+   overwhelmingly landscape (4:3 / 16:9). A square crop wastes space and
+   hides chart content; fixed height with object-position:top center keeps
+   the title area of each chart visible regardless of its true ratio.
+*/
+.chart-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1.2rem;
+}
+@media (max-width: 640px) {
+  .chart-grid { grid-template-columns: 1fr; }
+  /* top is controlled by JS — no override needed here */
+}
+
+/* ── CARD ───────────────────────────────────────────────────────────────── */
+.chart-card {
+  background: var(--card-bg);
+  border-radius: var(--radius);
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.07);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  display: flex;
+  flex-direction: column;
+  animation: fadeUp 0.3s ease both;
+}
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.chart-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.13);
+}
+
+.card-img-wrap {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  overflow: hidden;
+  background: #e6eaef;
+  flex-shrink: 0;
+}
+.card-img-wrap img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: top center;
+  display: block;
+  transition: transform 0.35s ease;
+}
+.chart-card:hover .card-img-wrap img { transform: scale(1.04); }
+
+/* Gradient placeholder shown while image loads or when no thumb exists */
+.img-placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 3rem;
+  transition: transform 0.35s ease;
+}
+.chart-card:hover .img-placeholder { transform: scale(1.04); }
+
+/* Source badge (top-left of image) */
+.source-badge {
+  position: absolute;
+  top: 0.55rem;
+  left: 0.55rem;
+  background: rgba(0,0,0,0.52);
+  color: #fff;
+  font-size: 0.6rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  padding: 0.18rem 0.5rem;
+  border-radius: 4px;
+  pointer-events: none;
+  z-index: 1;
+  backdrop-filter: blur(2px);
+}
+
+/* Hover action overlay */
+.card-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(6, 67, 110, 0.76);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  backdrop-filter: blur(3px);
+}
+.chart-card:hover .card-overlay { opacity: 1; }
+
+.action-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.55rem 0.9rem;
+  border-radius: 8px;
+  background: rgba(255,255,255,0.13);
+  border: 1.5px solid rgba(255,255,255,0.38);
+  color: #fff;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background 0.15s;
+  font-size: inherit;
+}
+.action-btn:hover { background: rgba(255,255,255,0.26); }
+.action-btn svg   { width: 18px; height: 18px; }
+.action-btn span  {
+  font-size: 0.62rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+}
+.action-btn.disabled { opacity: 0.35; pointer-events: none; }
+
+/* ── CARD BODY ──────────────────────────────────────────────────────────── */
+.card-body {
+  padding: 0.8rem 0.95rem 0.85rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  flex: 1;
+}
+.card-title { font-size: 0.95rem; font-weight: 600; color: var(--text); line-height: 1.3; }
+.card-tags  { display: flex; gap: 0.35rem; flex-wrap: wrap; }
+.tag {
+  display: inline-block;
+  padding: 0.15rem 0.48rem;
+  border-radius: 4px;
+  font-size: 0.64rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  white-space: nowrap;
+}
+.tag-topic { background: #e8f0fb; color: #1a56a8; }
+.tag-tool  { background: #eef7ef; color: #1e6e2e; }
+
+/* ── LOAD SENTINEL & SPINNER ────────────────────────────────────────────── */
+.load-sentinel {
+  height: 60px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 0.5rem;
+}
+.spinner {
+  width: 26px; height: 26px;
+  border: 3px solid var(--border);
+  border-top-color: var(--primary);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.spinner.hidden { display: none; }
+
+.all-loaded {
+  text-align: center;
+  font-size: 0.8rem;
+  color: var(--muted);
+  margin-top: 1.5rem;
+  display: none;
+}
+
+/* ── EMPTY & ERROR STATES ───────────────────────────────────────────────── */
+.empty-state {
+  grid-column: 1 / -1;
+  text-align: center;
+  padding: 5rem 2rem;
+  color: var(--muted);
+  font-size: 0.95rem;
+}
+</style>
+
+<!-- Stat row -->
+<div class="gallery-intro">
+  <div class="g-stat"><span class="num" id="stat-total">—</span><span class="lbl">Charts</span></div>
+  <div class="g-stat"><span class="num" id="stat-years">—</span><span class="lbl">Years</span></div>
+  <div class="g-stat"><span class="num" id="stat-topics">—</span><span class="lbl">Topics</span></div>
+</div>
+
+<!-- Fixed filter bar (chips injected by JS from data) -->
+<div class="filter-bar" id="filter-bar">
+  <div class="filter-group" id="topic-filters">
+    <span class="filter-label">Topic</span>
+  </div>
+  <div class="filter-group" id="tool-filters">
+    <span class="filter-label">Tool</span>
+  </div>
+</div>
+<!-- Spacer: height set by JS to match filter bar height so content isn't hidden under the fixed bar -->
+<div id="filter-bar-spacer"></div>
+
+<!-- Gallery grid -->
+<main class="gallery-wrap">
+  <p class="result-count">
+    Showing <strong id="visible-count">—</strong> of <strong id="total-count">—</strong> charts
+  </p>
+  <div class="chart-grid" id="chart-grid">
+    <div class="empty-state">Loading gallery…</div>
+  </div>
+  <div class="load-sentinel" id="sentinel">
+    <div class="spinner hidden" id="spinner"></div>
+  </div>
+  <p class="all-loaded" id="all-loaded">All charts loaded</p>
+</main>
+
+<script>
+(async function () {
+
+  /* ── FIXED FILTER BAR POSITIONING ───────────────────────────────────── */
+  /*
+     Quarto's navbar is itself position:fixed. We measure its rendered
+     bottom edge at runtime so the filter bar lands exactly beneath it,
+     regardless of theme or window size.
+  */
+  const filterBar    = document.getElementById('filter-bar');
+  const filterSpacer = document.getElementById('filter-bar-spacer');
+
+  function positionFilterBar() {
+    // Find the navbar — Quarto/Bootstrap uses .navbar as the top bar
+    const navbar = document.querySelector('.navbar');
+    const navbarBottom = navbar ? navbar.getBoundingClientRect().height : 0;
+    filterBar.style.top = navbarBottom + 'px';
+    // The spacer ensures content below isn't hidden behind the fixed bar
+    filterSpacer.style.height = filterBar.offsetHeight + 'px';
+  }
+
+  // Position immediately, then again after fonts/content load (height may change)
+  positionFilterBar();
+  window.addEventListener('resize', positionFilterBar);
+  // Re-measure after images/fonts settle
+  window.addEventListener('load', positionFilterBar);
+
+  /* ── FETCH DATA ────────────────────────────────────────────────────────
+     gallery.json is the single source of truth for all chart metadata.
+     To add a chart: append one object to static/data/gallery.json.
+     Schema:
+       id          – unique slug (string)
+       title       – display title (string)
+       topic       – filter category, e.g. "Economics" (string)
+       tool        – e.g. "ggplot2", "sf" (string)
+       img         – path to full-res image (string)
+       thumb       – path to thumbnail, or null (string | null)
+       post        – URL to blog post, or null (string | null)
+       code        – URL to source code, or null (string | null)
+       year        – year created (number)
+       source      – collection name, e.g. "30DayChartChallenge", or null (string | null)
+       description – one-sentence description (string)
+  ── ─────────────────────────────────────────────────────────────────── */
+  let GALLERY_DATA;
+  try {
+    GALLERY_DATA = await fetch('/static/data/gallery.json').then(r => {
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      return r.json();
+    });
+  } catch (err) {
+    document.getElementById('chart-grid').innerHTML =
+      '<div class="empty-state">Could not load gallery data. ' +
+      'Make sure <code>static/data/gallery.json</code> exists and the site is served (not opened as file://).</div>';
+    console.error('Gallery fetch failed:', err);
+    return;
+  }
+
+  /* ── CONFIG ─────────────────────────────────────────────────────────── */
+  const BATCH_SIZE = 12;
+
+  /* ── STATE ──────────────────────────────────────────────────────────── */
+  let activeFilters = { topic: 'all', tool: 'all' };
+  let filtered      = [];
+  let rendered      = 0;
+
+  /* ── STATS ──────────────────────────────────────────────────────────── */
+  const years  = GALLERY_DATA.map(c => c.year);
+  const topics = [...new Set(GALLERY_DATA.map(c => c.topic))];
+  document.getElementById('stat-total').textContent  = GALLERY_DATA.length;
+  document.getElementById('stat-years').textContent  = Math.min(...years) + '–' + Math.max(...years);
+  document.getElementById('stat-topics').textContent = topics.length;
+
+  /* ── FILTER BAR ─────────────────────────────────────────────────────── */
+  const allTopics = ['all', ...new Set(GALLERY_DATA.map(c => c.topic))].sort((a,b) => a==='all'?-1:a.localeCompare(b));
+  const allTools  = ['all', ...new Set(GALLERY_DATA.map(c => c.tool))].sort((a,b)  => a==='all'?-1:a.localeCompare(b));
+
+  allTopics.forEach(v => document.getElementById('topic-filters').appendChild(makeChip('topic', v)));
+  allTools.forEach(v  => document.getElementById('tool-filters').appendChild(makeChip('tool', v)));
+
+  // Re-measure spacer after chips are injected (wrapping can change bar height)
+  positionFilterBar();
+
+  function makeChip(group, value) {
+    const btn = document.createElement('button');
+    btn.className     = 'chip' + (value === 'all' ? ' active' : '');
+    btn.dataset.group = group;
+    btn.dataset.value = value;
+    btn.textContent   = value === 'all' ? 'All' : value;
+    btn.addEventListener('click', () => {
+      activeFilters[group] = value;
+      document.querySelectorAll(`.chip[data-group="${group}"]`)
+        .forEach(b => b.classList.toggle('active', b === btn));
+      applyFilters();
+    });
+    return btn;
+  }
+
+  /* ── FILTERING ──────────────────────────────────────────────────────── */
+  function applyFilters() {
+    filtered = GALLERY_DATA.filter(c => {
+      const topicOk = activeFilters.topic === 'all' || c.topic === activeFilters.topic;
+      const toolOk  = activeFilters.tool  === 'all' || c.tool  === activeFilters.tool;
+      return topicOk && toolOk;
+    });
+
+    rendered = 0;
+    document.getElementById('chart-grid').innerHTML = '';
+    document.getElementById('all-loaded').style.display = 'none';
+    document.getElementById('total-count').textContent   = filtered.length;
+    document.getElementById('visible-count').textContent = 0;
+
+    if (filtered.length === 0) {
+      document.getElementById('chart-grid').innerHTML =
+        '<div class="empty-state">No charts match the selected filters.</div>';
+      document.getElementById('spinner').classList.add('hidden');
+      return;
+    }
+    renderBatch();
+  }
+
+  /* ── BATCH RENDERING ────────────────────────────────────────────────── */
+  function renderBatch() {
+    const batch = filtered.slice(rendered, rendered + BATCH_SIZE);
+    if (!batch.length) return;
+
+    const grid = document.getElementById('chart-grid');
+    batch.forEach((c, i) => {
+      const card = buildCard(c);
+      card.style.animationDelay = (i * 35) + 'ms';
+      grid.appendChild(card);
+    });
+
+    rendered += batch.length;
+    document.getElementById('visible-count').textContent = rendered;
+
+    const allDone = rendered >= filtered.length;
+    document.getElementById('spinner').classList.toggle('hidden', allDone);
+    if (allDone && filtered.length > BATCH_SIZE) {
+      document.getElementById('all-loaded').style.display = 'block';
+    }
+  }
+
+  /* ── CARD BUILDER ───────────────────────────────────────────────────── */
+  function buildCard(c) {
+    const card = document.createElement('div');
+    card.className = 'chart-card';
+
+    // Prefer thumbnail for grid; fall back to full image
+    const imgSrc = c.thumb || c.img;
+
+    // Image area: real <img> if path exists, CSS gradient placeholder otherwise
+    const imageContent = imgSrc
+      ? `<img src="${imgSrc}" alt="${esc(c.title)}" loading="lazy">`
+      : `<div class="img-placeholder" style="background:${c._gradient||'#ccc'}">${c._emoji||'📊'}</div>`;
+
+    card.innerHTML = `
+      <div class="card-img-wrap">
+        ${imageContent}
+        ${c.source ? `<div class="source-badge">${esc(c.source)}</div>` : ''}
+        <div class="card-overlay">
+          <a class="action-btn${!c.post ? ' disabled' : ''}"
+             href="${c.post || '#'}" title="Original post"
+             ${c.post ? 'target="_blank" rel="noopener"' : ''}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                 stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="3" width="18" height="13" rx="2"/>
+              <path d="M8 21h8m-4-5v5"/>
+            </svg>
+            <span>Post</span>
+          </a>
+          <a class="action-btn${!c.code ? ' disabled' : ''}"
+             href="${c.code || '#'}" title="Source code"
+             ${c.code ? 'target="_blank" rel="noopener"' : ''}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                 stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="16 18 22 12 16 6"/>
+              <polyline points="8 6 2 12 8 18"/>
+            </svg>
+            <span>Code</span>
+          </a>
+          <a class="action-btn" href="${c.img}" title="Full resolution"
+             target="_blank" rel="noopener">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                 stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="15 3 21 3 21 9"/>
+              <polyline points="9 21 3 21 3 15"/>
+              <line x1="21" y1="3" x2="14" y2="10"/>
+              <line x1="3" y1="21" x2="10" y2="14"/>
+            </svg>
+            <span>Full</span>
+          </a>
+        </div>
+      </div>
+      <div class="card-body">
+        <div class="card-title">${esc(c.title)}</div>
+        <div class="card-tags">
+          <span class="tag tag-topic">${esc(c.topic)}</span>
+          <span class="tag tag-tool">${esc(c.tool)}</span>
+        </div>
+      </div>`;
+
+    return card;
+  }
+
+  function esc(str) {
+    return String(str)
+      .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+      .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  /* ── INTERSECTION OBSERVER — auto-load on scroll ────────────────────── */
+  const sentinel = document.getElementById('sentinel');
+  if ('IntersectionObserver' in window) {
+    new IntersectionObserver(entries => {
+      if (entries[0].isIntersecting && rendered < filtered.length) renderBatch();
+    }, { rootMargin: '200px' }).observe(sentinel);
+  }
+
+  /* ── START ──────────────────────────────────────────────────────────── */
+  applyFilters();
+
+})();
+</script>
+```
