@@ -18,7 +18,6 @@ knitr::opts_chunk$set(
 )
 ```
 
-
 # Demographic Pyramids
 
 A **demographic pyramid** is a graphical representation of the age and gender distribution of a population. It typically shows the population in horizontal bars, with males represented on the left and females on the right. Each bar represents a specific age group, and the length of the bar indicates the number of people in that group.
@@ -51,7 +50,7 @@ showtext_auto()
 
 ## Simple age data
 
-The simplest way that demographic data is presented is on a year-on-year basis. These estimates are available in the `popAge1dt` dataset. 
+The simplest way that demographic data is presented is on a year-on-year basis. These estimates are available in the `popAge1dt` dataset.
 
 ```{r}
 data(popAge1dt)
@@ -70,28 +69,28 @@ A population pyramid follows certain conventions. The data is presented in age-s
 The code below calculates population shares by age and sex, making male values negative to position them on the left side.
 
 ```{r}
-popage <- popAge1dt |> 
+popage <- popAge1dt |>
   filter(
     country_code %in% countries$country_code,
     year %in% seq(1950, 2020, 10)
     )
 
-popage <- popage |> 
-  select(country_code, name, year, age, popM, popF) |> 
+popage <- popage |>
+  select(country_code, name, year, age, popM, popF) |>
     pivot_longer(
     cols = popM:popF,
     names_to = "sex",
     values_to = "population"
   )
 
-popage <- popage |> 
+popage <- popage |>
   mutate(
     sex = if_else(sex == "popM", "Male", "Female"),
     sex = factor(sex, levels = c("Male", "Female")),
-  ) |> 
-  group_by(country_code, name, year) |> 
-  mutate(share = population / sum(population, na.rm = TRUE) * 100) |> 
-  ungroup() |> 
+  ) |>
+  group_by(country_code, name, year) |>
+  mutate(share = population / sum(population, na.rm = TRUE) * 100) |>
+  ungroup() |>
   mutate(share = if_else(sex == "Male", -share, share))
 ```
 
@@ -102,7 +101,7 @@ The code below creates a basic population pyramid using Japan's 1950 demographic
 The visualization is called a "pyramid" because of its distinctive shape: wide at the bottom (many young people), gradually narrowing through the middle ages (fewer adults), and smallest at the top (very few elderly). This triangular shape was typical for most countries in the past and is still common in developing nations today. The shape reveals a population structure with high birth rates and shorter life expectancy.
 
 ```{r}
-jpn50 <- popage |> 
+jpn50 <- popage |>
   filter(name == "Japan", year == 1950)
 
 ggplot(jpn50, aes(x = age, y = share)) +
@@ -127,10 +126,10 @@ Regarding color choices for gender representation, modern data visualization pra
 
 Note that while these specific colors (green and purple) work well, there's no strict rule - the key is to choose colors that are:
 
-* Clearly distinguishable
-* Accessible to colorblind viewers
-* Consistent with your overall design scheme
-* (Preferably) Free from gender stereotypes
+- Clearly distinguishable
+- Accessible to colorblind viewers
+- Consistent with your overall design scheme
+- (Preferably) Free from gender stereotypes
 
 ```{r}
 colors <- c("#1B9E77", "#7570B3")
@@ -149,7 +148,7 @@ p <- ggplot(jpn50, aes(x = age, y = share)) +
   ) +
   labs(x = "Age", y = "Share of Population (%)")
 
-p + 
+p +
   geom_hline(yintercept = 0) +
   annotate(
     "label",
@@ -187,7 +186,7 @@ The first example shows how to see the demographic evolution of a single country
 The second example shows how to compare a cross-country selection across the same time period.
 
 ```{r}
-jpn <- popage |> 
+jpn <- popage |>
   filter(name == "Japan", year %in% seq(1950, 2000, 10))
 
 base_plot <- ggplot(jpn, aes(x = age, y = share)) +
@@ -216,7 +215,7 @@ base_plot +
 ```
 
 ```{r}
-country_comp50 <- popage |> 
+country_comp50 <- popage |>
   filter(year == 1980)
 
 base_plot <- ggplot(country_comp50, aes(x = age, y = share)) +
@@ -248,9 +247,9 @@ base_plot +
 
 Demographers typically work with grouped age data (usually in 5 or 10-year intervals) rather than single-year ages for two main reasons:
 
-* *Statistical Reliability*: Grouped data provides more precise estimates by reducing random variations that can occur in single-year measurements.
+- *Statistical Reliability*: Grouped data provides more precise estimates by reducing random variations that can occur in single-year measurements.
 
-* *Practical Analysis*: Broader age groups make it easier to identify and understand demographic patterns and trends. For instance, knowing the proportion of people aged 65-69 is often more useful for policy planning than specific single-year counts.
+- *Practical Analysis*: Broader age groups make it easier to identify and understand demographic patterns and trends. For instance, knowing the proportion of people aged 65-69 is often more useful for policy planning than specific single-year counts.
 
 This data is available in the `popAge5dt` dataset.
 
@@ -259,8 +258,8 @@ Some data manipulation is necessary since the age groups are interpreted as text
 ```{r}
 data("popAge5dt")
 
-popage <- popAge5dt |> 
-  filter(country_code %in% countries$country_code) |> 
+popage <- popAge5dt |>
+  filter(country_code %in% countries$country_code) |>
   mutate(
     age_trunc = if_else(
       age %in% c("85-89", "90-94", "95-99", "100+"), "85-", age
@@ -269,30 +268,30 @@ popage <- popAge5dt |>
     age_trunc = str_replace(age_trunc, "85-", "85+"),
     age_trunc = factor(age_trunc),
     age_trunc = forcats::fct_reorder(age_trunc, age_min)
-  ) |> 
-  group_by(country_code, name, year, age_trunc) |> 
+  ) |>
+  group_by(country_code, name, year, age_trunc) |>
   summarise(
     pop_male = sum(popM),
     pop_female = sum(popF)
-  ) |> 
+  ) |>
   ungroup()
 
-popage <- popage |> 
-    select(country_code, name, year, age_trunc, pop_male, pop_female) |> 
+popage <- popage |>
+    select(country_code, name, year, age_trunc, pop_male, pop_female) |>
     pivot_longer(
     cols = starts_with("pop"),
     names_to = "sex",
     values_to = "population"
   )
 
-popage <- popage |> 
+popage <- popage |>
   mutate(
     sex = if_else(sex == "pop_male", "Male", "Female"),
     sex = factor(sex, levels = c("Male", "Female")),
-  ) |> 
-  group_by(country_code, name, year) |> 
-  mutate(share = population / sum(population, na.rm = TRUE) * 100) |> 
-  ungroup() |> 
+  ) |>
+  group_by(country_code, name, year) |>
+  mutate(share = population / sum(population, na.rm = TRUE) * 100) |>
+  ungroup() |>
   mutate(share = if_else(sex == "Male", -share, share))
 ```
 
@@ -406,11 +405,11 @@ ggplot() +
 
 This final visualization demonstrates an innovative approach to population pyramids by comparing two time periods side-by-side within each age group. This design choice offers several advantages:
 
-1. Direct Comparison: Placing bars next to each other makes it easier to see how population structure changes over time for each age group.
+1.  Direct Comparison: Placing bars next to each other makes it easier to see how population structure changes over time for each age group.
 
-2. Enhanced Readability: The text labels are centered between the bars, creating a clean and balanced layout that guides the reader's eye naturally through the data.
+2.  Enhanced Readability: The text labels are centered between the bars, creating a clean and balanced layout that guides the reader's eye naturally through the data.
 
-3. Efficient Legend: The color legend serves multiple purposes - it identifies time periods, explains the color coding, and provides context for the entire visualization. This eliminates the need for additional explanatory text.
+3.  Efficient Legend: The color legend serves multiple purposes - it identifies time periods, explains the color coding, and provides context for the entire visualization. This eliminates the need for additional explanatory text.
 
 This design represents a thoughtful evolution of the traditional population pyramid, maintaining its familiar elements while improving its comparative capabilities.
 
@@ -521,10 +520,10 @@ df_age_group <- function(age_min = 0, age_max = 90, group_interval = 5) {
     age_label = factor(age_label)
     #age_label = factor(age_label, levels = age_label[order(interval)])
   )
-  
-  age_group <- age_group |> 
+
+  age_group <- age_group |>
     dplyr::mutate(age_label = forcats::fct_reorder(age_label, age_group))
-  
+
   return(age_group)
 }
 ```
@@ -541,23 +540,21 @@ ggsave(
 )
 ```
 
-
 ## Conclusion
 
 Population pyramids are powerful tools for visualizing demographic structure and change. Through the examples shown above, we've explored how to create increasingly sophisticated versions of these charts - from basic representations to comparative visualizations that reveal temporal changes.
 
 Key takeaways from this tutorial:
 
-* Start with a basic structure showing population shares by age and sex
-Add clear labels and thoughtful color choices to make visualizations self-explanatory.
-* Use age groups rather than single years for more meaningful analysis.
-* Consider innovative layouts, like side-by-side comparisons, to enhance understanding.
-* While the traditional pyramid shape remains useful, modern visualization techniques and tools allow us to adapt this classic demographic tool to better serve our analytical needs. The final example, with its side-by-side comparison and centered labels, demonstrates how thoughtful design choices can significantly improve the communication of demographic data.
+- Start with a basic structure showing population shares by age and sex Add clear labels and thoughtful color choices to make visualizations self-explanatory.
+- Use age groups rather than single years for more meaningful analysis.
+- Consider innovative layouts, like side-by-side comparisons, to enhance understanding.
+- While the traditional pyramid shape remains useful, modern visualization techniques and tools allow us to adapt this classic demographic tool to better serve our analytical needs. The final example, with its side-by-side comparison and centered labels, demonstrates how thoughtful design choices can significantly improve the communication of demographic data.
 
 Remember that the goal is always to make complex demographic information more accessible and understandable to your audience.
 
 # Useful links
 
-* [Do this not that: Population pyramid](https://infogram.com/blog/do-this-not-that-population-pyramid/)
+- [Do this not that: Population pyramid](https://infogram.com/blog/do-this-not-that-population-pyramid/)
 
-* [An alternative to pink & blue: Colors for gender data](https://blog.datawrapper.de/gendercolor/)
+- [An alternative to pink & blue: Colors for gender data](https://blog.datawrapper.de/gendercolor/)

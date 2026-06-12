@@ -3,7 +3,7 @@ title: "O impacto dos juros na demanda imobiliário"
 date: '2023-08-17'
 categories: ['real-estate', 'economia']
 description: 'A taxa de juros é talvez a variável macroeconômica mais importante para se observar quando se pensa em financiamento imobiliário. Neste post apresento o básico do financiamento habitacional e mostro como o aumento dos juros impactou a acessibilidade à moradia. Por fim, comento sobre a recente queda na taxa SELIC.'
-execute: 
+execute:
   warning: false
   echo: false
   message: false
@@ -38,9 +38,9 @@ showtext::showtext_auto()
 
 ```{r}
 loan <- function(p, ltv = 0.7, i, ic = 12, n = 360, method = "sac", comp = 0.3) {
-  
+
   if (n < 1) {message("Prazo tem que ser maior que 1.")}
-  
+
   # Savings
   S = (1 - ltv) * p
   # Debt (to be financed)
@@ -48,9 +48,9 @@ loan <- function(p, ltv = 0.7, i, ic = 12, n = 360, method = "sac", comp = 0.3) 
   if (D < 0) {message("Valor financiado menor que 0.")}
   if (i > 1) {i = i / 100}
   taxa = (1 + i) ^ (1 / ic) - 1
-  
+
   if (method == "sac") {
-    
+
     # Vetor do valor da parcela (PMT)
     pmt = vector(mode = "numeric", length = n)
     # Vetor do valor da divida a saldar (D)
@@ -61,24 +61,24 @@ loan <- function(p, ltv = 0.7, i, ic = 12, n = 360, method = "sac", comp = 0.3) 
     divida[1] = D
     # No SAC o valor de amort eh constante
     amort = D/n
-    
+
     for (i in 1:n) {
-      
+
       divida[i + 1] = divida[i] - amort
       juros[i] = taxa * divida[i]
       pmt[i] = juros[i] + amort
-      
+
     }
-    
+
     renda_minima = pmt[1] / comp
     out = list(juros = juros, amort = amort, divida = divida,
                valor_inicial = p, renda = renda_minima,
                parcela = pmt)
     return(out)
   }
-  
+
     if (method == "price") {
-    
+
     # Vetor do valor da parcela (PMT)
     pmt = p * (taxa * (1 + taxa)^n) / ((1 + taxa)^n - 1)
     # Vetor do valor da divida a saldar (D)
@@ -87,10 +87,10 @@ loan <- function(p, ltv = 0.7, i, ic = 12, n = 360, method = "sac", comp = 0.3) 
     juros = vector(mode = "numeric", length = n)
     # Vetor do valor da amortizacao (A)
     amort = vector(mode = "numeric", length = n)
-    
+
     # Valor inicial da divida
     divida[1] = D
-    
+
     for (i in 1:n) {
       # Computa os juros
       juros[i] = taxa * divida[i]
@@ -102,7 +102,7 @@ loan <- function(p, ltv = 0.7, i, ic = 12, n = 360, method = "sac", comp = 0.3) 
                valor_inicial = p, renda = renda_minima)
     return(out)
   }
-  
+
 }
 
 renda_minima <- function(
@@ -120,9 +120,9 @@ renda_minima <- function(
   method = "sac",
   # Compromised Income (percent of income that is compromised)
   comp = 0.3) {
-  
+
   if (n < 1) {message("Prazo tem que ser maior que 1.")}
-  
+
   # Savings
   S = (1 - ltv) * p
   # Debt (to be financed)
@@ -132,14 +132,14 @@ renda_minima <- function(
   if (i > 1) {i = i / 100}
   # Convert yearly to montlhy rate
   taxa = (1 + i) ^ (1 / ic) - 1
-  
+
   # Renda = (amort + juros) / comp
-  
+
   amort = D/n
   juros = taxa * D
   pgto  = amort + juros
   renda_minima = pgto / comp
-  
+
   out = list(
     amort = amort,
     juros = juros,
@@ -170,7 +170,7 @@ Quem define a taxa de juros "geral" da economia, a taxa SELIC, é o Cômite de P
 Tipicamente, a taxa de juros é a ferramenta de política monetária que se usa para controlar a inflação: quando a taxa de inflação aumenta muito, o COPOM decide aumentar a taxa de juros. Foi isto o que aconteceu em 2014-16 e também em 2021-23.
 
 ```{r}
-selic <- bcb_series |> 
+selic <- bcb_series |>
   filter(name_simplified == "selic", date >= as.Date("2016-01-01"))
 
 ggplot(selic, aes(x = date, y = value)) +
@@ -212,9 +212,7 @@ O pagamento de juros que incide sobre a dívida costuma ser a soma de uma parcel
 
 Vamos simular o financiamento de um imóvel de R\$450.000. Supondo um LTV de 80%, o valor da entrada é de R\$90.000 e o valor a ser financiado, portanto, é de R\$360.000. Num contrato de 30 anos, o valor da amortização é de:
 
-$$
-A = \frac{R\$360.000}{R\$360} = R\$1.000
-$$
+$$A = \frac{R\$360.000}{R\$360} = R\$1.000$$
 
 Vamos começar assumindo que a taxa de juros seja de 10% a.a. A tabela abaixo mostra o fluxo de pagamentos do primeiro ano do empréstimo. Note como o valor da amortização é sempre o mesmo. À medida que a dívida vai sendo paga, o valor cobrado de juros também diminui e, por conseguinte, diminui também o valor da parcela mensal.
 
@@ -285,9 +283,7 @@ Agora podemos responder uma dúvida importante: qual a renda necessária para fi
 
 No exemplo acima, o valor da primeira parcela é de R\$3870. A renda mínima necessária (RMN) para estar elegível a este financiamento é:
 
-$$
-RMN = \frac{R\$ 3.870,69}{0,3} = R\$ 12.902,3
-$$
+$$RMN = \frac{R\$ 3.870,69}{0,3} = R\$ 12.902,3$$
 
 Como que este resultado final depende da taxa de juros? Podemos simular o mesmo financiamento para diferentes taxas juros e calcular novamente a renda mínima necessária. A tabela abaixo mostra como a renda varia para valores de taxa de juros de 7% a 12%. É notável como a taxa de juros tem impacto direto no poder de compra e capacidade de pagamento das famílias. A uma taxa favorável de 7%, é necessário ter uma renda de R\$10 mil para ser aprovado no financimento; já a uma taxa de 12% é necessário ter quase R\$15 mil.
 
@@ -416,14 +412,14 @@ igmi <- filter(igmi, name_muni == "Brasil")
 # renda <- readr::read_csv(here::here("static/data/renda_br_imputado.csv"))
 # renda <- select(renda, date, income = renda_imput)
 # renda_pnad <- get_sidra(6472, variable = 5929, period = "201201-202301")
-# 
+#
 # renda_pnad <- renda_pnad %>%
 #   janitor::clean_names() %>%
 #   select(date = trimestre_codigo, income = valor) %>%
 #   mutate(
 #     date = zoo::as.Date(zoo::as.yearqtr(date, "%Y%q"))
 #   )
-# 
+#
 # renda <- bind_rows(list(renda, anti_join(renda_pnad, renda, by = "date")))
 ```
 
@@ -534,7 +530,7 @@ base_index <- dat %>%
   pivot_longer(-date, names_to = "series") %>%
   summarise(base = mean(value, na.rm = TRUE), .by = "series")
 
-dat |> 
+dat |>
   pivot_longer(-date, names_to = "series") %>%
   left_join(base_index, by = "series") %>%
   group_by(series) %>%
@@ -564,7 +560,7 @@ dat <- dat %>%
   group_by(series) %>%
   mutate(index = forecast::na.interp(index))
 
-ggplot(dat, aes(x = date, y = index, color = series)) + 
+ggplot(dat, aes(x = date, y = index, color = series)) +
   geom_line()
 
 bcb %>%

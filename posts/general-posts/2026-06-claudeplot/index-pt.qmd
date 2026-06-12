@@ -1,0 +1,142 @@
+---
+title: "claudeplot: um pacote de R feito pelo Claude, sobre o Claude, em um único prompt"
+date: "2026-06-11"
+categories: ['data-visualization', 'ggplot2', 'r-packages', 'ai', 'claude']
+description: "Como usei o Claude Fable 5, no dia do seu lançamento, para projetar e publicar um pacote completo de temas para ggplot2 — paletas, fontes embutidas, testes, vignette, site pkgdown e tudo mais — a partir de praticamente um único prompt."
+image: logo.png
+execute:
+  message: false
+  warning: false
+  eval: false
+draft: true
+---
+
+# Um pacote nascido de um único prompt
+
+Em 9 de junho de 2026, a Anthropic lançou o **Claude Fable 5**, o primeiro
+modelo do seu novo tier Mythos. Dia de lançamento é um bom dia para testes
+de estresse, então propus um ao novo modelo: construir um pacote de R
+completo e real, de ponta a ponta, a partir de essencialmente um único
+prompt.
+
+O resultado é o
+[**claudeplot**](https://github.com/viniciusoike/claudeplot), uma extensão
+do `ggplot2` que traz a linguagem visual da Anthropic e do Claude para o R
+— e que foi, apropriadamente, escrita quase inteiramente pelo próprio
+Claude.
+
+![](README-bar-1.png){fig-alt="Gráfico de barras com o theme_claude mostrando os resultados de SWE-Bench Pro dos modelos recentes do Claude."}
+
+# O que o claudeplot faz
+
+O pacote é uma extensão clássica de "tema + escalas" para o `ggplot2`:
+
+- `theme_claude()`, um tema limpo, pronto para publicação;
+- escalas discretas e contínuas de cor e preenchimento
+  (`scale_color_claude_d()`, `scale_fill_claude_c()` e companhia);
+- doze paletas derivadas da identidade visual da Anthropic e do seu estilo
+  de visualização de dados, organizadas em famílias qualitativas
+  (`claude`, `brand`, `warm`, `cool`, `neutral`), sequenciais (`oranges`,
+  `blues`, `greens`, `grays`) e divergentes (`orange_blue`,
+  `green_orange`, `spectral`);
+- funções para explorar as paletas, `show_claude_palette()` e
+  `show_claude_palettes()`;
+- as fontes abertas recomendadas pela Anthropic — **Poppins** para títulos
+  e **Lora** para texto — embutidas sob a licença SIL Open Font License e
+  registradas automaticamente via `systemfonts`.
+
+Um exemplo mínimo:
+
+```{r}
+library(ggplot2)
+library(claudeplot)
+
+df <- data.frame(
+  model = c("Claude Opus 4.6", "Claude Opus 4.7", "Claude Opus 4.8", "Claude Fable 5"),
+  score = c(58.6, 69.2, 80.3, 88.4)
+)
+
+ggplot(df, aes(model, score, fill = model)) +
+  geom_col(width = 0.7) +
+  scale_fill_claude_d() +
+  labs(
+    title = "Agentic coding",
+    subtitle = "Taxa de sucesso no SWE-Bench Pro (%)",
+    x = NULL, y = "Taxa de sucesso (%)"
+  ) +
+  theme_claude() +
+  theme(legend.position = "none")
+```
+
+E o catálogo completo de paletas:
+
+```{r}
+show_claude_palettes()
+```
+
+![](README-palettes-1.png){fig-alt="Grade com as doze paletas do claudeplot: famílias qualitativas, sequenciais e divergentes."}
+
+# Como o pacote foi feito, de verdade
+
+Já construí alguns pacotes de temas para `ggplot2` à mão, então sei quanto
+trabalho invisível se esconde em um pacote "simples" como este:
+interpolação de paletas que se comporta bem para qualquer `n`, escalas que
+respeitam tanto `color` quanto `colour`, registro de fontes que degrada de
+forma elegante quando `systemfonts` ou `ragg` não estão disponíveis,
+licenciamento das fontes, testes, documentação, vignette, site pkgdown.
+
+Desta vez, o fluxo de trabalho foi diferente. Escrevi um prompt longo
+descrevendo o que eu queria — um pacote de tema inspirado na
+Anthropic/Claude, construído nos padrões do CRAN — e apontei o Claude para
+algumas referências úteis: as [diretrizes de marca](https://github.com/anthropics/skills/blob/main/skills/brand-guidelines/SKILL.md)
+publicadas pela Anthropic e alguns dos meus pacotes de temas anteriores
+como modelos de estrutura.
+
+A partir daí, o Claude cuidou do resto de ponta a ponta:
+
+- pesquisou as cores da marca e o estilo de gráficos e os transformou em
+  paletas qualitativas, sequenciais e divergentes coerentes;
+- escreveu o tema, as paletas, as escalas e as funções de exibição;
+- embutiu as fontes Poppins e Lora (verificando que a licença SIL OFL
+  permite a redistribuição) e configurou o registro automático, com a
+  função de diagnóstico `claude_font_status()`;
+- escreveu testes unitários com `testthat` e testes de regressão visual
+  com `vdiffr`;
+- escreveu a documentação, o README e a vignette;
+- fez o pacote passar no `R CMD check --as-cran` com **zero erros,
+  warnings ou notes**;
+- publicou o repositório no GitHub e o
+  [site pkgdown](https://viniciusoike.github.io/claudeplot/), com direito
+  a logo hexagonal.
+
+A ressalva honesta, que também está no README: isto é uma demonstração,
+não uma biblioteca testada em batalha. O pacote está marcado como
+experimental — e ganhou esse selo mais ou menos no tempo de tomar um café.
+
+# O que eu tiro disso
+
+Duas coisas me surpreenderam.
+
+Primeiro, a *completude*. A parte difícil de desenvolver pacotes de R
+nunca foi escrever uma chamada de `theme()` — é tudo o que vem ao redor. O
+modelo deu conta dos 80% chatos-porém-essenciais: verificação de licença
+das fontes embutidas, fallbacks elegantes, decisões de `Suggests` vs
+`Imports`, testes de snapshot visual, checagens no padrão do CRAN. É
+exatamente essa a parte que costuma fazer pacotes de projeto pessoal
+morrerem pela metade no HD.
+
+Segundo, a *alavancagem de boas referências*. O prompt único funcionou
+porque apontava para material concreto e de qualidade: diretrizes oficiais
+de marca e pacotes existentes com uma estrutura que valia imitar. A lição
+generaliza — o modelo multiplica a qualidade do que você entrega a ele.
+
+Se quiser experimentar:
+
+```{r}
+# install.packages("pak")
+pak::pak("viniciusoike/claudeplot")
+```
+
+O claudeplot é um pacote comunitário, não oficial, sem afiliação ou
+endosso da Anthropic. Issues e PRs são bem-vindos no
+[GitHub](https://github.com/viniciusoike/claudeplot/issues).

@@ -13,11 +13,17 @@ execute:
 ---
 
 ```{r}
-library(tidyverse)
+library(ggplot2)
+library(dplyr)
+library(stringr)
 library(sidrar)
-library(showtext)
-font_add_google("Lato", "Lato")
-showtext_auto()
+library(gt)
+library(ekioplot)
+library(gtExtras)
+import::from(forcats, fct_reorder)
+```
+
+```{r}
 pop <- get_sidra(9514)
 
 codes = c(93070, 93084:93098, 49108:49109, 60040:60041, 6653)
@@ -52,8 +58,6 @@ tbl_pop <- tbl_pop |>
     age_label = factor(str_remove(idade, " anos")),
     age_label = fct_reorder(age_label, age_min)
   )
-
-
 ```
 
 ```{r}
@@ -78,7 +82,8 @@ tbl_gen <- pop |>
       age >= 80 ~ "Elder"
     ),
     generation = factor(generation),
-    generation = fct_reorder(generation, age))
+    generation = fct_reorder(generation, age)
+  )
 ```
 
 ```{r}
@@ -92,7 +97,8 @@ tbl_text <- gen_share |>
     age_max = max(age),
     total = sum(share),
     total_pop = sum(valor),
-    .by = "generation") |>
+    .by = "generation"
+  ) |>
   mutate(
     age_med = age_min + (age_max - age_min) / 2,
     num_label = paste0(round(total, 1), "%")
@@ -103,7 +109,7 @@ p_col <- ggplot() +
     data = gen_share,
     aes(age, share, fill = generation),
     color = "white"
-    ) +
+  ) +
   geom_label(
     data = tbl_text,
     aes(x = age_med, y = 2.1, label = num_label, color = generation),
@@ -116,10 +122,17 @@ p_col <- ggplot() +
     size = 4,
     family = "Lato"
   ) +
-  geom_vline(
-    xintercept = tbl_text$age_max + 0.5,
-    linetype = 2,
-    color = "gray80") +
+  geom_segment(
+    data = tibble(x = tbl_text$age_max + 0.5, xend = x, y = 0, yend = 2),
+    aes(x = x, xend = xend, y = y, yend = yend),
+    color = "gray80",
+    linetype = 2
+  ) +
+  # geom_vline(
+  #   xintercept = tbl_text$age_max + 0.5,
+  #   linetype = 2,
+  #   color = "gray80"
+  # ) +
   geom_hline(yintercept = 0) +
   scale_x_continuous(breaks = seq(0, 100, 10)) +
   scale_y_continuous(breaks = seq(0, 1.5, 0.5), limits = c(NA, 2.3)) +
@@ -136,12 +149,13 @@ p_col <- ggplot() +
     title = "Millennials and Gen-Z rule Brazil",
     subtitle = str_wrap(
       "Despite aging population and declining fertility rate, Brazil has almost 100 million people in the 12-43 age range.",
-      60),
+      60
+    ),
     x = NULL,
     y = "Share (%)",
     caption = "Source: IBGE (Census 2022)"
   ) +
-  theme_minimal(base_family = "Lato", base_size = 10) +
+  theme_ekio(base_family = "Lato", base_size = 10) +
   theme(
     legend.position = "bottom",
     plot.title = element_text(size = 20),
@@ -160,8 +174,6 @@ tbl_generations <- tbl_text |>
   select(generation, age_range, total_pop, total) |>
   mutate(acum = cumsum(total))
 
-library(gt)
-library(gtExtras)
 
 gt_gen <- gt(tbl_generations) |>
   cols_label(
@@ -190,7 +202,10 @@ tbl_unemp <- unemp |>
     age_group = str_replace(age_group, "Total", "Overall"),
     age_group = str_replace(age_group, " a ", "-"),
     age_group = str_replace(age_group, "60", "60+"),
-    age_group = factor(age_group, levels = c("14-17", "18-24", "25-39", "40-59", "60+", "Overall"))
+    age_group = factor(
+      age_group,
+      levels = c("14-17", "18-24", "25-39", "40-59", "60+", "Overall")
+    )
   ) |>
   select(date, age_group, value = valor)
 ```
@@ -202,15 +217,25 @@ tbl_unemp <- tbl_unemp |>
 p_unemp <- ggplot(tbl_unemp, aes(date, value, color = age_group)) +
   geom_line() +
   geom_point() +
-  geom_text(
+  geom_label(
     data = filter(tbl_unemp, date == max(date)),
     aes(date, value, label = round(value, 1), color = age_group),
     family = "Lato",
-    size = 4,
+    size = 3,
     nudge_x = 25,
+    nudge_y = c(0.5, 0, -0.5, 0, 0),
     show.legend = FALSE
   ) +
-  scale_color_brewer(name = "", palette = "Set1") +
+  scale_color_manual(
+    name = NULL,
+    values = c(
+      "18-24" = "#C53030",
+      "25-39" = "#A8D0E8",
+      "40-59" = "#4A90C2",
+      "60+" = "#2B4C7E",
+      "Overall" = "#0D1B2A"
+    )
+  ) +
   labs(
     title = "High unemployment rate among youth",
     subtitle = "Quarterly unemployment rates by age group",
@@ -218,14 +243,7 @@ p_unemp <- ggplot(tbl_unemp, aes(date, value, color = age_group)) +
     y = "%",
     caption = "Source: IBGE (PNADC/T)"
   ) +
-  theme_minimal(base_family = "Lato", base_size = 10) +
-  theme(
-    legend.position = "bottom",
-    plot.title = element_text(size = 20),
-    plot.subtitle = element_text(size = 12, color = "gray40"),
-    text = element_text(color = "gray20"),
-    panel.grid.minor = element_blank()
-  )
+  theme_ekio(base_family = "Lato", base_size = 10)
 ```
 
 # Generations in Brazil
@@ -238,7 +256,7 @@ Like many other countries, Brazil is aging rapidly. The combination of increasin
 p_col
 ```
 
-The cut-offs for each generation cohort, in the plot above, followed directly [Beresford Research's definition](https://www.beresfordresearch.com/age-range-by-generation/) (which adapted the previous definition developed by the [Pew Research Center](https://www.pewresearch.org/short-reads/2019/01/17/where-millennials-end-and-generation-z-begins/). The data comes from the most recent [Brazilian Census (2022)](https://censo2022.ibge.gov.br/en/census-2022-home.html?lang=en-GB).
+The cut-offs for each generation cohort, in the plot above, followed directly [Beresford Research's definition](https://www.beresfordresearch.com/age-range-by-generation/) which adapted the previous definition developed by the [Pew Research Center](https://www.pewresearch.org/short-reads/2019/01/17/where-millennials-end-and-generation-z-begins/). The data comes from the most recent [Brazilian Census (2022)](https://censo2022.ibge.gov.br/en/census-2022-home.html?lang=en-GB).
 
 [![Generations by birth year defined by the Pew Research Center](images/Screenshot%202024-06-07%20at%2015.49.22.png){fig-align="center"}](https://www.pewresearch.org/short-reads/2019/01/17/where-millennials-end-and-generation-z-begins/)
 
@@ -265,6 +283,6 @@ A recent [report from the OECD](https://www.oecd-ilibrary.org/sites/3197152b-en/
 
 ## Related Posts
 
--   [Aging Index In Brazil](https://restateinsight.com/posts/general-posts/2024-04-wz-age-index/)
+- [Aging Index In Brazil](https://restateinsight.com/posts/general-posts/2024-04-wz-age-index/)
 
--   [Brazilian Census](https://restateinsight.com/posts/general-posts/2023-10-wz-census/)
+- [Brazilian Census](https://restateinsight.com/posts/general-posts/2023-10-wz-census/)
