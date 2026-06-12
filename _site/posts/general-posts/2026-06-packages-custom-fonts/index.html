@@ -1,0 +1,1113 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.9.37">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+<meta name="author" content="Vinicius Oike Reginatto">
+<meta name="dcterms.date" content="2026-06-02">
+
+<title>Custom Fonts in R Packages: A Practical Guide – Vinicius Oike</title>
+<style>
+/* Default styles provided by pandoc.
+** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+*/
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+</style>
+
+
+<script src="../../../site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="../../../site_libs/quarto-nav/headroom.min.js"></script>
+<script src="../../../site_libs/clipboard/clipboard.min.js"></script>
+<script src="../../../site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="../../../site_libs/quarto-search/fuse.min.js"></script>
+<script src="../../../site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="../../../">
+<script src="../../../site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="../../../site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="../../../site_libs/quarto-html/popper.min.js"></script>
+<script src="../../../site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="../../../site_libs/quarto-html/anchor.min.js"></script>
+<link href="../../../site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="../../../site_libs/quarto-html/quarto-syntax-highlighting-c3cf9d46a7c8b92850f815292f8d7832.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="../../../site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="../../../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="../../../site_libs/bootstrap/bootstrap-de4e0d8b733684fa7802599a74138f6a.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<script id="quarto-search-options" type="application/json">{
+  "location": "navbar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "end",
+  "type": "overlay",
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "show-item-context": false,
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit",
+    "search-label": "Search"
+  }
+}</script>
+<script async="" src="https://www.googletagmanager.com/gtag/js?id=G-EJF8PGT67H"></script>
+
+<script type="text/javascript">
+
+window.dataLayer = window.dataLayer || [];
+function gtag(){dataLayer.push(arguments);}
+gtag('js', new Date());
+gtag('config', 'G-EJF8PGT67H', { 'anonymize_ip': true});
+</script>
+
+
+<link rel="stylesheet" href="../../../styles.css">
+<meta property="og:title" content="Custom Fonts in R Packages: A Practical Guide – Vinicius Oike">
+<meta property="og:description" content="How to bundle fonts with ggplot2 themes, pass CRAN checks, and avoid the extrafont trap">
+<meta property="og:site_name" content="Vinicius Oike">
+</head>
+
+<body class="nav-fixed quarto-light">
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top quarto-banner">
+    <nav class="navbar navbar-expand-lg " data-bs-theme="dark">
+      <div class="navbar-container container-fluid">
+      <div class="navbar-brand-container mx-auto">
+    <a class="navbar-brand" href="../../../index.html">
+    <span class="navbar-title">Vinicius Oike</span>
+    </a>
+  </div>
+            <div id="quarto-search" class="" title="Search"></div>
+          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" role="menu" aria-expanded="false" aria-label="Toggle navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+  <span class="navbar-toggler-icon"></span>
+</button>
+          <div class="collapse navbar-collapse" id="navbarCollapse">
+            <ul class="navbar-nav navbar-nav-scroll me-auto">
+  <li class="nav-item">
+    <a class="nav-link" href="../../../blog.html"> 
+<span class="menu-text">Blog</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../../../aboutme.html"> 
+<span class="menu-text">About</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../../../cv.html"> 
+<span class="menu-text">CV</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../../../my_apps.html"> 
+<span class="menu-text">Apps</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../../../gallery.html"> 
+<span class="menu-text">Charts</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../../../press.html"> 
+<span class="menu-text">Press</span></a>
+  </li>  
+</ul>
+            <ul class="navbar-nav navbar-nav-scroll ms-auto">
+  <li class="nav-item compact">
+    <a class="nav-link" href="https://github.com/viniciusoike"> <i class="bi bi-github" role="img">
+</i> 
+<span class="menu-text"></span></a>
+  </li>  
+  <li class="nav-item compact">
+    <a class="nav-link" href="https://www.linkedin.com/in/viniciusoike"> <i class="bi bi-linkedin" role="img">
+</i> 
+<span class="menu-text"></span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../../../archive.html"> 
+<span class="menu-text">Archive</span></a>
+  </li>  
+</ul>
+          </div> <!-- /navcollapse -->
+            <div class="quarto-navbar-tools">
+</div>
+      </div> <!-- /container-fluid -->
+    </nav>
+</header>
+<!-- content -->
+<header id="title-block-header" class="quarto-title-block default page-columns page-full">
+  <div class="quarto-title-banner page-columns page-full">
+    <div class="quarto-title column-body">
+      <h1 class="title">Custom Fonts in R Packages: A Practical Guide</h1>
+            <p class="subtitle lead">How to bundle fonts with ggplot2 themes, pass CRAN checks, and avoid the extrafont trap</p>
+                                <div class="quarto-categories">
+                <div class="quarto-category">r</div>
+                <div class="quarto-category">ggplot2</div>
+                <div class="quarto-category">packages</div>
+                <div class="quarto-category">fonts</div>
+              </div>
+                  </div>
+  </div>
+    
+  
+  <div class="quarto-title-meta">
+
+      <div>
+      <div class="quarto-title-meta-heading">Author</div>
+      <div class="quarto-title-meta-contents">
+               <p>Vinicius Oike Reginatto </p>
+            </div>
+    </div>
+      
+      <div>
+      <div class="quarto-title-meta-heading">Published</div>
+      <div class="quarto-title-meta-contents">
+        <p class="date">June 2, 2026</p>
+      </div>
+    </div>
+    
+      
+    </div>
+    
+  
+  </header><div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article page-navbar">
+<!-- sidebar -->
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">On this page</h2>
+   
+  <ul>
+  <li><a href="#the-problem" id="toc-the-problem" class="nav-link active" data-scroll-target="#the-problem">The problem</a></li>
+  <li><a href="#r-has-three-font-systems-that-dont-talk-to-each-other" id="toc-r-has-three-font-systems-that-dont-talk-to-each-other" class="nav-link" data-scroll-target="#r-has-three-font-systems-that-dont-talk-to-each-other">R has three font systems that don’t talk to each other</a>
+  <ul class="collapse">
+  <li><a href="#layer-1-the-postscriptpdf-font-database" id="toc-layer-1-the-postscriptpdf-font-database" class="nav-link" data-scroll-target="#layer-1-the-postscriptpdf-font-database">Layer 1 – The PostScript/PDF font database</a></li>
+  <li><a href="#layer-2-system-fonts-cairo-quartz-gdi" id="toc-layer-2-system-fonts-cairo-quartz-gdi" class="nav-link" data-scroll-target="#layer-2-system-fonts-cairo-quartz-gdi">Layer 2 – System fonts (Cairo, Quartz, GDI)</a></li>
+  <li><a href="#layer-3-the-systemfonts-registry" id="toc-layer-3-the-systemfonts-registry" class="nav-link" data-scroll-target="#layer-3-the-systemfonts-registry">Layer 3 – The systemfonts registry</a></li>
+  </ul></li>
+  <li><a href="#the-strategies-and-which-one-to-pick" id="toc-the-strategies-and-which-one-to-pick" class="nav-link" data-scroll-target="#the-strategies-and-which-one-to-pick">The strategies (and which one to pick)</a>
+  <ul class="collapse">
+  <li><a href="#extrafont-the-legacy-approach" id="toc-extrafont-the-legacy-approach" class="nav-link" data-scroll-target="#extrafont-the-legacy-approach">extrafont – the legacy approach</a></li>
+  <li><a href="#showtext-the-universal-approach" id="toc-showtext-the-universal-approach" class="nav-link" data-scroll-target="#showtext-the-universal-approach">showtext – the universal approach</a></li>
+  <li><a href="#systemfonts-ragg-the-recommended-approach" id="toc-systemfonts-ragg-the-recommended-approach" class="nav-link" data-scroll-target="#systemfonts-ragg-the-recommended-approach">systemfonts + ragg – the recommended approach</a></li>
+  </ul></li>
+  <li><a href="#how-other-packages-handle-fonts" id="toc-how-other-packages-handle-fonts" class="nav-link" data-scroll-target="#how-other-packages-handle-fonts">How other packages handle fonts</a></li>
+  <li><a href="#a-step-by-step-workflow" id="toc-a-step-by-step-workflow" class="nav-link" data-scroll-target="#a-step-by-step-workflow">A step-by-step workflow</a>
+  <ul class="collapse">
+  <li><a href="#bundle-the-font-files-in-instfonts" id="toc-bundle-the-font-files-in-instfonts" class="nav-link" data-scroll-target="#bundle-the-font-files-in-instfonts">1. Bundle the font files in <code>inst/fonts/</code></a></li>
+  <li><a href="#put-systemfonts-and-ragg-in-suggests" id="toc-put-systemfonts-and-ragg-in-suggests" class="nav-link" data-scroll-target="#put-systemfonts-and-ragg-in-suggests">2. Put systemfonts and ragg in Suggests</a></li>
+  <li><a href="#register-in-.onload" id="toc-register-in-.onload" class="nav-link" data-scroll-target="#register-in-.onload">3. Register in <code>.onLoad()</code></a></li>
+  <li><a href="#gate-auto-detection-on-ragg" id="toc-gate-auto-detection-on-ragg" class="nav-link" data-scroll-target="#gate-auto-detection-on-ragg">4. Gate auto-detection on ragg</a></li>
+  <li><a href="#default-to-sans-with-an-override" id="toc-default-to-sans-with-an-override" class="nav-link" data-scroll-target="#default-to-sans-with-an-override">5. Default to “sans” with an override</a></li>
+  <li><a href="#write-cran-safe-examples" id="toc-write-cran-safe-examples" class="nav-link" data-scroll-target="#write-cran-safe-examples">6. Write CRAN-safe examples</a></li>
+  <li><a href="#provide-a-diagnostic-function" id="toc-provide-a-diagnostic-function" class="nav-link" data-scroll-target="#provide-a-diagnostic-function">7. Provide a diagnostic function</a></li>
+  </ul></li>
+  <li><a href="#common-mistakes" id="toc-common-mistakes" class="nav-link" data-scroll-target="#common-mistakes">Common mistakes</a></li>
+  <li><a href="#the-remaining-gap" id="toc-the-remaining-gap" class="nav-link" data-scroll-target="#the-remaining-gap">The remaining gap</a></li>
+  <li><a href="#summary" id="toc-summary" class="nav-link" data-scroll-target="#summary">Summary</a></li>
+  </ul>
+</nav>
+    </div>
+<!-- main -->
+<main class="content quarto-banner-title-block" id="quarto-document-content">
+
+
+
+
+
+<section id="the-problem" class="level2">
+<h2 class="anchored" data-anchor-id="the-problem">The problem</h2>
+<p>If you have ever shipped a ggplot2 theme with a custom font, you have probably seen a message similar to this one during <code>R CMD check</code>.</p>
+<pre><code>font family 'Poppins' not found in PostScript font database
+Error in grid.Call.graphics(C_text, ...) : invalid font type</code></pre>
+<p>The font is installed. It works in RStudio. It renders perfectly when you call <code>ragg::agg_png()</code>. Yet CRAN rejects your package.</p>
+<p>This post explains why that happens, surveys how existing packages handle it, and provides a step-by-step workflow that passes CRAN checks while still delivering the “it just works” experience for users with the right setup.</p>
+</section>
+<section id="r-has-three-font-systems-that-dont-talk-to-each-other" class="level2">
+<h2 class="anchored" data-anchor-id="r-has-three-font-systems-that-dont-talk-to-each-other">R has three font systems that don’t talk to each other</h2>
+<p>The root cause of every font issue in R is that the language has three independent font resolution layers, and a font visible to one layer is invisible to the others.</p>
+<section id="layer-1-the-postscriptpdf-font-database" class="level3">
+<h3 class="anchored" data-anchor-id="layer-1-the-postscriptpdf-font-database">Layer 1 – The PostScript/PDF font database</h3>
+<p>The <code>pdf()</code> and <code>postscript()</code> devices maintain their own internal font registry. It ships with about 14 standard families.</p>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="fu">names</span>(<span class="fu">pdfFonts</span>())</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; "serif" "sans" "mono" "AvantGarde" "Bookman" "Courier"</span></span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; "Helvetica" "Helvetica-Narrow" "NewCenturySchoolbook" "Palatino" ...</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>The <code>"sans"</code> alias maps to Helvetica, <code>"serif"</code> to Times, <code>"mono"</code> to Courier. These are the <em>only</em> font families guaranteed to work under <code>pdf()</code>, which is the device R CMD check uses to run your examples. In other words, the safest way to guarantee your custom ggplot2 will work is to work with these fonts.</p>
+<p>This layer knows nothing about system-installed fonts or fonts registered with <code>systemfonts</code>.</p>
+</section>
+<section id="layer-2-system-fonts-cairo-quartz-gdi" class="level3">
+<h3 class="anchored" data-anchor-id="layer-2-system-fonts-cairo-quartz-gdi">Layer 2 – System fonts (Cairo, Quartz, GDI)</h3>
+<p>Cairo-based devices (<code>cairo_pdf()</code>, <code>png(type = "cairo")</code>), the macOS Quartz device, and Windows GDI resolve fonts through the operating system’s native font stack (fontconfig on Linux, Core Text on macOS, the Windows font registry). These devices can use any font installed on the system but cannot see fonts registered with <code>systemfonts::register_font()</code>.</p>
+</section>
+<section id="layer-3-the-systemfonts-registry" class="level3">
+<h3 class="anchored" data-anchor-id="layer-3-the-systemfonts-registry">Layer 3 – The systemfonts registry</h3>
+<p><code>systemfonts</code> maintains its own in-process font registry (a C++ map keyed by family name). Fonts are added via <code>register_font()</code>. Only devices that link to <code>systemfonts</code> at the C level can see these fonts.</p>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>Device</th>
+<th>Package</th>
+<th>Sees registered fonts?</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>agg_png()</code>, <code>agg_jpeg()</code>, etc.</td>
+<td>ragg</td>
+<td>Yes</td>
+</tr>
+<tr class="even">
+<td><code>svglite()</code></td>
+<td>svglite</td>
+<td>Yes</td>
+</tr>
+<tr class="odd">
+<td><code>pdf()</code>, <code>postscript()</code></td>
+<td>grDevices</td>
+<td>No</td>
+</tr>
+<tr class="even">
+<td><code>cairo_pdf()</code>, <code>png()</code></td>
+<td>grDevices</td>
+<td>No</td>
+</tr>
+</tbody>
+</table>
+<p>This separation is why a font can render perfectly in an interactive RStudio session (using ragg) but fail during <code>R CMD check</code> (which uses <code>pdf()</code>).</p>
+<pre><code>ggplot(...) + theme(text = element_text(family = "Poppins"))
+
+pdf() device?       --&gt; pdfFonts() lookup --&gt; not found --&gt; WARNING
+ragg::agg_png()?    --&gt; systemfonts registry --&gt; found --&gt; renders correctly
+cairo_pdf()?        --&gt; OS font stack --&gt; only if system-installed</code></pre>
+</section>
+</section>
+<section id="the-strategies-and-which-one-to-pick" class="level2">
+<h2 class="anchored" data-anchor-id="the-strategies-and-which-one-to-pick">The strategies (and which one to pick)</h2>
+<p>Before choosing any strategy it’s important to think: does my package need a specific branded or custom font? Making custom fonts work out of the box makes for a better user experience but delegating font management to the end user is also a viable solution. The <code>ggthemes</code> package, for instance, could bundle specific fonts for the <code>theme_economist</code> or <code>theme_excel</code> functions to work even better but it instead opts for a simpler (and safer) solution: it assumes the user doesn’t have the necessary font and defaults to a font that all versions of R can execute.</p>
+<section id="extrafont-the-legacy-approach" class="level3">
+<h3 class="anchored" data-anchor-id="extrafont-the-legacy-approach">extrafont – the legacy approach</h3>
+<p>The <code>extrafont</code> package converts TrueType fonts to PostScript Type 1 format using the abandoned <code>ttf2pt1</code> binary. It is the only approach that natively supports <code>pdf()</code> and <code>postscript()</code>, but the price is high.</p>
+<p>It should not be used in packages. Here is why.</p>
+<div class="callout callout-style-default callout-warning callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Warning</span>extrafont was archived on CRAN in September 2025
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p>Its dependency <a href="https://cran.r-project.org/package=Rttf2pt1"><code>Rttf2pt1</code></a> was archived first, <a href="https://github.com/wch/extrafont/issues/104">triggering a cascade</a>. <a href="https://cran.r-project.org/package=tvthemes"><code>tvthemes</code></a> was archived the same day and has not returned. <a href="https://github.com/hrbrmstr/hrbrthemes/issues/75"><code>hrbrthemes</code></a> was archived and only came back <a href="https://cran.r-project.org/package=hrbrthemes">seven months later</a> by gutting all font registration code. Both <code>extrafont</code> and <code>Rttf2pt1</code> were restored about two weeks later under a new maintainer, but the damage to downstream packages was done. Any package that hard-depends on <code>extrafont</code> is one archival event away from removal.</p>
+</div>
+</div>
+<p>Beyond the archival risk, <code>extrafont</code> has structural problems.</p>
+<ul>
+<li><strong><code>font_import()</code> crashes on modern fonts.</strong> The <code>ttf2pt1</code> binary is abandonware. It processes fonts sequentially with <code>system2()</code> calls, taking 5–15 minutes on systems with hundreds of fonts, and <a href="https://github.com/wch/extrafont/issues/32">crashing mid-way</a> on fonts it cannot parse. Multiple issues (<a href="https://github.com/wch/extrafont/issues/74">#74</a>, <a href="https://github.com/wch/extrafont/issues/76">#76</a>, <a href="https://github.com/wch/extrafont/issues/88">#88</a>) report <code>font_import()</code> skipping <em>all</em> fonts with “No FontName. Skipping.”</li>
+<li><strong>Database corruption.</strong> Font metadata lives in a CSV file inside the installed <code>extrafontdb</code> package directory. No file locking, no transactions, no integrity checks. Concurrent sessions can corrupt it.</li>
+<li><strong>Writes to installed package directories.</strong> This fails in Docker, Nix, enterprise lockdowns, and cached CI runners.</li>
+<li><strong>Session state burden.</strong> <code>loadfonts()</code> must run every R session, and package load time scales linearly with the number of imported fonts.</li>
+</ul>
+<p>Thomas Lin Pedersen, maintainer of ggplot2 and author of systemfonts, has positioned systemfonts + ragg as the modern replacement in the Tidyverse blog post <a href="https://tidyverse.org/blog/2025/05/fonts-in-r/">“Fonts in R”</a> (May 2025), describing <code>extrafont</code> as a historical approach that “sought to mainly improve the situation for the <code>pdf()</code> device.”</p>
+</section>
+<section id="showtext-the-universal-approach" class="level3">
+<h3 class="anchored" data-anchor-id="showtext-the-universal-approach">showtext – the universal approach</h3>
+<p><code>showtext</code> hijacks the active device’s text rendering at the C level, replacing it with FreeType-based path rendering. It works with <em>any</em> device, which sounds ideal.</p>
+<p>The main drawback is that <strong>text is not selectable or searchable in PDFs</strong>. Glyph outlines replace actual text content. It also conflicts with <code>ggtext</code>, has DPI mismatch issues, and installs global hooks with no scoping mechanism. For interactive use and quick scripts it works well, but for packages it adds fragility without enough benefit.</p>
+<p>Initial versions of <code>benviplot</code>, one of my own branded ggplot2 packages, used <code>showtext</code> and <code>sysfonts::font_add_google()</code> to access the Poppins font. While this worked, it meant that the package always needed internet access to work and had a rather sluggish loading time, since the Poppins font had to be downloaded in every new R session. Finally, as mentioned before, calling <code>showtext_auto()</code> in the background, in order for the Poppins font to work, meant changing the DPI of output plots silently, which caused friction when exporting the plots.</p>
+</section>
+<section id="systemfonts-ragg-the-recommended-approach" class="level3">
+<h3 class="anchored" data-anchor-id="systemfonts-ragg-the-recommended-approach">systemfonts + ragg – the <a href="https://tidyverse.org/blog/2025/05/fonts-in-r/">recommended</a> approach</h3>
+<p>This is the recommended path. <code>systemfonts::register_font()</code> stores font file paths in a C++ map. When a ragg device renders text, it calls <code>systemfonts::locate_font()</code> to find the right file, then renders via FreeType with full HarfBuzz text shaping (ligatures, kerning).</p>
+<p>The limitation is that only ragg and svglite devices can see registered fonts. The <code>pdf()</code> device cannot. But this is manageable with the right example strategy.</p>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>Aspect</th>
+<th>extrafont</th>
+<th>showtext</th>
+<th>systemfonts + ragg</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>PDF device support</td>
+<td>Yes</td>
+<td>Yes (polygon outlines)</td>
+<td>No (planned)</td>
+</tr>
+<tr class="even">
+<td>Text selectable in PDF</td>
+<td>Yes</td>
+<td>No</td>
+<td>N/A</td>
+</tr>
+<tr class="odd">
+<td>Text shaping</td>
+<td>None</td>
+<td>None</td>
+<td>Full (HarfBuzz)</td>
+</tr>
+<tr class="even">
+<td>Session setup</td>
+<td>Every session</td>
+<td>Every session</td>
+<td><code>.onLoad()</code> suffices</td>
+</tr>
+<tr class="odd">
+<td>Write to pkg dirs</td>
+<td>Yes</td>
+<td>No</td>
+<td>No</td>
+</tr>
+<tr class="even">
+<td>CRAN archival risk</td>
+<td>High</td>
+<td>Low</td>
+<td>Low</td>
+</tr>
+<tr class="odd">
+<td>Maintainer</td>
+<td>Single (new)</td>
+<td>Single</td>
+<td>Posit team</td>
+</tr>
+</tbody>
+</table>
+</section>
+</section>
+<section id="how-other-packages-handle-fonts" class="level2">
+<h2 class="anchored" data-anchor-id="how-other-packages-handle-fonts">How other packages handle fonts</h2>
+<p>Before building our approach, we surveyed the landscape. As mentioned before, not delivering custom fonts is always a viable option and <code>ggthemes</code> is a solid example of a widely used package that does so.</p>
+<p>All other packages surveyed had the intent of delivering custom fonts and struggled with CRAN and later with the archival of extrafont.</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 20%">
+<col style="width: 20%">
+<col style="width: 20%">
+<col style="width: 20%">
+<col style="width: 20%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Package</th>
+<th>Strategy</th>
+<th>Fonts bundled?</th>
+<th>Fallback</th>
+<th>CRAN examples</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>ggthemes</td>
+<td>None</td>
+<td>No</td>
+<td>Defaults to <code>"sans"</code></td>
+<td>Run freely</td>
+</tr>
+<tr class="even">
+<td>thematic</td>
+<td>systemfonts or showtext</td>
+<td>Downloads on demand</td>
+<td><code>font_spec("")</code> = don’t alter</td>
+<td>Font ops in <code>\dontrun{}</code></td>
+</tr>
+<tr class="odd">
+<td>hrbrthemes</td>
+<td>None (gutted post-archival)</td>
+<td>Yes, but never registered</td>
+<td>None – hardcoded names</td>
+<td>All in <code>\dontrun{}</code></td>
+</tr>
+<tr class="even">
+<td>firatheme</td>
+<td>extrafont</td>
+<td>Yes</td>
+<td>None</td>
+<td>Never submitted to CRAN</td>
+</tr>
+<tr class="odd">
+<td>tvthemes</td>
+<td>extrafont</td>
+<td>Yes</td>
+<td><code>NULL</code></td>
+<td>Archived (Sep 2025)</td>
+</tr>
+</tbody>
+</table>
+<p><strong>ggthemes</strong> takes the safest approach – it defaults to generic families and never touches font registration. The themes do not look like their real-world counterparts (e.g.&nbsp;<code>theme_economist</code> doesn’t have a font similar to The Economist) out of the box, but there is zero CRAN risk.</p>
+<p><strong>hrbrthemes</strong> went through the most dramatic transformation. The v0.9.3 release removed all font dependencies entirely. Every single example is wrapped in <code>\dontrun{}</code>, meaning CRAN never runs any of them. The fonts are bundled but serve only as a distribution mechanism for users to install manually.</p>
+<p><strong>tvthemes</strong> and <strong>firatheme</strong> demonstrate the extrafont anti-pattern. Both hard-imported <code>extrafont</code>. tvthemes was archived alongside it. firatheme never made it to CRAN.</p>
+<p>None of these packages achieve what we wanted: <strong>auto-detection that works out of the box for ragg users, with examples that actually run on CRAN.</strong></p>
+</section>
+<section id="a-step-by-step-workflow" class="level2">
+<h2 class="anchored" data-anchor-id="a-step-by-step-workflow">A step-by-step workflow</h2>
+<p>This is the approach I implemented in <a href="https://github.com/viniciusoike/benviplot">benviplot</a>. It bundles the Poppins font, auto-detects it for ragg users, falls back to <code>"sans"</code> otherwise, and passes <code>R CMD check --as-cran</code> with all examples running.</p>
+<p>While wrapping all examples with <code>dontrun</code> is a viable strategy, it’s not considered a good practice and there are better workarounds. Packages like <code>googledrive</code>, <code>gargle</code>, and many others have examples that are “doomed” to fail CRAN checks. Even so, each one of them managed better solution then <code>dontrun</code><a href="#fn1" class="footnote-ref" id="fnref1" role="doc-noteref"><sup>1</sup></a>.</p>
+<section id="bundle-the-font-files-in-instfonts" class="level3">
+<h3 class="anchored" data-anchor-id="bundle-the-font-files-in-instfonts">1. Bundle the font files in <code>inst/fonts/</code></h3>
+<p>This is the easiest way to make your customs fonts available for users. If you plan on bundling multiple fonts, I recommend inserting only the weights that are actually used, since these can take up valuable space. <code>systemfonts::register_font()</code> supports exactly four faces: plain, bold, italic, bolditalic. Each weight adds 100–300KB.</p>
+<pre><code>inst/
+  fonts/
+    Poppins-Regular.ttf
+    Poppins-Bold.ttf
+    Poppins-Italic.ttf
+    Poppins-BoldItalic.ttf</code></pre>
+<p>It’s important to note that you should include some form of copyright or license text file alongside your fonts to avoid any complication.</p>
+</section>
+<section id="put-systemfonts-and-ragg-in-suggests" class="level3">
+<h3 class="anchored" data-anchor-id="put-systemfonts-and-ragg-in-suggests">2. Put systemfonts and ragg in Suggests</h3>
+<p>This isn’t a “hard” rule, but as a general point you package should always try to be minimal with dependencies. The package works without them (using <code>"sans"</code>), and works better with them.</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5"><pre class="sourceCode yaml code-with-copy"><code class="sourceCode yaml"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="co"># DESCRIPTION</span></span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a><span class="fu">Suggests</span><span class="kw">:</span></span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a><span class="at">    ragg,</span></span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a><span class="at">    systemfonts,</span></span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a><span class="at">    testthat (&gt;= 3.0.0)</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</section>
+<section id="register-in-.onload" class="level3">
+<h3 class="anchored" data-anchor-id="register-in-.onload">3. Register in <code>.onLoad()</code></h3>
+<p>Use <code>.onLoad()</code>, not <code>.onAttach()</code>. The <code>.onAttach()</code> hook only fires on <code>library()</code>, not when another package imports yours or during <code>devtools::load_all()</code>.</p>
+<p>Always wrap <code>register_font()</code> in <code>tryCatch()</code> – it errors if a font with the same name is already system-installed.</p>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="co"># R/zzz.R</span></span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>.onLoad <span class="ot">&lt;-</span> <span class="cf">function</span>(libname, pkgname) {</span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>  <span class="cf">if</span> (<span class="fu">requireNamespace</span>(<span class="st">"systemfonts"</span>, <span class="at">quietly =</span> <span class="cn">TRUE</span>)) {</span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a>    <span class="fu">register_bundled_poppins</span>(pkgname)</span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a>  }</span>
+<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a>register_bundled_poppins <span class="ot">&lt;-</span> <span class="cf">function</span>(pkgname) {</span>
+<span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a>  font_dir <span class="ot">&lt;-</span> <span class="fu">system.file</span>(<span class="st">"fonts"</span>, <span class="at">package =</span> pkgname)</span>
+<span id="cb6-10"><a href="#cb6-10" aria-hidden="true" tabindex="-1"></a>  <span class="cf">if</span> (<span class="sc">!</span><span class="fu">nzchar</span>(font_dir)) {</span>
+<span id="cb6-11"><a href="#cb6-11" aria-hidden="true" tabindex="-1"></a>    <span class="fu">return</span>(<span class="fu">invisible</span>(<span class="cn">NULL</span>))</span>
+<span id="cb6-12"><a href="#cb6-12" aria-hidden="true" tabindex="-1"></a>  }</span>
+<span id="cb6-13"><a href="#cb6-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-14"><a href="#cb6-14" aria-hidden="true" tabindex="-1"></a>  f <span class="ot">&lt;-</span> <span class="cf">function</span>(name) <span class="fu">file.path</span>(font_dir, name)</span>
+<span id="cb6-15"><a href="#cb6-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-16"><a href="#cb6-16" aria-hidden="true" tabindex="-1"></a>  <span class="fu">tryCatch</span>(</span>
+<span id="cb6-17"><a href="#cb6-17" aria-hidden="true" tabindex="-1"></a>    systemfonts<span class="sc">::</span><span class="fu">register_font</span>(</span>
+<span id="cb6-18"><a href="#cb6-18" aria-hidden="true" tabindex="-1"></a>      <span class="at">name =</span> <span class="st">"Poppins"</span>,</span>
+<span id="cb6-19"><a href="#cb6-19" aria-hidden="true" tabindex="-1"></a>      <span class="at">plain =</span> <span class="fu">f</span>(<span class="st">"Poppins-Regular.ttf"</span>),</span>
+<span id="cb6-20"><a href="#cb6-20" aria-hidden="true" tabindex="-1"></a>      <span class="at">bold =</span> <span class="fu">f</span>(<span class="st">"Poppins-Bold.ttf"</span>),</span>
+<span id="cb6-21"><a href="#cb6-21" aria-hidden="true" tabindex="-1"></a>      <span class="at">italic =</span> <span class="fu">f</span>(<span class="st">"Poppins-Italic.ttf"</span>),</span>
+<span id="cb6-22"><a href="#cb6-22" aria-hidden="true" tabindex="-1"></a>      <span class="at">bolditalic =</span> <span class="fu">f</span>(<span class="st">"Poppins-BoldItalic.ttf"</span>)</span>
+<span id="cb6-23"><a href="#cb6-23" aria-hidden="true" tabindex="-1"></a>    ),</span>
+<span id="cb6-24"><a href="#cb6-24" aria-hidden="true" tabindex="-1"></a>    <span class="at">error =</span> <span class="cf">function</span>(e) <span class="cn">NULL</span></span>
+<span id="cb6-25"><a href="#cb6-25" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb6-26"><a href="#cb6-26" aria-hidden="true" tabindex="-1"></a>  <span class="fu">invisible</span>(<span class="cn">NULL</span>)</span>
+<span id="cb6-27"><a href="#cb6-27" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+</section>
+<section id="gate-auto-detection-on-ragg" class="level3">
+<h3 class="anchored" data-anchor-id="gate-auto-detection-on-ragg">4. Gate auto-detection on ragg</h3>
+<p>A font in the systemfonts registry is useless if the active device cannot read it. Since you cannot know the device at theme-creation time, gate on whether ragg is <em>installed</em> as a proxy.</p>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb7"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="co"># R/zzz.R</span></span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>poppins_is_registered <span class="ot">&lt;-</span> <span class="cf">function</span>() {</span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">tryCatch</span>(</span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a>    {</span>
+<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a>      <span class="cf">if</span> (<span class="sc">!</span><span class="fu">requireNamespace</span>(<span class="st">"systemfonts"</span>, <span class="at">quietly =</span> <span class="cn">TRUE</span>)) {</span>
+<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a>        <span class="fu">return</span>(<span class="cn">FALSE</span>)</span>
+<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a>      }</span>
+<span id="cb7-8"><a href="#cb7-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-9"><a href="#cb7-9" aria-hidden="true" tabindex="-1"></a>      registry <span class="ot">&lt;-</span> systemfonts<span class="sc">::</span><span class="fu">registry_fonts</span>()</span>
+<span id="cb7-10"><a href="#cb7-10" aria-hidden="true" tabindex="-1"></a>      has_registered <span class="ot">&lt;-</span> <span class="fu">nrow</span>(registry) <span class="sc">&gt;</span> <span class="dv">0</span> <span class="sc">&amp;&amp;</span></span>
+<span id="cb7-11"><a href="#cb7-11" aria-hidden="true" tabindex="-1"></a>        <span class="fu">any</span>(<span class="fu">grepl</span>(<span class="st">"Poppins"</span>, registry<span class="sc">$</span>family, <span class="at">ignore.case =</span> <span class="cn">TRUE</span>))</span>
+<span id="cb7-12"><a href="#cb7-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-13"><a href="#cb7-13" aria-hidden="true" tabindex="-1"></a>      has_registered <span class="sc">&amp;&amp;</span> <span class="fu">requireNamespace</span>(<span class="st">"ragg"</span>, <span class="at">quietly =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb7-14"><a href="#cb7-14" aria-hidden="true" tabindex="-1"></a>    },</span>
+<span id="cb7-15"><a href="#cb7-15" aria-hidden="true" tabindex="-1"></a>    <span class="at">error =</span> <span class="cf">function</span>(e) <span class="cn">FALSE</span></span>
+<span id="cb7-16"><a href="#cb7-16" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb7-17"><a href="#cb7-17" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<div class="callout callout-style-default callout-important callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Important</span>Why checking ragg is necessary
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p>We initially tried three weaker checks, all of which failed.</p>
+<ol type="1">
+<li><strong>Registry-only check</strong> – <code>systemfonts::registry_fonts()</code> confirms the font is registered, but <code>pdf()</code> ignores it. Failed on win-builder.</li>
+<li><strong>System fonts check</strong> – <code>systemfonts::system_fonts()</code> uses CoreText on macOS, which is not the same as the PostScript font database. Failed locally with <code>devtools::check()</code>.</li>
+<li><strong>ragg-available check</strong> – ragg being <em>installed</em> does not mean it is the <em>active device</em>. R CMD check uses <code>pdf()</code> regardless. Failed with <code>--run-donttest</code>.</li>
+</ol>
+<p>The ragg gate works because it correctly reports <code>FALSE</code> on CRAN (where ragg is typically not installed) while returning <code>TRUE</code> for users who have the right setup for interactive use.</p>
+</div>
+</div>
+</section>
+<section id="default-to-sans-with-an-override" class="level3">
+<h3 class="anchored" data-anchor-id="default-to-sans-with-an-override">5. Default to “sans” with an override</h3>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb8"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="co"># R/theme_benvi.R</span></span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>default_font_family <span class="ot">&lt;-</span> <span class="cf">function</span>() {</span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a>  <span class="cf">if</span> (<span class="fu">poppins_is_registered</span>()) <span class="st">"Poppins"</span> <span class="cf">else</span> <span class="st">"sans"</span></span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a>theme_benvi <span class="ot">&lt;-</span> <span class="cf">function</span>(</span>
+<span id="cb8-7"><a href="#cb8-7" aria-hidden="true" tabindex="-1"></a>  <span class="at">base_family =</span> <span class="fu">getOption</span>(<span class="st">"theme_benvi.font_family"</span>, <span class="fu">default_font_family</span>()),</span>
+<span id="cb8-8"><a href="#cb8-8" aria-hidden="true" tabindex="-1"></a>  <span class="at">base_size =</span> <span class="dv">10</span>,</span>
+<span id="cb8-9"><a href="#cb8-9" aria-hidden="true" tabindex="-1"></a>  ...</span>
+<span id="cb8-10"><a href="#cb8-10" aria-hidden="true" tabindex="-1"></a>) {</span>
+<span id="cb8-11"><a href="#cb8-11" aria-hidden="true" tabindex="-1"></a>  <span class="co"># theme implementation</span></span>
+<span id="cb8-12"><a href="#cb8-12" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>Users who want to force a specific font globally can set <code>options(theme_benvi.font_family = "Poppins")</code> in their <code>.Rprofile</code>. Users who need PDF output can set <code>options(theme_benvi.font_family = "sans")</code>.</p>
+</section>
+<section id="write-cran-safe-examples" class="level3">
+<h3 class="anchored" data-anchor-id="write-cran-safe-examples">6. Write CRAN-safe examples</h3>
+<p>This is where most packages get it wrong. Three patterns work.</p>
+<p><strong>Pattern A</strong> – For functions where you control the <code>base_family</code> argument, pass <code>"sans"</code> explicitly.</p>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb9"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="co">#' @examples</span></span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a><span class="co">#' library(ggplot2)</span></span>
+<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a><span class="co">#' ggplot(mtcars, aes(wt, mpg)) +</span></span>
+<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a><span class="co">#'   geom_point() +</span></span>
+<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a><span class="co">#'   theme_benvi(base_family = "sans")</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p><strong>Pattern B</strong> – For wrapper functions that call <code>theme_benvi()</code> internally (and therefore do not expose <code>base_family</code>), use <code>\dontshow{}</code> to override the option.</p>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb10"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="co">#' @examples</span></span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a><span class="co">#' \dontshow{.op &lt;- options(theme_benvi.font_family = "sans")}</span></span>
+<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a><span class="co">#' plot_line(data = sao_paulo, x = date, y = index)</span></span>
+<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a><span class="co">#' \dontshow{options(.op)}</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>The <code>\dontshow{}</code> block runs during R CMD check but does not appear on the help page. Users see clean examples; CRAN sees safe ones.</p>
+<p><strong>Pattern C</strong> – For font-specific examples, use <code>\dontrun{}</code>.</p>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb11"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="co">#' \dontrun{</span></span>
+<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a><span class="co">#' # With Poppins (requires systemfonts + ragg)</span></span>
+<span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a><span class="co">#' ggplot(mtcars, aes(wt, mpg)) +</span></span>
+<span id="cb11-4"><a href="#cb11-4" aria-hidden="true" tabindex="-1"></a><span class="co">#'   geom_point() +</span></span>
+<span id="cb11-5"><a href="#cb11-5" aria-hidden="true" tabindex="-1"></a><span class="co">#'   theme_benvi(base_family = "Poppins")</span></span>
+<span id="cb11-6"><a href="#cb11-6" aria-hidden="true" tabindex="-1"></a><span class="co">#' }</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<div class="callout callout-style-default callout-caution callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Caution</span><code>\donttest{}</code> is not enough
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p>Since <a href="https://forum.posit.co/t/r-cmd-check-r-4-0-0-now-runs-donttest-how-to-proceed-with-long-running-examples/64493">R 4.0</a>, CRAN sets <code>_R_CHECK_DONTTEST_EXAMPLES_</code> to <code>TRUE</code> during submission checks. Code inside <code>\donttest{}</code> IS executed. Only <code>\dontrun{}</code> reliably prevents execution.</p>
+</div>
+</div>
+</section>
+<section id="provide-a-diagnostic-function" class="level3">
+<h3 class="anchored" data-anchor-id="provide-a-diagnostic-function">7. Provide a diagnostic function</h3>
+<p>Give users a way to check their setup. This saves significant debugging time.</p>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb12"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="fu">font_status</span>()</span>
+<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; -- benviplot Font Status -------</span></span>
+<span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; v Poppins font: registered (bundled)</span></span>
+<span id="cb12-4"><a href="#cb12-4" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; v ragg package: available</span></span>
+<span id="cb12-5"><a href="#cb12-5" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; v theme_benvi() will use Poppins automatically with ragg devices.</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+</section>
+</section>
+<section id="common-mistakes" class="level2">
+<h2 class="anchored" data-anchor-id="common-mistakes">Common mistakes</h2>
+<ol type="1">
+<li><p><strong>Hard-importing extrafont or showtext.</strong> Place font packages in <code>Suggests</code> and guard calls with <code>requireNamespace()</code>. A hard import means your package gets archived if the dependency does.</p></li>
+<li><p><strong>Hardcoding a font name with no fallback.</strong> hrbrthemes v0.9.3 defaults <code>theme_ipsum_rc()</code> to <code>"Roboto Condensed"</code> with no detection. Users without the font get silent rendering failures.</p></li>
+<li><p><strong>Using <code>.onAttach()</code> instead of <code>.onLoad()</code>.</strong> <code>.onAttach()</code> does not fire when another package imports yours or during <code>devtools::load_all()</code>.</p></li>
+<li><p><strong>Not wrapping <code>register_font()</code> in <code>tryCatch()</code>.</strong> It errors if the font is already system-installed.</p></li>
+<li><p><strong>Forgetting that R CMD check uses <code>pdf()</code>.</strong> This is the single most common CRAN rejection reason for font-dependent packages.</p></li>
+<li><p><strong>Relying on <code>\donttest{}</code> for protection.</strong> CRAN runs <code>\donttest{}</code> code. Use <code>\dontrun{}</code> for font-dependent examples.</p></li>
+<li><p><strong>Wrapping ALL examples in <code>\dontrun{}</code>.</strong> CRAN requires at least one runnable example per exported function. Also, maintaining a package where examples are skipped by default has a higher chance of leading to unexpected errors.</p></li>
+</ol>
+</section>
+<section id="the-remaining-gap" class="level2">
+<h2 class="anchored" data-anchor-id="the-remaining-gap">The remaining gap</h2>
+<p>The biggest limitation of the systemfonts + ragg stack is that PDF output is not yet supported. The <a href="https://systemfonts.r-lib.org/articles/systemfonts.html">systemfonts vignette</a> acknowledges this explicitly: “You might notice there’s currently a big hole in this workflow: PDFs.” Users who need custom fonts in PDF currently have three options.</p>
+<ul>
+<li><strong><code>cairo_pdf()</code></strong> – works if the font is installed system-wide (not just registered)</li>
+<li><strong>showtext</strong> – renders text as polygon outlines (font works but text is not selectable)</li>
+<li><strong>ragg at high DPI</strong> – <code>ragg::agg_png()</code> at 300+ DPI produces publication-quality bitmap output</li>
+</ul>
+<p>PDF support in systemfonts is planned but has no timeline. Until then, documenting this limitation clearly is the best you can do.</p>
+</section>
+<section id="summary" class="level2">
+<h2 class="anchored" data-anchor-id="summary">Summary</h2>
+<p>Font management in R packages is harder than it should be, but the systemfonts + ragg stack provides a clean path forward. The key insights are that R has three independent font resolution systems, that <code>R CMD check</code> uses <code>pdf()</code> which only knows about 14 font families, and that examples must be explicitly protected from font-dependent code.</p>
+<p>The workflow described here – bundle fonts, register in <code>.onLoad()</code>, gate on ragg, default to <code>"sans"</code>, protect examples – delivers the best of both worlds. Users with ragg get the custom font automatically. CRAN gets examples that run cleanly. And you avoid the maintenance risk of depending on fragile packages like extrafont.</p>
+
+
+</section>
+
+
+<div id="quarto-appendix" class="default"><section id="footnotes" class="footnotes footnotes-end-of-document" role="doc-endnotes"><h2 class="anchored quarto-appendix-heading">Footnotes</h2>
+
+<ol>
+<li id="fn1"><p>I recommend consulting the Function documentation chapter of the <a href="https://r-pkgs.org/man.html#sec-man-examples-errors">R Packages book</a>.<a href="#fnref1" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+</ol>
+</section></div></main> <!-- /main -->
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copied!");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copied!");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp("https:\/\/www\.restateinsight\.com");
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
+</div> <!-- /content -->
+
+
+
+
+</body></html>

@@ -2,7 +2,7 @@
 <html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
 
 <meta charset="utf-8">
-<meta name="generator" content="quarto-1.7.33">
+<meta name="generator" content="quarto-1.9.37">
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
@@ -12,6 +12,9 @@
 
 <title>EMV no R – Vinicius Oike</title>
 <style>
+/* Default styles provided by pandoc.
+** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+*/
 code{white-space: pre-wrap;}
 span.smallcaps{font-variant: small-caps;}
 div.columns{display: flex; gap: min(4vw, 1.5em);}
@@ -74,10 +77,10 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <script src="../../../site_libs/quarto-html/tippy.umd.min.js"></script>
 <script src="../../../site_libs/quarto-html/anchor.min.js"></script>
 <link href="../../../site_libs/quarto-html/tippy.css" rel="stylesheet">
-<link href="../../../site_libs/quarto-html/quarto-syntax-highlighting-65ceba22b1a2bc45b1f8c349a1513ec1.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<link href="../../../site_libs/quarto-html/quarto-syntax-highlighting-c3cf9d46a7c8b92850f815292f8d7832.css" rel="stylesheet" id="quarto-text-highlighting-styles">
 <script src="../../../site_libs/bootstrap/bootstrap.min.js"></script>
 <link href="../../../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
-<link href="../../../site_libs/bootstrap/bootstrap-1d3a31d95e5cb5c8e68bd63598ea7077.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<link href="../../../site_libs/bootstrap/bootstrap-29b808bd45cb145992fdff6f5eb71f07.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
 <script id="quarto-search-options" type="application/json">{
   "location": "navbar",
   "copy-button": false,
@@ -116,7 +119,7 @@ gtag('config', 'G-EJF8PGT67H', { 'anonymize_ip': true});
 </script>
 
   <script src="https://cdnjs.cloudflare.com/polyfill/v3/polyfill.min.js?features=es6"></script>
-  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script>
+  <script defer="" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script>
 
 <script type="text/javascript">
 const typesetMath = (el) => {
@@ -129,7 +132,7 @@ const typesetMath = (el) => {
     var macros = [];
     for (var i = 0; i < mathElements.length; i++) {
       var texText = mathElements[i].firstChild;
-      if (mathElements[i].tagName == "SPAN") {
+      if (mathElements[i].tagName == "SPAN" && texText && texText.data) {
         window.katex.render(texText.data, mathElements[i], {
           displayMode: mathElements[i].classList.contains('display'),
           throwOnError: false,
@@ -148,7 +151,7 @@ window.Quarto = {
 <link rel="stylesheet" href="../../../styles.css">
 <meta property="og:title" content="EMV no R – Vinicius Oike">
 <meta property="og:description" content="Os estimadoes de máxima verossimilhança possuem várias boas propriedades. Neste post discuto tanto aspectos teóricos como aplicados, com exemplos, e faço algumas simulações para comprovar resultados assintóticos.">
-<meta property="og:image" content="https:://www.restateinsight.com/static/emv-r.svg">
+<meta property="og:image" content="https://www.restateinsight.com/static/emv-r.svg">
 <meta property="og:site_name" content="Vinicius Oike">
 <meta property="og:image:alt" content="/static/emv-r.svg">
 </head>
@@ -185,6 +188,10 @@ window.Quarto = {
   <li class="nav-item">
     <a class="nav-link" href="../../../my_apps.html"> 
 <span class="menu-text">Apps</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../../../gallery.html"> 
+<span class="menu-text">Charts</span></a>
   </li>  
   <li class="nav-item">
     <a class="nav-link" href="../../../press.html"> 
@@ -290,10 +297,10 @@ window.Quarto = {
 <p>Há vários pacotes que ajudam a implementar a estimação por máxima verossimilhança no <code>R</code>. Neste post vou me ater apenas a dois pacotes: o <code>optimx</code> e o <code>maxLik</code>. O primeiro deles agrega funções de otimização de diversos outros pacotes numa sintaxe unificada centrada em algumas poucas funções. O último é feito especificamente para estimação de máxima verossimilhança então traz algumas comodidades como a estimação automática de erros-padrão.</p>
 <p>Vale lembrar que o problema de MV é, essencialmente, um problema de otimização, então é possível resolvê-lo simplesmente com a função <code>optim</code> do <code>R</code>. Os dois pacotes simplesmente trazem algumas comodidades.</p>
 <div class="cell" data-layout-align="center">
-<div class="sourceCode cell-code" id="cb1"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(maxLik)</span>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(maxLik)</span>
 <span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(optimx)</span>
 <span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="co"># Para reproduzir os resultados</span></span>
-<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">33</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">33</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 </section>
 <section id="exemplo-com-distribuição-poisson" class="level1">
@@ -338,24 +345,24 @@ window.Quarto = {
 \]</span></p>
 <p>onde os valores de <span class="math inline">\(x_{k}\)</span> são os nossos dados observados. Para implementar este procedimento no R primeiro montamos a função log-verossimilhança no código abaixo. Em seguida vamos usar a função base <code>optim</code> que resolve problemas de minimização. Como a função <code>optim</code> serve para <em>minimizar</em> funções precisamos implementar o negativo da função de log-verossimilhança (lembrando que maximizar <span class="math inline">\(f(x)\)</span> é equivalente à minimizar <span class="math inline">\(-f(x)\)</span>).</p>
 <div class="cell" data-layout-align="center">
-<div class="sourceCode cell-code" id="cb2"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>ll_pois <span class="ot">&lt;-</span> <span class="cf">function</span>(x, theta) {</span>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>ll_pois <span class="ot">&lt;-</span> <span class="cf">function</span>(x, theta) {</span>
 <span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>    n <span class="ot">&lt;-</span> <span class="fu">length</span>(x)</span>
 <span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>    ll <span class="ot">&lt;-</span> <span class="fu">log</span>(theta) <span class="sc">*</span> <span class="fu">sum</span>(x) <span class="sc">-</span> n <span class="sc">*</span> theta <span class="sc">-</span> <span class="fu">sum</span>(<span class="fu">log</span>(<span class="fu">factorial</span>(x)))</span>
 <span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>    <span class="fu">return</span>(<span class="sc">-</span>ll)</span>
-<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>}</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <p>Vamos simular 1000 observações <span class="math inline">\(x_{i} \sim \text{Poisson}(\lambda = 5)\)</span>.</p>
 <div class="cell" data-layout-align="center">
-<div class="sourceCode cell-code" id="cb3"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>amostra <span class="ot">&lt;-</span> <span class="fu">rpois</span>(<span class="dv">1000</span>, <span class="at">lambda =</span> <span class="dv">5</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>amostra <span class="ot">&lt;-</span> <span class="fu">rpois</span>(<span class="dv">1000</span>, <span class="at">lambda =</span> <span class="dv">5</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <p>Podemos tornar mais claro o procedimento de estimação olhando para o gráfico da função. O código abaixo plota o gráfico da função de log-verossimilhança para valores de <span class="math inline">\(\lambda\)</span> no intervalo <span class="math inline">\([0, 20]\)</span>. Note que a função parece atingir um máximo em torno de <span class="math inline">\(5\)</span>, o valor verdadeiro do parâmetro.</p>
 <div class="cell" data-layout-align="center">
-<div class="sourceCode cell-code" id="cb4"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>eixo_lambda <span class="ot">&lt;-</span> <span class="fu">seq</span>(<span class="dv">0</span>, <span class="dv">20</span>, .<span class="dv">001</span>)</span>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>eixo_lambda <span class="ot">&lt;-</span> <span class="fu">seq</span>(<span class="dv">0</span>, <span class="dv">20</span>, .<span class="dv">001</span>)</span>
 <span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a><span class="fu">plot</span>(eixo_lambda, <span class="sc">-</span><span class="fu">ll_pois</span>(amostra, eixo_lambda), <span class="at">type =</span> <span class="st">"l"</span>,</span>
 <span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>     <span class="at">xlab =</span> <span class="fu">bquote</span>(lambda),</span>
 <span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a>     <span class="at">ylab =</span> <span class="fu">bquote</span>(<span class="st">"L("</span><span class="sc">~</span>lambda<span class="sc">~</span><span class="st">";"</span><span class="sc">~</span>x[<span class="dv">1</span>]<span class="sc">~</span><span class="st">", ... ,"</span><span class="sc">~</span>x[n]<span class="sc">~</span><span class="st">")"</span>),</span>
 <span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a>     <span class="at">main =</span> <span class="st">"Função log-verossimilhança da Poisson"</span>)</span>
-<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a><span class="fu">abline</span>(<span class="at">v =</span> <span class="dv">5</span>, <span class="at">col =</span> <span class="st">"indianred"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a><span class="fu">abline</span>(<span class="at">v =</span> <span class="dv">5</span>, <span class="at">col =</span> <span class="st">"indianred"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output-display">
 <div class="quarto-figure quarto-figure-center">
 <figure class="figure">
@@ -367,7 +374,7 @@ window.Quarto = {
 <p>Para estimar <span class="math inline">\(\lambda\)</span> usamos a função <code>optim</code>. É preciso definir algum valor inicial para que o otimizador numérico comece a procurar pelo máximo global. Em casos mais simples, de funções globalmente côncavas, esta escolha não apresenta grandes consequências. Em casos mais complicados, o resultado da estimação pode ser bastante sensível à escolha de valor inicial porque o otimizador pode cair em máximos/mínimos locais. No final do post discuto brevemente algumas soluções. Neste exemplo escolho arbitrariamente começar no valor <span class="math inline">\(1\)</span>.</p>
 <p>Neste caso também poderíamos usar o fato de que a esperança da Poisson é igual a <span class="math inline">\(\lambda\)</span>, logo, pela Lei dos Grandes Números, a média amostral já deve estar próxima do verdadeiro valor de <span class="math inline">\(\lambda\)</span>. Assim, poderíamos também ter escolhido <code>mean(amostra)</code> como valor inicial.</p>
 <div class="cell" data-layout-align="center">
-<div class="sourceCode cell-code" id="cb5"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>fit <span class="ot">&lt;-</span> <span class="fu">optim</span>(</span>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>fit <span class="ot">&lt;-</span> <span class="fu">optim</span>(</span>
 <span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>  <span class="at">par =</span> <span class="dv">1</span>,</span>
 <span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">fn =</span> ll_pois,</span>
 <span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">x =</span> amostra,</span>
@@ -375,7 +382,7 @@ window.Quarto = {
 <span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a>  <span class="at">hessian =</span> <span class="cn">TRUE</span></span>
 <span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a>  )</span>
 <span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a>fit</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a>fit</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>$par
 [1] 4.938
@@ -400,7 +407,7 @@ $hessian
 </div>
 <p>A saída da função traz várias informações técnicas sobre a otimização numérica. A estimativa pontual computada foi de <span class="math inline">\(4.938\)</span> - bastante próxima do verdadeiro valor do parâmetro. Usando a função <code>str</code> podemos observar a estrutura do objeto <code>fit</code> criado acima. As principais informações que podemos extrair são as estimativas dos parâmetros <code>fit$par</code> e a hessiana calculada nestes parâmetros <code>fit$hessian</code>.</p>
 <div class="cell" data-layout-align="center">
-<div class="sourceCode cell-code" id="cb7"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="fu">str</span>(fit)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb7"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="fu">str</span>(fit)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>List of 6
  $ par        : num 4.94
@@ -414,7 +421,7 @@ $hessian
 </div>
 <p>Usando a estimativa da hessiana podemos computar o erro-padrão da estimativa. Lembre que a variância assintótica do estimador de máxima verossimilhança é o inverso da matriz de informação de Fisher que pode ser expressa como o negativo do valor esperado da hessiana. Isto é, podemos encontrar a variância assintótica calculando o inverso da hessiana (como fizemos a minimização do negativo da função log-verossimilhança não precisamos calcular o negativo da hessiana).</p>
 <div class="cell" data-layout-align="center">
-<div class="sourceCode cell-code" id="cb9"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>(ep <span class="ot">&lt;-</span> <span class="fu">sqrt</span>(<span class="dv">1</span><span class="sc">/</span>fit<span class="sc">$</span>hess))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb9"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>(ep <span class="ot">&lt;-</span> <span class="fu">sqrt</span>(<span class="dv">1</span><span class="sc">/</span>fit<span class="sc">$</span>hess))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>          [,1]
 [1,] 0.0702709</code></pre>
@@ -422,11 +429,11 @@ $hessian
 </div>
 <p>Com o erro-padrão podemos calcular intervalos de confiança e estatística t.</p>
 <div class="cell" data-layout-align="center">
-<div class="sourceCode cell-code" id="cb11"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a>(ic <span class="ot">&lt;-</span> <span class="fu">c</span>(fit<span class="sc">$</span>par <span class="sc">-</span> <span class="fl">1.96</span> <span class="sc">*</span> ep, fit<span class="sc">$</span>par <span class="sc">+</span> <span class="fl">1.96</span> <span class="sc">*</span> ep))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb11"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a>(ic <span class="ot">&lt;-</span> <span class="fu">c</span>(fit<span class="sc">$</span>par <span class="sc">-</span> <span class="fl">1.96</span> <span class="sc">*</span> ep, fit<span class="sc">$</span>par <span class="sc">+</span> <span class="fl">1.96</span> <span class="sc">*</span> ep))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>[1] 4.800269 5.075731</code></pre>
 </div>
-<div class="sourceCode cell-code" id="cb13"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a>(est_t <span class="ot">&lt;-</span> (fit<span class="sc">$</span>par <span class="sc">-</span> <span class="dv">5</span>) <span class="sc">/</span> ep)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb13"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a>(est_t <span class="ot">&lt;-</span> (fit<span class="sc">$</span>par <span class="sc">-</span> <span class="dv">5</span>) <span class="sc">/</span> ep)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>           [,1]
 [1,] -0.8823045</code></pre>
@@ -437,7 +444,7 @@ $hessian
 <p>A função <code>optim</code> já é bastante antiga e um novo pacote, chamado <code>optimx</code>, foi criado. A ideia do pacote é de agregar várias funções de otimização que estavam espalhadas em diversos pacotes diferentes. As principais funções do pacote são <code>optimx</code> e <code>optimr</code>. Mais informações sobre o pacote podem ser encontradas <a href="https://rdrr.io/cran/optimx/">aqui</a>.</p>
 <p>A sintaxe das funções é muito similar à sintaxe original do <code>optim</code>. O código abaixo faz o mesmo procedimento de estimação que o acima. Por padrão a função executa dois otimizadores: o BFGS e Nelder-Mead</p>
 <div class="cell" data-layout-align="center">
-<div class="sourceCode cell-code" id="cb15"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(fit <span class="ot">&lt;-</span> <span class="fu">optimx</span>(<span class="at">par =</span> <span class="dv">1</span>, <span class="at">fn =</span> ll_pois, <span class="at">x =</span> amostra))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb15"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(fit <span class="ot">&lt;-</span> <span class="fu">optimx</span>(<span class="at">par =</span> <span class="dv">1</span>, <span class="at">fn =</span> ll_pois, <span class="at">x =</span> amostra))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>                p1    value fevals gevals niter convcode kkt1 kkt2 xtime
 Nelder-Mead 4.9375 2202.837     32     NA    NA        0 TRUE TRUE 0.001
@@ -446,14 +453,14 @@ BFGS        4.9380 2202.837     34      9    NA        0 TRUE TRUE 0.002</code><
 </div>
 <p>Uma das principais vantagens do <code>optimx</code> é a possibilidade de usar vários métodos de otimização numérica numa mesma função.</p>
 <div class="cell" data-layout-align="center">
-<div class="sourceCode cell-code" id="cb17"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a>fit <span class="ot">&lt;-</span> <span class="fu">optimx</span>(</span>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb17"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a>fit <span class="ot">&lt;-</span> <span class="fu">optimx</span>(</span>
 <span id="cb17-2"><a href="#cb17-2" aria-hidden="true" tabindex="-1"></a>  <span class="at">par =</span> <span class="dv">1</span>,</span>
 <span id="cb17-3"><a href="#cb17-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">fn =</span> ll_pois,</span>
 <span id="cb17-4"><a href="#cb17-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">x =</span> amostra,</span>
 <span id="cb17-5"><a href="#cb17-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">method =</span> <span class="fu">c</span>(<span class="st">"nlm"</span>, <span class="st">"BFGS"</span>, <span class="st">"Rcgmin"</span>, <span class="st">"nlminb"</span>)</span>
 <span id="cb17-6"><a href="#cb17-6" aria-hidden="true" tabindex="-1"></a>  )</span>
 <span id="cb17-7"><a href="#cb17-7" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-8"><a href="#cb17-8" aria-hidden="true" tabindex="-1"></a>fit</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb17-8"><a href="#cb17-8" aria-hidden="true" tabindex="-1"></a>fit</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>             p1    value fevals gevals niter convcode kkt1 kkt2 xtime
 nlm    4.937998 2202.837     NA     NA     8        0 TRUE TRUE 0.001
@@ -469,14 +476,14 @@ nlminb 4.938000 2202.837     10     12     9        0 TRUE TRUE 0.001</code></pr
 <p>A função maxLik (do pacote homônimo) traz algumas comodidades: primeiro, ela maximiza as funções de log-verossimilhança, ou seja, <em>não é preciso montar a função com sinal de menos</em> como fizemos acima; segundo, ela já <em>calcula erros-padrão e estatísticas-t dos coeficientes estimados</em>. Além disso, ela também facilita a implementação de gradientes e hessianas analíticos e conta com métodos de otimização bastante populares como o BHHH. Mais detalhes sobre a função e o pacote podem ser encontradas <a href="https://www.researchgate.net/publication/227354660_MaxLik_A_package_for_maximum_likelihood_estimation_in_R">aqui</a>.</p>
 <p>Para usar a função precisamos primeiro reescrever a função log-verossimilhança, pois agora não precisamos mais buscar o negativo da função. Como o R já vem com as funções de densidade de várias distribuições podemos tornar o código mais enxuto usando o <code>dpois</code> que implementa a função densidade da Poisson. O argumento <code>log = TRUE</code> retorna as probabilidades <span class="math inline">\(p\)</span> como <span class="math inline">\(log(p)\)</span>.</p>
 <div class="cell" data-layout-align="center">
-<div class="sourceCode cell-code" id="cb19"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a>ll_pois <span class="ot">&lt;-</span> <span class="cf">function</span>(x, theta) {</span>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb19"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a>ll_pois <span class="ot">&lt;-</span> <span class="cf">function</span>(x, theta) {</span>
 <span id="cb19-2"><a href="#cb19-2" aria-hidden="true" tabindex="-1"></a>    ll <span class="ot">&lt;-</span> <span class="fu">dpois</span>(x, theta, <span class="at">log =</span> <span class="cn">TRUE</span>)</span>
 <span id="cb19-3"><a href="#cb19-3" aria-hidden="true" tabindex="-1"></a>    <span class="fu">return</span>(<span class="fu">sum</span>(ll))</span>
-<span id="cb19-4"><a href="#cb19-4" aria-hidden="true" tabindex="-1"></a>}</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb19-4"><a href="#cb19-4" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <p>O comando abaixo executa a estimação. Note que a saída agora traz várias informações relevantes.</p>
 <div class="cell" data-layout-align="center">
-<div class="sourceCode cell-code" id="cb20"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(fit <span class="ot">&lt;-</span> <span class="fu">maxLik</span>(ll_pois, <span class="at">start =</span> <span class="dv">1</span>, <span class="at">x =</span> amostra))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb20"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(fit <span class="ot">&lt;-</span> <span class="fu">maxLik</span>(ll_pois, <span class="at">start =</span> <span class="dv">1</span>, <span class="at">x =</span> amostra))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>--------------------------------------------
 Maximum Likelihood estimation
@@ -501,7 +508,7 @@ Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
 \]</span></p>
 <p>O código abaixo implementa o gradiente e a hessiana e faz a estimação. O valor estimado continua praticamente o mesmo, mas o erro-padrão fica menor.</p>
 <div class="cell" data-layout-align="center">
-<div class="sourceCode cell-code" id="cb22"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb22-1"><a href="#cb22-1" aria-hidden="true" tabindex="-1"></a>grad_pois <span class="ot">&lt;-</span> <span class="cf">function</span>(x, theta) {</span>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb22"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb22-1"><a href="#cb22-1" aria-hidden="true" tabindex="-1"></a>grad_pois <span class="ot">&lt;-</span> <span class="cf">function</span>(x, theta) {</span>
 <span id="cb22-2"><a href="#cb22-2" aria-hidden="true" tabindex="-1"></a>  (<span class="dv">1</span> <span class="sc">/</span> theta) <span class="sc">*</span> <span class="fu">sum</span>(x) <span class="sc">-</span> <span class="fu">length</span>(x)</span>
 <span id="cb22-3"><a href="#cb22-3" aria-hidden="true" tabindex="-1"></a>  }</span>
 <span id="cb22-4"><a href="#cb22-4" aria-hidden="true" tabindex="-1"></a></span>
@@ -517,7 +524,7 @@ Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
 <span id="cb22-14"><a href="#cb22-14" aria-hidden="true" tabindex="-1"></a>  <span class="at">x =</span> amostra</span>
 <span id="cb22-15"><a href="#cb22-15" aria-hidden="true" tabindex="-1"></a>  )</span>
 <span id="cb22-16"><a href="#cb22-16" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb22-17"><a href="#cb22-17" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(fit2)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb22-17"><a href="#cb22-17" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(fit2)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>--------------------------------------------
 Maximum Likelihood estimation
@@ -565,17 +572,17 @@ Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
 \]</span></p>
 <p>Montamos a função log-verossimilhança usando a função <code>dnorm</code></p>
 <div class="cell" data-layout-align="center">
-<div class="sourceCode cell-code" id="cb24"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb24-1"><a href="#cb24-1" aria-hidden="true" tabindex="-1"></a>ll_norm <span class="ot">&lt;-</span> <span class="cf">function</span>(theta) {</span>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb24"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb24-1"><a href="#cb24-1" aria-hidden="true" tabindex="-1"></a>ll_norm <span class="ot">&lt;-</span> <span class="cf">function</span>(theta) {</span>
 <span id="cb24-2"><a href="#cb24-2" aria-hidden="true" tabindex="-1"></a>    ll <span class="ot">&lt;-</span> <span class="fu">dnorm</span>(x, theta[<span class="dv">1</span>], theta[<span class="dv">2</span>], <span class="at">log =</span> <span class="cn">TRUE</span>)</span>
 <span id="cb24-3"><a href="#cb24-3" aria-hidden="true" tabindex="-1"></a>    <span class="sc">-</span><span class="fu">sum</span>(ll)</span>
-<span id="cb24-4"><a href="#cb24-4" aria-hidden="true" tabindex="-1"></a>}</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb24-4"><a href="#cb24-4" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <p>Vamos simular uma amostra aleatória <span class="math inline">\(x_{1}, x_{2}, \dots, x_{1000}\)</span> onde cada <span class="math inline">\(x_{i}\)</span> segue uma distribuição normal com média <span class="math inline">\(2\)</span> e desvio-padrão <span class="math inline">\(3\)</span> (i.e., variância <span class="math inline">\(9\)</span>).</p>
 <p>Primeiro vamos usar a função <code>optimx</code></p>
 <div class="cell" data-layout-align="center">
-<div class="sourceCode cell-code" id="cb25"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb25-1"><a href="#cb25-1" aria-hidden="true" tabindex="-1"></a><span class="co"># warnings por causa dos valores negativos no log</span></span>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb25"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb25-1"><a href="#cb25-1" aria-hidden="true" tabindex="-1"></a><span class="co"># warnings por causa dos valores negativos no log</span></span>
 <span id="cb25-2"><a href="#cb25-2" aria-hidden="true" tabindex="-1"></a>x <span class="ot">&lt;-</span> <span class="fu">rnorm</span>(<span class="at">n =</span> <span class="dv">1000</span>, <span class="at">mean =</span> <span class="dv">2</span>, <span class="at">sd =</span> <span class="dv">3</span>)</span>
-<span id="cb25-3"><a href="#cb25-3" aria-hidden="true" tabindex="-1"></a>(fit <span class="ot">&lt;-</span> <span class="fu">optimx</span>(<span class="at">par =</span> <span class="fu">c</span>(<span class="dv">1</span>, <span class="dv">1</span>), <span class="at">fn =</span> ll_norm, <span class="at">method =</span> <span class="st">"BFGS"</span>))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb25-3"><a href="#cb25-3" aria-hidden="true" tabindex="-1"></a>(fit <span class="ot">&lt;-</span> <span class="fu">optimx</span>(<span class="at">par =</span> <span class="fu">c</span>(<span class="dv">1</span>, <span class="dv">1</span>), <span class="at">fn =</span> ll_norm, <span class="at">method =</span> <span class="st">"BFGS"</span>))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>           p1       p2    value fevals gevals niter convcode kkt1 kkt2 xtime
 BFGS 2.138082 3.058111 2536.736     47     20    NA        0 TRUE TRUE 0.003</code></pre>
@@ -585,7 +592,7 @@ BFGS 2.138082 3.058111 2536.736     47     20    NA        0 TRUE TRUE 0.003</co
 <p>Intuitivamente isto é bastante óbvio: <span class="math inline">\(\sigma\)</span> representa o desvio-padrão da distribuição e <span class="math inline">\(\sigma^{2}\)</span> a sua variância: não podemos ter valores negativos ou nulos para estas expressões.</p>
 <p>Podemos restringir os valores dos parâmetros usando os argumentos <code>upper</code> e <code>lower</code> para evitar as mensagens de <code>warning</code>, mas, na prática, isto não costuma fazer diferença no resultado final da estimação. Note que podemos deixar a restrição livre usando <code>Inf</code> e <code>-Inf</code> que correspondem a <span class="math inline">\(\infty\)</span> e <span class="math inline">\(-\infty\)</span>.</p>
 <div class="cell" data-layout-align="center">
-<div class="sourceCode cell-code" id="cb27"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb27-1"><a href="#cb27-1" aria-hidden="true" tabindex="-1"></a>fit <span class="ot">&lt;-</span> <span class="fu">optimx</span>(</span>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb27"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb27-1"><a href="#cb27-1" aria-hidden="true" tabindex="-1"></a>fit <span class="ot">&lt;-</span> <span class="fu">optimx</span>(</span>
 <span id="cb27-2"><a href="#cb27-2" aria-hidden="true" tabindex="-1"></a>  <span class="at">par =</span> <span class="fu">c</span>(<span class="dv">1</span>, <span class="dv">1</span>),</span>
 <span id="cb27-3"><a href="#cb27-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">fn =</span> ll_norm,</span>
 <span id="cb27-4"><a href="#cb27-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">method =</span> <span class="st">"L-BFGS-B"</span>,</span>
@@ -593,7 +600,7 @@ BFGS 2.138082 3.058111 2536.736     47     20    NA        0 TRUE TRUE 0.003</co
 <span id="cb27-6"><a href="#cb27-6" aria-hidden="true" tabindex="-1"></a>  <span class="at">lower =</span> <span class="fu">c</span>(<span class="sc">-</span><span class="cn">Inf</span>, <span class="dv">0</span>)</span>
 <span id="cb27-7"><a href="#cb27-7" aria-hidden="true" tabindex="-1"></a>  )</span>
 <span id="cb27-8"><a href="#cb27-8" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb27-9"><a href="#cb27-9" aria-hidden="true" tabindex="-1"></a>fit</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb27-9"><a href="#cb27-9" aria-hidden="true" tabindex="-1"></a>fit</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>               p1       p2    value fevals gevals niter convcode kkt1 kkt2
 L-BFGS-B 2.138093 3.058112 2536.736     11     11    NA        0 TRUE TRUE
@@ -617,7 +624,7 @@ L-BFGS-B 0.001</code></pre>
 </ol>
 <p>O código abaixo implementa exatamente este experimento. Note que a matriz de informação de Fisher é aproximada pela hessiana.</p>
 <div class="cell" data-layout-align="center">
-<div class="sourceCode cell-code" id="cb29"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb29-1"><a href="#cb29-1" aria-hidden="true" tabindex="-1"></a>r <span class="ot">&lt;-</span> <span class="dv">5000</span></span>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb29"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb29-1"><a href="#cb29-1" aria-hidden="true" tabindex="-1"></a>r <span class="ot">&lt;-</span> <span class="dv">5000</span></span>
 <span id="cb29-2"><a href="#cb29-2" aria-hidden="true" tabindex="-1"></a>n <span class="ot">&lt;-</span> <span class="dv">1000</span></span>
 <span id="cb29-3"><a href="#cb29-3" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb29-4"><a href="#cb29-4" aria-hidden="true" tabindex="-1"></a>estimativas <span class="ot">&lt;-</span> <span class="fu">matrix</span>(<span class="at">ncol =</span> <span class="dv">4</span>, <span class="at">nrow =</span> r)</span>
@@ -634,27 +641,27 @@ L-BFGS-B 0.001</code></pre>
 <span id="cb29-15"><a href="#cb29-15" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Guarda o valor estimado do parâmetro</span></span>
 <span id="cb29-16"><a href="#cb29-16" aria-hidden="true" tabindex="-1"></a>    estimativas[i, <span class="dv">1</span><span class="sc">:</span><span class="dv">2</span>] <span class="ot">&lt;-</span> fit<span class="sc">$</span>par</span>
 <span id="cb29-17"><a href="#cb29-17" aria-hidden="true" tabindex="-1"></a>    estimativas[i, <span class="dv">3</span><span class="sc">:</span><span class="dv">4</span>] <span class="ot">&lt;-</span> <span class="fu">diag</span>(n <span class="sc">*</span> <span class="fu">solve</span>(fit<span class="sc">$</span>hess))</span>
-<span id="cb29-18"><a href="#cb29-18" aria-hidden="true" tabindex="-1"></a>}</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb29-18"><a href="#cb29-18" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <p>A <em>consistência</em> dos estimadores <span class="math inline">\(\hat{\theta}_{MV}\)</span> significa que eles aproximam os valores verdadeiros do parâmetros <span class="math inline">\(\theta_{0}\)</span> à medida que aumenta o tamanho da amostra. Isto é, se tivermos uma amostra grande <span class="math inline">\(\mathbb{N} \to \infty\)</span> então podemos ter confiança de que nossos estimadores estão muito próximos dos valores verdadeiros dos parâmetros <span class="math inline">\(\hat{\theta}_{\text{MV}} \to \theta_{0}\)</span></p>
 <p>O código abaixo calcula a média das estimativas para cada parâmetro - lembrando que <span class="math inline">\(\mu_{0} = 2\)</span> e que <span class="math inline">\(\sigma_{0} = 3\)</span>. Além disso, o histograma das estimativas mostra como as estimativas concentram-se em torno do valor verdadeiro do parâmetro (indicado pela linha vertical).</p>
 <div class="cell" data-layout-align="center">
-<div class="sourceCode cell-code" id="cb30"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb30-1"><a href="#cb30-1" aria-hidden="true" tabindex="-1"></a><span class="co"># | fig-width: 10</span></span>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb30"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb30-1"><a href="#cb30-1" aria-hidden="true" tabindex="-1"></a><span class="co"># | fig-width: 10</span></span>
 <span id="cb30-2"><a href="#cb30-2" aria-hidden="true" tabindex="-1"></a><span class="fu">par</span>(<span class="at">mfrow =</span> <span class="fu">c</span>(<span class="dv">1</span>, <span class="dv">2</span>))</span>
 <span id="cb30-3"><a href="#cb30-3" aria-hidden="true" tabindex="-1"></a><span class="co"># Consistência dos estimadores de MV</span></span>
 <span id="cb30-4"><a href="#cb30-4" aria-hidden="true" tabindex="-1"></a>mu <span class="ot">&lt;-</span> estimativas[, <span class="dv">1</span>]; sigma <span class="ot">&lt;-</span> estimativas[, <span class="dv">2</span>]</span>
-<span id="cb30-5"><a href="#cb30-5" aria-hidden="true" tabindex="-1"></a><span class="fu">mean</span>(mu)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb30-5"><a href="#cb30-5" aria-hidden="true" tabindex="-1"></a><span class="fu">mean</span>(mu)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>[1] 2.000883</code></pre>
 </div>
-<div class="sourceCode cell-code" id="cb32"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb32-1"><a href="#cb32-1" aria-hidden="true" tabindex="-1"></a><span class="fu">mean</span>(sigma)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb32"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb32-1"><a href="#cb32-1" aria-hidden="true" tabindex="-1"></a><span class="fu">mean</span>(sigma)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>[1] 2.997335</code></pre>
 </div>
-<div class="sourceCode cell-code" id="cb34"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb34-1"><a href="#cb34-1" aria-hidden="true" tabindex="-1"></a><span class="fu">hist</span>(mu, <span class="at">main =</span> <span class="fu">bquote</span>(<span class="st">"Estimativas para "</span><span class="sc">~</span><span class="er">~</span>mu), <span class="at">freq =</span> <span class="cn">FALSE</span>, <span class="at">xlim =</span> <span class="fu">c</span>(<span class="fl">1.5</span>, <span class="fl">2.5</span>))</span>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb34"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb34-1"><a href="#cb34-1" aria-hidden="true" tabindex="-1"></a><span class="fu">hist</span>(mu, <span class="at">main =</span> <span class="fu">bquote</span>(<span class="st">"Estimativas para "</span><span class="sc">~</span><span class="er">~</span>mu), <span class="at">freq =</span> <span class="cn">FALSE</span>, <span class="at">xlim =</span> <span class="fu">c</span>(<span class="fl">1.5</span>, <span class="fl">2.5</span>))</span>
 <span id="cb34-2"><a href="#cb34-2" aria-hidden="true" tabindex="-1"></a><span class="fu">abline</span>(<span class="at">v =</span> <span class="dv">2</span>, <span class="at">col =</span> <span class="st">"indianred"</span>)</span>
 <span id="cb34-3"><a href="#cb34-3" aria-hidden="true" tabindex="-1"></a><span class="fu">hist</span>(sigma, <span class="at">main =</span> <span class="fu">bquote</span>(<span class="st">"Estimativas para "</span><span class="sc">~</span><span class="er">~</span>sigma), <span class="at">freq =</span> <span class="cn">FALSE</span>, <span class="at">xlim =</span> <span class="fu">c</span>(<span class="fl">2.7</span>, <span class="fl">3.3</span>))</span>
-<span id="cb34-4"><a href="#cb34-4" aria-hidden="true" tabindex="-1"></a><span class="fu">abline</span>(<span class="at">v =</span> <span class="dv">3</span>, <span class="at">col =</span> <span class="st">"indianred"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb34-4"><a href="#cb34-4" aria-hidden="true" tabindex="-1"></a><span class="fu">abline</span>(<span class="at">v =</span> <span class="dv">3</span>, <span class="at">col =</span> <span class="st">"indianred"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output-display">
 <div class="quarto-figure quarto-figure-center">
 <figure class="figure">
@@ -673,7 +680,7 @@ z_{\theta} = \sqrt{N}\frac{\hat{\theta}_{MV} - \theta}{\sqrt{\text{V}_{ast}}} \t
 <p>onde <span class="math inline">\(\text{V}_{ast}\)</span> é a variância assintótica do estimador. O código abaixo calcula a expressão acima para os dois parâmetros e apresenta o histograma dos dados com uma normal padrão superimposta.</p>
 <p>No loop acima usamos o fato que a matriz de informação de Fisher pode ser estimada pela hessiana. O código abaixo calcula a expressão acima para os dois parâmetros e apresenta o histograma dos dados com uma normal padrão superimposta.</p>
 <div class="cell" data-layout-align="center">
-<div class="sourceCode cell-code" id="cb35"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb35-1"><a href="#cb35-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Normalidade assintótica</span></span>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb35"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb35-1"><a href="#cb35-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Normalidade assintótica</span></span>
 <span id="cb35-2"><a href="#cb35-2" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb35-3"><a href="#cb35-3" aria-hidden="true" tabindex="-1"></a><span class="co"># Define objetos para facilitar a compreensão</span></span>
 <span id="cb35-4"><a href="#cb35-4" aria-hidden="true" tabindex="-1"></a>mu_hat <span class="ot">&lt;-</span> estimativas[, <span class="dv">1</span>]</span>
@@ -686,10 +693,10 @@ z_{\theta} = \sqrt{N}\frac{\hat{\theta}_{MV} - \theta}{\sqrt{\text{V}_{ast}}} \t
 <span id="cb35-11"><a href="#cb35-11" aria-hidden="true" tabindex="-1"></a>sigma_centrado <span class="ot">&lt;-</span> sigma_hat <span class="sc">-</span> <span class="dv">3</span></span>
 <span id="cb35-12"><a href="#cb35-12" aria-hidden="true" tabindex="-1"></a><span class="co"># Computa z_mu z_sigma</span></span>
 <span id="cb35-13"><a href="#cb35-13" aria-hidden="true" tabindex="-1"></a>mu_normalizado <span class="ot">&lt;-</span> <span class="fu">sqrt</span>(n) <span class="sc">*</span> mu_centrado <span class="sc">/</span> <span class="fu">sqrt</span>(var_mu_hat)</span>
-<span id="cb35-14"><a href="#cb35-14" aria-hidden="true" tabindex="-1"></a>sigma_normalizado <span class="ot">&lt;-</span> <span class="fu">sqrt</span>(n) <span class="sc">*</span> sigma_centrado <span class="sc">/</span> <span class="fu">sqrt</span>(var_sg_hat)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb35-14"><a href="#cb35-14" aria-hidden="true" tabindex="-1"></a>sigma_normalizado <span class="ot">&lt;-</span> <span class="fu">sqrt</span>(n) <span class="sc">*</span> sigma_centrado <span class="sc">/</span> <span class="fu">sqrt</span>(var_sg_hat)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <div class="cell" data-layout-align="center">
-<div class="sourceCode cell-code" id="cb36"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb36-1"><a href="#cb36-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Monta o gráfico para mu</span></span>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb36"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb36-1"><a href="#cb36-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Monta o gráfico para mu</span></span>
 <span id="cb36-2"><a href="#cb36-2" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb36-3"><a href="#cb36-3" aria-hidden="true" tabindex="-1"></a><span class="co"># Eixo x</span></span>
 <span id="cb36-4"><a href="#cb36-4" aria-hidden="true" tabindex="-1"></a>grid_x <span class="ot">&lt;-</span> <span class="fu">seq</span>(<span class="sc">-</span><span class="dv">3</span>, <span class="dv">3</span>, <span class="fl">0.01</span>)</span>
@@ -704,7 +711,7 @@ z_{\theta} = \sqrt{N}\frac{\hat{\theta}_{MV} - \theta}{\sqrt{\text{V}_{ast}}} \t
 <span id="cb36-13"><a href="#cb36-13" aria-hidden="true" tabindex="-1"></a>  <span class="at">ylab =</span> <span class="st">"Densidade"</span></span>
 <span id="cb36-14"><a href="#cb36-14" aria-hidden="true" tabindex="-1"></a>  )</span>
 <span id="cb36-15"><a href="#cb36-15" aria-hidden="true" tabindex="-1"></a><span class="fu">lines</span>(grid_x, <span class="fu">dnorm</span>(grid_x, <span class="at">mean =</span> <span class="dv">0</span>, <span class="at">sd =</span> <span class="dv">1</span>), <span class="at">col =</span> <span class="st">"dodgerblue"</span>)</span>
-<span id="cb36-16"><a href="#cb36-16" aria-hidden="true" tabindex="-1"></a><span class="fu">legend</span>(<span class="st">"topright"</span>, <span class="at">lty =</span> <span class="dv">1</span>, <span class="at">col =</span> <span class="st">"dodgerblue"</span>, <span class="at">legend =</span> <span class="st">"Normal (0, 1)"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb36-16"><a href="#cb36-16" aria-hidden="true" tabindex="-1"></a><span class="fu">legend</span>(<span class="st">"topright"</span>, <span class="at">lty =</span> <span class="dv">1</span>, <span class="at">col =</span> <span class="st">"dodgerblue"</span>, <span class="at">legend =</span> <span class="st">"Normal (0, 1)"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output-display">
 <div class="quarto-figure quarto-figure-center">
 <figure class="figure">
@@ -714,7 +721,7 @@ z_{\theta} = \sqrt{N}\frac{\hat{\theta}_{MV} - \theta}{\sqrt{\text{V}_{ast}}} \t
 </div>
 </div>
 <div class="cell" data-layout-align="center">
-<div class="sourceCode cell-code" id="cb37"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb37-1"><a href="#cb37-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Monta o gráfico para sigma2</span></span>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb37"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb37-1"><a href="#cb37-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Monta o gráfico para sigma2</span></span>
 <span id="cb37-2"><a href="#cb37-2" aria-hidden="true" tabindex="-1"></a><span class="fu">hist</span>(</span>
 <span id="cb37-3"><a href="#cb37-3" aria-hidden="true" tabindex="-1"></a>  sigma_normalizado,</span>
 <span id="cb37-4"><a href="#cb37-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">main =</span> <span class="fu">bquote</span>(<span class="st">"Histograma de 5000 simulações para z"</span>[sigma]),</span>
@@ -725,7 +732,7 @@ z_{\theta} = \sqrt{N}\frac{\hat{\theta}_{MV} - \theta}{\sqrt{\text{V}_{ast}}} \t
 <span id="cb37-9"><a href="#cb37-9" aria-hidden="true" tabindex="-1"></a>  <span class="at">ylab =</span> <span class="st">"Densidade"</span></span>
 <span id="cb37-10"><a href="#cb37-10" aria-hidden="true" tabindex="-1"></a>  )</span>
 <span id="cb37-11"><a href="#cb37-11" aria-hidden="true" tabindex="-1"></a><span class="fu">lines</span>(grid_x, <span class="fu">dnorm</span>(grid_x, <span class="at">mean =</span> <span class="dv">0</span>, <span class="at">sd =</span> <span class="dv">1</span>), <span class="at">col =</span> <span class="st">"dodgerblue"</span>)</span>
-<span id="cb37-12"><a href="#cb37-12" aria-hidden="true" tabindex="-1"></a><span class="fu">legend</span>(<span class="st">"topright"</span>, <span class="at">lty =</span> <span class="dv">1</span>, <span class="at">col =</span> <span class="st">"dodgerblue"</span>, <span class="at">legend =</span> <span class="st">"Normal (0, 1)"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb37-12"><a href="#cb37-12" aria-hidden="true" tabindex="-1"></a><span class="fu">legend</span>(<span class="st">"topright"</span>, <span class="at">lty =</span> <span class="dv">1</span>, <span class="at">col =</span> <span class="st">"dodgerblue"</span>, <span class="at">legend =</span> <span class="st">"Normal (0, 1)"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output-display">
 <div class="quarto-figure quarto-figure-center">
 <figure class="figure">
@@ -740,7 +747,7 @@ z_{\theta} = \sqrt{N}\frac{\hat{\theta}_{MV} - \theta}{\sqrt{\text{V}_{ast}}} \t
 <p>Como comentei acima, o método de estimação por MV exige que o usuário escolha valores iniciais (chutes) para os parâmetros que se quer estimar.</p>
 <p>O exemplo abaixo mostra o caso em que a escolha de valores iniciais impróprios leva a estimativas muito ruins.</p>
 <div class="cell" data-layout-align="center">
-<div class="sourceCode cell-code" id="cb38"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb38-1"><a href="#cb38-1" aria-hidden="true" tabindex="-1"></a><span class="co"># sensível a escolha de valores inicias</span></span>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb38"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb38-1"><a href="#cb38-1" aria-hidden="true" tabindex="-1"></a><span class="co"># sensível a escolha de valores inicias</span></span>
 <span id="cb38-2"><a href="#cb38-2" aria-hidden="true" tabindex="-1"></a>x <span class="ot">&lt;-</span> <span class="fu">rnorm</span>(<span class="at">n =</span> <span class="dv">1000</span>, <span class="at">mean =</span> <span class="dv">15</span>, <span class="at">sd =</span> <span class="dv">4</span>)</span>
 <span id="cb38-3"><a href="#cb38-3" aria-hidden="true" tabindex="-1"></a>fit <span class="ot">&lt;-</span> <span class="fu">optim</span>(</span>
 <span id="cb38-4"><a href="#cb38-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">par =</span> <span class="fu">c</span>(<span class="dv">1</span>, <span class="dv">1</span>),</span>
@@ -749,7 +756,7 @@ z_{\theta} = \sqrt{N}\frac{\hat{\theta}_{MV} - \theta}{\sqrt{\text{V}_{ast}}} \t
 <span id="cb38-7"><a href="#cb38-7" aria-hidden="true" tabindex="-1"></a>  <span class="at">hessian =</span> <span class="cn">TRUE</span></span>
 <span id="cb38-8"><a href="#cb38-8" aria-hidden="true" tabindex="-1"></a>  )</span>
 <span id="cb38-9"><a href="#cb38-9" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb38-10"><a href="#cb38-10" aria-hidden="true" tabindex="-1"></a>fit</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb38-10"><a href="#cb38-10" aria-hidden="true" tabindex="-1"></a>fit</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>$par
 [1] 618.6792 962.0739
@@ -782,11 +789,11 @@ $hessian
 \end{align}
 \]</span></p>
 <div class="cell" data-layout-align="center">
-<div class="sourceCode cell-code" id="cb40"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb40-1"><a href="#cb40-1" aria-hidden="true" tabindex="-1"></a>(chute_inicial <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="fu">mean</span>(x), <span class="fu">sqrt</span>(<span class="fu">var</span>(x))))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb40"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb40-1"><a href="#cb40-1" aria-hidden="true" tabindex="-1"></a>(chute_inicial <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="fu">mean</span>(x), <span class="fu">sqrt</span>(<span class="fu">var</span>(x))))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>[1] 14.859702  3.930849</code></pre>
 </div>
-<div class="sourceCode cell-code" id="cb42"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb42-1"><a href="#cb42-1" aria-hidden="true" tabindex="-1"></a>(est <span class="ot">&lt;-</span> <span class="fu">optimx</span>(<span class="at">par =</span> chute_inicial, <span class="at">fn =</span> ll_norm))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb42"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb42-1"><a href="#cb42-1" aria-hidden="true" tabindex="-1"></a>(est <span class="ot">&lt;-</span> <span class="fu">optimx</span>(<span class="at">par =</span> chute_inicial, <span class="at">fn =</span> ll_norm))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>                  p1       p2    value fevals gevals niter convcode kkt1 kkt2
 Nelder-Mead 14.85997 3.929097 2787.294     47     NA    NA        0 TRUE TRUE
@@ -799,12 +806,12 @@ BFGS        0.001</code></pre>
 <p>Agora as estimativas estão muito melhores. Outra opção é experimentar com otimizadores diferentes. Aqui a função <code>optimx</code> se prova bastante conveniente pois admite uma grande variedade de métodos de otimizãção.</p>
 <p>Note como os métodos BFGS e CG retornam valores muito distantes dos verdadeiros. Já o método <code>bobyqa</code> retorna um valor corretor para o parâmetro da média, mas erra no parâmetro da variânica. Já os métodos <code>nlminb</code> e <code>Nelder-Mead</code> ambos retornam os valores corretos.</p>
 <div class="cell" data-layout-align="center">
-<div class="sourceCode cell-code" id="cb44"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb44-1"><a href="#cb44-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Usando outros métodos numéricos</span></span>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb44"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb44-1"><a href="#cb44-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Usando outros métodos numéricos</span></span>
 <span id="cb44-2"><a href="#cb44-2" aria-hidden="true" tabindex="-1"></a><span class="fu">optimx</span>(</span>
 <span id="cb44-3"><a href="#cb44-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">par =</span> <span class="fu">c</span>(<span class="dv">1</span>, <span class="dv">1</span>),</span>
 <span id="cb44-4"><a href="#cb44-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">fn =</span> ll_norm,</span>
 <span id="cb44-5"><a href="#cb44-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">method =</span> <span class="fu">c</span>(<span class="st">"BFGS"</span>, <span class="st">"Nelder-Mead"</span>, <span class="st">"CG"</span>, <span class="st">"nlminb"</span>, <span class="st">"bobyqa"</span>)</span>
-<span id="cb44-6"><a href="#cb44-6" aria-hidden="true" tabindex="-1"></a>  )</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb44-6"><a href="#cb44-6" aria-hidden="true" tabindex="-1"></a>  )</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>                   p1         p2    value fevals gevals niter convcode  kkt1
 BFGS        618.67917 962.073907 7984.993    107    100    NA        1  TRUE
@@ -881,13 +888,14 @@ bobyqa      FALSE 0.033</code></pre>
       e.clearSelection();
     }
     const getTextToCopy = function(trigger) {
-        const codeEl = trigger.previousElementSibling.cloneNode(true);
-        for (const childEl of codeEl.children) {
-          if (isCodeAnnotation(childEl)) {
-            childEl.remove();
-          }
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
         }
-        return codeEl.innerText;
+      }
+      return codeEl.innerText;
     }
     const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
       text: getTextToCopy
@@ -902,7 +910,7 @@ bobyqa      FALSE 0.033</code></pre>
     }
       var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
       var mailtoRegex = new RegExp(/^mailto:/);
-        var filterRegex = new RegExp("https::\/\/www\.restateinsight\.com");
+        var filterRegex = new RegExp("https:\/\/www\.restateinsight\.com");
       var isInternal = (href) => {
           return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
       }

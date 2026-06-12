@@ -2,7 +2,7 @@
 <html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
 
 <meta charset="utf-8">
-<meta name="generator" content="quarto-1.7.33">
+<meta name="generator" content="quarto-1.9.37">
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
@@ -12,6 +12,9 @@
 
 <title>Indo além: empilhando áreas – Vinicius Oike</title>
 <style>
+/* Default styles provided by pandoc.
+** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+*/
 code{white-space: pre-wrap;}
 span.smallcaps{font-variant: small-caps;}
 div.columns{display: flex; gap: min(4vw, 1.5em);}
@@ -74,10 +77,10 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <script src="../../site_libs/quarto-html/tippy.umd.min.js"></script>
 <script src="../../site_libs/quarto-html/anchor.min.js"></script>
 <link href="../../site_libs/quarto-html/tippy.css" rel="stylesheet">
-<link href="../../site_libs/quarto-html/quarto-syntax-highlighting-65ceba22b1a2bc45b1f8c349a1513ec1.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<link href="../../site_libs/quarto-html/quarto-syntax-highlighting-c3cf9d46a7c8b92850f815292f8d7832.css" rel="stylesheet" id="quarto-text-highlighting-styles">
 <script src="../../site_libs/bootstrap/bootstrap.min.js"></script>
 <link href="../../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
-<link href="../../site_libs/bootstrap/bootstrap-1d3a31d95e5cb5c8e68bd63598ea7077.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<link href="../../site_libs/bootstrap/bootstrap-29b808bd45cb145992fdff6f5eb71f07.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
 <script id="quarto-search-options" type="application/json">{
   "location": "navbar",
   "copy-button": false,
@@ -119,10 +122,8 @@ gtag('config', 'G-EJF8PGT67H', { 'anonymize_ip': true});
 <link rel="stylesheet" href="../../styles.css">
 <meta property="og:title" content="Indo além: empilhando áreas – Vinicius Oike">
 <meta property="og:description" content="Post intermediário que ensina a fazer gráficos de área no R usando o pacote ggplot2.">
-<meta property="og:image" content="https:://www.restateinsight.com/static/ggplot2_area.png">
+<meta property="og:image" content="https://www.restateinsight.com/static/ggplot2_area.png">
 <meta property="og:site_name" content="Vinicius Oike">
-<meta property="og:image:height" content="622">
-<meta property="og:image:width" content="1008">
 <meta property="og:image:alt" content="/static/ggplot2_area.png">
 </head>
 
@@ -158,6 +159,10 @@ gtag('config', 'G-EJF8PGT67H', { 'anonymize_ip': true});
   <li class="nav-item">
     <a class="nav-link" href="../../my_apps.html"> 
 <span class="menu-text">Apps</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../../gallery.html"> 
+<span class="menu-text">Charts</span></a>
   </li>  
   <li class="nav-item">
     <a class="nav-link" href="../../press.html"> 
@@ -280,7 +285,7 @@ gtag('config', 'G-EJF8PGT67H', { 'anonymize_ip': true});
 <h2 class="anchored" data-anchor-id="ggplot2">ggplot2</h2>
 <p>Antes de mais nada, precisamos instalar e carregar alguns pacotes. Assim como em posts anteriores, além do pacote <code>ggplot2</code> vamos utilizar alguns pacotes auxiliares para facilitar a manipulação dos dados.</p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb1"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Instala o pacote ggplot2 (se necessário)</span></span>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Instala o pacote ggplot2 (se necessário)</span></span>
 <span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="fu">install.packages</span>(<span class="fu">c</span>(<span class="st">"dplyr"</span>, <span class="st">"tidyr"</span>, <span class="st">"ggplot2"</span>, <span class="st">"RcppRoll"</span>, <span class="st">"GetBCBData"</span>))</span>
 <span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Carrega os pacotes</span></span>
@@ -290,42 +295,42 @@ gtag('config', 'G-EJF8PGT67H', { 'anonymize_ip': true});
 <span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(<span class="st">"tidyr"</span>)</span>
 <span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(<span class="st">"RcppRoll"</span>)</span>
 <span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Importar dados da API do Banco Central do Brasil</span></span>
-<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(<span class="st">"GetBCBData"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(<span class="st">"GetBCBData"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <section id="exemplo-simulado" class="level3">
 <h3 class="anchored" data-anchor-id="exemplo-simulado">Exemplo simulado</h3>
 <p>Primeiro, vamos simular alguns dados para o nosso gráfico de área. No primeiro exemplo vamos montar uma base de dados (<code>tibble</code>) com os valores de uma série de vendas anuais de 2000 a 2005.</p>
 <p>A coluna <code>ano</code> é uma variável contínua de 2000 a 2005. As colunas <code>venda_a</code>, <code>venda_b</code> e <code>venda_c</code> representam números hipotéticos de venda três lojas distintas (“1”, “2” e “3”).</p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb2"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>tbl <span class="ot">&lt;-</span> <span class="fu">tibble</span>(</span>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>tbl <span class="ot">&lt;-</span> <span class="fu">tibble</span>(</span>
 <span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>  <span class="at">ano =</span> <span class="dv">2000</span><span class="sc">:</span><span class="dv">2005</span>,</span>
 <span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">venda_1 =</span> <span class="fu">c</span>(<span class="dv">20</span>, <span class="dv">24</span>, <span class="dv">23</span>, <span class="dv">27</span>, <span class="dv">25</span>, <span class="dv">26</span>),</span>
 <span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">venda_2 =</span> <span class="fu">c</span>(<span class="dv">30</span>, <span class="dv">22</span>, <span class="dv">17</span>, <span class="dv">23</span>, <span class="dv">21</span>, <span class="dv">18</span>),</span>
 <span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">venda_3 =</span> <span class="fu">c</span>(<span class="dv">18</span>, <span class="dv">19</span>, <span class="dv">17</span>, <span class="dv">17</span>, <span class="dv">18</span>, <span class="dv">19</span>)</span>
-<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <p>A tabela tem a forma abaixo.</p>
 <p>Usamos a função <code>geom_area()</code> para criar um gráfico de área. Esta função recebe os argumentos <code>x</code> e <code>y</code>, que mapeiam as variáveis de dados no eixo x e no eixo y do gráfico, respectivamente.</p>
 <p>O código abaixo monta um gráfico de área que mostra o número de vendas na loja 1.</p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb3"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>(<span class="at">data =</span> tbl) <span class="sc">+</span></span>
-<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_area</span>(<span class="fu">aes</span>(<span class="at">x =</span> ano, <span class="at">y =</span> venda_1))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>(<span class="at">data =</span> tbl) <span class="sc">+</span></span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_area</span>(<span class="fu">aes</span>(<span class="at">x =</span> ano, <span class="at">y =</span> venda_1))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <p>Para adicionar as vendas das outras lojas precisamos remodelar o formato dos nossos dados. Nossos dados estão em formato “wide”, no qual cada variável (vendas) é uma coluna distinta e cada observação é uma linha. O <code>ggplot2</code> segue os princípios de tidy data e funciona melhor com dados em formato “long”, onde cada linha é uma observação única.</p>
 <p>Convertemos os nossos dados para o formato “long” utilizando a função <code>pivot_longer()</code> da seguinte maneira:</p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb4"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>long <span class="ot">&lt;-</span> <span class="fu">pivot_longer</span>(</span>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>long <span class="ot">&lt;-</span> <span class="fu">pivot_longer</span>(</span>
 <span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>  tbl,</span>
 <span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>  venda_1<span class="sc">:</span>venda_3,</span>
 <span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">names_to =</span> <span class="st">"loja"</span>,</span>
 <span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">values_to =</span> <span class="st">"total"</span></span>
-<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <p>Agora cada linha representa o número de vendas em uma loja específica e num ano específico. Além disso, cada coluna é uma variável diferente: a coluna <code>ano</code> indica que o ano da observação, a coluna <code>loja</code> indica a loja e a coluna <code>total</code> indica o total de vendas.</p>
 <p>Agora que temos nossos dados preparados, podemos montar nosso gráfico de área. Além dos argumentos <code>x</code> e <code>y</code>, também vamos especificar o argumento <code>fill</code> para indicar qual variável deve ser utilizada para preencher as cores entre as linhas.</p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb5"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>(<span class="at">data =</span> long) <span class="sc">+</span></span>
-<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_area</span>(<span class="fu">aes</span>(<span class="at">x =</span> ano, <span class="at">y =</span> total, <span class="at">fill =</span> loja))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>(<span class="at">data =</span> long) <span class="sc">+</span></span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_area</span>(<span class="fu">aes</span>(<span class="at">x =</span> ano, <span class="at">y =</span> total, <span class="at">fill =</span> loja))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 </section>
 <section id="factors" class="level3">
@@ -333,19 +338,19 @@ gtag('config', 'G-EJF8PGT67H', { 'anonymize_ip': true});
 <p>No gráfico acima, as áreas são empilhadas umas sobre as outras. Tipicamente, os grupos com os valores mais altos devem estar no topo da pilha e os grupos com valores mais baixos, na parte inferior. Na prática, a ordem é determinada pela ordem da variável <code>fill</code>. Neste caso, a ordem é dada pela variável categória <code>loja</code><a href="#fn1" class="footnote-ref" id="fnref1" role="doc-noteref"><sup>1</sup></a>. Variáveis categóricas no <code>R</code> sempre devem ser do tipo <code>factor</code>. Já se apresentou factors anteriormente, mas vale a pena revisar esta importante classe.</p>
 <p>Um <code>factor</code> é um tipo especial de string que possui um ordenamento (<code>levels</code>) que define a relação hierárquica entre os grupos. Imagine que você tem uma série de avaliações que podem ser “Bom”, “Médio” ou “Ruim” armazenadas num vetor chamado <code>feedback</code>. Para estruturar esta variável como <code>factor</code> é preciso definir qual a ordem destes valores. No exemplo abaixo define-se uma relação crescente: de “Ruim” até “Bom”.</p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb6"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>feedback <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="st">"Bom"</span>, <span class="st">"Bom"</span>, <span class="st">"Médio"</span>, <span class="st">"Ruim"</span>, <span class="st">"Médio"</span>, <span class="st">"Médio"</span>)</span>
-<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>satisfacao <span class="ot">&lt;-</span> <span class="fu">factor</span>(feedback, <span class="at">levels =</span> <span class="fu">c</span>(<span class="st">"Ruim"</span>, <span class="st">"Médio"</span>, <span class="st">"Bom"</span>))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>feedback <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="st">"Bom"</span>, <span class="st">"Bom"</span>, <span class="st">"Médio"</span>, <span class="st">"Ruim"</span>, <span class="st">"Médio"</span>, <span class="st">"Médio"</span>)</span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>satisfacao <span class="ot">&lt;-</span> <span class="fu">factor</span>(feedback, <span class="at">levels =</span> <span class="fu">c</span>(<span class="st">"Ruim"</span>, <span class="st">"Médio"</span>, <span class="st">"Bom"</span>))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <p>No caso do gráfico acima, como não definimos a ordem da variável categórica, o <code>ggplot2</code> tenta adivinha-la. De maneira geral, o <code>ggplot</code> respeita a ordem alfabética e a ordem de grandeza numérica. Por isso, no gráfico acima a ordem foi <code>venda_1</code>, <code>venda_2</code> e <code>venda_3</code>.</p>
 <p>Para definir a ordem dos lojass é preciso criar uma variável do tipo <code>factor</code> e especificar o argumento <code>levels</code>. O exemplo abaixo define uma nova ordem para os grupos o que resulta num gráfico diferente.</p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb7"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>long_reordenado <span class="ot">&lt;-</span> long <span class="sc">|&gt;</span></span>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb7"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>long_reordenado <span class="ot">&lt;-</span> long <span class="sc">|&gt;</span></span>
 <span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(</span>
 <span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>    <span class="at">loja =</span> <span class="fu">factor</span>(loja, <span class="at">levels =</span> <span class="fu">c</span>(<span class="st">"venda_3"</span>, <span class="st">"venda_1"</span>, <span class="st">"venda_2"</span>))</span>
 <span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a>  )</span>
 <span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>(<span class="at">data =</span> long_reordenado) <span class="sc">+</span></span>
-<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_area</span>(<span class="fu">aes</span>(<span class="at">x =</span> ano, <span class="at">y =</span> total, <span class="at">fill =</span> loja))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_area</span>(<span class="fu">aes</span>(<span class="at">x =</span> ano, <span class="at">y =</span> total, <span class="at">fill =</span> loja))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 </section>
 </section>
@@ -362,7 +367,7 @@ gtag('config', 'G-EJF8PGT67H', { 'anonymize_ip': true});
 <p>Os elementos estéticos podem receber dois tipos de valores: constantes ou variáveis. Uma constante é simplesmente um valor (número, texto, etc.) enquanto uma variável é o nome de alguma coluna da base de dados. Mapear variáveis em elementos estéticos permite fazer um gráfico de área em que cada cor representa um grupo distinto, como se viu no exemplo anterior.</p>
 <p>O gráfico abaixo mostra o volume de inventário de casas à venda em três cidades no Texas, usando a base <code>txhousing</code>. Note que o elemento <code>fill</code> é variável e definido como <code>fill = city</code> dentro da função <code>aes()</code>. Quando se mapeia uma coluna/variável para um elemento estético sempre se usa a função <code>aes()</code> da mesma maneira como se faz para mapear as variáveis <code>x</code> e <code>y</code>. Como a variável <code>city</code> é mapeada usa-se scale_fill_manual() para definir as suas cores e para controlar a legenda.</p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb8"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>sub <span class="ot">&lt;-</span> txhousing <span class="sc">|&gt;</span></span>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb8"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>sub <span class="ot">&lt;-</span> txhousing <span class="sc">|&gt;</span></span>
 <span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(</span>
 <span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a>    city <span class="sc">%in%</span> <span class="fu">c</span>(<span class="st">"Austin"</span>, <span class="st">"Houston"</span>, <span class="st">"Dallas"</span>),</span>
 <span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a>    year <span class="sc">&gt;=</span> <span class="dv">2010</span></span>
@@ -376,11 +381,11 @@ gtag('config', 'G-EJF8PGT67H', { 'anonymize_ip': true});
 <span id="cb8-12"><a href="#cb8-12" aria-hidden="true" tabindex="-1"></a>    <span class="at">name =</span> <span class="st">"Cidades"</span>,</span>
 <span id="cb8-13"><a href="#cb8-13" aria-hidden="true" tabindex="-1"></a>    <span class="co">#&gt; Cores</span></span>
 <span id="cb8-14"><a href="#cb8-14" aria-hidden="true" tabindex="-1"></a>    <span class="at">values =</span> <span class="fu">c</span>(<span class="st">"#0a9396"</span>, <span class="st">"#ee9b00"</span>, <span class="st">"#ae2012"</span>)</span>
-<span id="cb8-15"><a href="#cb8-15" aria-hidden="true" tabindex="-1"></a>  )</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb8-15"><a href="#cb8-15" aria-hidden="true" tabindex="-1"></a>  )</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <p>Para seguir os exemplos abaixo será útil definir este gráfico como um template padrão. Vamos chamá-lo de <code>base_plot</code>.</p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb9"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>base_plot <span class="ot">&lt;-</span> <span class="fu">ggplot</span>(sub, <span class="fu">aes</span>(<span class="at">x =</span> date, <span class="at">y =</span> inventory, <span class="at">fill =</span> city)) <span class="sc">+</span></span>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb9"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>base_plot <span class="ot">&lt;-</span> <span class="fu">ggplot</span>(sub, <span class="fu">aes</span>(<span class="at">x =</span> date, <span class="at">y =</span> inventory, <span class="at">fill =</span> city)) <span class="sc">+</span></span>
 <span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>  <span class="co">#&gt; Define as cores e controla a legenda</span></span>
 <span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_fill_manual</span>(</span>
 <span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a>    <span class="co">#&gt; Título da legenda</span></span>
@@ -388,16 +393,16 @@ gtag('config', 'G-EJF8PGT67H', { 'anonymize_ip': true});
 <span id="cb9-6"><a href="#cb9-6" aria-hidden="true" tabindex="-1"></a>    <span class="co">#&gt; Cores</span></span>
 <span id="cb9-7"><a href="#cb9-7" aria-hidden="true" tabindex="-1"></a>    <span class="at">values =</span> <span class="fu">c</span>(<span class="st">"#0a9396"</span>, <span class="st">"#ee9b00"</span>, <span class="st">"#ae2012"</span>)</span>
 <span id="cb9-8"><a href="#cb9-8" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">+</span></span>
-<span id="cb9-9"><a href="#cb9-9" aria-hidden="true" tabindex="-1"></a>  <span class="fu">guides</span>(<span class="at">fill =</span> <span class="st">"none"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb9-9"><a href="#cb9-9" aria-hidden="true" tabindex="-1"></a>  <span class="fu">guides</span>(<span class="at">fill =</span> <span class="st">"none"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <section id="alpha" class="level3">
 <h3 class="anchored" data-anchor-id="alpha">alpha</h3>
 <p>O argumento <code>alpha</code> controla o nível de transparência do objeto, isto é, da linha e da área abaixo da linha. O valor escolhido deve variar entre 0 e 1, onde 0 indica transparência máxima. Também é possível mapear uma coluna usando <code>alpha</code>, de maneira que cada grupo será representado por um nível de transparência distinto, mas há pouca utilidade prática nisto. O painel de gráficos abaixo mostra alguns valores de <code>alpha</code>.</p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb10"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a>base_plot <span class="sc">+</span> <span class="fu">geom_area</span>(<span class="at">alpha =</span> <span class="fl">0.2</span>)</span>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb10"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a>base_plot <span class="sc">+</span> <span class="fu">geom_area</span>(<span class="at">alpha =</span> <span class="fl">0.2</span>)</span>
 <span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a>base_plot <span class="sc">+</span> <span class="fu">geom_area</span>(<span class="at">alpha =</span> <span class="fl">0.4</span>)</span>
 <span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a>base_plot <span class="sc">+</span> <span class="fu">geom_area</span>(<span class="at">alpha =</span> <span class="fl">0.6</span>)</span>
-<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a>base_plot <span class="sc">+</span> <span class="fu">geom_area</span>(<span class="at">alpha =</span> <span class="fl">0.8</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a>base_plot <span class="sc">+</span> <span class="fu">geom_area</span>(<span class="at">alpha =</span> <span class="fl">0.8</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 </section>
 <section id="fill-e-color" class="level3">
@@ -405,7 +410,7 @@ gtag('config', 'G-EJF8PGT67H', { 'anonymize_ip': true});
 <p>O padrão da função <code>geom_area</code> é de sempre manter os argumentos <code>fill</code> e <code>color</code> iguais. Isto garante uma visualização simples e fluída. Contudo, é possível definir especificamente uma cor para cada elemento. O argumento <code>color</code> define a cor da linha no topo da área, enquanto <code>fill</code> define a cor que preenche a área. Para mostrar isto, usa-se novamente o exemplo com dados simulados.</p>
 <p>Note que para tornar a cor da linha mais aparente uso <code>linewidth = 3</code>. Isto torna a linha mais espessa.</p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb11"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Linha e área tem a mesma cor</span></span>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb11"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Linha e área tem a mesma cor</span></span>
 <span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>(tbl, <span class="fu">aes</span>(<span class="at">x =</span> ano, <span class="at">y =</span> venda_1)) <span class="sc">+</span></span>
 <span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_area</span>(<span class="at">fill =</span> <span class="st">"#0a9396"</span>)</span>
 <span id="cb11-4"><a href="#cb11-4" aria-hidden="true" tabindex="-1"></a></span>
@@ -419,7 +424,7 @@ gtag('config', 'G-EJF8PGT67H', { 'anonymize_ip': true});
 <span id="cb11-12"><a href="#cb11-12" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb11-13"><a href="#cb11-13" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Linha amarela e área variando por grupo</span></span>
 <span id="cb11-14"><a href="#cb11-14" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>(long, <span class="fu">aes</span>(<span class="at">x =</span> ano, <span class="at">y =</span> total, <span class="at">fill =</span> loja)) <span class="sc">+</span></span>
-<span id="cb11-15"><a href="#cb11-15" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_area</span>(<span class="at">color =</span> <span class="st">"#ee9b00"</span>, <span class="at">linewidth =</span> <span class="dv">3</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb11-15"><a href="#cb11-15" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_area</span>(<span class="at">color =</span> <span class="st">"#ee9b00"</span>, <span class="at">linewidth =</span> <span class="dv">3</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 </section>
 <section id="linetype-e-linewidth" class="level3">
@@ -427,17 +432,17 @@ gtag('config', 'G-EJF8PGT67H', { 'anonymize_ip': true});
 <p>Estes argumentos se comportam da mesma maneira como no caso de gráficos de linha, com a função <code>geom_line</code>. O argumento <code>linetype</code> controla o tipo da linha (e.g.&nbsp;sólida, tracejada, etc.) enquanto <code>linewidth</code> controla a espessura da linha. Note que os argumento serão aplicados apenas se houver uma diferença entre <code>color</code> e <code>fill</code>.</p>
 <p>O exemplo abaixo mostra como mudar o tipo da linha que fica sobre a área colorida. Para ver os demais tipos de linha consulte o <a href="https://restateinsight.com/posts/tutorial-ggplot2/4-grafico-de-linha#opções-estéticas">post inicial sobre gráficos de linha</a>.</p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb12"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a>base_plot <span class="sc">+</span> <span class="fu">geom_area</span>(<span class="at">linetype =</span> <span class="dv">5</span>)</span>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb12"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a>base_plot <span class="sc">+</span> <span class="fu">geom_area</span>(<span class="at">linetype =</span> <span class="dv">5</span>)</span>
 <span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a>base_plot <span class="sc">+</span> <span class="fu">geom_area</span>(<span class="at">color =</span> <span class="st">"white"</span>, <span class="at">linetype =</span> <span class="dv">1</span>)</span>
 <span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a>base_plot <span class="sc">+</span> <span class="fu">geom_area</span>(<span class="at">color =</span> <span class="st">"white"</span>, <span class="at">linetype =</span> <span class="dv">5</span>)</span>
-<span id="cb12-4"><a href="#cb12-4" aria-hidden="true" tabindex="-1"></a>base_plot <span class="sc">+</span> <span class="fu">geom_area</span>(<span class="at">color =</span> <span class="st">"white"</span>, <span class="at">linetype =</span> <span class="dv">6</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb12-4"><a href="#cb12-4" aria-hidden="true" tabindex="-1"></a>base_plot <span class="sc">+</span> <span class="fu">geom_area</span>(<span class="at">color =</span> <span class="st">"white"</span>, <span class="at">linetype =</span> <span class="dv">6</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <p>O painel de gráficos abaixo mostra como variar a espessura da linha. Novamente, este argumento será aplicado apenas se o argumento <code>color</code> for diferente do argumento <code>fill</code>.</p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb13"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a>base_plot <span class="sc">+</span> <span class="fu">geom_area</span>(<span class="at">color =</span> <span class="st">"white"</span>, <span class="at">linewidth =</span> <span class="fl">0.5</span>)</span>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb13"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a>base_plot <span class="sc">+</span> <span class="fu">geom_area</span>(<span class="at">color =</span> <span class="st">"white"</span>, <span class="at">linewidth =</span> <span class="fl">0.5</span>)</span>
 <span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a>base_plot <span class="sc">+</span> <span class="fu">geom_area</span>(<span class="at">color =</span> <span class="st">"white"</span>, <span class="at">linewidth =</span> <span class="dv">1</span>)</span>
 <span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a>base_plot <span class="sc">+</span> <span class="fu">geom_area</span>(<span class="at">color =</span> <span class="st">"white"</span>, <span class="at">linewidth =</span> <span class="dv">2</span>)</span>
-<span id="cb13-4"><a href="#cb13-4" aria-hidden="true" tabindex="-1"></a>base_plot <span class="sc">+</span> <span class="fu">geom_area</span>(<span class="at">color =</span> <span class="st">"white"</span>, <span class="at">linewidth =</span> <span class="dv">5</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb13-4"><a href="#cb13-4" aria-hidden="true" tabindex="-1"></a>base_plot <span class="sc">+</span> <span class="fu">geom_area</span>(<span class="at">color =</span> <span class="st">"white"</span>, <span class="at">linewidth =</span> <span class="dv">5</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 </section>
 </section>
@@ -447,7 +452,7 @@ gtag('config', 'G-EJF8PGT67H', { 'anonymize_ip': true});
 <p>Agora vamos seguir para um exemplo aplicado. Vamos explorar o volume de crédito direcionado para pessoas físicas no Brasil. Para importar os dados vamos usar o pacote <code>GetBCBData</code> que interage com a API do Banco Central do Brasil e que traz os dados já no formato “long” dentro do <code>R</code>.</p>
 <p>O código abaixo importa as séries de tempo e identifica elas. A manipulação de dados é feita usando funções do pacote <code>dplyr</code>. Cria-se uma coluna chamada <code>linha_credito</code> que identifica o nome da linha de crédito a partir do ID da série.</p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb14"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Códigos numéricos das séries de crédito direcionado para Pessoas Físicas</span></span>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb14"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Códigos numéricos das séries de crédito direcionado para Pessoas Físicas</span></span>
 <span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a>codigos <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="dv">20701</span>, <span class="dv">20704</span>, <span class="dv">20708</span>, <span class="dv">20712</span>, <span class="dv">20713</span>)</span>
 <span id="cb14-3"><a href="#cb14-3" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Importa as séries a partir de 01/mar/2011</span></span>
 <span id="cb14-4"><a href="#cb14-4" aria-hidden="true" tabindex="-1"></a>series <span class="ot">&lt;-</span> <span class="fu">gbcbd_get_series</span>(codigos, <span class="at">first.date =</span> <span class="fu">as.Date</span>(<span class="st">"01-03-2011"</span>))</span>
@@ -462,20 +467,20 @@ gtag('config', 'G-EJF8PGT67H', { 'anonymize_ip': true});
 <span id="cb14-13"><a href="#cb14-13" aria-hidden="true" tabindex="-1"></a>      id.num <span class="sc">==</span> <span class="dv">20712</span> <span class="sc">~</span> <span class="st">"Microcrédito"</span>,</span>
 <span id="cb14-14"><a href="#cb14-14" aria-hidden="true" tabindex="-1"></a>      id.num <span class="sc">==</span> <span class="dv">20713</span> <span class="sc">~</span> <span class="st">"Outro"</span></span>
 <span id="cb14-15"><a href="#cb14-15" aria-hidden="true" tabindex="-1"></a>    )</span>
-<span id="cb14-16"><a href="#cb14-16" aria-hidden="true" tabindex="-1"></a>  )</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb14-16"><a href="#cb14-16" aria-hidden="true" tabindex="-1"></a>  )</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <p>Vamos montar um gráfico de área simples que mostra a composição e a evolução do crédito direcionado.</p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb15"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Plota o gráfico</span></span>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb15"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Plota o gráfico</span></span>
 <span id="cb15-2"><a href="#cb15-2" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>(<span class="at">data =</span> series) <span class="sc">+</span></span>
-<span id="cb15-3"><a href="#cb15-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_area</span>(<span class="fu">aes</span>(<span class="at">x =</span> ref.date, <span class="at">y =</span> value, <span class="at">fill =</span> linha_credito))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb15-3"><a href="#cb15-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_area</span>(<span class="fu">aes</span>(<span class="at">x =</span> ref.date, <span class="at">y =</span> value, <span class="at">fill =</span> linha_credito))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <p>Este gráfico pode ser melhorado de diversas formas. Vamos explorar algumas opções.</p>
 <section id="reordenando-os-grupos" class="level3">
 <h3 class="anchored" data-anchor-id="reordenando-os-grupos">Reordenando os grupos</h3>
 <p>Pelo gráfico, vemos que o crédito rural e o crédito imobiliário são as linhas de crédito mais expressivas. O código abaixo reordena o nível dos grupos para dar mais destaque ao crédito imobiliário e ao crédito rural.</p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb16"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a>series <span class="ot">&lt;-</span> series <span class="sc">|&gt;</span></span>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb16"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a>series <span class="ot">&lt;-</span> series <span class="sc">|&gt;</span></span>
 <span id="cb16-2"><a href="#cb16-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(</span>
 <span id="cb16-3"><a href="#cb16-3" aria-hidden="true" tabindex="-1"></a>    <span class="at">linha_credito =</span> <span class="fu">factor</span>(</span>
 <span id="cb16-4"><a href="#cb16-4" aria-hidden="true" tabindex="-1"></a>      linha_credito,</span>
@@ -484,53 +489,53 @@ gtag('config', 'G-EJF8PGT67H', { 'anonymize_ip': true});
 <span id="cb16-7"><a href="#cb16-7" aria-hidden="true" tabindex="-1"></a>  )</span>
 <span id="cb16-8"><a href="#cb16-8" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb16-9"><a href="#cb16-9" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>(<span class="at">data =</span> series) <span class="sc">+</span></span>
-<span id="cb16-10"><a href="#cb16-10" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_area</span>(<span class="fu">aes</span>(<span class="at">x =</span> ref.date, <span class="at">y =</span> value, <span class="at">fill =</span> linha_credito))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb16-10"><a href="#cb16-10" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_area</span>(<span class="fu">aes</span>(<span class="at">x =</span> ref.date, <span class="at">y =</span> value, <span class="at">fill =</span> linha_credito))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 </section>
 <section id="trocando-as-cores" class="level3">
 <h3 class="anchored" data-anchor-id="trocando-as-cores">Trocando as cores</h3>
 <p>A escolha automática de cores do <code>ggplot</code> raramente é satisfatória. Podemos escolher novas cores manualmente usando a função <code>scale_fill_manual()</code>. Além disso, também adicionamos um título mais apropriado para a legenda das cores.</p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb17"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>(<span class="at">data =</span> series) <span class="sc">+</span></span>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb17"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>(<span class="at">data =</span> series) <span class="sc">+</span></span>
 <span id="cb17-2"><a href="#cb17-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_area</span>(<span class="fu">aes</span>(<span class="at">x =</span> ref.date, <span class="at">y =</span> value, <span class="at">fill =</span> linha_credito)) <span class="sc">+</span></span>
 <span id="cb17-3"><a href="#cb17-3" aria-hidden="true" tabindex="-1"></a>  <span class="co">#&gt; Define a cor dos grupos e adiciona um título na legenda</span></span>
 <span id="cb17-4"><a href="#cb17-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_fill_manual</span>(</span>
 <span id="cb17-5"><a href="#cb17-5" aria-hidden="true" tabindex="-1"></a>    <span class="at">name =</span> <span class="st">"Linha de Crédito"</span>,</span>
 <span id="cb17-6"><a href="#cb17-6" aria-hidden="true" tabindex="-1"></a>    <span class="at">values =</span> <span class="fu">c</span>(<span class="st">"#005f73"</span>, <span class="st">"#94d2bd"</span>, <span class="st">"#ee9b00"</span>, <span class="st">"#bb3e03"</span>, <span class="st">"#9b2226"</span>)</span>
-<span id="cb17-7"><a href="#cb17-7" aria-hidden="true" tabindex="-1"></a>  )</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb17-7"><a href="#cb17-7" aria-hidden="true" tabindex="-1"></a>  )</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <p>Uma solução mais prática é utilizar uma paleta pré-definida de cores. A função <code>scale_fill_brewer()</code>, por exemplo, possui várias paletas importadas do <a href="https://colorbrewer2.org">Color Brewer</a>.</p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb18"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>(<span class="at">data =</span> series) <span class="sc">+</span></span>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb18"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>(<span class="at">data =</span> series) <span class="sc">+</span></span>
 <span id="cb18-2"><a href="#cb18-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_area</span>(<span class="fu">aes</span>(<span class="at">x =</span> ref.date, <span class="at">y =</span> value, <span class="at">fill =</span> linha_credito)) <span class="sc">+</span></span>
 <span id="cb18-3"><a href="#cb18-3" aria-hidden="true" tabindex="-1"></a>  <span class="co">#&gt; Define a cor dos grupos e adiciona um título na legenda</span></span>
 <span id="cb18-4"><a href="#cb18-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_fill_brewer</span>(</span>
 <span id="cb18-5"><a href="#cb18-5" aria-hidden="true" tabindex="-1"></a>    <span class="at">name =</span> <span class="st">"Linha de Crédito"</span>,</span>
 <span id="cb18-6"><a href="#cb18-6" aria-hidden="true" tabindex="-1"></a>    <span class="at">type =</span> <span class="st">"qual"</span>,</span>
 <span id="cb18-7"><a href="#cb18-7" aria-hidden="true" tabindex="-1"></a>    <span class="at">palette =</span> <span class="dv">6</span></span>
-<span id="cb18-8"><a href="#cb18-8" aria-hidden="true" tabindex="-1"></a>  )</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb18-8"><a href="#cb18-8" aria-hidden="true" tabindex="-1"></a>  )</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 </section>
 <section id="ajustando-eixos" class="level3">
 <h3 class="anchored" data-anchor-id="ajustando-eixos">Ajustando eixos</h3>
 <p>Para ajustar os eixos utilizamos as funções <code>scale_</code>. Primeiro, vamos ajustar o eixo-x usando <code>scale_x_date</code>. Nesta função, <code>date_breaks</code> indica a frequências das quebras e <code>date_labels</code> indica o formato da data a ser impresso no eixo. No caso abaixo temos quebras anuais onde apenas o número (extenso) do ano é plotado.</p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb19"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>(<span class="at">data =</span> series) <span class="sc">+</span></span>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb19"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>(<span class="at">data =</span> series) <span class="sc">+</span></span>
 <span id="cb19-2"><a href="#cb19-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_area</span>(<span class="fu">aes</span>(<span class="at">x =</span> ref.date, <span class="at">y =</span> value, <span class="at">fill =</span> linha_credito)) <span class="sc">+</span></span>
 <span id="cb19-3"><a href="#cb19-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_fill_brewer</span>(<span class="at">name =</span> <span class="st">"Linha de Crédito"</span>, <span class="at">type =</span> <span class="st">"qual"</span>, <span class="at">palette =</span> <span class="dv">6</span>) <span class="sc">+</span></span>
-<span id="cb19-4"><a href="#cb19-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_x_date</span>(<span class="at">date_breaks =</span> <span class="st">"1 year"</span>, <span class="at">date_labels =</span> <span class="st">"%Y"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb19-4"><a href="#cb19-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_x_date</span>(<span class="at">date_breaks =</span> <span class="st">"1 year"</span>, <span class="at">date_labels =</span> <span class="st">"%Y"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <p>Note que há duas pequenas áreas entre o gráfico e os limites do painel. Pode-se suprimir esta área usando <code>expand = c(0, 0)</code> dentro da função <code>scale_</code>.</p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb20"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>(<span class="at">data =</span> series) <span class="sc">+</span></span>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb20"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>(<span class="at">data =</span> series) <span class="sc">+</span></span>
 <span id="cb20-2"><a href="#cb20-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_area</span>(<span class="fu">aes</span>(<span class="at">x =</span> ref.date, <span class="at">y =</span> value, <span class="at">fill =</span> linha_credito)) <span class="sc">+</span></span>
 <span id="cb20-3"><a href="#cb20-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_fill_brewer</span>(<span class="at">name =</span> <span class="st">"Linha de Crédito"</span>, <span class="at">type =</span> <span class="st">"qual"</span>, <span class="at">palette =</span> <span class="dv">6</span>) <span class="sc">+</span></span>
-<span id="cb20-4"><a href="#cb20-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_x_date</span>(<span class="at">date_breaks =</span> <span class="st">"1 year"</span>, <span class="at">date_labels =</span> <span class="st">"%Y"</span>, <span class="at">expand =</span> <span class="fu">c</span>(<span class="dv">0</span>, <span class="dv">0</span>))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb20-4"><a href="#cb20-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_x_date</span>(<span class="at">date_breaks =</span> <span class="st">"1 year"</span>, <span class="at">date_labels =</span> <span class="st">"%Y"</span>, <span class="at">expand =</span> <span class="fu">c</span>(<span class="dv">0</span>, <span class="dv">0</span>))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <p>No código abaixo a função <code>scale_y_continuous()</code> altera o eixo-y de três formas: primeiro, o argumento <code>breaks</code> define os números que devem ser destacados no eixo; segundo, o argumento <code>labels</code> modifica a aparência destes números no gráfico; por fim, <code>limits</code> estabelece os limites inferior e superior do eixo-y.</p>
 <p>A função <code>scales::label_number(big.mark = ".")</code> pode parecer um pouco confusa, mas ela simplesmente informa que o sinal de ponto “.” deve ser utilizado como separador de milhar. Assim <code>10000</code> é convertido para <code>10.000</code><a href="#fn2" class="footnote-ref" id="fnref2" role="doc-noteref"><sup>2</sup></a>.</p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb21"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb21-1"><a href="#cb21-1" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>(<span class="at">data =</span> series) <span class="sc">+</span></span>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb21"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb21-1"><a href="#cb21-1" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>(<span class="at">data =</span> series) <span class="sc">+</span></span>
 <span id="cb21-2"><a href="#cb21-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_area</span>(<span class="fu">aes</span>(<span class="at">x =</span> ref.date, <span class="at">y =</span> value, <span class="at">fill =</span> linha_credito)) <span class="sc">+</span></span>
 <span id="cb21-3"><a href="#cb21-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_fill_brewer</span>(<span class="at">name =</span> <span class="st">"Linha de Crédito"</span>, <span class="at">type =</span> <span class="st">"qual"</span>, <span class="at">palette =</span> <span class="dv">6</span>) <span class="sc">+</span></span>
 <span id="cb21-4"><a href="#cb21-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_x_date</span>(<span class="at">date_breaks =</span> <span class="st">"1 year"</span>, <span class="at">date_labels =</span> <span class="st">"%Y"</span>, <span class="at">expand =</span> <span class="fu">c</span>(<span class="dv">0</span>, <span class="dv">0</span>)) <span class="sc">+</span></span>
@@ -539,14 +544,14 @@ gtag('config', 'G-EJF8PGT67H', { 'anonymize_ip': true});
 <span id="cb21-7"><a href="#cb21-7" aria-hidden="true" tabindex="-1"></a>    <span class="at">breaks =</span> <span class="fu">seq</span>(<span class="dv">0</span>, <span class="dv">60000</span>, <span class="dv">10000</span>),</span>
 <span id="cb21-8"><a href="#cb21-8" aria-hidden="true" tabindex="-1"></a>    <span class="at">labels =</span> scales<span class="sc">::</span><span class="fu">label_number</span>(<span class="at">big.mark =</span> <span class="st">"."</span>),</span>
 <span id="cb21-9"><a href="#cb21-9" aria-hidden="true" tabindex="-1"></a>    <span class="at">limits =</span> <span class="fu">c</span>(<span class="dv">0</span>, <span class="dv">60000</span>)</span>
-<span id="cb21-10"><a href="#cb21-10" aria-hidden="true" tabindex="-1"></a>  )</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb21-10"><a href="#cb21-10" aria-hidden="true" tabindex="-1"></a>  )</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 </section>
 <section id="títulos-e-elementos-temáticos" class="level3">
 <h3 class="anchored" data-anchor-id="títulos-e-elementos-temáticos">Títulos e elementos temáticos</h3>
 <p>Para adicionar títulos o modificar o nome de cada eixo utilizamos a função <code>labs()</code>. Para este gráfico escolhemos um tema neutro com fundo branco <code>theme_minimal()</code>. Além disso, adiciono alguns argumentos na função theme para customizar o gráfico. Para mais detalhes consulte <a href="https://restateinsight.com/posts/tutorial-ggplot2/7-themes-fonts">o post sobre elementos temáticos</a>.</p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb22"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb22-1"><a href="#cb22-1" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>(<span class="at">data =</span> series) <span class="sc">+</span></span>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb22"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb22-1"><a href="#cb22-1" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>(<span class="at">data =</span> series) <span class="sc">+</span></span>
 <span id="cb22-2"><a href="#cb22-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_area</span>(<span class="fu">aes</span>(<span class="at">x =</span> ref.date, <span class="at">y =</span> value, <span class="at">fill =</span> linha_credito)) <span class="sc">+</span></span>
 <span id="cb22-3"><a href="#cb22-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_hline</span>(<span class="at">yintercept =</span> <span class="dv">0</span>) <span class="sc">+</span></span>
 <span id="cb22-4"><a href="#cb22-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_fill_brewer</span>(<span class="at">name =</span> <span class="st">"Linha de Crédito"</span>, <span class="at">type =</span> <span class="st">"qual"</span>, <span class="at">palette =</span> <span class="dv">6</span>) <span class="sc">+</span></span>
@@ -571,7 +576,7 @@ gtag('config', 'G-EJF8PGT67H', { 'anonymize_ip': true});
 <span id="cb22-23"><a href="#cb22-23" aria-hidden="true" tabindex="-1"></a>    <span class="at">axis.text.x =</span> <span class="fu">element_text</span>(<span class="at">angle =</span> <span class="dv">90</span>),</span>
 <span id="cb22-24"><a href="#cb22-24" aria-hidden="true" tabindex="-1"></a>    <span class="at">panel.grid.minor =</span> <span class="fu">element_blank</span>(),</span>
 <span id="cb22-25"><a href="#cb22-25" aria-hidden="true" tabindex="-1"></a>    <span class="at">panel.grid.major.x =</span> <span class="fu">element_blank</span>()</span>
-<span id="cb22-26"><a href="#cb22-26" aria-hidden="true" tabindex="-1"></a>  )</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb22-26"><a href="#cb22-26" aria-hidden="true" tabindex="-1"></a>  )</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 </section>
 <section id="suavizando-a-série" class="level3">
@@ -580,7 +585,7 @@ gtag('config', 'G-EJF8PGT67H', { 'anonymize_ip': true});
 <p>Há muitas maneiras de se fazer isto. Pode-se, por exemplo, dessazonalizar os dados usando X-13 ARIMA; pode-se extrair a tendência das séries utilizando algum filtro linear como de médias móveis, Holt-Winters, filtro HP, etc.</p>
 <p>Uma alternativa bastante simples é somar as últimas doze observações e criar uma janela móvel. Assim temos as concessões acumuladas nos últimos doze meses. Para calcular esta soma utilizamos a função <code>RcppRoll::roll_sumr()</code>. Como a magnitude dos valores aumenta, dividimos o valor final por mil (agora os valores estão em bilhões de reais).</p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb23"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb23-1"><a href="#cb23-1" aria-hidden="true" tabindex="-1"></a>series <span class="ot">&lt;-</span> series <span class="sc">|&gt;</span></span>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb23"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb23-1"><a href="#cb23-1" aria-hidden="true" tabindex="-1"></a>series <span class="ot">&lt;-</span> series <span class="sc">|&gt;</span></span>
 <span id="cb23-2"><a href="#cb23-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">group_by</span>(linha_credito) <span class="sc">|&gt;</span></span>
 <span id="cb23-3"><a href="#cb23-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">soma_12 =</span> RcppRoll<span class="sc">::</span><span class="fu">roll_sumr</span>(value, <span class="at">n =</span> <span class="dv">12</span>) <span class="sc">/</span> <span class="dv">1000</span>) <span class="sc">|&gt;</span></span>
 <span id="cb23-4"><a href="#cb23-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ungroup</span>()</span>
@@ -604,7 +609,7 @@ gtag('config', 'G-EJF8PGT67H', { 'anonymize_ip': true});
 <span id="cb23-22"><a href="#cb23-22" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_minimal</span>() <span class="sc">+</span></span>
 <span id="cb23-23"><a href="#cb23-23" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme</span>(</span>
 <span id="cb23-24"><a href="#cb23-24" aria-hidden="true" tabindex="-1"></a>    <span class="at">legend.position =</span> <span class="st">"top"</span></span>
-<span id="cb23-25"><a href="#cb23-25" aria-hidden="true" tabindex="-1"></a>  )</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb23-25"><a href="#cb23-25" aria-hidden="true" tabindex="-1"></a>  )</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 </section>
 <section id="resumo" class="level3">
@@ -623,7 +628,7 @@ gtag('config', 'G-EJF8PGT67H', { 'anonymize_ip': true});
 <p>A tabela que vamos usar contém as estimativas passadas e projeções futuras da população em grupos de cinco anos (0-4, 5-9, 10-14, …, 100+) por sexo. Para ler os dados usamos a função <code>read_csv()</code>. Vamos considerar somente a janela entre 2000 e 2050 e a variável <code>pop_total</code> que estimativa da população total num determinado ano. Para facilitar a leitura, os dados são agregados em grupos maiores: crianças (0-14), adolescentes (15-24), adultos (25-64) e idosos (65+).</p>
 <p>O código abaixo faz a manipulação de dados necessária para montar os gráficos<a href="#fn3" class="footnote-ref" id="fnref3" role="doc-noteref"><sup>3</sup></a>.</p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb24"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb24-1"><a href="#cb24-1" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Importa a base de dados</span></span>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb24"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb24-1"><a href="#cb24-1" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Importa a base de dados</span></span>
 <span id="cb24-2"><a href="#cb24-2" aria-hidden="true" tabindex="-1"></a>wpp <span class="ot">&lt;-</span> <span class="fu">read_csv</span>(</span>
 <span id="cb24-3"><a href="#cb24-3" aria-hidden="true" tabindex="-1"></a>  <span class="st">"https://github.com/viniciusoike/restateinsight/raw/main/posts/tutorial-ggplot2/wpp_brazil.csv"</span></span>
 <span id="cb24-4"><a href="#cb24-4" aria-hidden="true" tabindex="-1"></a>)</span>
@@ -649,26 +654,26 @@ gtag('config', 'G-EJF8PGT67H', { 'anonymize_ip': true});
 <span id="cb24-24"><a href="#cb24-24" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ungroup</span>()</span>
 <span id="cb24-25"><a href="#cb24-25" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb24-26"><a href="#cb24-26" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Seleciona somente o grupo de adultos</span></span>
-<span id="cb24-27"><a href="#cb24-27" aria-hidden="true" tabindex="-1"></a>pop_adult <span class="ot">&lt;-</span> <span class="fu">filter</span>(brazil, age_group <span class="sc">==</span> <span class="st">"25-64"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb24-27"><a href="#cb24-27" aria-hidden="true" tabindex="-1"></a>pop_adult <span class="ot">&lt;-</span> <span class="fu">filter</span>(brazil, age_group <span class="sc">==</span> <span class="st">"25-64"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <p>Além disso, vamos definir um tema padrão para nossos gráficos.</p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb25"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb25-1"><a href="#cb25-1" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Define um tema padrão</span></span>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb25"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb25-1"><a href="#cb25-1" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Define um tema padrão</span></span>
 <span id="cb25-2"><a href="#cb25-2" aria-hidden="true" tabindex="-1"></a>theme_area <span class="ot">&lt;-</span> <span class="fu">theme_minimal</span>(<span class="at">base_family =</span> <span class="st">"Helvetica"</span>) <span class="sc">+</span></span>
 <span id="cb25-3"><a href="#cb25-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme</span>(</span>
 <span id="cb25-4"><a href="#cb25-4" aria-hidden="true" tabindex="-1"></a>    <span class="at">legend.position =</span> <span class="st">"top"</span>,</span>
 <span id="cb25-5"><a href="#cb25-5" aria-hidden="true" tabindex="-1"></a>    <span class="at">panel.grid.minor =</span> <span class="fu">element_blank</span>(),</span>
 <span id="cb25-6"><a href="#cb25-6" aria-hidden="true" tabindex="-1"></a>    <span class="at">panel.grid.major.x =</span> <span class="fu">element_blank</span>()</span>
-<span id="cb25-7"><a href="#cb25-7" aria-hidden="true" tabindex="-1"></a>  )</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb25-7"><a href="#cb25-7" aria-hidden="true" tabindex="-1"></a>  )</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <p>A tabela <code>pop</code> apresenta a população total projetada para cada ano e tem o formato abaixo. Os dados de população estão em milhares.</p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb26"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb26-1"><a href="#cb26-1" aria-hidden="true" tabindex="-1"></a><span class="fu">head</span>(pop)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb26"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb26-1"><a href="#cb26-1" aria-hidden="true" tabindex="-1"></a><span class="fu">head</span>(pop)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <p>Vamos combinar a função <code>geom_area()</code> com outras duas: uma para fazer pontos e outra para traçar uma linha horizontal no zero do eixo-y. Para desenhar os pontos vamos utilizar a função <code>geom_point()</code> e para traçar a linha horizontal, <code>geom_hline()</code>. Para manter um padrão de cores vamos escolher uma constante <code>#2a9d8f</code> (um tom de verde-azulado).</p>
 <p>O código abaixo gera uma espécie de gráfico de linha, com pontos, com uma região sombreada. Note que os elementos estéticos <code>fill</code> e <code>color</code> são constantes.</p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb27"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb27-1"><a href="#cb27-1" aria-hidden="true" tabindex="-1"></a>col <span class="ot">=</span> <span class="st">"#2a9d8f"</span></span>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb27"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb27-1"><a href="#cb27-1" aria-hidden="true" tabindex="-1"></a>col <span class="ot">=</span> <span class="st">"#2a9d8f"</span></span>
 <span id="cb27-2"><a href="#cb27-2" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb27-3"><a href="#cb27-3" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>(<span class="at">data =</span> pop, <span class="fu">aes</span>(<span class="at">x =</span> year, <span class="at">y =</span> population)) <span class="sc">+</span></span>
 <span id="cb27-4"><a href="#cb27-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_area</span>(<span class="at">alpha =</span> <span class="fl">0.5</span>, <span class="at">fill =</span> col) <span class="sc">+</span></span>
@@ -676,30 +681,30 @@ gtag('config', 'G-EJF8PGT67H', { 'anonymize_ip': true});
 <span id="cb27-6"><a href="#cb27-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_hline</span>(<span class="at">yintercept =</span> <span class="dv">0</span>) <span class="sc">+</span></span>
 <span id="cb27-7"><a href="#cb27-7" aria-hidden="true" tabindex="-1"></a>  <span class="co">#&gt; Pontos para destacar as observações</span></span>
 <span id="cb27-8"><a href="#cb27-8" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_point</span>(<span class="at">color =</span> col) <span class="sc">+</span></span>
-<span id="cb27-9"><a href="#cb27-9" aria-hidden="true" tabindex="-1"></a>  theme_area</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb27-9"><a href="#cb27-9" aria-hidden="true" tabindex="-1"></a>  theme_area</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <p>Podemos combinar o gráfico acima com a função <code>facet_wrap()</code> para montar quatro gráficos, mostrando a evolução da população dentro de cada um dos grupos<a href="#fn4" class="footnote-ref" id="fnref4" role="doc-noteref"><sup>4</sup></a>.</p>
 <p>O grupo de crianças (0 a 14 anos) cai, enquanto o grupo de idosos (65+) aumenta expressivamente. O grupo de adultos (25-64) aumenta até atingir um máximo ao redor de 2040 e depois passa a cair suavemente. Por fim, o grupo de adolescentes/jovens (15-24) cai suavamente.</p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb28"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb28-1"><a href="#cb28-1" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>(<span class="at">data =</span> pop_group, <span class="fu">aes</span>(<span class="at">x =</span> year, <span class="at">y =</span> population)) <span class="sc">+</span></span>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb28"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb28-1"><a href="#cb28-1" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>(<span class="at">data =</span> pop_group, <span class="fu">aes</span>(<span class="at">x =</span> year, <span class="at">y =</span> population)) <span class="sc">+</span></span>
 <span id="cb28-2"><a href="#cb28-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_area</span>(<span class="at">alpha =</span> <span class="fl">0.5</span>, <span class="at">fill =</span> col) <span class="sc">+</span></span>
 <span id="cb28-3"><a href="#cb28-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_hline</span>(<span class="at">yintercept =</span> <span class="dv">0</span>) <span class="sc">+</span></span>
 <span id="cb28-4"><a href="#cb28-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_point</span>(<span class="at">color =</span> col) <span class="sc">+</span></span>
 <span id="cb28-5"><a href="#cb28-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">facet_wrap</span>(<span class="fu">vars</span>(age_group)) <span class="sc">+</span></span>
-<span id="cb28-6"><a href="#cb28-6" aria-hidden="true" tabindex="-1"></a>  theme_area</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb28-6"><a href="#cb28-6" aria-hidden="true" tabindex="-1"></a>  theme_area</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <p>Assim como nos exemplos anteriores, podemos também empilhar os grupos e ter uma noção da representatividade de cada um deles no total da população. Neste gráfico, vê-se como a população total cresce cada vez mais devagar até quase estabilizar por volta de 2045. A composição da população se altera, além de crescer, com maior participação de idosos e menor participação de crianças na população.</p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb29"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb29-1"><a href="#cb29-1" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>(<span class="at">data =</span> pop_group) <span class="sc">+</span></span>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb29"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb29-1"><a href="#cb29-1" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>(<span class="at">data =</span> pop_group) <span class="sc">+</span></span>
 <span id="cb29-2"><a href="#cb29-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_area</span>(<span class="fu">aes</span>(<span class="at">x =</span> year, <span class="at">y =</span> population, <span class="at">fill =</span> age_group)) <span class="sc">+</span></span>
 <span id="cb29-3"><a href="#cb29-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_hline</span>(<span class="at">yintercept =</span> <span class="dv">0</span>) <span class="sc">+</span></span>
 <span id="cb29-4"><a href="#cb29-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_fill_brewer</span>(<span class="at">name =</span> <span class="st">""</span>, <span class="at">type =</span> <span class="st">"qual"</span>, <span class="at">palette =</span> <span class="dv">6</span>) <span class="sc">+</span></span>
-<span id="cb29-5"><a href="#cb29-5" aria-hidden="true" tabindex="-1"></a>  theme_area</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb29-5"><a href="#cb29-5" aria-hidden="true" tabindex="-1"></a>  theme_area</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <p>Pode-se acrescentar elementos textuais no gráfico acima<a href="#fn5" class="footnote-ref" id="fnref5" role="doc-noteref"><sup>5</sup></a>. Similarmente como se faz com gráficos de coluna, basta usar <code>position_stack(vjust = 0.5)</code> dentro de <code>geom_text</code> ou <code>geom_label</code>. Para evitar que os valores de todos os anos sejam plotados, crio uma variável auxiliar, <code>label</code>, que contém valores ausentes exceto em 2000 e em 2050. Além disso, para melhorar a visualização, faço um pequeno deslocamento na variável <code>year</code> para desclocar a posição horizontal do label<a href="#fn6" class="footnote-ref" id="fnref6" role="doc-noteref"><sup>6</sup></a>.</p>
 <p>Neste gráfico, fica evidente a mudança na composição entre cada grupo da população. Enquanto a população de crianças e adolescentes diminui, a população de idosos mais do que quintuplica no período de 50 anos, subindo de 9,5 milhão para pouco mais de 50 milhão. Os adultos continuam sendo o grupo mais expressivo da população, chegando a 121 milhão em 2050.</p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb30"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb30-1"><a href="#cb30-1" aria-hidden="true" tabindex="-1"></a>pop_group <span class="ot">&lt;-</span> pop_group <span class="sc">|&gt;</span></span>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb30"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb30-1"><a href="#cb30-1" aria-hidden="true" tabindex="-1"></a>pop_group <span class="ot">&lt;-</span> pop_group <span class="sc">|&gt;</span></span>
 <span id="cb30-2"><a href="#cb30-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(</span>
 <span id="cb30-3"><a href="#cb30-3" aria-hidden="true" tabindex="-1"></a>    <span class="at">label =</span> <span class="fu">ifelse</span>(<span class="sc">!</span>year <span class="sc">%in%</span> <span class="fu">c</span>(<span class="dv">2000</span>, <span class="dv">2050</span>), <span class="cn">NA</span>, <span class="fu">round</span>(population <span class="sc">/</span> <span class="dv">1000</span>, <span class="dv">1</span>)),</span>
 <span id="cb30-4"><a href="#cb30-4" aria-hidden="true" tabindex="-1"></a>    <span class="at">x_pos =</span> <span class="fu">case_when</span>(</span>
@@ -721,15 +726,15 @@ gtag('config', 'G-EJF8PGT67H', { 'anonymize_ip': true});
 <span id="cb30-20"><a href="#cb30-20" aria-hidden="true" tabindex="-1"></a>    <span class="at">position =</span> <span class="fu">position_stack</span>(<span class="at">vjust =</span> <span class="fl">0.5</span>)</span>
 <span id="cb30-21"><a href="#cb30-21" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">+</span></span>
 <span id="cb30-22"><a href="#cb30-22" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_fill_brewer</span>(<span class="at">name =</span> <span class="st">""</span>, <span class="at">type =</span> <span class="st">"qual"</span>, <span class="at">palette =</span> <span class="dv">6</span>) <span class="sc">+</span></span>
-<span id="cb30-23"><a href="#cb30-23" aria-hidden="true" tabindex="-1"></a>  theme_area</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb30-23"><a href="#cb30-23" aria-hidden="true" tabindex="-1"></a>  theme_area</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <p>Gráficos de área não costumam funcionar bem quando há muito grupos e, sobretudo , quando há pouca variação entre eles. O exemplo abaixo mostra a dinâmica da população adulta (25-64), em grupos de idade de cinco anos. Com o olhar atento, pode-se perceber que os grupos acima de 50 anos (50-54, 55-59 e 60-64) crescem em número absoluto e ganham participação. Ainda assim, é difícil distinguir diferenças entre os demais grupos.</p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb31"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb31-1"><a href="#cb31-1" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>(pop_adult, <span class="fu">aes</span>(<span class="at">x =</span> year, <span class="at">y =</span> pop_total <span class="sc">/</span> <span class="dv">1000</span>, <span class="at">fill =</span> age_subgroup)) <span class="sc">+</span></span>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb31"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb31-1"><a href="#cb31-1" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>(pop_adult, <span class="fu">aes</span>(<span class="at">x =</span> year, <span class="at">y =</span> pop_total <span class="sc">/</span> <span class="dv">1000</span>, <span class="at">fill =</span> age_subgroup)) <span class="sc">+</span></span>
 <span id="cb31-2"><a href="#cb31-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_area</span>(<span class="at">color =</span> <span class="st">"gray80"</span>, <span class="at">linewidth =</span> <span class="fl">0.5</span>) <span class="sc">+</span></span>
 <span id="cb31-3"><a href="#cb31-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_fill_viridis_d</span>(<span class="at">name =</span> <span class="st">""</span>) <span class="sc">+</span></span>
 <span id="cb31-4"><a href="#cb31-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_hline</span>(<span class="at">yintercept =</span> <span class="dv">0</span>) <span class="sc">+</span></span>
-<span id="cb31-5"><a href="#cb31-5" aria-hidden="true" tabindex="-1"></a>  theme_area</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb31-5"><a href="#cb31-5" aria-hidden="true" tabindex="-1"></a>  theme_area</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 </section>
 <section id="resumindo" class="level1">
@@ -822,13 +827,14 @@ gtag('config', 'G-EJF8PGT67H', { 'anonymize_ip': true});
       e.clearSelection();
     }
     const getTextToCopy = function(trigger) {
-        const codeEl = trigger.previousElementSibling.cloneNode(true);
-        for (const childEl of codeEl.children) {
-          if (isCodeAnnotation(childEl)) {
-            childEl.remove();
-          }
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
         }
-        return codeEl.innerText;
+      }
+      return codeEl.innerText;
     }
     const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
       text: getTextToCopy
@@ -894,7 +900,7 @@ gtag('config', 'G-EJF8PGT67H', { 'anonymize_ip': true});
     }
       var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
       var mailtoRegex = new RegExp(/^mailto:/);
-        var filterRegex = new RegExp("https::\/\/www\.restateinsight\.com");
+        var filterRegex = new RegExp("https:\/\/www\.restateinsight\.com");
       var isInternal = (href) => {
           return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
       }
@@ -1221,7 +1227,7 @@ gtag('config', 'G-EJF8PGT67H', { 'anonymize_ip': true});
     }
   });
   </script><div class="modal fade" id="quarto-embedded-source-code-modal" tabindex="-1" aria-labelledby="quarto-embedded-source-code-modal-label" aria-hidden="true"><div class="modal-dialog modal-dialog-scrollable"><div class="modal-content"><div class="modal-header"><h5 class="modal-title" id="quarto-embedded-source-code-modal-label">Source Code</h5><button class="btn-close" data-bs-dismiss="modal"></button></div><div class="modal-body"><div class="">
-<div class="sourceCode" id="cb32" data-shortcodes="false"><pre class="sourceCode markdown code-with-copy"><code class="sourceCode markdown"><span id="cb32-1"><a href="#cb32-1" aria-hidden="true" tabindex="-1"></a><span class="co">---</span></span>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb32" data-shortcodes="false"><pre class="sourceCode markdown code-with-copy"><code class="sourceCode markdown"><span id="cb32-1"><a href="#cb32-1" aria-hidden="true" tabindex="-1"></a><span class="co">---</span></span>
 <span id="cb32-2"><a href="#cb32-2" aria-hidden="true" tabindex="-1"></a><span class="an">title:</span><span class="co"> 'Indo além: empilhando áreas'</span></span>
 <span id="cb32-3"><a href="#cb32-3" aria-hidden="true" tabindex="-1"></a><span class="an">date:</span><span class="co"> '2023-11-01'</span></span>
 <span id="cb32-4"><a href="#cb32-4" aria-hidden="true" tabindex="-1"></a><span class="an">categories:</span><span class="co"> ['data-visualization', 'ggplot2', 'tutorial-R']</span></span>
@@ -1970,7 +1976,7 @@ gtag('config', 'G-EJF8PGT67H', { 'anonymize_ip': true});
 <span id="cb32-805"><a href="#cb32-805" aria-hidden="true" tabindex="-1"></a><span class="ss">-   </span><span class="co">[</span><span class="ot">Estético: Destacando informação</span><span class="co">](https://restateinsight.com/posts/tutorial-ggplot2/5-grafico-text)</span></span>
 <span id="cb32-806"><a href="#cb32-806" aria-hidden="true" tabindex="-1"></a><span class="ss">-   </span><span class="co">[</span><span class="ot">Estético: Escalas e cores</span><span class="co">](https://restateinsight.com/posts/tutorial-ggplot2/6-scales-labels)</span></span>
 <span id="cb32-807"><a href="#cb32-807" aria-hidden="true" tabindex="-1"></a><span class="ss">-   </span><span class="co">[</span><span class="ot">Estético: Tipografia e temas</span><span class="co">](https://restateinsight.com/posts/tutorial-ggplot2/7-themes-fonts)</span></span>
-</code><button title="Copy to Clipboard" class="code-copy-button" data-in-quarto-modal=""><i class="bi"></i></button></pre></div>
+</code></pre></div><button title="Copy to Clipboard" class="code-copy-button" data-in-quarto-modal=""><i class="bi"></i></button></div>
 </div></div></div></div></div>
 </div> <!-- /content -->
 

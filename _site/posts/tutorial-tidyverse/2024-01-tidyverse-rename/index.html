@@ -2,7 +2,7 @@
 <html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
 
 <meta charset="utf-8">
-<meta name="generator" content="quarto-1.7.33">
+<meta name="generator" content="quarto-1.9.37">
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
@@ -12,6 +12,9 @@
 
 <title>O novo tidyverse: rename – Vinicius Oike</title>
 <style>
+/* Default styles provided by pandoc.
+** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+*/
 code{white-space: pre-wrap;}
 span.smallcaps{font-variant: small-caps;}
 div.columns{display: flex; gap: min(4vw, 1.5em);}
@@ -74,10 +77,10 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <script src="../../../site_libs/quarto-html/tippy.umd.min.js"></script>
 <script src="../../../site_libs/quarto-html/anchor.min.js"></script>
 <link href="../../../site_libs/quarto-html/tippy.css" rel="stylesheet">
-<link href="../../../site_libs/quarto-html/quarto-syntax-highlighting-65ceba22b1a2bc45b1f8c349a1513ec1.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<link href="../../../site_libs/quarto-html/quarto-syntax-highlighting-c3cf9d46a7c8b92850f815292f8d7832.css" rel="stylesheet" id="quarto-text-highlighting-styles">
 <script src="../../../site_libs/bootstrap/bootstrap.min.js"></script>
 <link href="../../../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
-<link href="../../../site_libs/bootstrap/bootstrap-1d3a31d95e5cb5c8e68bd63598ea7077.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<link href="../../../site_libs/bootstrap/bootstrap-29b808bd45cb145992fdff6f5eb71f07.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
 <script id="quarto-search-options" type="application/json">{
   "location": "navbar",
   "copy-button": false,
@@ -119,10 +122,8 @@ gtag('config', 'G-EJF8PGT67H', { 'anonymize_ip': true});
 <link rel="stylesheet" href="../../../styles.css">
 <meta property="og:title" content="O novo tidyverse: rename – Vinicius Oike">
 <meta property="og:description" content="Neste post ensino abordagens diferentes para renomear colunas de maneira eficiente. Apresento também algumas das inovações que o pacote dplyr lançou nos últimos anos como as funções auxiliares all_of e any_of.">
-<meta property="og:image" content="https:://www.restateinsight.com/static/images/dplyr_logo.png">
+<meta property="og:image" content="https://www.restateinsight.com/static/images/dplyr_logo.png">
 <meta property="og:site_name" content="Vinicius Oike">
-<meta property="og:image:height" content="277">
-<meta property="og:image:width" content="240">
 <meta property="og:image:alt" content="/static/images/dplyr_logo.png">
 </head>
 
@@ -158,6 +159,10 @@ gtag('config', 'G-EJF8PGT67H', { 'anonymize_ip': true});
   <li class="nav-item">
     <a class="nav-link" href="../../../my_apps.html"> 
 <span class="menu-text">Apps</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../../../gallery.html"> 
+<span class="menu-text">Charts</span></a>
   </li>  
   <li class="nav-item">
     <a class="nav-link" href="../../../press.html"> 
@@ -327,15 +332,526 @@ gtag('config', 'G-EJF8PGT67H', { 'anonymize_ip': true});
 <h2 class="anchored" data-anchor-id="o-básico">O básico</h2>
 <p>Os pacotes utilizados neste tutorial são listados abaixo.</p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb1"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(dplyr)</span>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(dplyr)</span>
 <span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(stringr)</span>
 <span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(stringi)</span>
 <span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(janitor)</span>
-<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(sidrar)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(sidrar)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <p>Antes de mais nada, vamos importar uma base de dados qualquer do IBGE usando o pacote <code>sidrar</code>. A base importada mostra o custo médio m² de construção no Brasil da pesquisa SINAPI.</p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb2"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>dat <span class="ot">&lt;-</span> sidrar<span class="sc">::</span><span class="fu">get_sidra</span>(<span class="dv">2296</span>, <span class="at">period =</span> <span class="st">"202201-202301"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>dat <span class="ot">&lt;-</span> sidrar<span class="sc">::</span><span class="fu">get_sidra</span>(<span class="dv">2296</span>, <span class="at">period =</span> <span class="st">"202201-202301"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<div class="cell">
+<div class="cell-output-display">
+<div id="mholhxwotv" style="padding-left:0px;padding-right:0px;padding-top:10px;padding-bottom:10px;overflow-x:auto;overflow-y:auto;width:auto;height:auto;">
+<style>#mholhxwotv table {
+  font-family: system-ui, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+#mholhxwotv thead, #mholhxwotv tbody, #mholhxwotv tfoot, #mholhxwotv tr, #mholhxwotv td, #mholhxwotv th {
+  border-style: none;
+}
+
+#mholhxwotv p {
+  margin: 0;
+  padding: 0;
+}
+
+#mholhxwotv .gt_table {
+  display: table;
+  border-collapse: collapse;
+  line-height: normal;
+  margin-left: auto;
+  margin-right: auto;
+  color: #333333;
+  font-size: 16px;
+  font-weight: normal;
+  font-style: normal;
+  background-color: #FFFFFF;
+  width: auto;
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #5F5F5F;
+  border-right-style: none;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #5F5F5F;
+  border-left-style: none;
+  border-left-width: 2px;
+  border-left-color: #D3D3D3;
+}
+
+#mholhxwotv .gt_caption {
+  padding-top: 4px;
+  padding-bottom: 4px;
+}
+
+#mholhxwotv .gt_title {
+  color: #333333;
+  font-size: 125%;
+  font-weight: initial;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-bottom-color: #FFFFFF;
+  border-bottom-width: 0;
+}
+
+#mholhxwotv .gt_subtitle {
+  color: #333333;
+  font-size: 85%;
+  font-weight: initial;
+  padding-top: 3px;
+  padding-bottom: 5px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-top-color: #FFFFFF;
+  border-top-width: 0;
+}
+
+#mholhxwotv .gt_heading {
+  background-color: #FFFFFF;
+  text-align: center;
+  border-bottom-color: #FFFFFF;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+}
+
+#mholhxwotv .gt_bottom_border {
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #5F5F5F;
+}
+
+#mholhxwotv .gt_col_headings {
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #5F5F5F;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #5F5F5F;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+}
+
+#mholhxwotv .gt_col_heading {
+  color: #FFFFFF;
+  background-color: #038901;
+  font-size: 100%;
+  font-weight: normal;
+  text-transform: inherit;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+  vertical-align: bottom;
+  padding-top: 5px;
+  padding-bottom: 6px;
+  padding-left: 5px;
+  padding-right: 5px;
+  overflow-x: hidden;
+}
+
+#mholhxwotv .gt_column_spanner_outer {
+  color: #FFFFFF;
+  background-color: #038901;
+  font-size: 100%;
+  font-weight: normal;
+  text-transform: inherit;
+  padding-top: 0;
+  padding-bottom: 0;
+  padding-left: 4px;
+  padding-right: 4px;
+}
+
+#mholhxwotv .gt_column_spanner_outer:first-child {
+  padding-left: 0;
+}
+
+#mholhxwotv .gt_column_spanner_outer:last-child {
+  padding-right: 0;
+}
+
+#mholhxwotv .gt_column_spanner {
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #5F5F5F;
+  vertical-align: bottom;
+  padding-top: 5px;
+  padding-bottom: 5px;
+  overflow-x: hidden;
+  display: inline-block;
+  width: 100%;
+}
+
+#mholhxwotv .gt_spanner_row {
+  border-bottom-style: hidden;
+}
+
+#mholhxwotv .gt_group_heading {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  text-transform: inherit;
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #5F5F5F;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #5F5F5F;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+  vertical-align: middle;
+  text-align: left;
+}
+
+#mholhxwotv .gt_empty_group_heading {
+  padding: 0.5px;
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #5F5F5F;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #5F5F5F;
+  vertical-align: middle;
+}
+
+#mholhxwotv .gt_from_md > :first-child {
+  margin-top: 0;
+}
+
+#mholhxwotv .gt_from_md > :last-child {
+  margin-bottom: 0;
+}
+
+#mholhxwotv .gt_row {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  margin: 10px;
+  border-top-style: none;
+  border-top-width: 1px;
+  border-top-color: #D5D5D5;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D5D5D5;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D5D5D5;
+  vertical-align: middle;
+  overflow-x: hidden;
+}
+
+#mholhxwotv .gt_stub {
+  color: #333333;
+  background-color: #CAFFAF;
+  font-size: 100%;
+  font-weight: initial;
+  text-transform: inherit;
+  border-right-style: solid;
+  border-right-width: 2px;
+  border-right-color: #D5D5D5;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#mholhxwotv .gt_stub_row_group {
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  text-transform: inherit;
+  border-right-style: solid;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+  padding-left: 5px;
+  padding-right: 5px;
+  vertical-align: top;
+}
+
+#mholhxwotv .gt_row_group_first td {
+  border-top-width: 2px;
+}
+
+#mholhxwotv .gt_row_group_first th {
+  border-top-width: 2px;
+}
+
+#mholhxwotv .gt_summary_row {
+  color: #333333;
+  background-color: #FFFFFF;
+  text-transform: inherit;
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#mholhxwotv .gt_first_summary_row {
+  border-top-style: solid;
+  border-top-color: #5F5F5F;
+}
+
+#mholhxwotv .gt_first_summary_row.thick {
+  border-top-width: 2px;
+}
+
+#mholhxwotv .gt_last_summary_row {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #5F5F5F;
+}
+
+#mholhxwotv .gt_grand_summary_row {
+  color: #333333;
+  background-color: #D5D5D5;
+  text-transform: inherit;
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#mholhxwotv .gt_first_grand_summary_row {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-top-style: double;
+  border-top-width: 6px;
+  border-top-color: #5F5F5F;
+}
+
+#mholhxwotv .gt_last_grand_summary_row_top {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-bottom-style: double;
+  border-bottom-width: 6px;
+  border-bottom-color: #5F5F5F;
+}
+
+#mholhxwotv .gt_striped {
+  background-color: #EDF6E8;
+}
+
+#mholhxwotv .gt_table_body {
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #5F5F5F;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #5F5F5F;
+}
+
+#mholhxwotv .gt_footnotes {
+  color: #333333;
+  background-color: #FFFFFF;
+  border-bottom-style: none;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 2px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+}
+
+#mholhxwotv .gt_footnote {
+  margin: 0px;
+  font-size: 90%;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#mholhxwotv .gt_sourcenotes {
+  color: #333333;
+  background-color: #FFFFFF;
+  border-bottom-style: none;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 2px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+}
+
+#mholhxwotv .gt_sourcenote {
+  font-size: 90%;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#mholhxwotv .gt_left {
+  text-align: left;
+}
+
+#mholhxwotv .gt_center {
+  text-align: center;
+}
+
+#mholhxwotv .gt_right {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+#mholhxwotv .gt_font_normal {
+  font-weight: normal;
+}
+
+#mholhxwotv .gt_font_bold {
+  font-weight: bold;
+}
+
+#mholhxwotv .gt_font_italic {
+  font-style: italic;
+}
+
+#mholhxwotv .gt_super {
+  font-size: 65%;
+}
+
+#mholhxwotv .gt_footnote_marks {
+  font-size: 75%;
+  vertical-align: 0.4em;
+  position: initial;
+}
+
+#mholhxwotv .gt_asterisk {
+  font-size: 100%;
+  vertical-align: 0;
+}
+
+#mholhxwotv .gt_indent_1 {
+  text-indent: 5px;
+}
+
+#mholhxwotv .gt_indent_2 {
+  text-indent: 10px;
+}
+
+#mholhxwotv .gt_indent_3 {
+  text-indent: 15px;
+}
+
+#mholhxwotv .gt_indent_4 {
+  text-indent: 20px;
+}
+
+#mholhxwotv .gt_indent_5 {
+  text-indent: 25px;
+}
+
+#mholhxwotv .katex-display {
+  display: inline-flex !important;
+  margin-bottom: 0.75em !important;
+}
+
+#mholhxwotv div.Reactable > div.rt-table > div.rt-thead > div.rt-tr.rt-tr-group-header > div.rt-th-group:after {
+  height: 0px !important;
+}
+</style>
+
+<table class="gt_table caption-top table table-sm table-striped small" data-quarto-bootstrap="false">
+<thead>
+<tr class="gt_col_headings header">
+<th id="Nível-Territorial-(Código)" class="gt_col_heading gt_columns_bottom_border gt_right" data-quarto-table-cell-role="th" scope="col">Nível Territorial (Código)</th>
+<th id="Nível-Territorial" class="gt_col_heading gt_columns_bottom_border gt_left" data-quarto-table-cell-role="th" scope="col">Nível Territorial</th>
+<th id="Unidade-de-Medida-(Código)" class="gt_col_heading gt_columns_bottom_border gt_right" data-quarto-table-cell-role="th" scope="col">Unidade de Medida (Código)</th>
+<th id="Unidade-de-Medida" class="gt_col_heading gt_columns_bottom_border gt_left" data-quarto-table-cell-role="th" scope="col">Unidade de Medida</th>
+<th id="Valor" class="gt_col_heading gt_columns_bottom_border gt_right" data-quarto-table-cell-role="th" scope="col">Valor</th>
+</tr>
+</thead>
+<tbody class="gt_table_body">
+<tr class="odd">
+<td class="gt_row gt_right" headers="Nível Territorial (Código)">1</td>
+<td class="gt_row gt_left" headers="Nível Territorial">Brasil</td>
+<td class="gt_row gt_right" headers="Unidade de Medida (Código)">38</td>
+<td class="gt_row gt_left" headers="Unidade de Medida">Reais</td>
+<td class="gt_row gt_right" headers="Valor">1525.48</td>
+</tr>
+<tr class="even">
+<td class="gt_row gt_right gt_striped" headers="Nível Territorial (Código)">1</td>
+<td class="gt_row gt_left gt_striped" headers="Nível Territorial">Brasil</td>
+<td class="gt_row gt_right gt_striped" headers="Unidade de Medida (Código)">38</td>
+<td class="gt_row gt_left gt_striped" headers="Unidade de Medida">Reais</td>
+<td class="gt_row gt_right gt_striped" headers="Valor">915.79</td>
+</tr>
+<tr class="odd">
+<td class="gt_row gt_right" headers="Nível Territorial (Código)">1</td>
+<td class="gt_row gt_left" headers="Nível Territorial">Brasil</td>
+<td class="gt_row gt_right" headers="Unidade de Medida (Código)">38</td>
+<td class="gt_row gt_left" headers="Unidade de Medida">Reais</td>
+<td class="gt_row gt_right" headers="Valor">609.69</td>
+</tr>
+<tr class="even">
+<td class="gt_row gt_right gt_striped" headers="Nível Territorial (Código)">1</td>
+<td class="gt_row gt_left gt_striped" headers="Nível Territorial">Brasil</td>
+<td class="gt_row gt_right gt_striped" headers="Unidade de Medida (Código)">30</td>
+<td class="gt_row gt_left gt_striped" headers="Unidade de Medida">Número-índice</td>
+<td class="gt_row gt_right gt_striped" headers="Valor">763.46</td>
+</tr>
+<tr class="odd">
+<td class="gt_row gt_right" headers="Nível Territorial (Código)">1</td>
+<td class="gt_row gt_left" headers="Nível Territorial">Brasil</td>
+<td class="gt_row gt_right" headers="Unidade de Medida (Código)">30</td>
+<td class="gt_row gt_left" headers="Unidade de Medida">Número-índice</td>
+<td class="gt_row gt_right" headers="Valor">693.71</td>
+</tr>
+<tr class="even">
+<td class="gt_row gt_right gt_striped" headers="Nível Territorial (Código)">1</td>
+<td class="gt_row gt_left gt_striped" headers="Nível Territorial">Brasil</td>
+<td class="gt_row gt_right gt_striped" headers="Unidade de Medida (Código)">30</td>
+<td class="gt_row gt_left gt_striped" headers="Unidade de Medida">Número-índice</td>
+<td class="gt_row gt_right gt_striped" headers="Valor">962.09</td>
+</tr>
+</tbody>
+</table>
+
+</div>
+</div>
 </div>
 <p>A função <code>rename</code> serve para trocar o nome de uma coluna seguindo a sintaxe:</p>
 <ul>
@@ -343,25 +859,1047 @@ gtag('config', 'G-EJF8PGT67H', { 'anonymize_ip': true});
 </ul>
 <p>A forma mais imediata de utilizar a função é simplesmente:</p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb3"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>dat_renamed <span class="ot">&lt;-</span> <span class="fu">rename</span>(dat, <span class="at">valor =</span> Valor)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>dat_renamed <span class="ot">&lt;-</span> <span class="fu">rename</span>(dat, <span class="at">valor =</span> Valor)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<div class="cell">
+<div class="cell-output-display">
+<div id="vrmppdfnkw" style="padding-left:0px;padding-right:0px;padding-top:10px;padding-bottom:10px;overflow-x:auto;overflow-y:auto;width:auto;height:auto;">
+<style>#vrmppdfnkw table {
+  font-family: system-ui, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+#vrmppdfnkw thead, #vrmppdfnkw tbody, #vrmppdfnkw tfoot, #vrmppdfnkw tr, #vrmppdfnkw td, #vrmppdfnkw th {
+  border-style: none;
+}
+
+#vrmppdfnkw p {
+  margin: 0;
+  padding: 0;
+}
+
+#vrmppdfnkw .gt_table {
+  display: table;
+  border-collapse: collapse;
+  line-height: normal;
+  margin-left: auto;
+  margin-right: auto;
+  color: #333333;
+  font-size: 16px;
+  font-weight: normal;
+  font-style: normal;
+  background-color: #FFFFFF;
+  width: auto;
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #5F5F5F;
+  border-right-style: none;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #5F5F5F;
+  border-left-style: none;
+  border-left-width: 2px;
+  border-left-color: #D3D3D3;
+}
+
+#vrmppdfnkw .gt_caption {
+  padding-top: 4px;
+  padding-bottom: 4px;
+}
+
+#vrmppdfnkw .gt_title {
+  color: #333333;
+  font-size: 125%;
+  font-weight: initial;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-bottom-color: #FFFFFF;
+  border-bottom-width: 0;
+}
+
+#vrmppdfnkw .gt_subtitle {
+  color: #333333;
+  font-size: 85%;
+  font-weight: initial;
+  padding-top: 3px;
+  padding-bottom: 5px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-top-color: #FFFFFF;
+  border-top-width: 0;
+}
+
+#vrmppdfnkw .gt_heading {
+  background-color: #FFFFFF;
+  text-align: center;
+  border-bottom-color: #FFFFFF;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+}
+
+#vrmppdfnkw .gt_bottom_border {
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #5F5F5F;
+}
+
+#vrmppdfnkw .gt_col_headings {
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #5F5F5F;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #5F5F5F;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+}
+
+#vrmppdfnkw .gt_col_heading {
+  color: #FFFFFF;
+  background-color: #038901;
+  font-size: 100%;
+  font-weight: normal;
+  text-transform: inherit;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+  vertical-align: bottom;
+  padding-top: 5px;
+  padding-bottom: 6px;
+  padding-left: 5px;
+  padding-right: 5px;
+  overflow-x: hidden;
+}
+
+#vrmppdfnkw .gt_column_spanner_outer {
+  color: #FFFFFF;
+  background-color: #038901;
+  font-size: 100%;
+  font-weight: normal;
+  text-transform: inherit;
+  padding-top: 0;
+  padding-bottom: 0;
+  padding-left: 4px;
+  padding-right: 4px;
+}
+
+#vrmppdfnkw .gt_column_spanner_outer:first-child {
+  padding-left: 0;
+}
+
+#vrmppdfnkw .gt_column_spanner_outer:last-child {
+  padding-right: 0;
+}
+
+#vrmppdfnkw .gt_column_spanner {
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #5F5F5F;
+  vertical-align: bottom;
+  padding-top: 5px;
+  padding-bottom: 5px;
+  overflow-x: hidden;
+  display: inline-block;
+  width: 100%;
+}
+
+#vrmppdfnkw .gt_spanner_row {
+  border-bottom-style: hidden;
+}
+
+#vrmppdfnkw .gt_group_heading {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  text-transform: inherit;
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #5F5F5F;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #5F5F5F;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+  vertical-align: middle;
+  text-align: left;
+}
+
+#vrmppdfnkw .gt_empty_group_heading {
+  padding: 0.5px;
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #5F5F5F;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #5F5F5F;
+  vertical-align: middle;
+}
+
+#vrmppdfnkw .gt_from_md > :first-child {
+  margin-top: 0;
+}
+
+#vrmppdfnkw .gt_from_md > :last-child {
+  margin-bottom: 0;
+}
+
+#vrmppdfnkw .gt_row {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  margin: 10px;
+  border-top-style: none;
+  border-top-width: 1px;
+  border-top-color: #D5D5D5;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D5D5D5;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D5D5D5;
+  vertical-align: middle;
+  overflow-x: hidden;
+}
+
+#vrmppdfnkw .gt_stub {
+  color: #333333;
+  background-color: #CAFFAF;
+  font-size: 100%;
+  font-weight: initial;
+  text-transform: inherit;
+  border-right-style: solid;
+  border-right-width: 2px;
+  border-right-color: #D5D5D5;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#vrmppdfnkw .gt_stub_row_group {
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  text-transform: inherit;
+  border-right-style: solid;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+  padding-left: 5px;
+  padding-right: 5px;
+  vertical-align: top;
+}
+
+#vrmppdfnkw .gt_row_group_first td {
+  border-top-width: 2px;
+}
+
+#vrmppdfnkw .gt_row_group_first th {
+  border-top-width: 2px;
+}
+
+#vrmppdfnkw .gt_summary_row {
+  color: #333333;
+  background-color: #FFFFFF;
+  text-transform: inherit;
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#vrmppdfnkw .gt_first_summary_row {
+  border-top-style: solid;
+  border-top-color: #5F5F5F;
+}
+
+#vrmppdfnkw .gt_first_summary_row.thick {
+  border-top-width: 2px;
+}
+
+#vrmppdfnkw .gt_last_summary_row {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #5F5F5F;
+}
+
+#vrmppdfnkw .gt_grand_summary_row {
+  color: #333333;
+  background-color: #D5D5D5;
+  text-transform: inherit;
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#vrmppdfnkw .gt_first_grand_summary_row {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-top-style: double;
+  border-top-width: 6px;
+  border-top-color: #5F5F5F;
+}
+
+#vrmppdfnkw .gt_last_grand_summary_row_top {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-bottom-style: double;
+  border-bottom-width: 6px;
+  border-bottom-color: #5F5F5F;
+}
+
+#vrmppdfnkw .gt_striped {
+  background-color: #EDF6E8;
+}
+
+#vrmppdfnkw .gt_table_body {
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #5F5F5F;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #5F5F5F;
+}
+
+#vrmppdfnkw .gt_footnotes {
+  color: #333333;
+  background-color: #FFFFFF;
+  border-bottom-style: none;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 2px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+}
+
+#vrmppdfnkw .gt_footnote {
+  margin: 0px;
+  font-size: 90%;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#vrmppdfnkw .gt_sourcenotes {
+  color: #333333;
+  background-color: #FFFFFF;
+  border-bottom-style: none;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 2px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+}
+
+#vrmppdfnkw .gt_sourcenote {
+  font-size: 90%;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#vrmppdfnkw .gt_left {
+  text-align: left;
+}
+
+#vrmppdfnkw .gt_center {
+  text-align: center;
+}
+
+#vrmppdfnkw .gt_right {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+#vrmppdfnkw .gt_font_normal {
+  font-weight: normal;
+}
+
+#vrmppdfnkw .gt_font_bold {
+  font-weight: bold;
+}
+
+#vrmppdfnkw .gt_font_italic {
+  font-style: italic;
+}
+
+#vrmppdfnkw .gt_super {
+  font-size: 65%;
+}
+
+#vrmppdfnkw .gt_footnote_marks {
+  font-size: 75%;
+  vertical-align: 0.4em;
+  position: initial;
+}
+
+#vrmppdfnkw .gt_asterisk {
+  font-size: 100%;
+  vertical-align: 0;
+}
+
+#vrmppdfnkw .gt_indent_1 {
+  text-indent: 5px;
+}
+
+#vrmppdfnkw .gt_indent_2 {
+  text-indent: 10px;
+}
+
+#vrmppdfnkw .gt_indent_3 {
+  text-indent: 15px;
+}
+
+#vrmppdfnkw .gt_indent_4 {
+  text-indent: 20px;
+}
+
+#vrmppdfnkw .gt_indent_5 {
+  text-indent: 25px;
+}
+
+#vrmppdfnkw .katex-display {
+  display: inline-flex !important;
+  margin-bottom: 0.75em !important;
+}
+
+#vrmppdfnkw div.Reactable > div.rt-table > div.rt-thead > div.rt-tr.rt-tr-group-header > div.rt-th-group:after {
+  height: 0px !important;
+}
+</style>
+
+<table class="gt_table caption-top table table-sm table-striped small" data-quarto-bootstrap="false">
+<thead>
+<tr class="gt_col_headings header">
+<th id="Nível-Territorial-(Código)" class="gt_col_heading gt_columns_bottom_border gt_right" data-quarto-table-cell-role="th" scope="col">Nível Territorial (Código)</th>
+<th id="Nível-Territorial" class="gt_col_heading gt_columns_bottom_border gt_left" data-quarto-table-cell-role="th" scope="col">Nível Territorial</th>
+<th id="Unidade-de-Medida-(Código)" class="gt_col_heading gt_columns_bottom_border gt_right" data-quarto-table-cell-role="th" scope="col">Unidade de Medida (Código)</th>
+<th id="Unidade-de-Medida" class="gt_col_heading gt_columns_bottom_border gt_left" data-quarto-table-cell-role="th" scope="col">Unidade de Medida</th>
+<th id="valor" class="gt_col_heading gt_columns_bottom_border gt_right" data-quarto-table-cell-role="th" scope="col">valor</th>
+</tr>
+</thead>
+<tbody class="gt_table_body">
+<tr class="odd">
+<td class="gt_row gt_right" headers="Nível Territorial (Código)">1</td>
+<td class="gt_row gt_left" headers="Nível Territorial">Brasil</td>
+<td class="gt_row gt_right" headers="Unidade de Medida (Código)">38</td>
+<td class="gt_row gt_left" headers="Unidade de Medida">Reais</td>
+<td class="gt_row gt_right" headers="valor">1525.48</td>
+</tr>
+<tr class="even">
+<td class="gt_row gt_right gt_striped" headers="Nível Territorial (Código)">1</td>
+<td class="gt_row gt_left gt_striped" headers="Nível Territorial">Brasil</td>
+<td class="gt_row gt_right gt_striped" headers="Unidade de Medida (Código)">38</td>
+<td class="gt_row gt_left gt_striped" headers="Unidade de Medida">Reais</td>
+<td class="gt_row gt_right gt_striped" headers="valor">915.79</td>
+</tr>
+<tr class="odd">
+<td class="gt_row gt_right" headers="Nível Territorial (Código)">1</td>
+<td class="gt_row gt_left" headers="Nível Territorial">Brasil</td>
+<td class="gt_row gt_right" headers="Unidade de Medida (Código)">38</td>
+<td class="gt_row gt_left" headers="Unidade de Medida">Reais</td>
+<td class="gt_row gt_right" headers="valor">609.69</td>
+</tr>
+<tr class="even">
+<td class="gt_row gt_right gt_striped" headers="Nível Territorial (Código)">1</td>
+<td class="gt_row gt_left gt_striped" headers="Nível Territorial">Brasil</td>
+<td class="gt_row gt_right gt_striped" headers="Unidade de Medida (Código)">30</td>
+<td class="gt_row gt_left gt_striped" headers="Unidade de Medida">Número-índice</td>
+<td class="gt_row gt_right gt_striped" headers="valor">763.46</td>
+</tr>
+<tr class="odd">
+<td class="gt_row gt_right" headers="Nível Territorial (Código)">1</td>
+<td class="gt_row gt_left" headers="Nível Territorial">Brasil</td>
+<td class="gt_row gt_right" headers="Unidade de Medida (Código)">30</td>
+<td class="gt_row gt_left" headers="Unidade de Medida">Número-índice</td>
+<td class="gt_row gt_right" headers="valor">693.71</td>
+</tr>
+<tr class="even">
+<td class="gt_row gt_right gt_striped" headers="Nível Territorial (Código)">1</td>
+<td class="gt_row gt_left gt_striped" headers="Nível Territorial">Brasil</td>
+<td class="gt_row gt_right gt_striped" headers="Unidade de Medida (Código)">30</td>
+<td class="gt_row gt_left gt_striped" headers="Unidade de Medida">Número-índice</td>
+<td class="gt_row gt_right gt_striped" headers="valor">962.09</td>
+</tr>
+</tbody>
+</table>
+
+</div>
+</div>
 </div>
 <p>Para renomear múliplas colunas, segue-se uma lógica similar, separando os argumentos adicionais por vírgulas. Note que somos forçados a utilizar o sinal <code>``</code> pois o nome de algumas colunas contêm acentos.</p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb4"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>dat_renamed <span class="ot">&lt;-</span> <span class="fu">rename</span>(</span>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>dat_renamed <span class="ot">&lt;-</span> <span class="fu">rename</span>(</span>
 <span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>  dat,</span>
 <span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">valor =</span> Valor,</span>
 <span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">nivel_territorial =</span> <span class="st">`</span><span class="at">Nível Territorial</span><span class="st">`</span>,</span>
 <span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">code_unit =</span> <span class="st">`</span><span class="at">Unidade de Medida (Código)</span><span class="st">`</span></span>
-<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a>  )</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a>  )</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<div class="cell">
+<div class="cell-output-display">
+<div id="yozgtrixyi" style="padding-left:0px;padding-right:0px;padding-top:10px;padding-bottom:10px;overflow-x:auto;overflow-y:auto;width:auto;height:auto;">
+<style>#yozgtrixyi table {
+  font-family: system-ui, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+#yozgtrixyi thead, #yozgtrixyi tbody, #yozgtrixyi tfoot, #yozgtrixyi tr, #yozgtrixyi td, #yozgtrixyi th {
+  border-style: none;
+}
+
+#yozgtrixyi p {
+  margin: 0;
+  padding: 0;
+}
+
+#yozgtrixyi .gt_table {
+  display: table;
+  border-collapse: collapse;
+  line-height: normal;
+  margin-left: auto;
+  margin-right: auto;
+  color: #333333;
+  font-size: 16px;
+  font-weight: normal;
+  font-style: normal;
+  background-color: #FFFFFF;
+  width: auto;
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #5F5F5F;
+  border-right-style: none;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #5F5F5F;
+  border-left-style: none;
+  border-left-width: 2px;
+  border-left-color: #D3D3D3;
+}
+
+#yozgtrixyi .gt_caption {
+  padding-top: 4px;
+  padding-bottom: 4px;
+}
+
+#yozgtrixyi .gt_title {
+  color: #333333;
+  font-size: 125%;
+  font-weight: initial;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-bottom-color: #FFFFFF;
+  border-bottom-width: 0;
+}
+
+#yozgtrixyi .gt_subtitle {
+  color: #333333;
+  font-size: 85%;
+  font-weight: initial;
+  padding-top: 3px;
+  padding-bottom: 5px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-top-color: #FFFFFF;
+  border-top-width: 0;
+}
+
+#yozgtrixyi .gt_heading {
+  background-color: #FFFFFF;
+  text-align: center;
+  border-bottom-color: #FFFFFF;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+}
+
+#yozgtrixyi .gt_bottom_border {
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #5F5F5F;
+}
+
+#yozgtrixyi .gt_col_headings {
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #5F5F5F;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #5F5F5F;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+}
+
+#yozgtrixyi .gt_col_heading {
+  color: #FFFFFF;
+  background-color: #038901;
+  font-size: 100%;
+  font-weight: normal;
+  text-transform: inherit;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+  vertical-align: bottom;
+  padding-top: 5px;
+  padding-bottom: 6px;
+  padding-left: 5px;
+  padding-right: 5px;
+  overflow-x: hidden;
+}
+
+#yozgtrixyi .gt_column_spanner_outer {
+  color: #FFFFFF;
+  background-color: #038901;
+  font-size: 100%;
+  font-weight: normal;
+  text-transform: inherit;
+  padding-top: 0;
+  padding-bottom: 0;
+  padding-left: 4px;
+  padding-right: 4px;
+}
+
+#yozgtrixyi .gt_column_spanner_outer:first-child {
+  padding-left: 0;
+}
+
+#yozgtrixyi .gt_column_spanner_outer:last-child {
+  padding-right: 0;
+}
+
+#yozgtrixyi .gt_column_spanner {
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #5F5F5F;
+  vertical-align: bottom;
+  padding-top: 5px;
+  padding-bottom: 5px;
+  overflow-x: hidden;
+  display: inline-block;
+  width: 100%;
+}
+
+#yozgtrixyi .gt_spanner_row {
+  border-bottom-style: hidden;
+}
+
+#yozgtrixyi .gt_group_heading {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  text-transform: inherit;
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #5F5F5F;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #5F5F5F;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+  vertical-align: middle;
+  text-align: left;
+}
+
+#yozgtrixyi .gt_empty_group_heading {
+  padding: 0.5px;
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #5F5F5F;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #5F5F5F;
+  vertical-align: middle;
+}
+
+#yozgtrixyi .gt_from_md > :first-child {
+  margin-top: 0;
+}
+
+#yozgtrixyi .gt_from_md > :last-child {
+  margin-bottom: 0;
+}
+
+#yozgtrixyi .gt_row {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  margin: 10px;
+  border-top-style: none;
+  border-top-width: 1px;
+  border-top-color: #D5D5D5;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D5D5D5;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D5D5D5;
+  vertical-align: middle;
+  overflow-x: hidden;
+}
+
+#yozgtrixyi .gt_stub {
+  color: #333333;
+  background-color: #CAFFAF;
+  font-size: 100%;
+  font-weight: initial;
+  text-transform: inherit;
+  border-right-style: solid;
+  border-right-width: 2px;
+  border-right-color: #D5D5D5;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#yozgtrixyi .gt_stub_row_group {
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  text-transform: inherit;
+  border-right-style: solid;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+  padding-left: 5px;
+  padding-right: 5px;
+  vertical-align: top;
+}
+
+#yozgtrixyi .gt_row_group_first td {
+  border-top-width: 2px;
+}
+
+#yozgtrixyi .gt_row_group_first th {
+  border-top-width: 2px;
+}
+
+#yozgtrixyi .gt_summary_row {
+  color: #333333;
+  background-color: #FFFFFF;
+  text-transform: inherit;
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#yozgtrixyi .gt_first_summary_row {
+  border-top-style: solid;
+  border-top-color: #5F5F5F;
+}
+
+#yozgtrixyi .gt_first_summary_row.thick {
+  border-top-width: 2px;
+}
+
+#yozgtrixyi .gt_last_summary_row {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #5F5F5F;
+}
+
+#yozgtrixyi .gt_grand_summary_row {
+  color: #333333;
+  background-color: #D5D5D5;
+  text-transform: inherit;
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#yozgtrixyi .gt_first_grand_summary_row {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-top-style: double;
+  border-top-width: 6px;
+  border-top-color: #5F5F5F;
+}
+
+#yozgtrixyi .gt_last_grand_summary_row_top {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-bottom-style: double;
+  border-bottom-width: 6px;
+  border-bottom-color: #5F5F5F;
+}
+
+#yozgtrixyi .gt_striped {
+  background-color: #EDF6E8;
+}
+
+#yozgtrixyi .gt_table_body {
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #5F5F5F;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #5F5F5F;
+}
+
+#yozgtrixyi .gt_footnotes {
+  color: #333333;
+  background-color: #FFFFFF;
+  border-bottom-style: none;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 2px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+}
+
+#yozgtrixyi .gt_footnote {
+  margin: 0px;
+  font-size: 90%;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#yozgtrixyi .gt_sourcenotes {
+  color: #333333;
+  background-color: #FFFFFF;
+  border-bottom-style: none;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 2px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+}
+
+#yozgtrixyi .gt_sourcenote {
+  font-size: 90%;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#yozgtrixyi .gt_left {
+  text-align: left;
+}
+
+#yozgtrixyi .gt_center {
+  text-align: center;
+}
+
+#yozgtrixyi .gt_right {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+#yozgtrixyi .gt_font_normal {
+  font-weight: normal;
+}
+
+#yozgtrixyi .gt_font_bold {
+  font-weight: bold;
+}
+
+#yozgtrixyi .gt_font_italic {
+  font-style: italic;
+}
+
+#yozgtrixyi .gt_super {
+  font-size: 65%;
+}
+
+#yozgtrixyi .gt_footnote_marks {
+  font-size: 75%;
+  vertical-align: 0.4em;
+  position: initial;
+}
+
+#yozgtrixyi .gt_asterisk {
+  font-size: 100%;
+  vertical-align: 0;
+}
+
+#yozgtrixyi .gt_indent_1 {
+  text-indent: 5px;
+}
+
+#yozgtrixyi .gt_indent_2 {
+  text-indent: 10px;
+}
+
+#yozgtrixyi .gt_indent_3 {
+  text-indent: 15px;
+}
+
+#yozgtrixyi .gt_indent_4 {
+  text-indent: 20px;
+}
+
+#yozgtrixyi .gt_indent_5 {
+  text-indent: 25px;
+}
+
+#yozgtrixyi .katex-display {
+  display: inline-flex !important;
+  margin-bottom: 0.75em !important;
+}
+
+#yozgtrixyi div.Reactable > div.rt-table > div.rt-thead > div.rt-tr.rt-tr-group-header > div.rt-th-group:after {
+  height: 0px !important;
+}
+</style>
+
+<table class="gt_table caption-top table table-sm table-striped small" data-quarto-bootstrap="false">
+<thead>
+<tr class="gt_col_headings header">
+<th id="Nível-Territorial-(Código)" class="gt_col_heading gt_columns_bottom_border gt_right" data-quarto-table-cell-role="th" scope="col">Nível Territorial (Código)</th>
+<th id="nivel_territorial" class="gt_col_heading gt_columns_bottom_border gt_left" data-quarto-table-cell-role="th" scope="col">nivel_territorial</th>
+<th id="code_unit" class="gt_col_heading gt_columns_bottom_border gt_right" data-quarto-table-cell-role="th" scope="col">code_unit</th>
+<th id="Unidade-de-Medida" class="gt_col_heading gt_columns_bottom_border gt_left" data-quarto-table-cell-role="th" scope="col">Unidade de Medida</th>
+<th id="valor" class="gt_col_heading gt_columns_bottom_border gt_right" data-quarto-table-cell-role="th" scope="col">valor</th>
+</tr>
+</thead>
+<tbody class="gt_table_body">
+<tr class="odd">
+<td class="gt_row gt_right" headers="Nível Territorial (Código)">1</td>
+<td class="gt_row gt_left" headers="nivel_territorial">Brasil</td>
+<td class="gt_row gt_right" headers="code_unit">38</td>
+<td class="gt_row gt_left" headers="Unidade de Medida">Reais</td>
+<td class="gt_row gt_right" headers="valor">1525.48</td>
+</tr>
+<tr class="even">
+<td class="gt_row gt_right gt_striped" headers="Nível Territorial (Código)">1</td>
+<td class="gt_row gt_left gt_striped" headers="nivel_territorial">Brasil</td>
+<td class="gt_row gt_right gt_striped" headers="code_unit">38</td>
+<td class="gt_row gt_left gt_striped" headers="Unidade de Medida">Reais</td>
+<td class="gt_row gt_right gt_striped" headers="valor">915.79</td>
+</tr>
+<tr class="odd">
+<td class="gt_row gt_right" headers="Nível Territorial (Código)">1</td>
+<td class="gt_row gt_left" headers="nivel_territorial">Brasil</td>
+<td class="gt_row gt_right" headers="code_unit">38</td>
+<td class="gt_row gt_left" headers="Unidade de Medida">Reais</td>
+<td class="gt_row gt_right" headers="valor">609.69</td>
+</tr>
+<tr class="even">
+<td class="gt_row gt_right gt_striped" headers="Nível Territorial (Código)">1</td>
+<td class="gt_row gt_left gt_striped" headers="nivel_territorial">Brasil</td>
+<td class="gt_row gt_right gt_striped" headers="code_unit">30</td>
+<td class="gt_row gt_left gt_striped" headers="Unidade de Medida">Número-índice</td>
+<td class="gt_row gt_right gt_striped" headers="valor">763.46</td>
+</tr>
+<tr class="odd">
+<td class="gt_row gt_right" headers="Nível Territorial (Código)">1</td>
+<td class="gt_row gt_left" headers="nivel_territorial">Brasil</td>
+<td class="gt_row gt_right" headers="code_unit">30</td>
+<td class="gt_row gt_left" headers="Unidade de Medida">Número-índice</td>
+<td class="gt_row gt_right" headers="valor">693.71</td>
+</tr>
+<tr class="even">
+<td class="gt_row gt_right gt_striped" headers="Nível Territorial (Código)">1</td>
+<td class="gt_row gt_left gt_striped" headers="nivel_territorial">Brasil</td>
+<td class="gt_row gt_right gt_striped" headers="code_unit">30</td>
+<td class="gt_row gt_left gt_striped" headers="Unidade de Medida">Número-índice</td>
+<td class="gt_row gt_right gt_striped" headers="valor">962.09</td>
+</tr>
+</tbody>
+</table>
+
+</div>
+</div>
 </div>
 <p>Alternativamente, pode-se escrever os nomes usando aspas como no código abaixo.</p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb5"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>dat_renamed <span class="ot">&lt;-</span> <span class="fu">rename</span>(</span>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>dat_renamed <span class="ot">&lt;-</span> <span class="fu">rename</span>(</span>
 <span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>  dat,</span>
 <span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">valor =</span> <span class="st">"Valor"</span>,</span>
 <span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">nivel_territorial =</span> <span class="st">"Nível Territorial"</span>,</span>
 <span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">code_unit =</span> <span class="st">"Unidade de Medida (Código)"</span></span>
-<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a>  )</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a>  )</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <p>Literalmente reescrever o nome das colunas pode ser bastante enfadonho. Há duas maneiras mais interessantes de renomear colunas: (1) <strong>utilizando uma função</strong>; e (2) <strong>utilizando um vetor de “swap”</strong>. A primeira abordagem, em geral, é mais simples e pode-se aproveitar funções úteis pré-existentes para manipulação de strings como as do pacote <code>stringr</code>. A segunda abordagem exige mais esforço manual e é recomendada quando não existem regras simples para renomear as colunas.</p>
 <section id="boas-práticas" class="level3">
@@ -374,7 +1912,7 @@ gtag('config', 'G-EJF8PGT67H', { 'anonymize_ip': true});
 <li>Evitar nomes “reservados” como <code>for</code>, <code>in</code>, <code>TRUE</code>, <code>if</code>, etc. Estas palavras tem tratamento especial dentro do R e não se deve utilizá-las como nome de coluna<a href="#fn1" class="footnote-ref" id="fnref1" role="doc-noteref"><sup>1</sup></a>.</li>
 </ol>
 <p>Existe uma lógica bastante simples para seguir estas convenções: nomes sintaticamente válidos facilitam (e, em alguns casos, possibilitam) a seleção de colunas. É muito mais simples escrever <code>dat$pib_agro</code> do que <code>dat$`PIB Agrícola (R$)`</code>. Abaixo listo alguns exemplos de nomes e sugestões de como melhorá-los.</p>
-<div class="sourceCode" id="cb6"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Ruim</span></span>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Ruim</span></span>
 <span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>nomes <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="st">"PIB Agrícola"</span>, <span class="st">"INFLAÇÃO %"</span>, <span class="st">"Dia do mês"</span>, <span class="st">"!Nome D@ Coluna#"</span>, <span class="st">"If Buyer"</span>)</span>
 <span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Correto</span></span>
@@ -382,108 +1920,180 @@ gtag('config', 'G-EJF8PGT67H', { 'anonymize_ip': true});
 <span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a>n2 <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="st">"inflacao_percent"</span>, <span class="st">"inflacao_pct"</span>, <span class="st">"inflacaoPct"</span>)</span>
 <span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a>n3 <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="st">"dia_do_mes"</span>, <span class="st">"DiaDoMes"</span>)</span>
 <span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a>n4 <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="st">"nome_da_coluna"</span>, <span class="st">"NomeDaColuna"</span>)</span>
-<span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a>n5 <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="st">"is_buyer"</span>, <span class="st">"IsBuyer"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a>n5 <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="st">"is_buyer"</span>, <span class="st">"IsBuyer"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </section>
 </section>
 <section id="usando-funções" class="level2">
 <h2 class="anchored" data-anchor-id="usando-funções">Usando funções</h2>
 <p>A maneira mais simples de entender o uso de funções para renomear colunas é através de exemplos. Para tornar os exemplos mais sucintos vamos focar apenas no nome das colunas através da função <code>names</code>. Esta abordagem torna mais claro o fato de que os nomes das colunas de um <code>data.frame</code> são, essencialmente, um vetor de texto.</p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb7"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="fu">names</span>(dat)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb7"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="fu">names</span>(dat)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code> [1] "Nível Territorial (Código)" "Nível Territorial"         
+ [3] "Unidade de Medida (Código)" "Unidade de Medida"         
+ [5] "Valor"                      "Brasil (Código)"           
+ [7] "Brasil"                     "Mês (Código)"              
+ [9] "Mês"                        "Variável (Código)"         
+[11] "Variável"                  </code></pre>
+</div>
 </div>
 <p>Para aplicar uma função sobre o nome de todas as colunas da base de dados <code>dat</code> usa-se <code>rename_with</code>, uma variação da função <code>rename</code>. A sintaxe da função é simples: <code>rename_with(dados, fn)</code>. No caso abaixo converte-se o nome de todas as colunas para maiúculo.</p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb8"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>dat_renamed <span class="ot">&lt;-</span> <span class="fu">rename_with</span>(dat, toupper)</span>
-<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a><span class="fu">names</span>(dat_renamed)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb9"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>dat_renamed <span class="ot">&lt;-</span> <span class="fu">rename_with</span>(dat, toupper)</span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a><span class="fu">names</span>(dat_renamed)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code> [1] "NÍVEL TERRITORIAL (CÓDIGO)" "NÍVEL TERRITORIAL"         
+ [3] "UNIDADE DE MEDIDA (CÓDIGO)" "UNIDADE DE MEDIDA"         
+ [5] "VALOR"                      "BRASIL (CÓDIGO)"           
+ [7] "BRASIL"                     "MÊS (CÓDIGO)"              
+ [9] "MÊS"                        "VARIÁVEL (CÓDIGO)"         
+[11] "VARIÁVEL"                  </code></pre>
+</div>
 </div>
 <p>Abaixo mostro algumas funções úteis para renomear colunas.</p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb9"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Converte para minúsculo</span></span>
-<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a><span class="fu">rename_with</span>(dat, tolower) <span class="sc">|&gt;</span> <span class="fu">names</span>()</span>
-<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Converte texto para um formato de 'título'</span></span>
-<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a><span class="fu">rename_with</span>(dat, stringr<span class="sc">::</span>str_to_title) <span class="sc">|&gt;</span> <span class="fu">names</span>()</span>
-<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Remove acentos</span></span>
-<span id="cb9-6"><a href="#cb9-6" aria-hidden="true" tabindex="-1"></a><span class="fu">rename_with</span>(dat, <span class="sc">~</span>stringi<span class="sc">::</span><span class="fu">stri_trans_general</span>(.x, <span class="at">id =</span><span class="st">"latin-ascii"</span>)) <span class="sc">|&gt;</span> <span class="fu">names</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb11"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Converte para minúsculo</span></span>
+<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a><span class="fu">rename_with</span>(dat, tolower) <span class="sc">|&gt;</span> <span class="fu">names</span>()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code> [1] "nível territorial (código)" "nível territorial"         
+ [3] "unidade de medida (código)" "unidade de medida"         
+ [5] "valor"                      "brasil (código)"           
+ [7] "brasil"                     "mês (código)"              
+ [9] "mês"                        "variável (código)"         
+[11] "variável"                  </code></pre>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb13"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Converte texto para um formato de 'título'</span></span>
+<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a><span class="fu">rename_with</span>(dat, stringr<span class="sc">::</span>str_to_title) <span class="sc">|&gt;</span> <span class="fu">names</span>()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code> [1] "Nível Territorial (Código)" "Nível Territorial"         
+ [3] "Unidade De Medida (Código)" "Unidade De Medida"         
+ [5] "Valor"                      "Brasil (Código)"           
+ [7] "Brasil"                     "Mês (Código)"              
+ [9] "Mês"                        "Variável (Código)"         
+[11] "Variável"                  </code></pre>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb15"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Remove acentos</span></span>
+<span id="cb15-2"><a href="#cb15-2" aria-hidden="true" tabindex="-1"></a><span class="fu">rename_with</span>(dat, <span class="sc">~</span>stringi<span class="sc">::</span><span class="fu">stri_trans_general</span>(.x, <span class="at">id =</span><span class="st">"latin-ascii"</span>)) <span class="sc">|&gt;</span> <span class="fu">names</span>()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code> [1] "Nivel Territorial (Codigo)" "Nivel Territorial"         
+ [3] "Unidade de Medida (Codigo)" "Unidade de Medida"         
+ [5] "Valor"                      "Brasil (Codigo)"           
+ [7] "Brasil"                     "Mes (Codigo)"              
+ [9] "Mes"                        "Variavel (Codigo)"         
+[11] "Variavel"                  </code></pre>
+</div>
 </div>
 <p>Pode-se criar uma função customizada mais completa para renomear colunas. A função abaixo costuma funcionar bem para colunas problemáticas escritas em português.</p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb10"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a>nice_col_names <span class="ot">&lt;-</span> <span class="cf">function</span>(x) {</span>
-<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a>  </span>
-<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a>  <span class="co">#&gt; Remove acentos em geral</span></span>
-<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a>  x <span class="ot">&lt;-</span> stringi<span class="sc">::</span><span class="fu">stri_trans_general</span>(x, <span class="at">id =</span> <span class="st">"latin-ascii"</span>)</span>
-<span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a>  <span class="co">#&gt; Remove pontuação e caracteres especiais (%$#&amp; etc.)</span></span>
-<span id="cb10-6"><a href="#cb10-6" aria-hidden="true" tabindex="-1"></a>  x <span class="ot">&lt;-</span> stringr<span class="sc">::</span><span class="fu">str_replace_all</span>(x, <span class="st">"[[:punct:]]"</span>, <span class="st">""</span>)</span>
-<span id="cb10-7"><a href="#cb10-7" aria-hidden="true" tabindex="-1"></a>  <span class="co">#&gt; Remove espaços em branco antes e/ou depois do texto</span></span>
-<span id="cb10-8"><a href="#cb10-8" aria-hidden="true" tabindex="-1"></a>  x <span class="ot">&lt;-</span> stringr<span class="sc">::</span><span class="fu">str_trim</span>(x, <span class="at">side =</span> <span class="st">"both"</span>)</span>
-<span id="cb10-9"><a href="#cb10-9" aria-hidden="true" tabindex="-1"></a>  <span class="co">#&gt; Substitui espaços em branco por _</span></span>
-<span id="cb10-10"><a href="#cb10-10" aria-hidden="true" tabindex="-1"></a>  x <span class="ot">&lt;-</span> stringr<span class="sc">::</span><span class="fu">str_replace_all</span>(x, <span class="st">" "</span>, <span class="st">"_"</span>)</span>
-<span id="cb10-11"><a href="#cb10-11" aria-hidden="true" tabindex="-1"></a>  <span class="co">#&gt; Converte tudo para minúsculo</span></span>
-<span id="cb10-12"><a href="#cb10-12" aria-hidden="true" tabindex="-1"></a>  x <span class="ot">&lt;-</span> stringr<span class="sc">::</span><span class="fu">str_to_lower</span>(x)</span>
-<span id="cb10-13"><a href="#cb10-13" aria-hidden="true" tabindex="-1"></a>  </span>
-<span id="cb10-14"><a href="#cb10-14" aria-hidden="true" tabindex="-1"></a>  <span class="co">#&gt; Avisa se houver nomes duplicados</span></span>
-<span id="cb10-15"><a href="#cb10-15" aria-hidden="true" tabindex="-1"></a>  check_dups <span class="ot">&lt;-</span> x[<span class="fu">duplicated</span>(x)]</span>
-<span id="cb10-16"><a href="#cb10-16" aria-hidden="true" tabindex="-1"></a>  </span>
-<span id="cb10-17"><a href="#cb10-17" aria-hidden="true" tabindex="-1"></a>  <span class="cf">if</span> (<span class="fu">length</span>(check_dups) <span class="sc">&gt;</span> <span class="dv">0</span>) {</span>
-<span id="cb10-18"><a href="#cb10-18" aria-hidden="true" tabindex="-1"></a>    <span class="fu">warning</span>(<span class="st">"Duplicated names!"</span>)</span>
-<span id="cb10-19"><a href="#cb10-19" aria-hidden="true" tabindex="-1"></a>  }</span>
-<span id="cb10-20"><a href="#cb10-20" aria-hidden="true" tabindex="-1"></a>  </span>
-<span id="cb10-21"><a href="#cb10-21" aria-hidden="true" tabindex="-1"></a>  <span class="fu">return</span>(x)</span>
-<span id="cb10-22"><a href="#cb10-22" aria-hidden="true" tabindex="-1"></a>  </span>
-<span id="cb10-23"><a href="#cb10-23" aria-hidden="true" tabindex="-1"></a>}</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb17"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a>nice_col_names <span class="ot">&lt;-</span> <span class="cf">function</span>(x) {</span>
+<span id="cb17-2"><a href="#cb17-2" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb17-3"><a href="#cb17-3" aria-hidden="true" tabindex="-1"></a>  <span class="co">#&gt; Remove acentos em geral</span></span>
+<span id="cb17-4"><a href="#cb17-4" aria-hidden="true" tabindex="-1"></a>  x <span class="ot">&lt;-</span> stringi<span class="sc">::</span><span class="fu">stri_trans_general</span>(x, <span class="at">id =</span> <span class="st">"latin-ascii"</span>)</span>
+<span id="cb17-5"><a href="#cb17-5" aria-hidden="true" tabindex="-1"></a>  <span class="co">#&gt; Remove pontuação e caracteres especiais (%$#&amp; etc.)</span></span>
+<span id="cb17-6"><a href="#cb17-6" aria-hidden="true" tabindex="-1"></a>  x <span class="ot">&lt;-</span> stringr<span class="sc">::</span><span class="fu">str_replace_all</span>(x, <span class="st">"[[:punct:]]"</span>, <span class="st">""</span>)</span>
+<span id="cb17-7"><a href="#cb17-7" aria-hidden="true" tabindex="-1"></a>  <span class="co">#&gt; Remove espaços em branco antes e/ou depois do texto</span></span>
+<span id="cb17-8"><a href="#cb17-8" aria-hidden="true" tabindex="-1"></a>  x <span class="ot">&lt;-</span> stringr<span class="sc">::</span><span class="fu">str_trim</span>(x, <span class="at">side =</span> <span class="st">"both"</span>)</span>
+<span id="cb17-9"><a href="#cb17-9" aria-hidden="true" tabindex="-1"></a>  <span class="co">#&gt; Substitui espaços em branco por _</span></span>
+<span id="cb17-10"><a href="#cb17-10" aria-hidden="true" tabindex="-1"></a>  x <span class="ot">&lt;-</span> stringr<span class="sc">::</span><span class="fu">str_replace_all</span>(x, <span class="st">" "</span>, <span class="st">"_"</span>)</span>
+<span id="cb17-11"><a href="#cb17-11" aria-hidden="true" tabindex="-1"></a>  <span class="co">#&gt; Converte tudo para minúsculo</span></span>
+<span id="cb17-12"><a href="#cb17-12" aria-hidden="true" tabindex="-1"></a>  x <span class="ot">&lt;-</span> stringr<span class="sc">::</span><span class="fu">str_to_lower</span>(x)</span>
+<span id="cb17-13"><a href="#cb17-13" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb17-14"><a href="#cb17-14" aria-hidden="true" tabindex="-1"></a>  <span class="co">#&gt; Avisa se houver nomes duplicados</span></span>
+<span id="cb17-15"><a href="#cb17-15" aria-hidden="true" tabindex="-1"></a>  check_dups <span class="ot">&lt;-</span> x[<span class="fu">duplicated</span>(x)]</span>
+<span id="cb17-16"><a href="#cb17-16" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb17-17"><a href="#cb17-17" aria-hidden="true" tabindex="-1"></a>  <span class="cf">if</span> (<span class="fu">length</span>(check_dups) <span class="sc">&gt;</span> <span class="dv">0</span>) {</span>
+<span id="cb17-18"><a href="#cb17-18" aria-hidden="true" tabindex="-1"></a>    <span class="fu">warning</span>(<span class="st">"Duplicated names!"</span>)</span>
+<span id="cb17-19"><a href="#cb17-19" aria-hidden="true" tabindex="-1"></a>  }</span>
+<span id="cb17-20"><a href="#cb17-20" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb17-21"><a href="#cb17-21" aria-hidden="true" tabindex="-1"></a>  <span class="fu">return</span>(x)</span>
+<span id="cb17-22"><a href="#cb17-22" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb17-23"><a href="#cb17-23" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb11"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a>dat <span class="sc">|&gt;</span> </span>
-<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">rename_with</span>(nice_col_names) <span class="sc">|&gt;</span> </span>
-<span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">names</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb18"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a>dat <span class="sc">|&gt;</span> </span>
+<span id="cb18-2"><a href="#cb18-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">rename_with</span>(nice_col_names) <span class="sc">|&gt;</span> </span>
+<span id="cb18-3"><a href="#cb18-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">names</span>()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code> [1] "nivel_territorial_codigo" "nivel_territorial"       
+ [3] "unidade_de_medida_codigo" "unidade_de_medida"       
+ [5] "valor"                    "brasil_codigo"           
+ [7] "brasil"                   "mes_codigo"              
+ [9] "mes"                      "variavel_codigo"         
+[11] "variavel"                </code></pre>
+</div>
 </div>
 <p>As funções base <code>make.names</code> e <code>make.unique</code> também podem ser úteis para ajudar a criar nomes de colunas válidos sem causar grandes alterações.</p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb12"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a>dat <span class="sc">|&gt;</span> </span>
-<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">rename_with</span>(make.names) <span class="sc">|&gt;</span> </span>
-<span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">names</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb20"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a>dat <span class="sc">|&gt;</span> </span>
+<span id="cb20-2"><a href="#cb20-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">rename_with</span>(make.names) <span class="sc">|&gt;</span> </span>
+<span id="cb20-3"><a href="#cb20-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">names</span>()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code> [1] "Nível.Territorial..Código." "Nível.Territorial"         
+ [3] "Unidade.de.Medida..Código." "Unidade.de.Medida"         
+ [5] "Valor"                      "Brasil..Código."           
+ [7] "Brasil"                     "Mês..Código."              
+ [9] "Mês"                        "Variável..Código."         
+[11] "Variável"                  </code></pre>
+</div>
 </div>
 <p>Por fim, vale notar que a função <code>jantior::make_clean_names()</code> é bastante eficiente em “limpar” o nome de colunas</p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb13"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a>dat <span class="sc">|&gt;</span> </span>
-<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">rename_with</span>(janitor<span class="sc">::</span>make_clean_names) <span class="sc">|&gt;</span> </span>
-<span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">names</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb22"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb22-1"><a href="#cb22-1" aria-hidden="true" tabindex="-1"></a>dat <span class="sc">|&gt;</span> </span>
+<span id="cb22-2"><a href="#cb22-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">rename_with</span>(janitor<span class="sc">::</span>make_clean_names) <span class="sc">|&gt;</span> </span>
+<span id="cb22-3"><a href="#cb22-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">names</span>()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code> [1] "nivel_territorial_codigo" "nivel_territorial"       
+ [3] "unidade_de_medida_codigo" "unidade_de_medida"       
+ [5] "valor"                    "brasil_codigo"           
+ [7] "brasil"                   "mes_codigo"              
+ [9] "mes"                      "variavel_codigo"         
+[11] "variavel"                </code></pre>
+</div>
 </div>
 <section id="renomeando-apenas-algumas-colunas" class="level3">
 <h3 class="anchored" data-anchor-id="renomeando-apenas-algumas-colunas">Renomeando apenas algumas colunas</h3>
 <p>Eventualmente, pode ser interessante renomear apenas algumas colunas. A função rename_with tem um terceiro argumento opcional que perimite selecionar um subconjunto de colunas que deve ser renomeada utilizando a função definida. A maneira mais simples de selecionar estas colunas é pela sua posição.</p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb14"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a>dat_renamed <span class="ot">&lt;-</span> <span class="fu">rename_with</span>(dat, janitor<span class="sc">::</span>make_clean_names)</span>
-<span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb14-3"><a href="#cb14-3" aria-hidden="true" tabindex="-1"></a>dat_prefix <span class="ot">&lt;-</span> <span class="fu">rename_with</span>(</span>
-<span id="cb14-4"><a href="#cb14-4" aria-hidden="true" tabindex="-1"></a>  dat_renamed,</span>
-<span id="cb14-5"><a href="#cb14-5" aria-hidden="true" tabindex="-1"></a>  <span class="sc">~</span><span class="fu">paste0</span>(<span class="st">"abs_"</span>, .x),</span>
-<span id="cb14-6"><a href="#cb14-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">c</span>(<span class="dv">1</span>, <span class="dv">2</span>, <span class="dv">3</span>)</span>
-<span id="cb14-7"><a href="#cb14-7" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb14-8"><a href="#cb14-8" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb14-9"><a href="#cb14-9" aria-hidden="true" tabindex="-1"></a><span class="fu">names</span>(dat_prefix)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb24"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb24-1"><a href="#cb24-1" aria-hidden="true" tabindex="-1"></a>dat_renamed <span class="ot">&lt;-</span> <span class="fu">rename_with</span>(dat, janitor<span class="sc">::</span>make_clean_names)</span>
+<span id="cb24-2"><a href="#cb24-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb24-3"><a href="#cb24-3" aria-hidden="true" tabindex="-1"></a>dat_prefix <span class="ot">&lt;-</span> <span class="fu">rename_with</span>(</span>
+<span id="cb24-4"><a href="#cb24-4" aria-hidden="true" tabindex="-1"></a>  dat_renamed,</span>
+<span id="cb24-5"><a href="#cb24-5" aria-hidden="true" tabindex="-1"></a>  <span class="sc">~</span><span class="fu">paste0</span>(<span class="st">"abs_"</span>, .x),</span>
+<span id="cb24-6"><a href="#cb24-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">c</span>(<span class="dv">1</span>, <span class="dv">2</span>, <span class="dv">3</span>)</span>
+<span id="cb24-7"><a href="#cb24-7" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb24-8"><a href="#cb24-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb24-9"><a href="#cb24-9" aria-hidden="true" tabindex="-1"></a><span class="fu">names</span>(dat_prefix)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code> [1] "abs_nivel_territorial_codigo" "abs_nivel_territorial"       
+ [3] "abs_unidade_de_medida_codigo" "unidade_de_medida"           
+ [5] "valor"                        "brasil_codigo"               
+ [7] "brasil"                       "mes_codigo"                  
+ [9] "mes"                          "variavel_codigo"             
+[11] "variavel"                    </code></pre>
+</div>
 </div>
 <p>Como de praxe, pode-se usar as funções <code>tidyselect</code> para facilitar a vida:</p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb15"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Adiciona um prefixo nas colunas numéricas</span></span>
-<span id="cb15-2"><a href="#cb15-2" aria-hidden="true" tabindex="-1"></a><span class="fu">rename_with</span>(</span>
-<span id="cb15-3"><a href="#cb15-3" aria-hidden="true" tabindex="-1"></a>  dat_renamed,</span>
-<span id="cb15-4"><a href="#cb15-4" aria-hidden="true" tabindex="-1"></a>  <span class="sc">~</span><span class="fu">paste0</span>(<span class="st">"num_"</span>, .x),</span>
-<span id="cb15-5"><a href="#cb15-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">where</span>(is.numeric)</span>
-<span id="cb15-6"><a href="#cb15-6" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb15-7"><a href="#cb15-7" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-8"><a href="#cb15-8" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Adiciona um sufixo nas colunas numéricas</span></span>
-<span id="cb15-9"><a href="#cb15-9" aria-hidden="true" tabindex="-1"></a><span class="fu">rename_with</span>(</span>
-<span id="cb15-10"><a href="#cb15-10" aria-hidden="true" tabindex="-1"></a>  dat_renamed,</span>
-<span id="cb15-11"><a href="#cb15-11" aria-hidden="true" tabindex="-1"></a>  <span class="sc">~</span><span class="fu">paste0</span>(.x, <span class="st">"_num"</span>),</span>
-<span id="cb15-12"><a href="#cb15-12" aria-hidden="true" tabindex="-1"></a>  <span class="fu">where</span>(is.numeric)</span>
-<span id="cb15-13"><a href="#cb15-13" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb15-14"><a href="#cb15-14" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-15"><a href="#cb15-15" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Converte para maiúsculo as colunas que contem 'codigo' no nome</span></span>
-<span id="cb15-16"><a href="#cb15-16" aria-hidden="true" tabindex="-1"></a><span class="fu">rename_with</span>(</span>
-<span id="cb15-17"><a href="#cb15-17" aria-hidden="true" tabindex="-1"></a>  dat_renamed,</span>
-<span id="cb15-18"><a href="#cb15-18" aria-hidden="true" tabindex="-1"></a>  stringr<span class="sc">::</span>str_to_upper,</span>
-<span id="cb15-19"><a href="#cb15-19" aria-hidden="true" tabindex="-1"></a>  <span class="fu">contains</span>(<span class="st">"codigo"</span>)</span>
-<span id="cb15-20"><a href="#cb15-20" aria-hidden="true" tabindex="-1"></a>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb26"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb26-1"><a href="#cb26-1" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Adiciona um prefixo nas colunas numéricas</span></span>
+<span id="cb26-2"><a href="#cb26-2" aria-hidden="true" tabindex="-1"></a><span class="fu">rename_with</span>(</span>
+<span id="cb26-3"><a href="#cb26-3" aria-hidden="true" tabindex="-1"></a>  dat_renamed,</span>
+<span id="cb26-4"><a href="#cb26-4" aria-hidden="true" tabindex="-1"></a>  <span class="sc">~</span><span class="fu">paste0</span>(<span class="st">"num_"</span>, .x),</span>
+<span id="cb26-5"><a href="#cb26-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">where</span>(is.numeric)</span>
+<span id="cb26-6"><a href="#cb26-6" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb26-7"><a href="#cb26-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb26-8"><a href="#cb26-8" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Adiciona um sufixo nas colunas numéricas</span></span>
+<span id="cb26-9"><a href="#cb26-9" aria-hidden="true" tabindex="-1"></a><span class="fu">rename_with</span>(</span>
+<span id="cb26-10"><a href="#cb26-10" aria-hidden="true" tabindex="-1"></a>  dat_renamed,</span>
+<span id="cb26-11"><a href="#cb26-11" aria-hidden="true" tabindex="-1"></a>  <span class="sc">~</span><span class="fu">paste0</span>(.x, <span class="st">"_num"</span>),</span>
+<span id="cb26-12"><a href="#cb26-12" aria-hidden="true" tabindex="-1"></a>  <span class="fu">where</span>(is.numeric)</span>
+<span id="cb26-13"><a href="#cb26-13" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb26-14"><a href="#cb26-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb26-15"><a href="#cb26-15" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; Converte para maiúsculo as colunas que contem 'codigo' no nome</span></span>
+<span id="cb26-16"><a href="#cb26-16" aria-hidden="true" tabindex="-1"></a><span class="fu">rename_with</span>(</span>
+<span id="cb26-17"><a href="#cb26-17" aria-hidden="true" tabindex="-1"></a>  dat_renamed,</span>
+<span id="cb26-18"><a href="#cb26-18" aria-hidden="true" tabindex="-1"></a>  stringr<span class="sc">::</span>str_to_upper,</span>
+<span id="cb26-19"><a href="#cb26-19" aria-hidden="true" tabindex="-1"></a>  <span class="fu">contains</span>(<span class="st">"codigo"</span>)</span>
+<span id="cb26-20"><a href="#cb26-20" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 </section>
 </section>
@@ -493,8 +2103,19 @@ gtag('config', 'G-EJF8PGT67H', { 'anonymize_ip': true});
 <p>Um tipo especial de vetor é um named vector, um vetor com nomes. Um named vector é um vetor onde cada elemento tem um nome, como <code>c("a" = 2, "b" = 4, "c" = 6, "d" = 8)</code>. Tipicamente, seleciona-se um elemento específico de um vetor através da sua posição, como em <code>x[2]</code> ou <code>y[5:10]</code>. No caso de um named vector, é possível especificar um elemento através do seu nome.</p>
 <p>Note que a sintaxe <code>c("A" = "abacaxi", "B = "banana")</code> é muito similar à sintaxe da função <code>rename</code>. De fato, pode-se usar um vetor deste tipo para renomear as colunas usando um “swap” vector. Este tipo de vetor funciona como <code>c("nome_novo" = "Nome Velho")</code>. Antigamente, podia-se simplesmente inserir o vetor dentro da função rename.</p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb16"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a>swap <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="st">"valor"</span> <span class="ot">=</span> <span class="st">"Valor"</span>, <span class="st">"geo_level"</span> <span class="ot">=</span> <span class="st">"Nível Territorial"</span>)</span>
-<span id="cb16-2"><a href="#cb16-2" aria-hidden="true" tabindex="-1"></a>dat_renamed <span class="ot">&lt;-</span> <span class="fu">rename</span>(dat, swap)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb27"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb27-1"><a href="#cb27-1" aria-hidden="true" tabindex="-1"></a>swap <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="st">"valor"</span> <span class="ot">=</span> <span class="st">"Valor"</span>, <span class="st">"geo_level"</span> <span class="ot">=</span> <span class="st">"Nível Territorial"</span>)</span>
+<span id="cb27-2"><a href="#cb27-2" aria-hidden="true" tabindex="-1"></a>dat_renamed <span class="ot">&lt;-</span> <span class="fu">rename</span>(dat, swap)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stderr">
+<pre><code>Warning: Using an external vector in selections was deprecated in tidyselect 1.1.0.
+ℹ Please use `all_of()` or `any_of()` instead.
+  # Was:
+  data %&gt;% select(swap)
+
+  # Now:
+  data %&gt;% select(all_of(swap))
+
+See &lt;https://tidyselect.r-lib.org/reference/faq-external-vector.html&gt;.</code></pre>
+</div>
 </div>
 <p>Como deixa claro o aviso, desde a versão <code>1.1.0</code> do <code>tidyselect</code> este tipo de sintaxe foi descontinuada e agora é preciso usar mais uma função.</p>
 <section id="all_of-e-any_of" class="level3">
@@ -502,63 +2123,96 @@ gtag('config', 'G-EJF8PGT67H', { 'anonymize_ip': true});
 <p>Atualmente, é preciso colocar o vetor <code>swap</code> em uma de duas funções auxiliares: <code>any_of</code> e <code>all_of</code>. A primeira função é a mais branda e substitui o nome de todas as colunas que for possível. A segunda função é mais exigente: se qualquer umas das variáveis estiver ausente retorna-se um erro.</p>
 <p>Para tornar a distinção mais clara, vale criar um novo vetor com o nome de coluna que não consta na nossa base. Note como a função <code>any_of</code> retorna o mesmo output, ignorando a coluna inexistente <code>Ano</code>.</p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb17"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a>swap <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="st">"valor"</span> <span class="ot">=</span> <span class="st">"Valor"</span>, <span class="st">"geo_level"</span> <span class="ot">=</span> <span class="st">"Nível Territorial"</span>, <span class="st">"ano"</span> <span class="ot">=</span> <span class="st">"Ano"</span>)</span>
-<span id="cb17-2"><a href="#cb17-2" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-3"><a href="#cb17-3" aria-hidden="true" tabindex="-1"></a>dat <span class="sc">|&gt;</span> </span>
-<span id="cb17-4"><a href="#cb17-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">rename</span>(<span class="fu">any_of</span>(swap)) <span class="sc">|&gt;</span> </span>
-<span id="cb17-5"><a href="#cb17-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">names</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb29"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb29-1"><a href="#cb29-1" aria-hidden="true" tabindex="-1"></a>swap <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="st">"valor"</span> <span class="ot">=</span> <span class="st">"Valor"</span>, <span class="st">"geo_level"</span> <span class="ot">=</span> <span class="st">"Nível Territorial"</span>, <span class="st">"ano"</span> <span class="ot">=</span> <span class="st">"Ano"</span>)</span>
+<span id="cb29-2"><a href="#cb29-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb29-3"><a href="#cb29-3" aria-hidden="true" tabindex="-1"></a>dat <span class="sc">|&gt;</span> </span>
+<span id="cb29-4"><a href="#cb29-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">rename</span>(<span class="fu">any_of</span>(swap)) <span class="sc">|&gt;</span> </span>
+<span id="cb29-5"><a href="#cb29-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">names</span>()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code> [1] "Nível Territorial (Código)" "geo_level"                 
+ [3] "Unidade de Medida (Código)" "Unidade de Medida"         
+ [5] "valor"                      "Brasil (Código)"           
+ [7] "Brasil"                     "Mês (Código)"              
+ [9] "Mês"                        "Variável (Código)"         
+[11] "Variável"                  </code></pre>
+</div>
 </div>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb18"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a>dat <span class="sc">|&gt;</span> </span>
-<span id="cb18-2"><a href="#cb18-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">rename</span>(<span class="fu">all_of</span>(swap)) <span class="sc">|&gt;</span> </span>
-<span id="cb18-3"><a href="#cb18-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">names</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb31"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb31-1"><a href="#cb31-1" aria-hidden="true" tabindex="-1"></a>dat <span class="sc">|&gt;</span> </span>
+<span id="cb31-2"><a href="#cb31-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">rename</span>(<span class="fu">all_of</span>(swap)) <span class="sc">|&gt;</span> </span>
+<span id="cb31-3"><a href="#cb31-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">names</span>()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-error">
+<pre><code>Error in `rename()`:
+ℹ In argument: `all_of(swap)`.
+Caused by error in `all_of()`:
+! Can't subset elements that don't exist.
+✖ Element `Ano` doesn't exist.</code></pre>
+</div>
 </div>
 <p>No caso em que se quer renomear <em>exatamente</em> todas as colunas, usa-se a função auxiliar <code>all_of</code> da seguinte maneira.</p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb19"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a>new_names <span class="ot">&lt;-</span> <span class="fu">c</span>(</span>
-<span id="cb19-2"><a href="#cb19-2" aria-hidden="true" tabindex="-1"></a>  <span class="st">"geo_code"</span> <span class="ot">=</span> <span class="st">"Nível Territorial (Código)"</span>,</span>
-<span id="cb19-3"><a href="#cb19-3" aria-hidden="true" tabindex="-1"></a>  <span class="st">"geo_level"</span> <span class="ot">=</span> <span class="st">"Nível Territorial"</span>,</span>
-<span id="cb19-4"><a href="#cb19-4" aria-hidden="true" tabindex="-1"></a>  <span class="st">"unit_code"</span> <span class="ot">=</span> <span class="st">"Unidade de Medida (Código)"</span>,</span>
-<span id="cb19-5"><a href="#cb19-5" aria-hidden="true" tabindex="-1"></a>  <span class="st">"unit"</span> <span class="ot">=</span> <span class="st">"Unidade de Medida"</span>,</span>
-<span id="cb19-6"><a href="#cb19-6" aria-hidden="true" tabindex="-1"></a>  <span class="st">"value"</span> <span class="ot">=</span> <span class="st">"Valor"</span>,</span>
-<span id="cb19-7"><a href="#cb19-7" aria-hidden="true" tabindex="-1"></a>  <span class="st">"geo_name_code"</span> <span class="ot">=</span> <span class="st">"Brasil (Código)"</span>,</span>
-<span id="cb19-8"><a href="#cb19-8" aria-hidden="true" tabindex="-1"></a>  <span class="st">"geo_name"</span> <span class="ot">=</span> <span class="st">"Brasil"</span>,</span>
-<span id="cb19-9"><a href="#cb19-9" aria-hidden="true" tabindex="-1"></a>  <span class="st">"month_code"</span> <span class="ot">=</span> <span class="st">"Mês (Código)"</span>,</span>
-<span id="cb19-10"><a href="#cb19-10" aria-hidden="true" tabindex="-1"></a>  <span class="st">"month"</span> <span class="ot">=</span> <span class="st">"Mês"</span>,</span>
-<span id="cb19-11"><a href="#cb19-11" aria-hidden="true" tabindex="-1"></a>  <span class="st">"variable_code"</span> <span class="ot">=</span> <span class="st">"Variável (Código)"</span>,</span>
-<span id="cb19-12"><a href="#cb19-12" aria-hidden="true" tabindex="-1"></a>  <span class="st">"variable"</span> <span class="ot">=</span> <span class="st">"Variável"</span></span>
-<span id="cb19-13"><a href="#cb19-13" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb19-14"><a href="#cb19-14" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb19-15"><a href="#cb19-15" aria-hidden="true" tabindex="-1"></a>dat <span class="sc">|&gt;</span> </span>
-<span id="cb19-16"><a href="#cb19-16" aria-hidden="true" tabindex="-1"></a>  <span class="fu">rename</span>(<span class="fu">all_of</span>(new_names)) <span class="sc">|&gt;</span> </span>
-<span id="cb19-17"><a href="#cb19-17" aria-hidden="true" tabindex="-1"></a>  <span class="fu">names</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb33"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb33-1"><a href="#cb33-1" aria-hidden="true" tabindex="-1"></a>new_names <span class="ot">&lt;-</span> <span class="fu">c</span>(</span>
+<span id="cb33-2"><a href="#cb33-2" aria-hidden="true" tabindex="-1"></a>  <span class="st">"geo_code"</span> <span class="ot">=</span> <span class="st">"Nível Territorial (Código)"</span>,</span>
+<span id="cb33-3"><a href="#cb33-3" aria-hidden="true" tabindex="-1"></a>  <span class="st">"geo_level"</span> <span class="ot">=</span> <span class="st">"Nível Territorial"</span>,</span>
+<span id="cb33-4"><a href="#cb33-4" aria-hidden="true" tabindex="-1"></a>  <span class="st">"unit_code"</span> <span class="ot">=</span> <span class="st">"Unidade de Medida (Código)"</span>,</span>
+<span id="cb33-5"><a href="#cb33-5" aria-hidden="true" tabindex="-1"></a>  <span class="st">"unit"</span> <span class="ot">=</span> <span class="st">"Unidade de Medida"</span>,</span>
+<span id="cb33-6"><a href="#cb33-6" aria-hidden="true" tabindex="-1"></a>  <span class="st">"value"</span> <span class="ot">=</span> <span class="st">"Valor"</span>,</span>
+<span id="cb33-7"><a href="#cb33-7" aria-hidden="true" tabindex="-1"></a>  <span class="st">"geo_name_code"</span> <span class="ot">=</span> <span class="st">"Brasil (Código)"</span>,</span>
+<span id="cb33-8"><a href="#cb33-8" aria-hidden="true" tabindex="-1"></a>  <span class="st">"geo_name"</span> <span class="ot">=</span> <span class="st">"Brasil"</span>,</span>
+<span id="cb33-9"><a href="#cb33-9" aria-hidden="true" tabindex="-1"></a>  <span class="st">"month_code"</span> <span class="ot">=</span> <span class="st">"Mês (Código)"</span>,</span>
+<span id="cb33-10"><a href="#cb33-10" aria-hidden="true" tabindex="-1"></a>  <span class="st">"month"</span> <span class="ot">=</span> <span class="st">"Mês"</span>,</span>
+<span id="cb33-11"><a href="#cb33-11" aria-hidden="true" tabindex="-1"></a>  <span class="st">"variable_code"</span> <span class="ot">=</span> <span class="st">"Variável (Código)"</span>,</span>
+<span id="cb33-12"><a href="#cb33-12" aria-hidden="true" tabindex="-1"></a>  <span class="st">"variable"</span> <span class="ot">=</span> <span class="st">"Variável"</span></span>
+<span id="cb33-13"><a href="#cb33-13" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb33-14"><a href="#cb33-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb33-15"><a href="#cb33-15" aria-hidden="true" tabindex="-1"></a>dat <span class="sc">|&gt;</span> </span>
+<span id="cb33-16"><a href="#cb33-16" aria-hidden="true" tabindex="-1"></a>  <span class="fu">rename</span>(<span class="fu">all_of</span>(new_names)) <span class="sc">|&gt;</span> </span>
+<span id="cb33-17"><a href="#cb33-17" aria-hidden="true" tabindex="-1"></a>  <span class="fu">names</span>()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code> [1] "geo_code"      "geo_level"     "unit_code"     "unit"         
+ [5] "value"         "geo_name_code" "geo_name"      "month_code"   
+ [9] "month"         "variable_code" "variable"     </code></pre>
+</div>
 </div>
 <p>Uma maneira mais sucinta de escrever o código acima é aproveitar os nomes pré-existentes da base.</p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb20"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a>new_names <span class="ot">&lt;-</span> <span class="fu">c</span>(</span>
-<span id="cb20-2"><a href="#cb20-2" aria-hidden="true" tabindex="-1"></a>  <span class="st">"geo_code"</span>, <span class="st">"geo_level"</span>, <span class="st">"unit_code"</span>, <span class="st">"unit"</span>, <span class="st">"value"</span>, <span class="st">"geo_name_code"</span>, </span>
-<span id="cb20-3"><a href="#cb20-3" aria-hidden="true" tabindex="-1"></a>  <span class="st">"geo_name"</span>, <span class="st">"month_code"</span>, <span class="st">"month"</span>, <span class="st">"variable_code"</span>, <span class="st">"variable"</span></span>
-<span id="cb20-4"><a href="#cb20-4" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb20-5"><a href="#cb20-5" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb20-6"><a href="#cb20-6" aria-hidden="true" tabindex="-1"></a>swap_names <span class="ot">&lt;-</span> <span class="fu">names</span>(dat)</span>
-<span id="cb20-7"><a href="#cb20-7" aria-hidden="true" tabindex="-1"></a><span class="fu">names</span>(swap_names) <span class="ot">&lt;-</span> new_names</span>
-<span id="cb20-8"><a href="#cb20-8" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb20-9"><a href="#cb20-9" aria-hidden="true" tabindex="-1"></a>dat <span class="sc">|&gt;</span> </span>
-<span id="cb20-10"><a href="#cb20-10" aria-hidden="true" tabindex="-1"></a>  <span class="fu">rename</span>(<span class="fu">all_of</span>(swap_names)) <span class="sc">|&gt;</span> </span>
-<span id="cb20-11"><a href="#cb20-11" aria-hidden="true" tabindex="-1"></a>  <span class="fu">names</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb35"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb35-1"><a href="#cb35-1" aria-hidden="true" tabindex="-1"></a>new_names <span class="ot">&lt;-</span> <span class="fu">c</span>(</span>
+<span id="cb35-2"><a href="#cb35-2" aria-hidden="true" tabindex="-1"></a>  <span class="st">"geo_code"</span>, <span class="st">"geo_level"</span>, <span class="st">"unit_code"</span>, <span class="st">"unit"</span>, <span class="st">"value"</span>, <span class="st">"geo_name_code"</span>, </span>
+<span id="cb35-3"><a href="#cb35-3" aria-hidden="true" tabindex="-1"></a>  <span class="st">"geo_name"</span>, <span class="st">"month_code"</span>, <span class="st">"month"</span>, <span class="st">"variable_code"</span>, <span class="st">"variable"</span></span>
+<span id="cb35-4"><a href="#cb35-4" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb35-5"><a href="#cb35-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb35-6"><a href="#cb35-6" aria-hidden="true" tabindex="-1"></a>swap_names <span class="ot">&lt;-</span> <span class="fu">names</span>(dat)</span>
+<span id="cb35-7"><a href="#cb35-7" aria-hidden="true" tabindex="-1"></a><span class="fu">names</span>(swap_names) <span class="ot">&lt;-</span> new_names</span>
+<span id="cb35-8"><a href="#cb35-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb35-9"><a href="#cb35-9" aria-hidden="true" tabindex="-1"></a>dat <span class="sc">|&gt;</span> </span>
+<span id="cb35-10"><a href="#cb35-10" aria-hidden="true" tabindex="-1"></a>  <span class="fu">rename</span>(<span class="fu">all_of</span>(swap_names)) <span class="sc">|&gt;</span> </span>
+<span id="cb35-11"><a href="#cb35-11" aria-hidden="true" tabindex="-1"></a>  <span class="fu">names</span>()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code> [1] "geo_code"      "geo_level"     "unit_code"     "unit"         
+ [5] "value"         "geo_name_code" "geo_name"      "month_code"   
+ [9] "month"         "variable_code" "variable"     </code></pre>
+</div>
 </div>
 <p>Na maior parte das aplicações, pode-se usar a função <code>any_of</code> sem grandes preocupações. Apenas em casos quando maior controle sobre o output for necessário deve-se considerar usar a função <code>all_of</code>.</p>
 <p>Por fim, vale notar que um swap vector pode ter algumas “redundâncias”. Imagine, por exemplo, que temos várias bases de dados com pequenas inconsistências de ortografia. Em alguns casos temos “Nível Territorial (Código)”, mas em outras temos “nível territorial (Código)” e em outras “Nível Territorial (código)”, etc. etc. Pode-se construir um vetor que corrige isto sem grandes dificuldades, pois o nome do named vector não precisa ser único. Isto é muito conveniente quando se cria uma função genérica que limpa uma base de dados.</p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb21"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb21-1"><a href="#cb21-1" aria-hidden="true" tabindex="-1"></a>new_names <span class="ot">&lt;-</span> <span class="fu">c</span>(</span>
-<span id="cb21-2"><a href="#cb21-2" aria-hidden="true" tabindex="-1"></a>  <span class="st">"geo_code"</span> <span class="ot">=</span> <span class="st">"Nível Territorial (Código)"</span>,</span>
-<span id="cb21-3"><a href="#cb21-3" aria-hidden="true" tabindex="-1"></a>  <span class="st">"geo_code"</span> <span class="ot">=</span> <span class="st">"Nível Territorial (código)"</span>,</span>
-<span id="cb21-4"><a href="#cb21-4" aria-hidden="true" tabindex="-1"></a>  <span class="st">"geo_code"</span> <span class="ot">=</span> <span class="st">"nível territorial (Código)"</span></span>
-<span id="cb21-5"><a href="#cb21-5" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb21-6"><a href="#cb21-6" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb21-7"><a href="#cb21-7" aria-hidden="true" tabindex="-1"></a>dat <span class="sc">|&gt;</span> </span>
-<span id="cb21-8"><a href="#cb21-8" aria-hidden="true" tabindex="-1"></a>  <span class="fu">rename</span>(<span class="fu">any_of</span>(new_names)) <span class="sc">|&gt;</span> </span>
-<span id="cb21-9"><a href="#cb21-9" aria-hidden="true" tabindex="-1"></a>  <span class="fu">names</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb37"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb37-1"><a href="#cb37-1" aria-hidden="true" tabindex="-1"></a>new_names <span class="ot">&lt;-</span> <span class="fu">c</span>(</span>
+<span id="cb37-2"><a href="#cb37-2" aria-hidden="true" tabindex="-1"></a>  <span class="st">"geo_code"</span> <span class="ot">=</span> <span class="st">"Nível Territorial (Código)"</span>,</span>
+<span id="cb37-3"><a href="#cb37-3" aria-hidden="true" tabindex="-1"></a>  <span class="st">"geo_code"</span> <span class="ot">=</span> <span class="st">"Nível Territorial (código)"</span>,</span>
+<span id="cb37-4"><a href="#cb37-4" aria-hidden="true" tabindex="-1"></a>  <span class="st">"geo_code"</span> <span class="ot">=</span> <span class="st">"nível territorial (Código)"</span></span>
+<span id="cb37-5"><a href="#cb37-5" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb37-6"><a href="#cb37-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb37-7"><a href="#cb37-7" aria-hidden="true" tabindex="-1"></a>dat <span class="sc">|&gt;</span> </span>
+<span id="cb37-8"><a href="#cb37-8" aria-hidden="true" tabindex="-1"></a>  <span class="fu">rename</span>(<span class="fu">any_of</span>(new_names)) <span class="sc">|&gt;</span> </span>
+<span id="cb37-9"><a href="#cb37-9" aria-hidden="true" tabindex="-1"></a>  <span class="fu">names</span>()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code> [1] "geo_code"                   "Nível Territorial"         
+ [3] "Unidade de Medida (Código)" "Unidade de Medida"         
+ [5] "Valor"                      "Brasil (Código)"           
+ [7] "Brasil"                     "Mês (Código)"              
+ [9] "Mês"                        "Variável (Código)"         
+[11] "Variável"                  </code></pre>
+</div>
 </div>
 </section>
 </section>
@@ -566,22 +2220,30 @@ gtag('config', 'G-EJF8PGT67H', { 'anonymize_ip': true});
 <h2 class="anchored" data-anchor-id="usando-funções-e-vetores">Usando funções e vetores</h2>
 <p>Também é possível fazer um mix de vetores e funções. Aqui, infelizmente, a lógica da ordem do vetor se inverte, o que pode causar grande confusão. No exemplo abaixo, monto uma função que “traduz” alguns termos do português para o inglês. A mágica é feita usando a função <code>stringr::str_replace_all</code> que troca um termo por outro seguindo a ordem <code>nome_velho = nome_novo</code>.</p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb22"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb22-1"><a href="#cb22-1" aria-hidden="true" tabindex="-1"></a>translate_pt <span class="ot">&lt;-</span> <span class="cf">function</span>(x) {</span>
-<span id="cb22-2"><a href="#cb22-2" aria-hidden="true" tabindex="-1"></a>  </span>
-<span id="cb22-3"><a href="#cb22-3" aria-hidden="true" tabindex="-1"></a>  trans <span class="ot">&lt;-</span> <span class="fu">c</span>(</span>
-<span id="cb22-4"><a href="#cb22-4" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Código"</span> <span class="ot">=</span> <span class="st">"code"</span>,</span>
-<span id="cb22-5"><a href="#cb22-5" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Valor"</span> <span class="ot">=</span> <span class="st">"value"</span>,</span>
-<span id="cb22-6"><a href="#cb22-6" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Nível"</span> <span class="ot">=</span> <span class="st">"level"</span>,</span>
-<span id="cb22-7"><a href="#cb22-7" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Mês"</span> <span class="ot">=</span> <span class="st">"month"</span></span>
-<span id="cb22-8"><a href="#cb22-8" aria-hidden="true" tabindex="-1"></a>  )</span>
-<span id="cb22-9"><a href="#cb22-9" aria-hidden="true" tabindex="-1"></a>  </span>
-<span id="cb22-10"><a href="#cb22-10" aria-hidden="true" tabindex="-1"></a>  stringr<span class="sc">::</span><span class="fu">str_replace_all</span>(x, trans)</span>
-<span id="cb22-11"><a href="#cb22-11" aria-hidden="true" tabindex="-1"></a>  </span>
-<span id="cb22-12"><a href="#cb22-12" aria-hidden="true" tabindex="-1"></a>}</span>
-<span id="cb22-13"><a href="#cb22-13" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb22-14"><a href="#cb22-14" aria-hidden="true" tabindex="-1"></a>dat <span class="sc">|&gt;</span> </span>
-<span id="cb22-15"><a href="#cb22-15" aria-hidden="true" tabindex="-1"></a>  <span class="fu">rename_with</span>(translate_pt) <span class="sc">|&gt;</span> </span>
-<span id="cb22-16"><a href="#cb22-16" aria-hidden="true" tabindex="-1"></a>  <span class="fu">names</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb39"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb39-1"><a href="#cb39-1" aria-hidden="true" tabindex="-1"></a>translate_pt <span class="ot">&lt;-</span> <span class="cf">function</span>(x) {</span>
+<span id="cb39-2"><a href="#cb39-2" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb39-3"><a href="#cb39-3" aria-hidden="true" tabindex="-1"></a>  trans <span class="ot">&lt;-</span> <span class="fu">c</span>(</span>
+<span id="cb39-4"><a href="#cb39-4" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Código"</span> <span class="ot">=</span> <span class="st">"code"</span>,</span>
+<span id="cb39-5"><a href="#cb39-5" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Valor"</span> <span class="ot">=</span> <span class="st">"value"</span>,</span>
+<span id="cb39-6"><a href="#cb39-6" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Nível"</span> <span class="ot">=</span> <span class="st">"level"</span>,</span>
+<span id="cb39-7"><a href="#cb39-7" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Mês"</span> <span class="ot">=</span> <span class="st">"month"</span></span>
+<span id="cb39-8"><a href="#cb39-8" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb39-9"><a href="#cb39-9" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb39-10"><a href="#cb39-10" aria-hidden="true" tabindex="-1"></a>  stringr<span class="sc">::</span><span class="fu">str_replace_all</span>(x, trans)</span>
+<span id="cb39-11"><a href="#cb39-11" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb39-12"><a href="#cb39-12" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb39-13"><a href="#cb39-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb39-14"><a href="#cb39-14" aria-hidden="true" tabindex="-1"></a>dat <span class="sc">|&gt;</span> </span>
+<span id="cb39-15"><a href="#cb39-15" aria-hidden="true" tabindex="-1"></a>  <span class="fu">rename_with</span>(translate_pt) <span class="sc">|&gt;</span> </span>
+<span id="cb39-16"><a href="#cb39-16" aria-hidden="true" tabindex="-1"></a>  <span class="fu">names</span>()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code> [1] "level Territorial (code)" "level Territorial"       
+ [3] "Unidade de Medida (code)" "Unidade de Medida"       
+ [5] "value"                    "Brasil (code)"           
+ [7] "Brasil"                   "month (code)"            
+ [9] "month"                    "Variável (code)"         
+[11] "Variável"                </code></pre>
+</div>
 </div>
 </section>
 </section>
@@ -654,13 +2316,14 @@ gtag('config', 'G-EJF8PGT67H', { 'anonymize_ip': true});
       e.clearSelection();
     }
     const getTextToCopy = function(trigger) {
-        const codeEl = trigger.previousElementSibling.cloneNode(true);
-        for (const childEl of codeEl.children) {
-          if (isCodeAnnotation(childEl)) {
-            childEl.remove();
-          }
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
         }
-        return codeEl.innerText;
+      }
+      return codeEl.innerText;
     }
     const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
       text: getTextToCopy
@@ -675,7 +2338,7 @@ gtag('config', 'G-EJF8PGT67H', { 'anonymize_ip': true});
     }
       var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
       var mailtoRegex = new RegExp(/^mailto:/);
-        var filterRegex = new RegExp("https::\/\/www\.restateinsight\.com");
+        var filterRegex = new RegExp("https:\/\/www\.restateinsight\.com");
       var isInternal = (href) => {
           return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
       }

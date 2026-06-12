@@ -2,7 +2,7 @@
 <html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
 
 <meta charset="utf-8">
-<meta name="generator" content="quarto-1.7.33">
+<meta name="generator" content="quarto-1.9.37">
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
@@ -12,6 +12,9 @@
 
 <title>Enriquecendo e coletando do Google Maps – Vinicius Oike</title>
 <style>
+/* Default styles provided by pandoc.
+** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+*/
 code{white-space: pre-wrap;}
 span.smallcaps{font-variant: small-caps;}
 div.columns{display: flex; gap: min(4vw, 1.5em);}
@@ -74,10 +77,10 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <script src="../../../site_libs/quarto-html/tippy.umd.min.js"></script>
 <script src="../../../site_libs/quarto-html/anchor.min.js"></script>
 <link href="../../../site_libs/quarto-html/tippy.css" rel="stylesheet">
-<link href="../../../site_libs/quarto-html/quarto-syntax-highlighting-65ceba22b1a2bc45b1f8c349a1513ec1.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<link href="../../../site_libs/quarto-html/quarto-syntax-highlighting-c3cf9d46a7c8b92850f815292f8d7832.css" rel="stylesheet" id="quarto-text-highlighting-styles">
 <script src="../../../site_libs/bootstrap/bootstrap.min.js"></script>
 <link href="../../../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
-<link href="../../../site_libs/bootstrap/bootstrap-1d3a31d95e5cb5c8e68bd63598ea7077.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<link href="../../../site_libs/bootstrap/bootstrap-29b808bd45cb145992fdff6f5eb71f07.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
 <script id="quarto-search-options" type="application/json">{
   "location": "navbar",
   "copy-button": false,
@@ -131,10 +134,8 @@ gtag('config', 'G-EJF8PGT67H', { 'anonymize_ip': true});
 <link rel="stylesheet" href="../../../styles.css">
 <meta property="og:title" content="Enriquecendo e coletando do Google Maps – Vinicius Oike">
 <meta property="og:description" content="Neste post mostro como usar o Google Places API para importar informação do Google Maps dentro do R. O foco deste post será no Places, que encontra informações sobre estabelecimentos ou pontos de interesse. Também mostro como montar um mapa interativo com os resultados.">
-<meta property="og:image" content="https:://www.restateinsight.com/static/images/leaflet_google_maps.png">
+<meta property="og:image" content="https://www.restateinsight.com/static/images/leaflet_google_maps.png">
 <meta property="og:site_name" content="Vinicius Oike">
-<meta property="og:image:height" content="465">
-<meta property="og:image:width" content="679">
 <meta property="og:image:alt" content="/static/images/leaflet_google_maps.png">
 </head>
 
@@ -170,6 +171,10 @@ gtag('config', 'G-EJF8PGT67H', { 'anonymize_ip': true});
   <li class="nav-item">
     <a class="nav-link" href="../../../my_apps.html"> 
 <span class="menu-text">Apps</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../../../gallery.html"> 
+<span class="menu-text">Charts</span></a>
   </li>  
   <li class="nav-item">
     <a class="nav-link" href="../../../press.html"> 
@@ -273,18 +278,18 @@ gtag('config', 'G-EJF8PGT67H', { 'anonymize_ip': true});
 <h1>Google Places</h1>
 <p>O Google <a href="https://developers.google.com/maps/documentation/places/web-service/overview">Places API</a> permite acessar os dados do Google Maps. O pacote <code>googleway</code> integra estes dados dentro de <code>R</code> já em formato tidy. Neste post vou mostrar como importar dados desta API com foco no Places, que encontra informações sobre estabelecimentos ou pontos de interesse, em geral. Há diversos outros usos desta API, como de encontrar rotas, estimar a elevação, recuperar fotos do Street View, entre outros. Para uma lista completa <a href="http://symbolixau.github.io/googleway/articles/googleway-vignette.html">veja a documentação do pacote</a>.</p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb1"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(sf)</span>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(sf)</span>
 <span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(googleway)</span>
 <span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(dplyr)</span>
 <span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(tidyr)</span>
 <span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(stringr)</span>
-<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(leaflet)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(leaflet)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <section id="api---chave" class="level3">
 <h3 class="anchored" data-anchor-id="api---chave">API - chave</h3>
 <p>Para usar o pacote é preciso registrar uma API. Se você não tem uma key é preciso criar uma. Um tutorial do Google <a href="https://developers.google.com/maps/documentation/javascript/get-api-key">está disponível aqui</a>.</p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb2"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>googleway<span class="sc">::</span><span class="fu">set_key</span>(<span class="st">"sua_chave"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>googleway<span class="sc">::</span><span class="fu">set_key</span>(<span class="st">"sua_chave"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 </section>
 <section id="starbucks" class="level2">
@@ -296,25 +301,25 @@ gtag('config', 'G-EJF8PGT67H', { 'anonymize_ip': true});
 </ol>
 <p>No exemplo abaixo buscamos o termo “starbucks” a partir da coordenada do Museu de Arte de São Paulo (MASP).</p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb3"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>ponto <span class="ot">=</span> <span class="fu">c</span>(<span class="sc">-</span><span class="fl">23.561462</span>, <span class="sc">-</span><span class="fl">46.655937</span>)</span>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>ponto <span class="ot">=</span> <span class="fu">c</span>(<span class="sc">-</span><span class="fl">23.561462</span>, <span class="sc">-</span><span class="fl">46.655937</span>)</span>
 <span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>search_sbux <span class="ot">=</span> <span class="fu">google_places</span>(</span>
 <span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">search_string =</span> <span class="st">"starbucks"</span>,</span>
 <span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">location =</span> ponto</span>
-<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <p>O objeto guarda vários resultados da query.</p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb4"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Resultados da query em formato data.frame</span></span>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Resultados da query em formato data.frame</span></span>
 <span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>places<span class="sc">$</span>results</span>
 <span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a><span class="co"># 'token' para continuar a busca</span></span>
 <span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a>places<span class="sc">$</span>next_page_token</span>
 <span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a><span class="co"># Status da query</span></span>
-<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a>places<span class="sc">$</span>status</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a>places<span class="sc">$</span>status</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <p>A query de busca encontra apenas 20 resultados (no máximo). Para encontrar mais resultados é preciso fazer uma nova busca, usando <code>$next_page_token</code> para encontrar mais resultados.</p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb5"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="co"># busca mais resultados para a mesma pesquisa</span></span>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="co"># busca mais resultados para a mesma pesquisa</span></span>
 <span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>search_sbux_2 <span class="ot">=</span> <span class="fu">google_places</span>(</span>
 <span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">search_string =</span> <span class="st">"starbucks"</span>,</span>
 <span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">location =</span> ponto,</span>
@@ -331,12 +336,12 @@ gtag('config', 'G-EJF8PGT67H', { 'anonymize_ip': true});
 <span id="cb5-15"><a href="#cb5-15" aria-hidden="true" tabindex="-1"></a>  search_sbux<span class="sc">$</span>results,</span>
 <span id="cb5-16"><a href="#cb5-16" aria-hidden="true" tabindex="-1"></a>  search_sbux_2<span class="sc">$</span>results,</span>
 <span id="cb5-17"><a href="#cb5-17" aria-hidden="true" tabindex="-1"></a>  search_sbux_3<span class="sc">$</span>results</span>
-<span id="cb5-18"><a href="#cb5-18" aria-hidden="true" tabindex="-1"></a>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb5-18"><a href="#cb5-18" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <p>Ao todo, a query encontrou 50 resultados que estão agregados no objeto <code>res</code> acima. A query retorna várias das informações que normalmente se encontram numa busca via Google Maps: a nota média do estabelecimento, algumas fotos, o endereço, a posição geográfica (lat/lng), o tipo do estabelecimento, etc.</p>
 <p>Formalmentem, as informações estão estruturadas num “nested” <code>data.frame</code>, que é um <code>data.frame</code> comum que possui outros <code>data.frame</code> ou <code>list</code> como colunas. Isto pode causar algum estranhamento, mas não é nada demais. Para selecionar uma coluna acaba sendo necessário fazer <code>df$col1$col2</code> ou usar os comandos <code>tidyr::unnest</code>.</p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb6"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>subres <span class="ot">&lt;-</span> res <span class="sc">%&gt;%</span></span>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>subres <span class="ot">&lt;-</span> res <span class="sc">%&gt;%</span></span>
 <span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">unnest</span>(<span class="at">cols =</span> <span class="st">"geometry"</span>) <span class="sc">%&gt;%</span></span>
 <span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">unnest</span>(<span class="at">cols =</span> <span class="st">"location"</span>) <span class="sc">%&gt;%</span></span>
 <span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(</span>
@@ -350,7 +355,7 @@ gtag('config', 'G-EJF8PGT67H', { 'anonymize_ip': true});
 <span id="cb6-12"><a href="#cb6-12" aria-hidden="true" tabindex="-1"></a><span class="fu">leaflet</span>(subres) <span class="sc">|&gt;</span> </span>
 <span id="cb6-13"><a href="#cb6-13" aria-hidden="true" tabindex="-1"></a>  <span class="fu">addTiles</span>() <span class="sc">|&gt;</span> </span>
 <span id="cb6-14"><a href="#cb6-14" aria-hidden="true" tabindex="-1"></a>  <span class="fu">addCircleMarkers</span>(<span class="at">label =</span> <span class="sc">~</span>name) <span class="sc">|&gt;</span> </span>
-<span id="cb6-15"><a href="#cb6-15" aria-hidden="true" tabindex="-1"></a>  <span class="fu">addProviderTiles</span>(<span class="st">"CartoDB"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb6-15"><a href="#cb6-15" aria-hidden="true" tabindex="-1"></a>  <span class="fu">addProviderTiles</span>(<span class="st">"CartoDB"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output-display">
 <div class="leaflet html-widget html-fill-item" id="htmlwidget-6926cad15415615891f5" style="width:100%;height:464px;"></div>
 <script type="application/json" data-for="htmlwidget-6926cad15415615891f5">{"x":{"options":{"crs":{"crsClass":"L.CRS.EPSG3857","code":null,"proj4def":null,"projectedBounds":null,"options":{}}},"calls":[{"method":"addTiles","args":["https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",null,null,{"minZoom":0,"maxZoom":18,"tileSize":256,"subdomains":"abc","errorTileUrl":"","tms":false,"noWrap":false,"zoomOffset":0,"zoomReverse":false,"opacity":1,"zIndex":1,"detectRetina":false,"attribution":"&copy; <a href=\"https://openstreetmap.org/copyright/\">OpenStreetMap<\/a>,  <a href=\"https://opendatacommons.org/licenses/odbl/\">ODbL<\/a>"}]},{"method":"addCircleMarkers","args":[[-23.5623595,-23.5641014,-23.557771,-23.557903,-23.5656276,-23.554083,-23.5639098,-23.5678371,-23.5703331,-23.5733703,-23.5712699,-23.5467961,-23.5668433,-23.5426355,-23.5543597,-23.6025987,-23.5992279,-23.5728474,-23.594789,-23.5267749,-23.5921852,-23.5916352,-23.6037146,-23.5077543,-23.6012749,-23.5150714,-23.6085786,-23.5804758,-23.5509155,-23.5939569,-23.6198309,-23.6258312,-23.6001382,-23.6216876,-23.6230715,-23.6231169,-23.5067423,-23.5416758,-23.5996307,-23.5615563],[-46.6557082,-46.652803,-46.6588089,-46.6618712,-46.6507967,-46.6526427,-46.6528543,-46.6480323,-46.6611372,-46.6439404,-46.6436347,-46.65201380000001,-46.6418146,-46.6577249,-46.6352104,-46.6646925,-46.63721839999999,-46.6963698,-46.6895495,-46.6803088,-46.6882035,-46.6903479,-46.6920752,-46.648915,-46.6980412,-46.6186055,-46.6945597,-46.5941586,-46.7217457,-46.72114819999999,-46.6270094,-46.6609747,-46.7153149,-46.699464,-46.7012391,-46.6986074,-46.7177166,-46.5768715,-46.7151228,-46.5598033],10,null,null,{"interactive":true,"className":"","stroke":true,"color":"#03F","weight":5,"opacity":0.5,"fill":true,"fillColor":"#03F","fillOpacity":0.2},null,null,null,null,["Starbucks","Starbucks","Starbucks","Starbucks","Starbucks - Top Center","Starbucks","STARBUCKS CO","Starbucks","Starbucks","Starbucks","Starbucks","Starbucks Coffee","Starbucks","Starbucks Shopping Higienópolis","Starbucks","Starbucks Coffee","Starbucks","Starbucks","Starbucks","Starbucks","Starbucks","Starbucks","Starbucks","Starbucks","Starbucks","Starbucks","Starbucks","Starbucks","Starbucks","Starbucks","Starbucks Shopping Plaza Sul","Starbucks","Starbucks","Starbucks","Starbucks","Starbucks","Starbucks","Starbucks","Starbucks Einstein - Maternidade","Starbucks"],{"interactive":false,"permanent":false,"direction":"auto","opacity":1,"offset":[0,0],"textsize":"10px","textOnly":false,"className":"","sticky":true},null]},{"method":"addProviderTiles","args":["CartoDB",null,null,{"errorTileUrl":"","noWrap":false,"detectRetina":false}]}],"limits":{"lat":[-23.6258312,-23.5067423],"lng":[-46.7217457,-46.5598033]}},"evals":[],"jsHooks":[]}</script>
@@ -358,13 +363,13 @@ gtag('config', 'G-EJF8PGT67H', { 'anonymize_ip': true});
 </div>
 <p>A coluna <code>types</code> é uma lista que contém cinco strings que categorizam o estabelecimento.</p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb7"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>subres<span class="sc">$</span>types[[<span class="dv">1</span>]]</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb7"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>subres<span class="sc">$</span>types[[<span class="dv">1</span>]]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <p>Os dados do Google Maps não costumam ser 100% limpos. Não é incomum encontrar estabelecimentos fantasmas, ou mal-construídos. Um jeito fácil de encontrar estes casos é filtrar pelo número de reviews ou pelo nome. Na tabela abaixo há dois estabelecimentos suspeitos: o <code>STARBUCKS CO</code> e o <code>Starbucks Coffee</code>: ambos têm um baixo número de reviews e têm uma nota muito baixa (2 e 2.1, respectivamente).</p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb8"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>subres <span class="sc">|&gt;</span> </span>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb8"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>subres <span class="sc">|&gt;</span> </span>
 <span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">arrange</span>(user_ratings_total) <span class="sc">|&gt;</span> </span>
-<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">head</span>(<span class="dv">10</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">head</span>(<span class="dv">10</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 </section>
 <section id="busca-estruturada" class="level2">
@@ -372,7 +377,7 @@ gtag('config', 'G-EJF8PGT67H', { 'anonymize_ip': true});
 <p>Vou montar uma busca simples para retornar todos os Starbucks do Brasil. Seria muito demorado fazer uma busca completa, no país inteiro, então vou usar como ponto de partida os pares de coordenadas que encontrei via webscrape.</p>
 <p>A função abaixo procura pelo termo “starbucks” em todos os pontos que forneço. Para simplificar, a função devolve apenas algumas das colunas.</p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb9"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Function to grap starbucks info</span></span>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb9"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Function to grap starbucks info</span></span>
 <span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>get_starbucks_info <span class="ot">&lt;-</span> <span class="cf">function</span>(lat, lng) {</span>
 <span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a>  </span>
 <span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a>  places <span class="ot">=</span> <span class="fu">google_places</span>(</span>
@@ -389,11 +394,11 @@ gtag('config', 'G-EJF8PGT67H', { 'anonymize_ip': true});
 <span id="cb9-15"><a href="#cb9-15" aria-hidden="true" tabindex="-1"></a>    tidyr<span class="sc">::</span><span class="fu">unnest</span>(<span class="st">"location"</span>) <span class="sc">%&gt;%</span></span>
 <span id="cb9-16"><a href="#cb9-16" aria-hidden="true" tabindex="-1"></a>    dplyr<span class="sc">::</span><span class="fu">select</span>(dplyr<span class="sc">::</span><span class="fu">all_of</span>(sel_cols))</span>
 <span id="cb9-17"><a href="#cb9-17" aria-hidden="true" tabindex="-1"></a>  </span>
-<span id="cb9-18"><a href="#cb9-18" aria-hidden="true" tabindex="-1"></a>}</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb9-18"><a href="#cb9-18" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <p>O código abaixo roda a função acima em todos os 142 estabelecimentos, encontrados na página oficial do Starbucks Brasil.</p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb10"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Remove geometry and keep only coordinates</span></span>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb10"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Remove geometry and keep only coordinates</span></span>
 <span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a>coords_starbucks <span class="ot">&lt;-</span> starbucks <span class="sc">%&gt;%</span></span>
 <span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">st_drop_geometry</span>() <span class="sc">%&gt;%</span></span>
 <span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">as_tibble</span>() <span class="sc">%&gt;%</span></span>
@@ -407,11 +412,11 @@ gtag('config', 'G-EJF8PGT67H', { 'anonymize_ip': true});
 <span id="cb10-12"><a href="#cb10-12" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb10-13"><a href="#cb10-13" aria-hidden="true" tabindex="-1"></a>dat <span class="ot">&lt;-</span> starbucks_info <span class="sc">%&gt;%</span></span>
 <span id="cb10-14"><a href="#cb10-14" aria-hidden="true" tabindex="-1"></a>  <span class="fu">bind_rows</span>(<span class="at">.id =</span> <span class="st">"search_id"</span>) <span class="sc">%&gt;%</span></span>
-<span id="cb10-15"><a href="#cb10-15" aria-hidden="true" tabindex="-1"></a>  <span class="fu">distinct</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb10-15"><a href="#cb10-15" aria-hidden="true" tabindex="-1"></a>  <span class="fu">distinct</span>()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <p>Novamente, é preciso limpar os resultados. Olhando para a coluna de nome vemos que há vários estabelecimentos errados.</p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb11"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="fu">unique</span>(dat<span class="sc">$</span>name)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb11"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="fu">unique</span>(dat<span class="sc">$</span>name)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
 <pre><code> [1] "Starbucks - Top Center"                                         
  [2] "Starbucks"                                                      
@@ -458,7 +463,7 @@ gtag('config', 'G-EJF8PGT67H', { 'anonymize_ip': true});
 </div>
 <p>Para fazer a limpeza, vou manter apenas as unidades ativas com contêm “Starbucks” no seu nome. Além disso, vou parear os dados com a minha base de webscape usando <code>st_nearest_feature(x, y)</code>. Esta função encontra o ponto mais próximo em <code>y</code> para cada ponto de <code>x</code>.</p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb13"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a>dat <span class="ot">&lt;-</span> dat <span class="sc">|&gt;</span> </span>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb13"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a>dat <span class="ot">&lt;-</span> dat <span class="sc">|&gt;</span> </span>
 <span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(<span class="fu">str_detect</span>(name, <span class="st">"Starbucks"</span>), business_status <span class="sc">==</span> <span class="st">"OPERATIONAL"</span>) <span class="sc">|&gt;</span> </span>
 <span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">arrange</span>(formatted_address)</span>
 <span id="cb13-4"><a href="#cb13-4" aria-hidden="true" tabindex="-1"></a></span>
@@ -474,13 +479,13 @@ gtag('config', 'G-EJF8PGT67H', { 'anonymize_ip': true});
 <span id="cb13-14"><a href="#cb13-14" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb13-15"><a href="#cb13-15" aria-hidden="true" tabindex="-1"></a>google_data <span class="ot">&lt;-</span> google_data <span class="sc">|&gt;</span> </span>
 <span id="cb13-16"><a href="#cb13-16" aria-hidden="true" tabindex="-1"></a>  <span class="fu">rename</span>(<span class="at">google_name =</span> name, <span class="at">google_address =</span> formatted_address) <span class="sc">|&gt;</span> </span>
-<span id="cb13-17"><a href="#cb13-17" aria-hidden="true" tabindex="-1"></a>  <span class="fu">bind_cols</span>(metadata)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb13-17"><a href="#cb13-17" aria-hidden="true" tabindex="-1"></a>  <span class="fu">bind_cols</span>(metadata)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <section id="mapa" class="level3">
 <h3 class="anchored" data-anchor-id="mapa">Mapa</h3>
 <p>O mapa interativo abaixo mostra todos os Starbucks de São Paulo. A cor de cada círculo representa a sua nota e o tamanho do círculo, o número de avaliações. As unidades no corredor da Av. Paulista, por exemplo, têm notas médias elevadas e grande número de avaliações. Uma das piores unidades parece ser a da Uv. Mackenzie, que tem nota 2,1 e 15 avaliações. Na Zona Leste, a unidade no Shopping Aricanduva também tem nota um pouco inferior, 3,9 com 158 avaliações.</p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb14"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a>sp <span class="ot">&lt;-</span> <span class="fu">filter</span>(google_data, name_muni <span class="sc">==</span> <span class="st">"São Paulo"</span>)</span>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb14"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a>sp <span class="ot">&lt;-</span> <span class="fu">filter</span>(google_data, name_muni <span class="sc">==</span> <span class="st">"São Paulo"</span>)</span>
 <span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb14-3"><a href="#cb14-3" aria-hidden="true" tabindex="-1"></a>sp <span class="ot">&lt;-</span> sp <span class="sc">|&gt;</span> </span>
 <span id="cb14-4"><a href="#cb14-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(</span>
@@ -507,7 +512,7 @@ gtag('config', 'G-EJF8PGT67H', { 'anonymize_ip': true});
 <span id="cb14-25"><a href="#cb14-25" aria-hidden="true" tabindex="-1"></a>    <span class="at">fillOpacity =</span> <span class="fl">0.5</span></span>
 <span id="cb14-26"><a href="#cb14-26" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">|&gt;</span> </span>
 <span id="cb14-27"><a href="#cb14-27" aria-hidden="true" tabindex="-1"></a>  <span class="fu">addLegend</span>(<span class="at">pal =</span> pal, <span class="at">values =</span> <span class="sc">~</span>rating) <span class="sc">|&gt;</span> </span>
-<span id="cb14-28"><a href="#cb14-28" aria-hidden="true" tabindex="-1"></a>  <span class="fu">addProviderTiles</span>(<span class="st">"CartoDB"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb14-28"><a href="#cb14-28" aria-hidden="true" tabindex="-1"></a>  <span class="fu">addProviderTiles</span>(<span class="st">"CartoDB"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output-display">
 <div class="leaflet html-widget html-fill-item" id="htmlwidget-23b147edef72909cc8f6" style="width:100%;height:464px;"></div>
 <script type="application/json" data-for="htmlwidget-23b147edef72909cc8f6">{"x":{"options":{"crs":{"crsClass":"L.CRS.EPSG3857","code":null,"proj4def":null,"projectedBounds":null,"options":{}}},"calls":[{"method":"addTiles","args":["https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",null,null,{"minZoom":0,"maxZoom":18,"tileSize":256,"subdomains":"abc","errorTileUrl":"","tms":false,"noWrap":false,"zoomOffset":0,"zoomReverse":false,"opacity":1,"zIndex":1,"detectRetina":false,"attribution":"&copy; <a href=\"https://openstreetmap.org/copyright/\">OpenStreetMap<\/a>,  <a href=\"https://opendatacommons.org/licenses/odbl/\">ODbL<\/a>"}]},{"method":"addCircleMarkers","args":[[-23.6258312,-23.6025987,-23.540494,-23.6001382,-23.5660792,-23.5077543,-23.6216876,-23.6037146,-23.6751922,-23.5939569,-23.6012749,-23.5623595,-23.557771,-23.5678371,-23.5921852,-23.5916352,-23.5067423,-23.5728474,-23.6231169,-23.5543597,-23.6796183,-23.5656276,-23.5615563,-23.5509155,-23.6085786,-23.6198309,-23.5733703,-23.5467961,-23.5267749,-23.6230715,-23.5804758,-23.5416758,-23.557903,-23.5668433,-23.5703331,-23.5996307,-23.5992279,-23.5641014,-23.554083,-23.6316949,-23.5426355,-23.5712699,-23.5150714],[-46.6609747,-46.6646925,-46.47097309999999,-46.7153149,-46.5054573,-46.648915,-46.699464,-46.6920752,-46.6771407,-46.72114819999999,-46.6980412,-46.6557082,-46.6588089,-46.6480323,-46.6882035,-46.6903479,-46.7177166,-46.6963698,-46.6986074,-46.6352104,-46.69973969999999,-46.6507967,-46.5598033,-46.7217457,-46.6945597,-46.6270094,-46.6439404,-46.65201380000001,-46.6803088,-46.7012391,-46.5941586,-46.5768715,-46.6618712,-46.6418146,-46.6611372,-46.7151228,-46.63721839999999,-46.652803,-46.6526427,-46.73697060000001,-46.6577249,-46.6436347,-46.6186055],[11,11,7,5,9,9,11,13,9,13,5,15,15,15,9,11,11,15,13,9,9,11,13,11,7,11,13,5,13,9,11,13,15,9,7,9,13,7,11,9,11,9,13],null,null,{"interactive":true,"className":"","stroke":false,"color":["#75B0D3","#347BB7","#D4E6F1","#053061","#A8D0E4","#75B0D3","#266BAF","#266BAF","#579EC9","#347BB7","#F8B799","#266BAF","#347BB7","#347BB7","#75B0D3","#266BAF","#266BAF","#266BAF","#266BAF","#266BAF","#3F8CC0","#347BB7","#347BB7","#347BB7","#266BAF","#347BB7","#347BB7","#67001F","#347BB7","#3F8CC0","#347BB7","#266BAF","#266BAF","#579EC9","#75B0D3","#3F8CC0","#266BAF","#75B0D3","#347BB7","#75B0D3","#347BB7","#3F8CC0","#266BAF"],"weight":5,"opacity":0.5,"fill":true,"fillColor":["#75B0D3","#347BB7","#D4E6F1","#053061","#A8D0E4","#75B0D3","#266BAF","#266BAF","#579EC9","#347BB7","#F8B799","#266BAF","#347BB7","#347BB7","#75B0D3","#266BAF","#266BAF","#266BAF","#266BAF","#266BAF","#3F8CC0","#347BB7","#347BB7","#347BB7","#266BAF","#347BB7","#347BB7","#67001F","#347BB7","#3F8CC0","#347BB7","#266BAF","#266BAF","#579EC9","#75B0D3","#3F8CC0","#266BAF","#75B0D3","#347BB7","#75B0D3","#347BB7","#3F8CC0","#266BAF"],"fillOpacity":0.5},null,null,null,null,["<b> Aeroporto de Congonhas <\/b> <br>\n<b> Rating <\/b>: 4.1 <br>\n<b> No Ratings <\/b> 1250","<b> Lavandisca <\/b> <br>\n<b> Rating <\/b>: 4.4 <br>\n<b> No Ratings <\/b> 2147","<b> Shopping Metro Itaquera <\/b> <br>\n<b> Rating <\/b>: 3.7 <br>\n<b> No Ratings <\/b> 91","<b> Hospital Einstein - Consultórios <\/b> <br>\n<b> Rating <\/b>: 4.8 <br>\n<b> No Ratings <\/b> 6","<b> Shopping Aricanduva <\/b> <br>\n<b> Rating <\/b>: 3.9 <br>\n<b> No Ratings <\/b> 158","<b> Bráz Leme <\/b> <br>\n<b> Rating <\/b>: 4.1 <br>\n<b> No Ratings <\/b> 551","<b> Shopping Market Place <\/b> <br>\n<b> Rating <\/b>: 4.5 <br>\n<b> No Ratings <\/b> 1850","<b> Berrini <\/b> <br>\n<b> Rating <\/b>: 4.5 <br>\n<b> No Ratings <\/b> 4206","<b> Shopping Interlagos <\/b> <br>\n<b> Rating <\/b>: 4.2 <br>\n<b> No Ratings <\/b> 197","<b> João Saad <\/b> <br>\n<b> Rating <\/b>: 4.4 <br>\n<b> No Ratings <\/b> 3109","<b> Cidade Jardim Corporate <\/b> <br>\n<b> Rating <\/b>: 3 <br>\n<b> No Ratings <\/b> 11","<b> Paulista Trianon <\/b> <br>\n<b> Rating <\/b>: 4.5 <br>\n<b> No Ratings <\/b> 6118","<b> Shopping Center 3 <\/b> <br>\n<b> Rating <\/b>: 4.4 <br>\n<b> No Ratings <\/b> 8807","<b> Paulista 500 <\/b> <br>\n<b> Rating <\/b>: 4.4 <br>\n<b> No Ratings <\/b> 5672","<b> SP Corporate Towers <\/b> <br>\n<b> Rating <\/b>: 4.1 <br>\n<b> No Ratings <\/b> 118","<b> Shopping JK <\/b> <br>\n<b> Rating <\/b>: 4.5 <br>\n<b> No Ratings <\/b> 2018","<b> Tiete Plaza Shopping <\/b> <br>\n<b> Rating <\/b>: 4.5 <br>\n<b> No Ratings <\/b> 2369","<b> Shopping Eldorado <\/b> <br>\n<b> Rating <\/b>: 4.5 <br>\n<b> No Ratings <\/b> 5396","<b> Shopping Morumbi Térreo <\/b> <br>\n<b> Rating <\/b>: 4.5 <br>\n<b> No Ratings <\/b> 4974","<b> Santander Liberdade <\/b> <br>\n<b> Rating <\/b>: 4.5 <br>\n<b> No Ratings <\/b> 916","<b> Shopping SP Market <\/b> <br>\n<b> Rating <\/b>: 4.3 <br>\n<b> No Ratings <\/b> 409","<b> Shopping Top Center <\/b> <br>\n<b> Rating <\/b>: 4.4 <br>\n<b> No Ratings <\/b> 1433","<b> Shopping Anália Franco <\/b> <br>\n<b> Rating <\/b>: 4.4 <br>\n<b> No Ratings <\/b> 3460","<b> Shopping Villa Lobos <\/b> <br>\n<b> Rating <\/b>: 4.4 <br>\n<b> No Ratings <\/b> 1033","<b> Vivo Eco Berrini <\/b> <br>\n<b> Rating <\/b>: 4.5 <br>\n<b> No Ratings <\/b> 31","<b> Shopping Plaza Sul <\/b> <br>\n<b> Rating <\/b>: 4.4 <br>\n<b> No Ratings <\/b> 1656","<b> Eliseu Guilherme <\/b> <br>\n<b> Rating <\/b>: 4.4 <br>\n<b> No Ratings <\/b> 3127","<b> Mackenzie <\/b> <br>\n<b> Rating <\/b>: 2.1 <br>\n<b> No Ratings <\/b> 15","<b> Bourbon Shopping <\/b> <br>\n<b> Rating <\/b>: 4.4 <br>\n<b> No Ratings <\/b> 2878","<b> Rochaverá Corporate Towers <\/b> <br>\n<b> Rating <\/b>: 4.3 <br>\n<b> No Ratings <\/b> 905","<b> Shopping Mooca <\/b> <br>\n<b> Rating <\/b>: 4.4 <br>\n<b> No Ratings <\/b> 1940","<b> Shopping Metrô Tatuapé <\/b> <br>\n<b> Rating <\/b>: 4.5 <br>\n<b> No Ratings <\/b> 3435","<b> Haddock Lobo <\/b> <br>\n<b> Rating <\/b>: 4.5 <br>\n<b> No Ratings <\/b> 6593","<b> Hospital Beneficência Portuguesa <\/b> <br>\n<b> Rating <\/b>: 4.2 <br>\n<b> No Ratings <\/b> 285","<b> Jardim Pamplona Shopping <\/b> <br>\n<b> Rating <\/b>: 4.1 <br>\n<b> No Ratings <\/b> 85","<b> Hospital Einstein - Consultórios <\/b> <br>\n<b> Rating <\/b>: 4.3 <br>\n<b> No Ratings <\/b> 112","<b> Shopping Metrô Santa Cruz <\/b> <br>\n<b> Rating <\/b>: 4.5 <br>\n<b> No Ratings <\/b> 3830","<b> Shopping Cidade São Paulo <\/b> <br>\n<b> Rating <\/b>: 4.1 <br>\n<b> No Ratings <\/b> 36","<b> Shopping Frei Caneca <\/b> <br>\n<b> Rating <\/b>: 4.4 <br>\n<b> No Ratings <\/b> 1901","<b> Shopping Morumbi Town <\/b> <br>\n<b> Rating <\/b>: 4.1 <br>\n<b> No Ratings <\/b> 327","<b> Shopping Higienopolis <\/b> <br>\n<b> Rating <\/b>: 4.4 <br>\n<b> No Ratings <\/b> 1621","<b> Shopping Patio Paulista <\/b> <br>\n<b> Rating <\/b>: 4.3 <br>\n<b> No Ratings <\/b> 895","<b> Shopping Center Norte - Portaria <\/b> <br>\n<b> Rating <\/b>: 4.5 <br>\n<b> No Ratings <\/b> 4103"],{"interactive":false,"permanent":false,"direction":"auto","opacity":1,"offset":[0,0],"textsize":"10px","textOnly":false,"className":"","sticky":true},null]},{"method":"addLegend","args":[{"colors":["#67001F , #C4403B 14.8148148148148%, #F8B799 33.3333333333333%, #F0F4F6 51.8518518518518%, #8FC3DD 70.3703703703704%, #266BAF 88.8888888888889%, #053061 "],"labels":["2.5","3.0","3.5","4.0","4.5"],"na_color":null,"na_label":"NA","opacity":0.5,"position":"topright","type":"numeric","title":"rating","extra":{"p_1":0.1481481481481481,"p_n":0.888888888888889},"layerId":null,"className":"info legend","group":null}]},{"method":"addProviderTiles","args":["CartoDB",null,null,{"errorTileUrl":"","noWrap":false,"detectRetina":false}]}],"limits":{"lat":[-23.6796183,-23.5067423],"lng":[-46.73697060000001,-46.47097309999999]}},"evals":[],"jsHooks":[]}</script>
@@ -519,7 +524,7 @@ gtag('config', 'G-EJF8PGT67H', { 'anonymize_ip': true});
 <p>Tecnicamente, o Starbucks mais bem avaliado de São Paulo é o <a href="https://maps.app.goo.gl/VB69HoxxmmgzieFdA">Starbucks da Ala Consultório do Hospital Albert Einstein</a>, com nota 4,8. Contudo, considerando as unidades com maior número de avaliações, podemos montar um mapa dos “melhores” Starbucks de São Paulo: as unidades com nota igual ou superior a 4,4 e com mais de 500 avaliações.</p>
 <p>De maneira geral, o mapa mostra as unidades dentro do Centro Expandido, no eixo da Paulista e do Itaim Bibi. Nas bordas do Centro Expandido temos quase exclusivamente, unidades dentro de shoppings.</p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb15"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a>melhores_starbucks <span class="ot">&lt;-</span> sp <span class="sc">|&gt;</span> </span>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb15"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a>melhores_starbucks <span class="ot">&lt;-</span> sp <span class="sc">|&gt;</span> </span>
 <span id="cb15-2"><a href="#cb15-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(rating <span class="sc">&gt;=</span> <span class="fl">4.4</span> <span class="sc">&amp;</span> user_ratings_total <span class="sc">&gt;</span> <span class="dv">500</span>)</span>
 <span id="cb15-3"><a href="#cb15-3" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb15-4"><a href="#cb15-4" aria-hidden="true" tabindex="-1"></a>pal <span class="ot">&lt;-</span> <span class="fu">colorNumeric</span>(<span class="st">"Blues"</span>, <span class="at">domain =</span> melhores_starbucks<span class="sc">$</span>rating)</span>
@@ -541,7 +546,7 @@ gtag('config', 'G-EJF8PGT67H', { 'anonymize_ip': true});
 <span id="cb15-20"><a href="#cb15-20" aria-hidden="true" tabindex="-1"></a>    <span class="at">stroke =</span> <span class="cn">FALSE</span>,</span>
 <span id="cb15-21"><a href="#cb15-21" aria-hidden="true" tabindex="-1"></a>    <span class="at">fillOpacity =</span> <span class="fl">0.5</span></span>
 <span id="cb15-22"><a href="#cb15-22" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">|&gt;</span></span>
-<span id="cb15-23"><a href="#cb15-23" aria-hidden="true" tabindex="-1"></a>  <span class="fu">addProviderTiles</span>(<span class="st">"CartoDB"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb15-23"><a href="#cb15-23" aria-hidden="true" tabindex="-1"></a>  <span class="fu">addProviderTiles</span>(<span class="st">"CartoDB"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output-display">
 <div class="leaflet html-widget html-fill-item" id="htmlwidget-21d50c543ec56be358a7" style="width:100%;height:464px;"></div>
 <script type="application/json" data-for="htmlwidget-21d50c543ec56be358a7">{"x":{"options":{"crs":{"crsClass":"L.CRS.EPSG3857","code":null,"proj4def":null,"projectedBounds":null,"options":{}}},"calls":[{"method":"addTiles","args":["https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",null,null,{"minZoom":0,"maxZoom":18,"tileSize":256,"subdomains":"abc","errorTileUrl":"","tms":false,"noWrap":false,"zoomOffset":0,"zoomReverse":false,"opacity":1,"zIndex":1,"detectRetina":false,"attribution":"&copy; <a href=\"https://openstreetmap.org/copyright/\">OpenStreetMap<\/a>,  <a href=\"https://opendatacommons.org/licenses/odbl/\">ODbL<\/a>"}]},{"method":"addCircleMarkers","args":[[-23.6025987,-23.6216876,-23.6037146,-23.5939569,-23.5623595,-23.557771,-23.5678371,-23.5916352,-23.5067423,-23.5728474,-23.6231169,-23.5543597,-23.5656276,-23.5615563,-23.5509155,-23.6198309,-23.5733703,-23.5267749,-23.5804758,-23.5416758,-23.557903,-23.5992279,-23.554083,-23.5426355,-23.5150714],[-46.6646925,-46.699464,-46.6920752,-46.72114819999999,-46.6557082,-46.6588089,-46.6480323,-46.6903479,-46.7177166,-46.6963698,-46.6986074,-46.6352104,-46.6507967,-46.5598033,-46.7217457,-46.6270094,-46.6439404,-46.6803088,-46.5941586,-46.5768715,-46.6618712,-46.63721839999999,-46.6526427,-46.6577249,-46.6186055],[14.65264481245621,13.60147050873544,20.5085348087083,17.63235662071295,24.73459116298468,29.67659010061634,23.81596103456672,14.20563268566381,15.39155612665594,23.22929185317538,22.30246623133863,9.57078889120432,11.97079780131634,18.60107523773828,10.16366075781753,12.86856635371633,17.68332547910602,16.9646691685986,13.92838827718412,18.53375299285064,25.67683781153746,19.57038579078093,13.78767565617933,12.73184982632139,20.25586334867018],null,null,{"interactive":true,"className":"","stroke":false,"color":"#045a8d","weight":5,"opacity":0.5,"fill":true,"fillColor":"#045a8d","fillOpacity":0.5},null,null,null,null,["<b> Lavandisca <\/b> <br>\n<b> Rating <\/b>: 4.4 <br>\n<b> No Ratings <\/b> 2147","<b> Shopping Market Place <\/b> <br>\n<b> Rating <\/b>: 4.5 <br>\n<b> No Ratings <\/b> 1850","<b> Berrini <\/b> <br>\n<b> Rating <\/b>: 4.5 <br>\n<b> No Ratings <\/b> 4206","<b> João Saad <\/b> <br>\n<b> Rating <\/b>: 4.4 <br>\n<b> No Ratings <\/b> 3109","<b> Paulista Trianon <\/b> <br>\n<b> Rating <\/b>: 4.5 <br>\n<b> No Ratings <\/b> 6118","<b> Shopping Center 3 <\/b> <br>\n<b> Rating <\/b>: 4.4 <br>\n<b> No Ratings <\/b> 8807","<b> Paulista 500 <\/b> <br>\n<b> Rating <\/b>: 4.4 <br>\n<b> No Ratings <\/b> 5672","<b> Shopping JK <\/b> <br>\n<b> Rating <\/b>: 4.5 <br>\n<b> No Ratings <\/b> 2018","<b> Tiete Plaza Shopping <\/b> <br>\n<b> Rating <\/b>: 4.5 <br>\n<b> No Ratings <\/b> 2369","<b> Shopping Eldorado <\/b> <br>\n<b> Rating <\/b>: 4.5 <br>\n<b> No Ratings <\/b> 5396","<b> Shopping Morumbi Térreo <\/b> <br>\n<b> Rating <\/b>: 4.5 <br>\n<b> No Ratings <\/b> 4974","<b> Santander Liberdade <\/b> <br>\n<b> Rating <\/b>: 4.5 <br>\n<b> No Ratings <\/b> 916","<b> Shopping Top Center <\/b> <br>\n<b> Rating <\/b>: 4.4 <br>\n<b> No Ratings <\/b> 1433","<b> Shopping Anália Franco <\/b> <br>\n<b> Rating <\/b>: 4.4 <br>\n<b> No Ratings <\/b> 3460","<b> Shopping Villa Lobos <\/b> <br>\n<b> Rating <\/b>: 4.4 <br>\n<b> No Ratings <\/b> 1033","<b> Shopping Plaza Sul <\/b> <br>\n<b> Rating <\/b>: 4.4 <br>\n<b> No Ratings <\/b> 1656","<b> Eliseu Guilherme <\/b> <br>\n<b> Rating <\/b>: 4.4 <br>\n<b> No Ratings <\/b> 3127","<b> Bourbon Shopping <\/b> <br>\n<b> Rating <\/b>: 4.4 <br>\n<b> No Ratings <\/b> 2878","<b> Shopping Mooca <\/b> <br>\n<b> Rating <\/b>: 4.4 <br>\n<b> No Ratings <\/b> 1940","<b> Shopping Metrô Tatuapé <\/b> <br>\n<b> Rating <\/b>: 4.5 <br>\n<b> No Ratings <\/b> 3435","<b> Haddock Lobo <\/b> <br>\n<b> Rating <\/b>: 4.5 <br>\n<b> No Ratings <\/b> 6593","<b> Shopping Metrô Santa Cruz <\/b> <br>\n<b> Rating <\/b>: 4.5 <br>\n<b> No Ratings <\/b> 3830","<b> Shopping Frei Caneca <\/b> <br>\n<b> Rating <\/b>: 4.4 <br>\n<b> No Ratings <\/b> 1901","<b> Shopping Higienopolis <\/b> <br>\n<b> Rating <\/b>: 4.4 <br>\n<b> No Ratings <\/b> 1621","<b> Shopping Center Norte - Portaria <\/b> <br>\n<b> Rating <\/b>: 4.5 <br>\n<b> No Ratings <\/b> 4103"],{"interactive":false,"permanent":false,"direction":"auto","opacity":1,"offset":[0,0],"textsize":"10px","textOnly":false,"className":"","sticky":true},null]},{"method":"addProviderTiles","args":["CartoDB",null,null,{"errorTileUrl":"","noWrap":false,"detectRetina":false}]}],"limits":{"lat":[-23.6231169,-23.5067423],"lng":[-46.7217457,-46.5598033]}},"evals":[],"jsHooks":[]}</script>
@@ -612,13 +617,14 @@ gtag('config', 'G-EJF8PGT67H', { 'anonymize_ip': true});
       e.clearSelection();
     }
     const getTextToCopy = function(trigger) {
-        const codeEl = trigger.previousElementSibling.cloneNode(true);
-        for (const childEl of codeEl.children) {
-          if (isCodeAnnotation(childEl)) {
-            childEl.remove();
-          }
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
         }
-        return codeEl.innerText;
+      }
+      return codeEl.innerText;
     }
     const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
       text: getTextToCopy
@@ -633,7 +639,7 @@ gtag('config', 'G-EJF8PGT67H', { 'anonymize_ip': true});
     }
       var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
       var mailtoRegex = new RegExp(/^mailto:/);
-        var filterRegex = new RegExp("https::\/\/www\.restateinsight\.com");
+        var filterRegex = new RegExp("https:\/\/www\.restateinsight\.com");
       var isInternal = (href) => {
           return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
       }
