@@ -17,7 +17,7 @@ comments: false
   --bg:       #f7f8fa;
   --card-bg:  #fff;
   --text:     #1a1a2e;
-  --muted:    rgba(0,0,0,0.48);
+  --muted:    rgba(0,0,0,0.6);   /* ~5.7:1 on white — meets WCAG AA for small text */
   --border:   #e2e6ea;
   --radius:   10px;
 }
@@ -45,6 +45,13 @@ comments: false
   display: block;
   text-align: center;
 }
+.gallery-note {
+  text-align: center;
+  font-size: 0.9rem;
+  color: var(--muted);
+  margin: 0.5rem 1rem 0;
+}
+.gallery-note a { color: var(--primary); }
 
 /* ── FIXED FILTER BAR ───────────────────────────────────────────────────── */
 /*
@@ -52,8 +59,13 @@ comments: false
    wraps content in containers that have overflow:hidden/auto, which silently
    breaks sticky. JS below measures the navbar height at runtime and sets
    filterBar.style.top so the bar sits flush under the navbar on any theme.
-   A matching padding-top spacer is injected before the bar to prevent content
-   from being hidden behind it.
+   A matching spacer is injected after the bar to prevent content from being
+   hidden behind it.
+
+   Quarto's lumen navbar auto-hides on scroll-down and reappears on scroll-up.
+   The JS below mirrors that: scrolling down slides the filter bar up out of
+   view (.bar-hidden), scrolling up brings it back — so the two never desync
+   and the bar never floats over the gallery without its navbar above it.
 */
 .filter-bar {
   background: #fff;
@@ -68,7 +80,11 @@ comments: false
   gap: 1.75rem;
   align-items: center;
   flex-wrap: wrap;
+  transition: transform 0.28s ease;
+  will-change: transform;
 }
+/* Slide fully out of view (own height + buffer to clear the navbar offset) */
+.filter-bar.bar-hidden { transform: translateY(calc(-100% - 80px)); }
 .filter-group { display: flex; gap: 0.4rem; align-items: center; flex-wrap: wrap; }
 .filter-label {
   font-size: 0.7rem;
@@ -92,23 +108,26 @@ comments: false
   line-height: 1.4;
 }
 .chip:hover  { border-color: var(--primary); color: var(--primary); }
+.chip:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
 .chip.active { background: var(--primary); border-color: var(--primary); color: #fff; font-weight: 600; }
 
 /* ── GALLERY WRAPPER ────────────────────────────────────────────────────── */
 .gallery-wrap {
-  max-width: 1200px;
+  max-width: 1440px;
   margin: 0 auto;
   padding: 1.75rem 1.5rem 4rem;
 }
 .result-count { font-size: 0.82rem; color: var(--muted); margin-bottom: 1.25rem; }
 .result-count strong { color: var(--text); }
 
-/* ── GRID: 2 columns, fixed card height ─────────────────────────────────── */
+/* ── GRID: 2 columns ────────────────────────────────────────────────────── */
 /*
-   Fixed height (not aspect-ratio) is intentional: ggplot2 exports are
-   overwhelmingly landscape (4:3 / 16:9). A square crop wastes space and
-   hides chart content; fixed height with object-position:top center keeps
-   the title area of each chart visible regardless of its true ratio.
+   Each card's image area is a fixed 4:3 box, but the chart is shown with
+   object-fit:contain so nothing is cropped — axis labels, legends and
+   captions stay intact (cropping a chart is lossy in a way cropping a photo
+   is not). Non-4:3 charts letterbox against a white background that blends
+   with the typical white ggplot2 canvas. Click any card to open the full
+   chart in the lightbox.
 */
 .chart-grid {
   display: grid;
@@ -145,14 +164,15 @@ comments: false
   width: 100%;
   aspect-ratio: 4 / 3;
   overflow: hidden;
-  background: #e6eaef;
+  background: #fff;
   flex-shrink: 0;
+  cursor: pointer;
 }
 .card-img-wrap img {
   width: 100%;
   height: 100%;
-  object-fit: cover;
-  object-position: top center;
+  object-fit: contain;
+  object-position: center;
   display: block;
   transition: transform 0.35s ease;
 }
@@ -169,24 +189,6 @@ comments: false
   transition: transform 0.35s ease;
 }
 .chart-card:hover .img-placeholder { transform: scale(1.04); }
-
-/* Source badge (top-left of image) */
-.source-badge {
-  position: absolute;
-  top: 0.55rem;
-  left: 0.55rem;
-  background: rgba(0,0,0,0.52);
-  color: #fff;
-  font-size: 0.6rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.07em;
-  padding: 0.18rem 0.5rem;
-  border-radius: 4px;
-  pointer-events: none;
-  z-index: 1;
-  backdrop-filter: blur(2px);
-}
 
 /* Hover action overlay */
 .card-overlay {
@@ -237,6 +239,16 @@ comments: false
   flex: 1;
 }
 .card-title { font-size: 0.95rem; font-weight: 600; color: var(--text); line-height: 1.3; }
+.card-desc {
+  font-size: 0.8rem;
+  color: var(--muted);
+  line-height: 1.45;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
 .card-tags  { display: flex; gap: 0.35rem; flex-wrap: wrap; }
 .tag {
   display: inline-block;
@@ -248,8 +260,9 @@ comments: false
   letter-spacing: 0.05em;
   white-space: nowrap;
 }
-.tag-topic { background: #e8f0fb; color: #1a56a8; }
-.tag-tool  { background: #eef7ef; color: #1e6e2e; }
+.tag-topic  { background: #e8f0fb; color: #1a56a8; }
+.tag-tool   { background: #eef7ef; color: #1e6e2e; }
+.tag-source { background: #fbf1e8; color: #a8531a; }
 
 /* ── LOAD SENTINEL & SPINNER ────────────────────────────────────────────── */
 .load-sentinel {
@@ -285,6 +298,83 @@ comments: false
   color: var(--muted);
   font-size: 0.95rem;
 }
+
+/* ── LIGHTBOX ───────────────────────────────────────────────────────────── */
+.lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;            /* above navbar (1030) and filter bar (99) */
+  background: rgba(10, 15, 25, 0.92);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+}
+.lightbox.open { display: flex; }
+.lb-figure {
+  margin: 0;
+  max-width: 92vw;
+  max-height: 92vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.9rem;
+}
+.lb-img {
+  max-width: 100%;
+  max-height: 78vh;
+  object-fit: contain;
+  border-radius: 6px;
+  background: #fff;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+}
+.lb-caption { text-align: center; color: #fff; max-width: 680px; }
+.lb-title   { font-size: 1.05rem; font-weight: 600; }
+.lb-desc    {
+  font-size: 0.85rem;
+  color: rgba(255, 255, 255, 0.72);
+  margin-top: 0.3rem;
+  line-height: 1.5;
+}
+.lb-meta { display: flex; gap: 0.6rem; justify-content: center; margin-top: 0.7rem; flex-wrap: wrap; }
+.lb-meta a {
+  color: #fff;
+  text-decoration: none;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-weight: 700;
+  border: 1.5px solid rgba(255, 255, 255, 0.4);
+  border-radius: 6px;
+  padding: 0.4rem 0.8rem;
+  transition: background 0.15s;
+}
+.lb-meta a:hover { background: rgba(255, 255, 255, 0.16); }
+.lb-close, .lb-nav {
+  position: fixed;
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  border: none;
+  cursor: pointer;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s;
+}
+.lb-close:hover, .lb-nav:hover { background: rgba(255, 255, 255, 0.26); }
+.lb-close:focus-visible, .lb-nav:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+.lb-close { top: 1.2rem; right: 1.4rem; width: 44px; height: 44px; font-size: 1.7rem; line-height: 1; }
+.lb-nav   { top: 50%; transform: translateY(-50%); width: 52px; height: 52px; font-size: 2rem; line-height: 1; }
+.lb-prev  { left: 1.4rem; }
+.lb-next  { right: 1.4rem; }
+.lb-nav:disabled { opacity: 0.22; cursor: default; }
+@media (max-width: 640px) {
+  .lb-nav  { width: 42px; height: 42px; font-size: 1.6rem; }
+  .lb-prev { left: 0.5rem; }
+  .lb-next { right: 0.5rem; }
+  .lb-img  { max-height: 68vh; }
+}
 </style>
 
 <!-- Stat row -->
@@ -294,12 +384,15 @@ comments: false
   <div class="g-stat"><span class="num" id="stat-topics">—</span><span class="lbl">Topics</span></div>
 </div>
 
+<p class="gallery-note">Looking for the #30DayChartChallenge submissions year by year?
+See the <a href="/chart-challenge.html">Chart Challenge archive</a>.</p>
+
 <!-- Fixed filter bar (chips injected by JS from data) -->
-<div class="filter-bar" id="filter-bar">
-  <div class="filter-group" id="topic-filters">
+<div class="filter-bar" id="filter-bar" role="region" aria-label="Gallery filters">
+  <div class="filter-group" id="topic-filters" role="group" aria-label="Filter by topic">
     <span class="filter-label">Topic</span>
   </div>
-  <div class="filter-group" id="tool-filters">
+  <div class="filter-group" id="tool-filters" role="group" aria-label="Filter by tool">
     <span class="filter-label">Tool</span>
   </div>
 </div>
@@ -308,9 +401,7 @@ comments: false
 
 <!-- Gallery grid -->
 <main class="gallery-wrap">
-  <p class="result-count">
-    Showing <strong id="visible-count">—</strong> of <strong id="total-count">—</strong> charts
-  </p>
+  <p class="result-count" id="result-count">—</p>
   <div class="chart-grid" id="chart-grid">
     <div class="empty-state">Loading gallery…</div>
   </div>
@@ -319,6 +410,22 @@ comments: false
   </div>
   <p class="all-loaded" id="all-loaded">All charts loaded</p>
 </main>
+
+<!-- Lightbox: full-resolution viewer with prev/next over the filtered set -->
+<div class="lightbox" id="lightbox" role="dialog" aria-modal="true"
+     aria-label="Chart viewer" aria-hidden="true">
+  <button class="lb-close" id="lb-close" aria-label="Close viewer">&times;</button>
+  <button class="lb-nav lb-prev" id="lb-prev" aria-label="Previous chart">&lsaquo;</button>
+  <button class="lb-nav lb-next" id="lb-next" aria-label="Next chart">&rsaquo;</button>
+  <figure class="lb-figure">
+    <img class="lb-img" id="lb-img" src="" alt="">
+    <figcaption class="lb-caption">
+      <div class="lb-title" id="lb-title"></div>
+      <p class="lb-desc" id="lb-desc"></p>
+      <div class="lb-meta" id="lb-meta"></div>
+    </figcaption>
+  </figure>
+</div>
 
 <script>
 (async function () {
@@ -347,9 +454,31 @@ comments: false
   // Re-measure after images/fonts settle
   window.addEventListener('load', positionFilterBar);
 
+  /* ── HIDE-ON-SCROLL (mirrors Quarto navbar) ──────────────────────────────
+     Scrolling down past a small threshold slides the bar away; scrolling up
+     (or returning near the top) brings it back. rAF-throttled so the scroll
+     handler stays cheap. Near the very top the bar is always shown.
+  */
+  let lastScroll = window.scrollY;
+  let ticking    = false;
+  const SHOW_NEAR_TOP = 140;   // always visible above this scroll position
+  const DELTA         = 6;     // ignore sub-pixel / trackpad jitter
+
+  function onScroll() {
+    const cur = window.scrollY;
+    if (Math.abs(cur - lastScroll) < DELTA) { ticking = false; return; }
+    const goingDown = cur > lastScroll;
+    filterBar.classList.toggle('bar-hidden', goingDown && cur > SHOW_NEAR_TOP);
+    lastScroll = cur;
+    ticking = false;
+  }
+  window.addEventListener('scroll', () => {
+    if (!ticking) { ticking = true; requestAnimationFrame(onScroll); }
+  }, { passive: true });
+
   /* ── FETCH DATA ────────────────────────────────────────────────────────
      gallery.json is the single source of truth for all chart metadata.
-     To add a chart: append one object to static/data/gallery.json.
+     To add a chart: append one object to static/gallery/gallery.json.
      Schema:
        id          – unique slug (string)
        title       – display title (string)
@@ -365,14 +494,14 @@ comments: false
   ── ─────────────────────────────────────────────────────────────────── */
   let GALLERY_DATA;
   try {
-    GALLERY_DATA = await fetch('/static/data/gallery.json').then(r => {
+    GALLERY_DATA = await fetch('/static/gallery/gallery.json').then(r => {
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
       return r.json();
     });
   } catch (err) {
     document.getElementById('chart-grid').innerHTML =
       '<div class="empty-state">Could not load gallery data. ' +
-      'Make sure <code>static/data/gallery.json</code> exists and the site is served (not opened as file://).</div>';
+      'Make sure <code>static/gallery/gallery.json</code> exists and the site is served (not opened as file://).</div>';
     console.error('Gallery fetch failed:', err);
     return;
   }
@@ -384,6 +513,7 @@ comments: false
   let activeFilters = { topic: 'all', tool: 'all' };
   let filtered      = [];
   let rendered      = 0;
+  const hasIO       = 'IntersectionObserver' in window;   // lazy-load support
 
   /* ── STATS ──────────────────────────────────────────────────────────── */
   const years  = GALLERY_DATA.map(c => c.year);
@@ -404,14 +534,20 @@ comments: false
 
   function makeChip(group, value) {
     const btn = document.createElement('button');
-    btn.className     = 'chip' + (value === 'all' ? ' active' : '');
+    const isActive    = value === 'all';
+    btn.className     = 'chip' + (isActive ? ' active' : '');
     btn.dataset.group = group;
     btn.dataset.value = value;
     btn.textContent   = value === 'all' ? 'All' : value;
+    btn.setAttribute('aria-pressed', isActive ? 'true' : 'false');
     btn.addEventListener('click', () => {
       activeFilters[group] = value;
       document.querySelectorAll(`.chip[data-group="${group}"]`)
-        .forEach(b => b.classList.toggle('active', b === btn));
+        .forEach(b => {
+          const on = b === btn;
+          b.classList.toggle('active', on);
+          b.setAttribute('aria-pressed', on ? 'true' : 'false');
+        });
       applyFilters();
     });
     return btn;
@@ -428,8 +564,7 @@ comments: false
     rendered = 0;
     document.getElementById('chart-grid').innerHTML = '';
     document.getElementById('all-loaded').style.display = 'none';
-    document.getElementById('total-count').textContent   = filtered.length;
-    document.getElementById('visible-count').textContent = 0;
+    updateResultCount();
 
     if (filtered.length === 0) {
       document.getElementById('chart-grid').innerHTML =
@@ -438,6 +573,21 @@ comments: false
       return;
     }
     renderBatch();
+    // No IntersectionObserver → render everything now (imgs stay lazy via loading="lazy")
+    if (!hasIO) { while (rendered < filtered.length) renderBatch(); }
+  }
+
+  /* Count reflects MATCHES, not how many are painted — rendering progress is
+     shown by the spinner / "All charts loaded" instead. Avoids the old
+     "Showing 12 of 45" reading as "12 of 45 total in the gallery". */
+  function updateResultCount() {
+    const n     = filtered.length;
+    const total = GALLERY_DATA.length;
+    const noun  = n === 1 ? 'chart' : 'charts';
+    const isFiltered = activeFilters.topic !== 'all' || activeFilters.tool !== 'all';
+    document.getElementById('result-count').innerHTML = isFiltered
+      ? `<strong>${n}</strong> of ${total} ${noun}`
+      : `<strong>${n}</strong> ${noun}`;
   }
 
   /* ── BATCH RENDERING ────────────────────────────────────────────────── */
@@ -447,13 +597,12 @@ comments: false
 
     const grid = document.getElementById('chart-grid');
     batch.forEach((c, i) => {
-      const card = buildCard(c);
+      const card = buildCard(c, rendered + i);   // absolute index within `filtered`
       card.style.animationDelay = (i * 35) + 'ms';
       grid.appendChild(card);
     });
 
     rendered += batch.length;
-    document.getElementById('visible-count').textContent = rendered;
 
     const allDone = rendered >= filtered.length;
     document.getElementById('spinner').classList.toggle('hidden', allDone);
@@ -463,7 +612,7 @@ comments: false
   }
 
   /* ── CARD BUILDER ───────────────────────────────────────────────────── */
-  function buildCard(c) {
+  function buildCard(c, index) {
     const card = document.createElement('div');
     card.className = 'chart-card';
 
@@ -478,7 +627,6 @@ comments: false
     card.innerHTML = `
       <div class="card-img-wrap">
         ${imageContent}
-        ${c.source ? `<div class="source-badge">${esc(c.source)}</div>` : ''}
         <div class="card-overlay">
           <a class="action-btn${!c.post ? ' disabled' : ''}"
              href="${c.post || '#'}" title="Original post"
@@ -500,8 +648,7 @@ comments: false
             </svg>
             <span>Code</span>
           </a>
-          <a class="action-btn" href="${c.img}" title="Full resolution"
-             target="_blank" rel="noopener">
+          <button class="action-btn" type="button" title="View full resolution">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                  stroke-linecap="round" stroke-linejoin="round">
               <polyline points="15 3 21 3 21 9"/>
@@ -510,16 +657,25 @@ comments: false
               <line x1="3" y1="21" x2="10" y2="14"/>
             </svg>
             <span>Full</span>
-          </a>
+          </button>
         </div>
       </div>
       <div class="card-body">
         <div class="card-title">${esc(c.title)}</div>
+        ${c.description ? `<p class="card-desc">${esc(c.description)}</p>` : ''}
         <div class="card-tags">
           <span class="tag tag-topic">${esc(c.topic)}</span>
           <span class="tag tag-tool">${esc(c.tool)}</span>
+          ${c.source ? `<span class="tag tag-source">${esc(c.source)}</span>` : ''}
         </div>
       </div>`;
+
+    // Open the lightbox when the image area (or the "Full" button) is clicked,
+    // but let the real Post/Code anchors navigate normally.
+    card.querySelector('.card-img-wrap').addEventListener('click', e => {
+      if (e.target.closest('a.action-btn')) return;
+      openLightbox(index);
+    });
 
     return card;
   }
@@ -527,12 +683,83 @@ comments: false
   function esc(str) {
     return String(str)
       .replace(/&/g,'&amp;').replace(/</g,'&lt;')
-      .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+      .replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
   }
 
+  /* ── LIGHTBOX ───────────────────────────────────────────────────────────
+     Operates on the full `filtered` array (not just rendered cards), so
+     prev/next page through every match even when some are still below the
+     infinite-scroll fold.
+  */
+  const lbEl    = document.getElementById('lightbox');
+  const lbImg   = document.getElementById('lb-img');
+  const lbTitle = document.getElementById('lb-title');
+  const lbDesc  = document.getElementById('lb-desc');
+  const lbMeta  = document.getElementById('lb-meta');
+  const lbPrev  = document.getElementById('lb-prev');
+  const lbNext  = document.getElementById('lb-next');
+  let lbIndex   = -1;
+  let lastFocused = null;
+
+  function renderLightbox() {
+    const c = filtered[lbIndex];
+    if (!c) return;
+    lbImg.src         = c.img;
+    lbImg.alt         = c.title;
+    lbTitle.textContent = c.title;
+    lbDesc.textContent  = c.description || '';
+    lbDesc.style.display = c.description ? '' : 'none';
+
+    let m = '';
+    if (c.post) m += `<a href="${c.post}" target="_blank" rel="noopener">Original post</a>`;
+    if (c.code) m += `<a href="${c.code}" target="_blank" rel="noopener">Source code</a>`;
+    m += `<a href="${c.img}" target="_blank" rel="noopener">Open image</a>`;
+    lbMeta.innerHTML = m;
+
+    lbPrev.disabled = lbIndex <= 0;
+    lbNext.disabled = lbIndex >= filtered.length - 1;
+  }
+
+  function openLightbox(index) {
+    lbIndex = index;
+    lastFocused = document.activeElement;
+    renderLightbox();
+    lbEl.classList.add('open');
+    lbEl.setAttribute('aria-hidden', 'false');
+    document.body.style.overflow = 'hidden';   // freeze background scroll
+    document.getElementById('lb-close').focus();
+  }
+
+  function closeLightbox() {
+    lbEl.classList.remove('open');
+    lbEl.setAttribute('aria-hidden', 'true');
+    document.body.style.overflow = '';
+    if (lastFocused) lastFocused.focus();
+  }
+
+  function navLightbox(dir) {
+    const n = lbIndex + dir;
+    if (n < 0 || n >= filtered.length) return;
+    lbIndex = n;
+    renderLightbox();
+  }
+
+  lbPrev.addEventListener('click', () => navLightbox(-1));
+  lbNext.addEventListener('click', () => navLightbox(1));
+  document.getElementById('lb-close').addEventListener('click', closeLightbox);
+  // Click on the dark backdrop (not the figure) closes
+  lbEl.addEventListener('click', e => { if (e.target === lbEl) closeLightbox(); });
+  document.addEventListener('keydown', e => {
+    if (!lbEl.classList.contains('open')) return;
+    if      (e.key === 'Escape')     closeLightbox();
+    else if (e.key === 'ArrowLeft')  navLightbox(-1);
+    else if (e.key === 'ArrowRight') navLightbox(1);
+  });
+
   /* ── INTERSECTION OBSERVER — auto-load on scroll ────────────────────── */
+  /* When unsupported, applyFilters() renders the full set up front instead. */
   const sentinel = document.getElementById('sentinel');
-  if ('IntersectionObserver' in window) {
+  if (hasIO) {
     new IntersectionObserver(entries => {
       if (entries[0].isIntersecting && rendered < filtered.length) renderBatch();
     }, { rootMargin: '200px' }).observe(sentinel);

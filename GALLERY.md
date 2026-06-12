@@ -10,15 +10,16 @@ workflow for adding new charts.
 | File | Purpose |
 |------|---------|
 | `gallery.qmd` | Quarto page that renders the gallery. All layout, filtering, and card logic lives here as a single `{=html}` block. |
-| `static/data/gallery.json` | Single source of truth for all chart metadata. The page fetches this at runtime — adding a chart only requires editing this file. |
-| `static/images/charts/thumbs/` | WebP thumbnails (1200 px wide, 85 % quality) for standalone charts. |
-| `static/images/chart-challenge/<year>/thumbs/` | WebP thumbnails for 30DayChartChallenge submissions. |
+| `static/gallery/gallery.json` | Single source of truth for all chart metadata. The page fetches this at runtime — adding a chart only requires editing this file. |
+| `static/images/posts/<post-slug>/` | Charts highlighted from a specific blog post (1–2 per post). Each folder has its own `thumbs/` subdir for WebP thumbnails. |
+| `static/images/standalone/` | Charts that don't belong to any blog post. Same `thumbs/` convention. |
+| `static/images/chart-challenge/<year>/` | 30DayChartChallenge submissions, one folder per year, each with its own `thumbs/`. |
 | `R/build_gallery.R` | Helper script: scans image directories and prints template JSON entries for new images. |
 | `R/build_thumbs.R` | Helper script: generates missing WebP thumbnails via the `magick` package. |
 
 ### How the gallery page works
 
-- On page load, the page fetches `/static/data/gallery.json`.
+- On page load, the page fetches `/static/gallery/gallery.json`.
 - Topic and Tool filter chips are built dynamically from the data.
 - Cards are rendered in batches of 12 using an `IntersectionObserver` sentinel
   for smooth infinite scroll — no pagination, no extra pages.
@@ -41,16 +42,22 @@ workflow for adding new charts.
   "post":        "/posts/.../",           // string | null — link to blog post
   "code":        "https://github.com/...", // string | null — link to source
   "year":        2025,                    // integer
-  "source":      "30DayChartChallenge",   // string | null — shown as badge
-  "description": "One sentence."         // string
+  "source":      "30DayChartChallenge",   // string | null — shown as a tag
+  "description": "One sentence."         // string — shown under the title on the card
 }
 ```
 
-Valid topics (extend freely — chips are generated from the data):
-`Economics`, `Demographics`, `Urban`, `Transport`, `Culture`, `Health`, `Environment`
+Topics currently in use (extend freely — chips are generated from the data):
+`Economics`, `Urbanism`, `Demographics`, `Time Series`, `Comparisons`,
+`Culture`, `Distributions`, `Uncertainties`, `Relationships`, `Climate`
 
-Valid tools (extend freely):
-`ggplot2`, `sf`, `ggplot2 + sf`, `Observable`, `Plotly`
+Note the taxonomy mixes subject matter (`Economics`, `Demographics`) with
+chart type (`Distributions`, `Comparisons` — inherited from
+30DayChartChallenge category names). Prefer subject-matter topics for new
+entries; the chart-type topics should eventually be remapped.
+
+Tools currently in use (extend freely):
+`ggplot2`, `sf`
 
 ---
 
@@ -58,9 +65,16 @@ Valid tools (extend freely):
 
 ### 1. Drop the image
 
-For a **standalone chart** (not part of a challenge):
+For a **chart tied to a blog post** (the common case — 1–2 highlights per post):
 ```
-static/images/charts/<filename>.png
+static/images/posts/<post-slug>/<filename>.png
+```
+The `<post-slug>` must match the post's folder name under `posts/<category>/<slug>/`.
+`build_gallery.R` searches for it and auto-fills the `post` URL in the template.
+
+For a **standalone chart** (no associated post):
+```
+static/images/standalone/<filename>.png
 ```
 
 For a **30DayChartChallenge** submission:
@@ -107,7 +121,7 @@ just save the JSON file and refresh the browser.
 
 ## Updating an existing entry
 
-Edit `static/data/gallery.json` directly. Common updates:
+Edit `static/gallery/gallery.json` directly. Common updates:
 
 - **Add a post link** once the blog post is published: set `"post": "/posts/..."`.
 - **Add a code link**: set `"code": "https://github.com/..."`.
@@ -126,11 +140,16 @@ restateinsight/
 │   ├── build_gallery.R                  ← generate gallery.json entries
 │   └── build_thumbs.R                   ← generate WebP thumbnails
 └── static/
-    ├── data/
+    ├── gallery/
     │   └── gallery.json                 ← chart metadata (source of truth)
     └── images/
-        ├── charts/                      ← full-res standalone chart images
-        │   └── thumbs/                  ← generated WebP thumbnails
+        ├── posts/                       ← charts tied to a blog post
+        │   └── <post-slug>/
+        │       ├── <chart>.png          ← full-res image
+        │       └── thumbs/
+        │           └── <chart>.webp     ← generated WebP thumbnail
+        ├── standalone/                  ← charts without a blog post
+        │   └── thumbs/
         └── chart-challenge/
             ├── 2025/
             │   └── thumbs/
@@ -138,6 +157,7 @@ restateinsight/
                 └── thumbs/
 ```
 
-`_quarto.yml` has `resources` entries that copy `static/data/` and
-`static/images/charts/thumbs/` into `_site/` during build, since Quarto only
+`_quarto.yml` has `resources` entries that copy `static/gallery/`,
+`static/images/posts/`, `static/images/standalone/`, and
+`static/images/chart-challenge/` into `_site/` during build, since Quarto only
 copies files that are directly referenced in `.qmd` source.

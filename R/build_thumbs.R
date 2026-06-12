@@ -1,6 +1,4 @@
-# ── build_thumbs.R ───────────────────────────────────────────────────────────
-#
-# Thumbnail Generation Script
+# Thumbnail Generation Script ----
 #
 # PURPOSE
 #   Generates WebP thumbnails at 1200 px wide for every chart image that does
@@ -25,38 +23,35 @@
 #   Quality : 85 %
 #   SVG     : rasterised at 300 dpi before resizing (preserves crispness)
 #
-# OUTPUT PATHS
-#   static/images/charts/thumbs/<stem>.webp
-#   static/images/chart-challenge/<year>/thumbs/<stem>.webp
-#
-# ─────────────────────────────────────────────────────────────────────────────
+# IMAGE DIRECTORIES SCANNED (each with its own /thumbs/ subfolder)
+#   static/images/posts/<post-slug>/         charts tied to a blog post
+#   static/images/standalone/                charts without a blog post
+#   static/images/chart-challenge/<year>/    30DayChartChallenge
 
 library(magick)
 library(fs)
 library(stringr)
 library(purrr)
 
-# ── Config ────────────────────────────────────────────────────────────────────
-THUMB_WIDTH   <- 1200L   # px
-THUMB_QUALITY <- 85L     # WebP quality (0–100)
-SVG_DENSITY   <- 300L    # dpi for SVG rasterisation
+# Config ----
+THUMB_WIDTH   <- 1200L
+THUMB_QUALITY <- 85L
+SVG_DENSITY   <- 300L
 
-CHARTS_DIR    <- "static/images/charts"
-CHALLENGE_DIR <- "static/images/chart-challenge"
-
-stopifnot(
-  "Run this script from the project root (where restateinsight.Rproj is)." =
-    dir_exists(CHARTS_DIR)
+IMAGE_ROOTS <- c(
+  "static/images/posts",
+  "static/images/standalone",
+  "static/images/chart-challenge"
 )
 
-# ── Helper: derive thumbnail output path ─────────────────────────────────────
+# Helpers ----
+
 thumb_path <- function(img_path) {
   dir  <- path_dir(img_path)
   stem <- path_ext_remove(path_file(img_path))
   path(dir, "thumbs", paste0(stem, ".webp"))
 }
 
-# ── Helper: generate one thumbnail ───────────────────────────────────────────
 make_thumb <- function(img_path) {
   out <- thumb_path(img_path)
 
@@ -79,20 +74,28 @@ make_thumb <- function(img_path) {
       image_write(out, format = "webp", quality = THUMB_QUALITY)
 
     sz <- round(file_size(out) / 1024)
-    message(sprintf("  ✔  %-55s → %s  (%d KB)", img_path, out, sz))
+    message(sprintf("  ok  %-55s -> %s  (%d KB)", img_path, out, sz))
 
   }, error = function(e) {
     message("  ERROR  ", img_path, "\n         ", conditionMessage(e))
   })
 }
 
-# ── Scan image directories ────────────────────────────────────────────────────
-chart_files <- dir_ls(CHARTS_DIR, regexp = "\\.(png|svg)$", recurse = FALSE)
+# Scan ----
 
-challenge_files <- dir_ls(CHALLENGE_DIR, regexp = "\\.(png|svg)$", recurse = TRUE)
-challenge_files  <- challenge_files[!str_detect(challenge_files, "/thumbs/")]
+existing_roots <- IMAGE_ROOTS[dir_exists(IMAGE_ROOTS)]
 
-all_files <- c(chart_files, challenge_files)
+stopifnot(
+  "No image roots found. Run from the project root." = length(existing_roots) > 0
+)
+
+all_files <- map(existing_roots, \(root) {
+  dir_ls(root, regexp = "\\.(png|svg)$", recurse = TRUE)
+}) |>
+  unlist(use.names = FALSE)
+
+# Drop any files that are themselves inside a thumbs/ dir
+all_files <- all_files[!str_detect(all_files, "/thumbs/")]
 
 already   <- sum(map_lgl(all_files, \(f) file_exists(thumb_path(f))))
 to_build  <- length(all_files) - already
@@ -102,7 +105,7 @@ message(sprintf(
   length(all_files), already, to_build
 ))
 
-# ── Generate ──────────────────────────────────────────────────────────────────
+# Generate ----
 walk(all_files, make_thumb)
 
 message(sprintf("\nDone. %d thumbnail(s) generated.", to_build))
