@@ -6,7 +6,6 @@ library(ggplot2)
 library(stringr)
 library(sf)
 library(ggnewscale)
-library(showtext)
 
 # import::from(smoothr, smooth)
 import::from(janitor, clean_names)
@@ -15,8 +14,7 @@ import::from(sidrar, get_sidra)
 import::from(stringi, stri_trans_general)
 import::from(tidyr, separate_wider_delim)
 
-font_add_google("Lato", "Lato")
-showtext_auto()
+# Assumes the Lato font is already installed on the system; rendered via ragg.
 
 # Data --------------------------------------------------------------------
 
@@ -122,7 +120,7 @@ dim_interm <- dim_inter |>
     .by = "code_intermediate"
   )
 
-dim_state <- geobr::read_state()
+dim_state <- geobr::read_state(year = 2010)
 dim_state <- as_tibble(sf::st_drop_geometry(dim_state))
 
 dim_interm <- dim_interm |>
@@ -164,10 +162,11 @@ top_inter <- tbls$intermediate |>
   ungroup()
 
 geo_inter_full <- read_intermediate_region(
+  year = 2022,
   showProgress = FALSE,
   simplified = FALSE
 )
-geo_inter <- read_intermediate_region(showProgress = FALSE)
+geo_inter <- read_intermediate_region(year = 2022, showProgress = FALSE)
 
 geo_inter_full <- left_join(geo_inter_full, top_inter, by = "code_intermediate")
 inter <- left_join(geo_inter, top_inter, by = "code_intermediate")
@@ -347,181 +346,185 @@ final_map <- map_annotations +
   )
 
 ggsave(
-  here::here("static/images/censo_mapa_raca.svg"),
+  here::here(
+    "static/images/posts/2025-03-map-brazil-census-race/censo_mapa_raca.png"
+  ),
   final_map,
+  device = ragg::agg_png,
   width = 8,
-  height = 9
+  height = 9,
+  units = "in",
+  dpi = 300,
+  bg = "white"
 )
 
 # Interactive version ----------------------------------------------------
 
-library(ggiraph)
+# library(ggiraph)
 
-# Brazilian number formatting helpers
-fmt_pct <- function(x) {
-  formatC(x, format = "f", digits = 1, big.mark = ".", decimal.mark = ",")
-}
+# # Brazilian number formatting helpers
+# fmt_pct <- function(x) {
+#   formatC(x, format = "f", digits = 1, big.mark = ".", decimal.mark = ",")
+# }
 
-fmt_pop <- function(x) {
-  formatC(x, format = "d", big.mark = ".", decimal.mark = ",")
-}
+# fmt_pop <- function(x) {
+#   formatC(x, format = "d", big.mark = ".", decimal.mark = ",")
+# }
 
-pop_totals <- tbls$intermediate |>
-  summarise(pop = sum(total, na.rm = TRUE), .by = "code_intermediate")
+# pop_totals <- tbls$intermediate |>
+#   summarise(pop = sum(total, na.rm = TRUE), .by = "code_intermediate")
 
-tbl_poprace_detailed <- tbls$intermediate |>
-  tidyr::pivot_wider(
-    id_cols = "code_intermediate",
-    names_from = "race",
-    values_from = "prop",
-    values_fn = ~ . * 100
-  ) |>
-  left_join(pop_totals, by = "code_intermediate") |>
-  left_join(top_inter, by = "code_intermediate")
+# tbl_poprace_detailed <- tbls$intermediate |>
+#   tidyr::pivot_wider(
+#     id_cols = "code_intermediate",
+#     names_from = "race",
+#     values_from = "prop",
+#     values_fn = ~ . * 100
+#   ) |>
+#   left_join(pop_totals, by = "code_intermediate") |>
+#   left_join(top_inter, by = "code_intermediate")
 
-geo_poprace <- left_join(
-  geo_inter,
-  tbl_poprace_detailed,
-  by = "code_intermediate"
-)
+# geo_poprace <- left_join(
+#   geo_inter,
+#   tbl_poprace_detailed,
+#   by = "code_intermediate"
+# )
 
-# Build HTML tooltip with Brazilian number formatting
-geo_poprace <- geo_poprace |>
-  mutate(
-    tooltip = str_glue(
-      "<div style='font-family: Helvetica, Arial, sans-serif; font-size: 13px; line-height: 1.6;'>
-      <b style='font-size: 14px;'>{name_intermediate} ({abbrev_state})</b><br>
-      Pop. total: <b>{fmt_pop(pop)}</b>
-      <hr style='margin: 4px 0; border: none; border-top: 1px solid #ccc;'>
-      Branca: <b>{fmt_pct(branca)}%</b><br>
-      Parda: <b>{fmt_pct(parda)}%</b><br>
-      Preta: <b>{fmt_pct(preta)}%</b><br>
-      Ind\u00edgena: <b>{fmt_pct(indigena)}%</b><br>
-      Amarela: <b>{fmt_pct(amarela)}%</b>
-      </div>"
-    ),
-    data_id = as.character(code_intermediate)
-  )
+# # Build HTML tooltip with Brazilian number formatting
+# geo_poprace <- geo_poprace |>
+#   mutate(
+#     tooltip = str_glue(
+#       "<div style='font-family: Helvetica, Arial, sans-serif; font-size: 13px; line-height: 1.6;'>
+#       <b style='font-size: 14px;'>{name_intermediate} ({abbrev_state})</b><br>
+#       Pop. total: <b>{fmt_pop(pop)}</b>
+#       <hr style='margin: 4px 0; border: none; border-top: 1px solid #ccc;'>
+#       Branca: <b>{fmt_pct(branca)}%</b><br>
+#       Parda: <b>{fmt_pct(parda)}%</b><br>
+#       Preta: <b>{fmt_pct(preta)}%</b><br>
+#       Ind\u00edgena: <b>{fmt_pct(indigena)}%</b><br>
+#       Amarela: <b>{fmt_pct(amarela)}%</b>
+#       </div>"
+#     ),
+#     data_id = as.character(code_intermediate)
+#   )
 
-plot_interactive <- ggplot() +
-  geom_sf_interactive(
-    data = filter(geo_poprace, race != "branca"),
-    aes(fill = prop, tooltip = tooltip, data_id = data_id),
-    lwd = 0.1,
-    color = "white"
-  ) +
-  scale_fill_distiller(
-    name = "% Pardos",
-    palette = "Purples",
-    direction = 1,
-    breaks = legend_breaks,
-    labels = legend_labels,
-    limits = legend_limits
-  ) +
-  new_scale_fill() +
-  geom_sf_interactive(
-    data = filter(geo_poprace, race == "branca"),
-    aes(fill = prop, tooltip = tooltip, data_id = data_id),
-    lwd = 0.1,
-    color = "white"
-  ) +
-  scale_fill_distiller(
-    name = "% Brancos",
-    palette = "Greens",
-    direction = 1,
-    breaks = legend_breaks,
-    labels = legend_labels,
-    limits = legend_limits
-  ) +
-  coord_sf(xlim = c(-72.2, -35.5)) +
-  labs(
-    title = "A Divis\u00e3o Racial do Brasil",
-    subtitle = "Em todas as regiões, ou brancos ou pardos são o grupo racial predominante.\nExceções ao padrão incluem a região do Rio de Janeiro, no sudeste, e de Caicó, no nordeste.",
-    caption = "Fonte: IBGE (Censo Demogr\u00e1fico 2022). @viniciusoike\n\nPercentual da população por raça (autodeclarada) por Região Intermediária (RI).\nRegiões intermediárias são uma agregação do IBGE que agrupam municípios que compartilham relações\neconômicas e sociais em torno de um mesmo centro urbano principal."
-  ) +
-  ggthemes::theme_map(base_family = "Lato") +
-  theme(
-    plot.title = element_text(
-      hjust = 0,
-      size = 22,
-      margin = margin(0, 5, 2.5, 0)
-    ),
-    plot.margin = margin(20, 20, 20, 20),
-    plot.subtitle = element_text(hjust = 0, size = 10),
-    plot.caption = element_text(hjust = 0),
-    legend.position = "inside",
-    legend.position.inside = c(0.01, 0.01),
-    legend.box = "horizontal",
-    legend.key.size = unit(0.5, "cm"),
-    legend.text = element_text(size = 10),
-    legend.title = element_text(size = 12),
-    plot.background = element_rect(fill = "#F6EEE3", color = "#F6EEE3"),
-    legend.background = element_rect(fill = "#F6EEE3", color = "#F6EEE3")
-  )
+# plot_interactive <- ggplot() +
+#   geom_sf_interactive(
+#     data = filter(geo_poprace, race != "branca"),
+#     aes(fill = prop, tooltip = tooltip, data_id = data_id),
+#     lwd = 0.1,
+#     color = "white"
+#   ) +
+#   scale_fill_distiller(
+#     name = "% Pardos",
+#     palette = "Purples",
+#     direction = 1,
+#     breaks = legend_breaks,
+#     labels = legend_labels,
+#     limits = legend_limits
+#   ) +
+#   new_scale_fill() +
+#   geom_sf_interactive(
+#     data = filter(geo_poprace, race == "branca"),
+#     aes(fill = prop, tooltip = tooltip, data_id = data_id),
+#     lwd = 0.1,
+#     color = "white"
+#   ) +
+#   scale_fill_distiller(
+#     name = "% Brancos",
+#     palette = "Greens",
+#     direction = 1,
+#     breaks = legend_breaks,
+#     labels = legend_labels,
+#     limits = legend_limits
+#   ) +
+#   coord_sf(xlim = c(-72.2, -35.5)) +
+#   labs(
+#     title = "A Divis\u00e3o Racial do Brasil",
+#     subtitle = "Em todas as regiões, ou brancos ou pardos são o grupo racial predominante.\nExceções ao padrão incluem a região do Rio de Janeiro, no sudeste, e de Caicó, no nordeste.",
+#     caption = "Fonte: IBGE (Censo Demogr\u00e1fico 2022). @viniciusoike\n\nPercentual da população por raça (autodeclarada) por Região Intermediária (RI).\nRegiões intermediárias são uma agregação do IBGE que agrupam municípios que compartilham relações\neconômicas e sociais em torno de um mesmo centro urbano principal."
+#   ) +
+#   ggthemes::theme_map(base_family = "Lato") +
+#   theme(
+#     plot.title = element_text(
+#       hjust = 0,
+#       size = 22,
+#       margin = margin(0, 5, 2.5, 0)
+#     ),
+#     plot.margin = margin(20, 20, 20, 20),
+#     plot.subtitle = element_text(hjust = 0, size = 10),
+#     plot.caption = element_text(hjust = 0),
+#     legend.position = "inside",
+#     legend.position.inside = c(0.01, 0.01),
+#     legend.box = "horizontal",
+#     legend.key.size = unit(0.5, "cm"),
+#     legend.text = element_text(size = 10),
+#     legend.title = element_text(size = 12),
+#     plot.background = element_rect(fill = "#F6EEE3", color = "#F6EEE3"),
+#     legend.background = element_rect(fill = "#F6EEE3", color = "#F6EEE3")
+#   )
 
-girafe(
-  ggobj = plot_interactive,
-  width_svg = 8,
-  height_svg = 8,
-  options = list(
-    opts_hover(css = "opacity:1;stroke:#333333;stroke-width:2px;"),
-    opts_hover_inv(css = "opacity:0.8;"),
-    opts_zoom(min = 1, max = 5),
-    opts_tooltip(
-      css = paste0(
-        "background-color:white;color:#333;padding:10px;",
-        "border-radius:5px;",
-        "box-shadow: 2px 2px 6px rgba(0,0,0,0.2);"
-      ),
-      use_fill = FALSE
-    ),
-    opts_toolbar(saveaspng = TRUE, position = "topright"),
-    opts_sizing(rescale = TRUE, width = 0.9)
-  )
-)
+# girafe(
+#   ggobj = plot_interactive,
+#   width_svg = 8,
+#   height_svg = 8,
+#   options = list(
+#     opts_hover(css = "opacity:1;stroke:#333333;stroke-width:2px;"),
+#     opts_hover_inv(css = "opacity:0.8;"),
+#     opts_zoom(min = 1, max = 5),
+#     opts_tooltip(
+#       css = paste0(
+#         "background-color:white;color:#333;padding:10px;",
+#         "border-radius:5px;",
+#         "box-shadow: 2px 2px 6px rgba(0,0,0,0.2);"
+#       ),
+#       use_fill = FALSE
+#     ),
+#     opts_toolbar(saveaspng = TRUE, position = "topright"),
+#     opts_sizing(rescale = TRUE, width = 0.9)
+#   )
+# )
 
+# # Check if results are due to geographic resolution
+# # answer: are not!
 
-# Check if results are due to geographic resolution
-# answer: are not!
+# geo_immediate_region <- read_immediate_region(showProgress = FALSE)
 
-geo_immediate_region <- read_immediate_region(showProgress = FALSE)
+# top_immediate <- tbls$immediate |>
+#   group_by(code_immediate) |>
+#   slice_max(prop, n = 1) |>
+#   ungroup()
 
-top_immediate <- tbls$immediate |>
-  group_by(code_immediate) |>
-  slice_max(prop, n = 1) |>
-  ungroup()
+# tbls$immediate |>
+#   filter(code_immediate == 438888)
 
-tbls$immediate |>
-  filter(code_immediate == 438888)
+# geo_immediate_full <- left_join(geo_immediate_region, top_immediate)
 
-geo_immediate_full <- left_join(geo_immediate_region, top_immediate)
+# geo_immediate_full |>
+#   filter(is.na(race))
 
-geo_immediate_full |>
-  filter(is.na(race))
+# ggplot(geo_immediate_full) +
+#   geom_sf(aes(fill = as.factor(race_label)), lwd = 0.1, color = "white") +
+#   geom_sf(data = geo_state, fill = NA)
 
-ggplot(geo_immediate_full) +
-  geom_sf(aes(fill = as.factor(race_label)), lwd = 0.1, color = "white") +
-  geom_sf(data = geo_state, fill = NA)
+# geo_muni = geobr::read_municipality(year = 2022, showProgress = FALSE)
+# geo_state = geobr::read_state(showProgress = FALSE)
 
+# pop_muni = pop |>
+#   group_by(code_muni) |>
+#   slice_max(prop, n = 1, na_rm = TRUE) |>
+#   ungroup() |>
+#   select(code_muni, race, race_label, pop, prop)
 
-geo_muni = geobr::read_municipality(year = 2022, showProgress = FALSE)
-geo_state = geobr::read_state(showProgress = FALSE)
+# tidyr::pivot_wider(
+#   pop,
+#   id_cols = "code_muni",
+#   names_from = "race",
+#   values_from = "prop"
+# )
 
-pop_muni = pop |>
-  group_by(code_muni) |>
-  slice_max(prop, n = 1, na_rm = TRUE) |>
-  ungroup() |>
-  select(code_muni, race, race_label, pop, prop)
+# geo_muni_full <- left_join(geo_muni, pop_muni, by = "code_muni")
 
-tidyr::pivot_wider(
-  pop,
-  id_cols = "code_muni",
-  names_from = "race",
-  values_from = "prop"
-)
-
-geo_muni_full <- left_join(geo_muni, pop_muni, by = "code_muni")
-
-ggplot(geo_muni_full) +
-  geom_sf(aes(fill = race), lwd = 0.01, color = "gray95") +
-  geom_sf(data = geo_state, color = "gray30", fill = NA)
+# ggplot(geo_muni_full) +
+#   geom_sf(aes(fill = race), lwd = 0.01, color = "gray95") +
+#   geom_sf(data = geo_state, color = "gray30", fill = NA)
