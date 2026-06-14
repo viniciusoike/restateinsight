@@ -3,6 +3,12 @@
 Quarto-based personal blog deployed to Netlify at restateinsight.com.
 Focus: economics, urban analytics, and data visualization (primarily Brazil).
 
+- **Never run a bare `quarto render` to "sync", "rebuild", or "regenerate" `_site/`.**
+  It re-renders all ~165 documents (slow) and rewrites the whole tracked `_site/`
+  tree, producing thousands of spurious diffs plus stray intermediate `.html` /
+  `index_files/` next to every source `.qmd`. `freeze: true` only caches R
+  *compute*, not HTML rendering — it does **not** make a full render cheap.
+
 ## Commands
 
 ```bash
