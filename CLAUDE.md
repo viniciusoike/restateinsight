@@ -38,6 +38,15 @@ static/gallery/gallery.json               # gallery metadata registry
 _freeze/                                  # cached computation results
 ```
 
+- **`static/data/README.md`** — dataset → producing-script → source manifest,
+  the gitignore/whitelist policy, and the raw-input path coupling. Read it
+  before touching anything under `static/data/`.
+- **`static/images/README.md`** — image-directory taxonomy and the two distinct
+  "thumbnail" systems (auto-generated gallery `thumbs/` vs hand-made post-card
+  `thumbnails/`). Read it before reorganizing images.
+- **Data-extraction scripts are canonical at `static/data-raw/R/`** (git-tracked).
+  There is no second copy — the old untracked `static/data/raw/R/` was removed.
+
 ## Gallery Workflow
 
 When adding new charts to the gallery:
