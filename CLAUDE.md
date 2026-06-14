@@ -6,10 +6,15 @@ Focus: economics, urban analytics, and data visualization (primarily Brazil).
 ## Commands
 
 ```bash
-quarto preview          # local dev server on port 4200
-quarto render           # full static build → _site/
-quarto publish netlify  # deploy to production
+quarto preview                 # local dev server on port 4200
+quarto render <path/to/file>   # render ONE page only (see warning below)
+quarto publish netlify         # deploy to production
 ```
+
+> **Never run a bare `quarto render`.** It rebuilds all ~165 documents from
+> scratch (minutes long) and rewrites the entire tracked `_site/` tree. Always
+> scope renders to the file(s) you changed: `quarto render posts/<cat>/<slug>/index.qmd`.
+> See the Gotchas section.
 
 ## Architecture
 
@@ -38,7 +43,7 @@ When adding new charts to the gallery:
 2. `Rscript R/build_thumbs.R` — generates WebP thumbnails (1200px, 85% quality)
 3. `Rscript R/build_gallery.R` — prints JSON template entries for unregistered images (auto-fills `post` URL when the slug matches an existing post)
 4. Paste template into `static/gallery/gallery.json`, fill in all `TODO` fields
-5. `quarto render` or `quarto preview` to rebuild
+5. `quarto preview` (or `quarto render gallery.qmd`) to rebuild — never a bare `quarto render`
 
 Thumbnails live at `<image-dir>/thumbs/<stem>.webp`. Requires ImageMagick (`brew install imagemagick`).
 
@@ -64,6 +69,21 @@ Create `posts/<category>/<YYYY-MM-slug>/index.qmd`. The `_metadata.yml` in `post
 
 ## Gotchas
 
+- **Never run a bare `quarto render` to "sync", "rebuild", or "regenerate" `_site/`.**
+  It re-renders all ~165 documents (slow) and rewrites the whole tracked `_site/`
+  tree, producing thousands of spurious diffs plus stray intermediate `.html` /
+  `index_files/` next to every source `.qmd`. `freeze: true` only caches R
+  *compute*, not HTML rendering — it does **not** make a full render cheap.
+  - To rebuild specific pages: `quarto render posts/<cat>/<slug>/index.qmd` (one
+    or more explicit paths), or use `quarto preview` for iterating.
+  - **Resolving `_site/` merge conflicts:** do **not** re-render the whole site.
+    `_site/` is committed build output; take one side of the conflict (e.g.
+    `git checkout --ours -- _site/...`) or render only the handful of changed
+    pages, then commit. The author refreshes `_site/` via their own targeted
+    renders / `quarto publish netlify`, not a wholesale rebuild.
+  - If a full render was started by mistake: kill it, `git restore .` to undo the
+    `_site/` churn, then `git clean -fd` (excluding any pre-existing untracked
+    dirs) to delete the stray root-level `.html` and `index_files/` intermediates.
 - **`_quarto.yml` controls the entire website.** Edit with extreme care — a bad change here can break every page. Test with `quarto preview` before committing.
 - **`freeze: true`** is set in `posts/_metadata.yml`, so post compute outputs are cached under `_freeze/`. Don't delete `_freeze/` casually — re-running every post's code is slow. To force a single post to re-execute, delete only its subdir under `_freeze/`.
 
