@@ -12,7 +12,6 @@ font_add_google("Lato", "Lato")
 showtext_auto()
 
 gt_theme_simple <- function(dat) {
-  
   fmt_table <- dat |>
     opt_table_font(font = "DIN Alternate") |>
     tab_options(
@@ -73,12 +72,12 @@ gt_theme_simple <- function(dat) {
     )
 }
 
-state_border = geobr::read_state(showProgress = FALSE)
-dim_state = as_tibble(st_drop_geometry(state_border))
+state_border <- geobr::read_state(showProgress = FALSE)
+dim_state <- as_tibble(st_drop_geometry(state_border))
 
-codes = c(93070, 93084:93098, 49108, 49109, 60040, 60041, 6653)
+codes <- c(93070, 93084:93098, 49108, 49109, 60040, 60041, 6653)
 
-tab_population = sidrar::get_sidra(
+tab_population <- sidrar::get_sidra(
   9514,
   variable = 93,
   geo = "State",
@@ -327,7 +326,7 @@ table_population <- gt(tab) |>
 
 
 get_population <- function(state) {
-  tab_population = sidrar::get_sidra(
+  tab_population <- sidrar::get_sidra(
     9514,
     variable = 93,
     geo = "State",
@@ -338,7 +337,7 @@ get_population <- function(state) {
 }
 
 clean_population <- function(dat, group_var) {
-  tab_pop = dat |>
+  tab_pop <- dat |>
     janitor::clean_names() |>
     tidyr::as_tibble() |>
     dplyr::filter(
