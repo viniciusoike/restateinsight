@@ -1,5 +1,7 @@
 # Real Estate Insights
 
+[![Netlify Status](https://api.netlify.com/api/v1/badges/e2d32e1e-acad-41b9-8ce1-6fb71dceb53b/deploy-status)](https://app.netlify.com/projects/restateinsight/deploys)
+
 **[Visit the website →](https://www.restateinsight.com)**
 
 A data analysis and visualization blog focused on economics, urban development, real estate markets, and socioeconomic trends in Brazil and beyond.
