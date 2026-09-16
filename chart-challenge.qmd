@@ -169,13 +169,15 @@ The <a href="https://30daychartchallenge.org/" target="_blank">#30DayChartChalle
   }
 
   const years = [...new Set(charts.map(c => c.year))].sort((a, b) => b - a);
-  const currentYear = new Date().getFullYear();
+  // The challenge runs through April; later in the year it counts as finished.
+  const now = new Date();
+  const lastOpenYear = now.getMonth() > 3 ? now.getFullYear() : now.getFullYear() - 1;
 
   nav.innerHTML = years.map(y => `<a href="#y${y}">${y}</a>`).join('\n');
 
   content.innerHTML = years.map(year => {
     const yearCharts = charts.filter(c => c.year === year);
-    const status = year < currentYear ? 'Complete' : 'In progress';
+    const status = year <= lastOpenYear ? 'Complete' : 'In progress';
 
     const categories = THEME_ORDER
       .map(topic => ({ topic, items: yearCharts.filter(c => c.topic === topic).sort((a, b) => a.day - b.day) }))
