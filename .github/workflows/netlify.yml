@@ -1,6 +1,6 @@
 # Renders the Quarto site and deploys _site/ to Netlify.
 # - push to main  -> production deploy to https://restateinsight.com
-# - pull requests -> deploy preview (comment + commit status "netlify")
+# - pull requests -> deploy preview (pr-<n> alias, PR comment + commit status)
 # Posts rely on the committed _freeze/ cache, so only knitr is needed in CI.
 name: Render site & deploy to Netlify
 
@@ -12,8 +12,6 @@ on:
 
 permissions:
   contents: read
-  checks: write
-  deployments: write
   pull-requests: write
   statuses: write
 
@@ -24,6 +22,9 @@ concurrency:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    env:
+      NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+      NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
     steps:
       - uses: actions/checkout@v5
 
@@ -38,16 +39,43 @@ jobs:
       - name: Render site
         run: quarto render
 
-      - name: Deploy to Netlify
-        uses: nwtgck/actions-netlify-deploy@v3
-        with:
-          publish-dir: _site
-          deploy-message: "${{ github.event_name == 'pull_request' && format('Deploy preview for PR #{0}', github.event.number) || format('Deploy from {0} ({1})', github.sha, github.event_name) }}"
-          production-deploy: ${{ github.event_name != 'pull_request' }}
-          alias: pr-${{ github.event.number }}
-          enable-pull-request-comment: true
-          enable-commit-status: true
-          github-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Deploy preview (PR)
+        if: github.event_name == 'pull_request'
+        run: |
+          netlify deploy --no-build --prod=false --dir _site \
+            --alias "pr-${{ github.event.number }}" \
+            --message "Deploy preview for PR #${{ github.event.number }}" \
+            --json > netlify.json
+          cat netlify.json
+
+      - name: Deploy production (main)
+        if: github.event_name != 'pull_request'
+        run: |
+          netlify deploy --no-build --prod --dir _site \
+            --message "Deploy from ${{ github.sha }} (${{ github.event_name }})" \
+            --json > netlify.json
+          cat netlify.json
+
+      - name: Post deploy preview status
+        if: always()
+        continue-on-error: true
         env:
-          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
-          NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if [ -f netlify.json ]; then
+            DEPLOY_URL=$(jq -r '.deploy_url // .ssl_url // .url' netlify.json)
+            gh api "repos/${{ github.repository }}/statuses/${{ github.sha }}" \
+              -f state=success \
+              -f context="netlify" \
+              -f target_url="$DEPLOY_URL" \
+              -f description="Deploy preview ready"
+          fi
+
+      - name: Comment deploy preview on PR
+        if: github.event_name == 'pull_request' && always() && success()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          DEPLOY_URL=$(jq -r '.deploy_url // .ssl_url // .url' netlify.json)
+          gh pr comment "${{ github.event.number }}" \
+            --body "Deploy preview: $DEPLOY_URL"
