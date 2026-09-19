@@ -30,9 +30,7 @@ knitr::opts_chunk$set(
 
 Os cursos de econometria de séries de tempo, usualmente, começam pelo ensino de modelos lineares univariados para séries estacionárias. Estes modelos são da família ARMA e tentam representar uma série de tempo $y_{t}$ em função de suas defasagens $y_{t-1}, y_{t-2}, \dots, y_{t-n}$ e de choques aleatórios (inovações) $\epsilon_{t}, \epsilon_{t-1}, \epsilon_{t-2}, \dots, y_{t-n}$. Contudo, pode ser mais interessante relacionar duas séries de tempo $y_{t}$ e $x_{t}$ diferentes via um modelo linear. Em alguns casos isto pode ser equivalente a um VAR ou VARMA, mas o modelo linear tem a vantagem de ser mais simples de implementar e de interpretar. O tipo de modelo linear que estamos interessados é da forma
 
-$$
-  y_{t} = \beta_{0} + \beta_{1}x_{t} + w_{t}
-$$
+$$  y_{t} = \beta_{0} + \beta_{1}x_{t} + w_{t}$$
 
 onde $y_{t}$ é a série que queremos "explicar" em função da série $x_{t}$. É evidente que podemos estender este modelo para incluir defasagens das variáveis $x_{t}$ e $y_{t}$, além de incluir outras séries, dummies, efeitos sazonais e tendências temporais.
 
@@ -70,9 +68,7 @@ library("ggplot2")
 
 Como primeiro exemplo vamos analisar a variação do PIB. A base de dados `USMacroG` é um conjunto de 12 séries macroeconômicas dos EUA, disponibilizadas pelo livro de econometria do Greene. Como as séries do PIB e do consumo estão em nível precisamos fazer alguma transformação para convertê-los em taxas percentuais. O importante do código abaixo é notar o uso da função `ts.instersect` que serve para emparelhar as séries e transformá-las em colunas de um `data.frame`. O modelo que queremos estimar relaciona as variações do PIB com as variações do consumo da seguinte forma.
 
-$$
-  \Delta PIB_{t} = \beta_{0} + \beta_{1} \Delta C_{t} + u_{t}
-$$
+$$  \Delta PIB_{t} = \beta_{0} + \beta_{1} \Delta C_{t} + u_{t}$$
 
 onde $\Delta$ representa a variação percentual, isto é, $\Delta x_{t} = \frac{x_{t} - x_{t-1}}{x_{t-1}}$. Para estimar o modelo uso a função `lm`. A saída abaixo é essencialmente idêntica à de uma regressão linear de dados em cross-section.
 
@@ -88,9 +84,7 @@ dados <- ts.intersect(pib, cons, dframe = TRUE)
 fit <- lm(pib ~ cons, data = dados)
 ```
 
-$$
-  \hat{PIB}_{t} = \underset{(0.00007)}{0.00264} + \underset{(0.06316)}{0.68428}C_{t}
-$$
+$$  \hat{PIB}_{t} = \underset{(0.00007)}{0.00264} + \underset{(0.06316)}{0.68428}C_{t}$$
 
 ```{r, echo = FALSE, results = "asis", message = FALSE}
 stargazer(fit,
@@ -147,9 +141,7 @@ Neste caso parece não haver grande problema já que a maior parte das autocorre
 
 O teste BG está implementado no pacote `lmtest` que é carregado automaticamente junto com o pacote `AER`. Ele essencialmente faz uma regressão linear entre os resíduos do modelo com defasagens da variável explicada ($y$) e dos próprios resíduos e verifica se os coeficientes estimados são significativos (diferentes de zero). O código abaixo mostra como fazer o teste para a segunda ordem.
 
-$$
-  \hat{u}_{t} = \alpha_{0} + \alpha_{1}C_{t} + \alpha_{2}\hat{u}_{t-1} + \alpha_{3}\hat{u}_{t-2} + \epsilon_{t}
-$$
+$$  \hat{u}_{t} = \alpha_{0} + \alpha_{1}C_{t} + \alpha_{2}\hat{u}_{t-1} + \alpha_{3}\hat{u}_{t-2} + \epsilon_{t}$$
 
 ```{r}
 bgtest(fit, order = 2)
@@ -186,15 +178,11 @@ Também seria importante verificar se as séries das variações trimestrais do 
 
 Pode-se propor um modelo linear que separa efeitos de tendência e sazonalidade da seguinte forma:
 
-$$
-  y_{t} = T_{t} + S_{t} + u_{t}
-$$
+$$  y_{t} = T_{t} + S_{t} + u_{t}$$
 
 onde $T_{t}$ é uma componente de tendência (em geral, um polinômio ou média móvel) e $S_{t}$ é um componente sazonal. Talvez a forma mais simples deste modelo seja assumir uma tendência linear e incluir dummies sazonais.
 
-$$
-  y_{t} = \beta_{0} + \beta_{1}t + \sum_{k = 2}^{k = 12}\alpha_{k}d_{k} + u_{t}
-$$
+$$  y_{t} = \beta_{0} + \beta_{1}t + \sum_{k = 2}^{k = 12}\alpha_{k}d_{k} + u_{t}$$
 
 Para facilitar a notação a equação acima assume dados mensais, onde $d_{k}$ é uma variável dummy igual a $1$ quando a observação for referente ao mês $k$. Isto é, $d_{2} = 1$ quando os dados forem do mês de fevereiro, logo, $\alpha_{2}$ captura o efeito marginal do mês de fevereiro. Não se pode colocar uma dummy para cada mês pois haveria um problema de singularidade na matriz de regressores, mas é claro que quando o dado for do mês de janeiro, todas as dummies terão valor igual a zero.
 
@@ -202,9 +190,7 @@ Para facilitar a notação a equação acima assume dados mensais, onde $d_{k}$ 
 
 Considere o modelo linear abaixo
 
-$$
-  y_{t} = \beta_{0} + \beta_{1}t + \epsilon_{t}
-$$
+$$  y_{t} = \beta_{0} + \beta_{1}t + \epsilon_{t}$$
 
 Temos duas opções para montar a variável $t$ : pode-se usar a função `time(x)` se `x` for um objeto da classe `ts` ou, de maneira mais geral, pode-se usar a função `seq_along(x)`.
 
@@ -236,9 +222,7 @@ autoplot(gdp) +
 
 Parte do motivo de se estimar uma tendência para a série é para poder removê-la da série original. Isto é, queremos fazer
 
-$$
-  y_{t}^{\text{detrend}} = y_{t} - \hat{y_{t}} = y_{t} - \hat{\beta_{0}} + \hat{\beta_{1}}t
-$$
+$$  y_{t}^{\text{detrend}} = y_{t} - \hat{y_{t}} = y_{t} - \hat{\beta_{0}} + \hat{\beta_{1}}t$$
 
 onde $y_{t}^{\text{detrend}}$ é a série sem tendência. Isto é particularmente útil quando estamos lidando com séries "tendência-estacionárias", i.e., séries que se tornam estacionárias quando subtraímos a sua tendência. No caso da série do PIB há algum debate sobre como torná-la estacionária. Em geral, é mais comum tratá-la como "diferença-estacionária" e tirar a primeira diferença da série (implicitamente assumindo que ela possui uma raiz unitária). Contudo, há alguma evidência de que a série possa ser "tendência-estacionária" quando se considera uma tendência com quebra.
 
@@ -255,15 +239,11 @@ autoplot(detrend) +
 
 Uma forma de estender o modelo acima é considerar ordens polinomiais mais elevadas. De forma geral, o modelo teria a seguinte forma:
 
-$$
-  y_{t} = \sum_{i = 0}^{k}\beta_{k}t^{k} + \epsilon_{t}
-$$
+$$  y_{t} = \sum_{i = 0}^{k}\beta_{k}t^{k} + \epsilon_{t}$$
 
 onde $k$ é a ordem que estamos considerando. Para uma tendência cúbica, por exemplo, teríamos:
 
-$$
-  y_{t} = \beta_{0} + \beta_{1}t + \beta_{2}t^{2} + \beta_{3}t^{3}+ \epsilon_{t}
-$$
+$$  y_{t} = \beta_{0} + \beta_{1}t + \beta_{2}t^{2} + \beta_{3}t^{3}+ \epsilon_{t}$$
 
 O código abaixo estima justamente este modelo e os resultados são reportados na tabela.
 
@@ -291,11 +271,11 @@ autoplot(gdp) +
 
 Como se vê no gráfico, a tendência cúbica oferece uma aproximação melhor da série original, contudo, há motivos para ter cuidado com este tipo de modelo. À medida que se aumenta a ordem do polinômio, o ajuste da tendência vai progressivamente melhorando. Isto é problemático por pelo menos três motivos:
 
--   \(1\) enquanto talvez exista algum argumento que justifique uma tendência cúbica nos dados do PIB, é difícil imaginar algum para explicar por que o PIB exibe uma tendência polinomial de ordem 10, 17, 21, etc;
+- \(1\) enquanto talvez exista algum argumento que justifique uma tendência cúbica nos dados do PIB, é difícil imaginar algum para explicar por que o PIB exibe uma tendência polinomial de ordem 10, 17, 21, etc;
 
--   \(2\) ordens altas geralmente implicam num [*sobreajuste*](https://pt.wikipedia.org/wiki/Sobreajuste) dos dados, isto é, o modelo vai se tornar muito bom em explicar o conjunto atual de dados, mas será péssimo para fazer previsões;
+- \(2\) ordens altas geralmente implicam num [*sobreajuste*](https://pt.wikipedia.org/wiki/Sobreajuste) dos dados, isto é, o modelo vai se tornar muito bom em explicar o conjunto atual de dados, mas será péssimo para fazer previsões;
 
--   \(3\) cada parâmetro do modelo é estimado com algum erro, então quanto mais parâmetros forem incluídos no modelo, maior será este erro.
+- \(3\) cada parâmetro do modelo é estimado com algum erro, então quanto mais parâmetros forem incluídos no modelo, maior será este erro.
 
 O gráfico abaixo mostra o ajuste com polinômios de ordens diferentes. Note como as tendências com ordens de polinômios mais elevados apresentam um ajuste melhor aos dados. Isto é especialmente verdadeiro no começo e no final da série.
 
@@ -355,24 +335,18 @@ autoplot(prodn) +
 
 Outra opção seria utilizar uma média móvel para estimar o componente de tendência da série. Uma média móvel calcula uma média dos valores da série em janelas de tempo:
 
-$$
-T_{t} = \frac{1}{k}\sum_{i = n-k+1}^{n}y_{i}
-$$
+$$T_{t} = \frac{1}{k}\sum_{i = n-k+1}^{n}y_{i}$$
 
 Assim uma média móvel de 3 períodos centrada teria a forma
 
-$$
-T_{t} = \frac{1}{3}y_{t-1} + \frac{1}{3}y_{t} + \frac{1}{3}y_{t+1}
-$$
+$$T_{t} = \frac{1}{3}y_{t-1} + \frac{1}{3}y_{t} + \frac{1}{3}y_{t+1}$$
 
 Também é possível fazer uma média móvel de uma *média móvel*. Por exemplo, pode-se ter uma média móvel de 2 períodos sobre uma média móvel de 4 períodos
 
-$$
-\begin{align}
+$$\begin{align}
 T_{t} =  & \frac{1}{2}[\frac{1}{4}(y_{t-2} + y_{t-1} + y_{t} + y_{t + 1}) + \frac{1}{4}(y_{t-1} + y_{t} + y_{t + 1} + y_{t + 1} )] \\
 = & \frac{1}{8}y_{t-2} + \frac{1}{4}y_{t-1} + \frac{1}{4}y_{t} + \frac{1}{4}y_{t + 1}\frac{1}{8}y_{t + 2}
-\end{align}
-$$
+\end{align}$$
 
 Neste caso faço um filtro neste estilo para 12 meses.
 
@@ -425,15 +399,11 @@ Uma especificação bastante comum é descrever o comportamento de uma variável
 
 Um modelo para explicar $y$ em função de seu valor defasado em um período, do valor contemporâneo de $x$ e do valor defasado de $x$ em um período.
 
-$$
-  y_{t} = \beta_{0} + \beta_{1}y_{t - 1} + \beta_{2}x_{t} + \beta_{3}x_{t - 1} + w_{t}
-$$
+$$  y_{t} = \beta_{0} + \beta_{1}y_{t - 1} + \beta_{2}x_{t} + \beta_{3}x_{t - 1} + w_{t}$$
 
 Note que o modelo acima não seria muito útil para gerar previsões de $y_{t + 1}$ pois ele exigiria conhecimento de $x_{t + 1}$. Então, seria necessário primeiro prever o valor de $x_{t + 1}$ para computar uma estimativa para $y_{t + 1}$.
 
-$$
-\mathbb{E}(y_{t + 1} | \mathbb{I}_{t}) = \beta_{0} + \beta_{1}y_{t} + \beta_{2}x_{t + 1} + \beta_{3}x_{t}
-$$
+$$\mathbb{E}(y_{t + 1} | \mathbb{I}_{t}) = \beta_{0} + \beta_{1}y_{t} + \beta_{2}x_{t + 1} + \beta_{3}x_{t}$$
 
 ## Exemplo: Índice de Produção Industrial
 
@@ -459,9 +429,7 @@ gglagplot(prod, 12, do.lines = FALSE, colour = FALSE) +
 
 Como exemplo, podemos propor o modelo abaixo para o IPI. A escolha dos lags aqui foi um tanto arbitrária e há métodos mais apropriados para escolhê-los.
 
-$$
-  IPI_{t} = \beta_{0} + \beta_{1}IPI_{t - 1} + \beta_{2}IPI_{t - 2} + \beta_{3}IPI_{t - 4} + \beta_{2}IPI_{t - 12}
-$$
+$$  IPI_{t} = \beta_{0} + \beta_{1}IPI_{t - 1} + \beta_{2}IPI_{t - 2} + \beta_{3}IPI_{t - 4} + \beta_{2}IPI_{t - 12}$$
 
 Para estimar este modelo no R há um pequeno inconveniente da função `lag` que, na verdade, funciona como um operador *foreward*. Além disso, agora a função base `lm` (e por conseguinte, também a função `tslm`) se prova um tanto inconveniente, pois ela não funciona bem com variáveis defasadas. Para usar a função `lm` seria necessário primeiro "emparelhar" as diferentes defasagens da série, isto é, seria necessário criar um `data.frame` (ou `ts`) em que cada coluna mostra os valores das defasagens escolhidas. Por motivo de completude, deixo um código de exemplo que faz isto. Na prática, vale mais a pena escolher alguma outra função como `dynlm::dynlm` ou `dyn::dyn$lm`. O código abaixo usa o `forecast::tslm`, mas nos exemplos seguintes uso o `dyn::dyn$lm`.
 
@@ -530,9 +498,7 @@ autoplot(series) +
 
 Feito o trabalho de importação dos dados podemos propor um modelo simples que toma o valor defasado das variáveis. Novamente a escolha das defasagens e dos regressores foi completamente arbitrária. O modelo estimado usa defasagens de outras séries para modelar o comportamento da série do índice de produção da indústria de tranformação
 
-$$
-  Transf_{t} = \beta_{0} + \beta_{1}Durav_{t - 1} + \beta_{2}Durav_{t - 12} + \beta_{3}Capital_{t - 1} + \beta_{4}Capital_{t - 6} + \beta_{5}Transf_{t - 1} + \alpha_{1}t + \sum_{k = 2}^{12}\alpha_{k}d_{k}
-$$
+$$  Transf_{t} = \beta_{0} + \beta_{1}Durav_{t - 1} + \beta_{2}Durav_{t - 12} + \beta_{3}Capital_{t - 1} + \beta_{4}Capital_{t - 6} + \beta_{5}Transf_{t - 1} + \alpha_{1}t + \sum_{k = 2}^{12}\alpha_{k}d_{k}$$
 
 ```{r}
 fit <- dyn$lm(
@@ -586,9 +552,7 @@ Na análise de sazonalidade já lidamos com dummies, mas vale a pena discutí-la
 
 ### Exemplo: Efeito de greves e preços administrados no IPCA
 
-$$
-  \text{IPCA}_{t} = \beta_{0} + \beta_{1}\text{gcam}_{t} + \beta_{2}\text{g2013}_{t} + \beta_{3}\text{padm}_{t} + \text{dsaz} + \varepsilon_{t}
-$$
+$$  \text{IPCA}_{t} = \beta_{0} + \beta_{1}\text{gcam}_{t} + \beta_{2}\text{g2013}_{t} + \beta_{3}\text{padm}_{t} + \text{dsaz} + \varepsilon_{t}$$
 
 ```{r, message = FALSE}
 ipca <- gbcbd_get_series(433, first.date = as.Date("1995-01-01"))
@@ -678,9 +642,7 @@ lines(test)
 
 Modelos de regressão linear podem também ser usados para fazer previsões. A princípio os valores futuros de uma série podem ser computados usando os valores estimados dos $\beta_{i}$. Num modelo linear de $y_{t}$ em função de $k$ séries de tempo, como o abaixo, podemos calcular o valor de $\hat{y_{t}}$
 
-$$
-  \hat{y_{t}} = \hat{\beta_{0}} + \hat{\beta_{1}}x_{1, t} + \hat{\beta_{2}}x_{2, t} + \dots + \hat{\beta_{k}}x_{k, t}
-$$
+$$  \hat{y_{t}} = \hat{\beta_{0}} + \hat{\beta_{1}}x_{1, t} + \hat{\beta_{2}}x_{2, t} + \dots + \hat{\beta_{k}}x_{k, t}$$
 
 contudo, o valor de $y_{t + 1}$ exige o conhecimento do valor de todas as $k$ séries em $t+1$. O mesmo vale quando usamos variáveis defasadas como regressores. Há diversas formas de resolver este problema. Uma solução simples seria tomar o valor médio dos regressores para formar as previsões. Outra solução seria propor modelos ARMA simples para cada uma das séries $x_{k, t}$ e usar estas previsões dentro do modelo linear para $y_{t}$. Alternativamente, pode-se também montar cenários futuros hipotéticos definindo valores pré-estabelecidos para as variáveis regressoras.
 

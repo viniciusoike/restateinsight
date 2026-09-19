@@ -82,6 +82,36 @@ before registering it.
 
 Create `posts/<category>/<YYYY-MM-slug>/index.qmd`. The `_metadata.yml` in `posts/` sets shared defaults.
 
+## Draft Posts
+
+A post with `draft: true` renders to a 90-byte empty page. That is Quarto's
+default `draft-mode: gone`, not a bug — it keeps draft content off
+restateinsight.com.
+
+To read a draft, use the `draft` profile, which sets `draft-mode: visible` and
+redirects output to the untracked `_site-draft/`.
+
+```bash
+R/preview-draft.sh posts/<category>/<slug>/index.qmd            # serves on port 4201
+R/preview-draft.sh posts/<category>/<slug>/index.qmd --reseed   # after _site/ moved on
+```
+
+The script copies `_site/` into `_site-draft/` on first run, preserving mtimes.
+That seeding is what keeps the preview server from rebuilding all ~165
+documents into an empty output dir. Pass `--reseed` when the rest of the site
+has changed enough that the copy feels stale.
+
+- **Never render a draft into `_site/`.** A plain `quarto render <draft>`
+  overwrites its page with the empty stub, and a plain `quarto preview` then
+  serves that stub — preview only re-renders inputs newer than their output, so
+  the draft looks permanently blank until the `.qmd` is saved again. This is the
+  usual cause of "the draft preview is empty".
+- `blog.qmd` carries `exclude: draft: true` in its listing, so drafts stay out
+  of the blog grid even under the draft profile. Open the post by its direct URL.
+- Rendering a changed draft updates its `_freeze/` entry, same as any post.
+- Quarto reports "Terminating existing preview server" on launch, so the draft
+  preview and a normal `quarto preview` do not run side by side.
+
 ## Gotchas
 
 - **Never run a bare `quarto render` to "sync", "rebuild", or "regenerate" `_site/`.**
@@ -100,7 +130,12 @@ Create `posts/<category>/<YYYY-MM-slug>/index.qmd`. The `_metadata.yml` in `post
     `_site/` churn, then `git clean -fd` (excluding any pre-existing untracked
     dirs) to delete the stray root-level `.html` and `index_files/` intermediates.
 - **`_quarto.yml` controls the entire website.** Edit with extreme care — a bad change here can break every page. Test with `quarto preview` before committing.
-- **`freeze: true`** is set in `posts/_metadata.yml`, so post compute outputs are cached under `_freeze/`. Don't delete `_freeze/` casually — re-running every post's code is slow. To force a single post to re-execute, delete only its subdir under `_freeze/`.
+- **`freeze: true`** is set in `posts/_metadata.yml`, so post compute outputs are cached under `_freeze/`. Don't delete `_freeze/` casually — re-running every post's code is slow.
+  - A project render replays the frozen markdown and never executes, but it also **ignores source edits**: the freeze stores its own copy of the front matter and body.
+  - `quarto render <file>` always executes, freeze or not. `quarto render <file> --use-freezer` replays the freeze without executing.
+  - After a front-matter-only edit (title, image, categories, ...), run `Rscript R/bless_freeze.R` (dry run; `--apply` to write), then `quarto render <file> --use-freezer`. Body edits need a real render.
+  - `Rscript R/prune_build_cache.R` removes orphaned `_freeze/` entries and stale `.quarto/` session temp dirs.
+  - Migration status and open work: `_notes/migration-plan.md`.
 
 ## Code Style
 
