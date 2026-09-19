@@ -1,0 +1,98 @@
+---
+title: "Quantas pessoas vivem a 6 km do centro?"
+date: "2026-09-17"
+categories: ["mapas", "censo", "cidades", "demografia", "data-visualization"]
+description: "Um círculo de 12 km de diâmetro, centrado no centro de onze grandes cidades brasileiras, mostra como a população se distribui perto do centro. São Paulo reúne mais gente no círculo; Salvador tem a maior densidade em terra; Brasília fica muito atrás das demais."
+image: "/static/images/posts/2026-09-circulos-densidade/salvador-circle.png"
+format:
+  html:
+    toc: false
+knitr:
+  opts_chunk:
+    dev: "ragg_png"
+    dpi: 200
+execute:
+  message: false
+  warning: false
+  echo: false
+draft: true
+---
+
+```{r setup}
+source(here::here("posts/general-posts/2026-09-circulos-densidade/plots.R"))
+
+sf_use_s2(FALSE)
+
+circles <- qs::qread(here::here("static/data/circles_cities.qs"))
+
+summary_cities <- bind_rows(lapply(circles, \(x) x$summary))
+summary_cities <- mutate(summary_cities, slug = names(circles))
+summary_cities <- arrange(summary_cities, desc(pop_circle))
+```
+
+```{r plots}
+plots <- lapply(circles, plot_circle, title_size = 18)
+plots <- plots[summary_cities$slug]
+
+p_legend <- plot_legend()
+p_ranking <- plot_ranking(summary_cities)
+```
+
+```{r highlights}
+#| output: false
+source(here::here("R/save_highlight.R"))
+
+save_highlight(plots$salvador, "salvador-circle", width = 5.2, height = 6.3)
+save_highlight(p_ranking, "circle-population-ranking", width = 8, height = 4.5)
+```
+
+Os limites municipais são uma régua ruim para comparar cidades. Brasília ocupa todo o Distrito Federal, uma área de quase 5.800 km², enquanto Recife cabe em 220 km². Qualquer indicador calculado sobre o município, como a densidade populacional, mistura o miolo urbano com áreas rurais, parques e reservas. Neste post, troco o município por uma forma fixa: um círculo de 6 km de raio em torno do centro de onze grandes cidades brasileiras.
+
+O círculo tem sempre 113 km² e ignora fronteiras. Ele mostra quantas pessoas vivem perto do centro e como elas se distribuem pelas ruas. Os dados de população vêm do Censo 2022, no nível do setor censitário; as ruas, parques e corpos d'água vêm do OpenStreetMap.
+
+# Os mapas
+
+Cada rua recebe a cor da densidade do setor censitário que ela atravessa. Tons escuros indicam setores com poucos moradores; tons claros, setores muito adensados. As ruas em cinza-escuro atravessam setores sem nenhum morador, como áreas portuárias e distritos comerciais. Todos os mapas estão na mesma escala e usam as mesmas faixas de cor.
+
+```{r legend}
+#| fig-width: 5.2
+#| fig-height: 1
+#| fig-align: center
+p_legend
+```
+
+```{r grid}
+#| layout-ncol: 3
+#| column: page
+#| fig-width: 5.2
+#| fig-height: 6.3
+for (p in plots) print(p)
+```
+
+# Mais gente e mais densidade
+
+São Paulo reúne 1,26 milhão de pessoas no círculo, bem mais do que qualquer outra cidade. O círculo paulistano cai inteiro em terra e cobre bairros densos como Bela Vista, Consolação e Santa Cecília. Ainda assim, ele concentra só 6% da população da concentração urbana de São Paulo, que passa de 20 milhões de pessoas. Belo Horizonte e Salvador vêm a seguir, com cerca de 900 mil pessoas cada.
+
+A contagem de pessoas, contudo, penaliza as cidades litorâneas. Em Salvador, Recife e no Rio de Janeiro, o mar ocupa quase metade do círculo. Por isso, o gráfico abaixo também mostra a densidade calculada apenas sobre a área de terra, que exclui mar, baías, rios e lagos.
+
+```{r ranking}
+#| fig-width: 8
+#| fig-height: 4.5
+p_ranking
+```
+
+Com essa correção, Salvador passa à frente: são quase 16 mil habitantes por km² de terra, contra 11 mil em São Paulo. Na ponta da península, entre a Baía de Todos os Santos e o oceano, quase 40% da extensão das ruas atravessa setores com mais de 20 mil habitantes por km². Nenhuma outra cidade passa de 25%. Rio de Janeiro, Recife e Fortaleza vêm a seguir, com cerca de 10 mil habitantes por km² de terra.
+
+No outro extremo, Curitiba, Goiânia e Porto Alegre têm centros menos adensados, entre 4,5 mil e 6,2 mil habitantes por km² de terra. Nessas cidades, as ruas do círculo aparecem em tons médios e uniformes, sem as manchas claras de Salvador ou Fortaleza.
+
+# Brasília
+
+Brasília é a exceção. O círculo em torno do centro do Plano Piloto tem só 190 mil moradores, menos de 5% da concentração urbana. O mapa explica o número: o Eixo Monumental, a Esplanada e o Lago Paranoá ocupam boa parte do círculo, e as manchas coloridas se limitam às superquadras das Asas Sul e Norte. A maior parte da população do Distrito Federal vive em Ceilândia, Taguatinga, Samambaia e outras regiões administrativas, a mais de 15 km do centro.
+
+# Notas sobre os dados
+
+Escolhi o centro de cada círculo à mão, em geral no centro histórico ou no principal eixo comercial da cidade. A população no círculo soma os setores censitários do Censo 2022 ponderados pela fração da área de cada setor que cai dentro do círculo. A densidade de cada setor usa a área total do setor. A área de terra exclui os setores classificados pelo IBGE como massas d'água, e o mar corresponde a essa mesma área excluída.
+
+O círculo ignora limites municipais. Em Recife, por exemplo, ele inclui parte de Olinda. Por isso, a comparação usa a concentração urbana do IBGE, e não o município.
+
+O código que baixa e prepara os dados está em [`static/data-raw/R/circles_cities.R`](https://github.com/viniciusoike/restateinsight/blob/main/static/data-raw/R/circles_cities.R). A primeira versão destes mapas saiu no [30DayChartChallenge de 2025](/posts/general-posts/2025-05-chart-challenge/), e o estilo se inspira no pacote [`prettymaps`](https://github.com/marceloprates/prettymaps), de Marcelo Prates.
