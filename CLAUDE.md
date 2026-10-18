@@ -60,6 +60,11 @@ When adding new charts to the gallery:
 4. Paste template into `static/gallery/gallery.json`, fill in all `TODO` fields
 5. `quarto preview` (or `quarto render gallery.qmd`) to rebuild — never a bare `quarto render`
 
+Interactive pages (D3/JS from the ekio-viz repo) live in
+`static/interactive/<slug>/`, synced with `Rscript R/sync_interactive.R`,
+and are embedded in a wrapper post through an iframe. See "Adding an
+interactive page" in `GALLERY.md`.
+
 Thumbnails live at `<image-dir>/thumbs/<stem>.webp`. Requires ImageMagick (`brew install imagemagick`).
 
 Gallery images must be PNG, not SVG — choropleth/map SVGs run 2–30 MB and

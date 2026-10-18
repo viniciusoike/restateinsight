@@ -1,0 +1,194 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>O Congresso eleito em 2026</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Host+Grotesk:wght@400;600&family=Lato:wght@400;700&family=Lora:wght@600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
+<style>
+  :root {
+    --bg: #FBFBF6;
+    --card: #FFFFFF;
+    --ink: #28292C;       /* gray-800 */
+    --ink-mid: #505358;   /* gray-600 */
+    --ink-light: #898E93; /* gray-400 */
+    --rule: #E4E2DC;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font: 15px/1.45 Lato, system-ui, sans-serif;
+  }
+  a { color: inherit; text-decoration-thickness: 1px; text-underline-offset: 2px; }
+  main { max-width: 1180px; margin: 0 auto; padding: 32px 16px 48px; }
+  h1 { font: 700 2rem/1.15 Lora, Georgia, serif; margin: 0 0 6px; }
+  h2 { font: 700 1.2rem Lora, Georgia, serif; margin: 0 0 8px; }
+  .lede { color: var(--ink-mid); max-width: 72ch; margin: 0 0 20px; }
+  .eyebrow { font: 600 .78rem "Host Grotesk", sans-serif; text-transform: uppercase; letter-spacing: .04em; color: var(--ink-mid); }
+
+  /* Controls: pill radio groups, a state select and a name search. */
+  .controls { display: flex; flex-wrap: wrap; gap: 10px 24px; align-items: center; margin-bottom: 16px; }
+  .controls fieldset { border: 0; padding: 0; margin: 0; display: flex; gap: 4px; align-items: center; flex-wrap: wrap; }
+  .controls legend { float: left; margin-right: 8px; }
+  .controls label { cursor: pointer; }
+  .controls input[type="radio"] { position: absolute; opacity: 0; }
+  .controls .pill {
+    display: inline-block; padding: 4px 12px; border: 1px solid var(--ink-light);
+    border-radius: 999px; font-size: .9rem; white-space: nowrap;
+  }
+  .controls input:checked + .pill { background: var(--ink); border-color: var(--ink); color: var(--bg); }
+  .controls input:focus-visible + .pill { outline: 2px solid var(--ink); outline-offset: 2px; }
+  .controls select, .controls input[type="search"] {
+    font: inherit; font-size: .9rem; padding: 4px 10px; border: 1px solid var(--ink-light);
+    border-radius: 6px; background: var(--card); color: var(--ink);
+  }
+  .controls input[type="search"] { width: 200px; }
+
+  /* Hemicycle and member card side by side; stacked on narrow screens. */
+  .stage { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 24px; align-items: start; }
+  @media (max-width: 860px) { .stage { grid-template-columns: 1fr; } }
+  .hemicycle svg { width: 100%; height: auto; display: block; overflow: visible; }
+  .seat { cursor: pointer; transition: opacity .15s; }
+  .seat.dim { opacity: .12; }
+  .seat.pinned { stroke: var(--ink); stroke-width: 2.5px; }
+  .wedge-label { font: 13px Lato, sans-serif; fill: var(--ink-mid); }
+  .total { font: 700 44px Lora, serif; fill: var(--ink); }
+  .total-sub { font: 14px Lato, sans-serif; fill: var(--ink-light); }
+
+  .legend { display: flex; flex-wrap: wrap; gap: 4px 14px; margin: 6px 0 0; font-size: .85rem; }
+  .legend-item { display: flex; align-items: center; gap: 6px; cursor: default; }
+  .legend-item .sw { width: 12px; height: 12px; border-radius: 50%; }
+  .legend-item .n { color: var(--ink-light); }
+  .legend-item.empty { color: var(--ink-light); }
+  .legend-note { font-size: .8rem; color: var(--ink-light); margin: 4px 0 0; }
+
+  .card {
+    background: var(--card); border: 1px solid var(--rule); border-radius: 10px;
+    padding: 16px; position: sticky; top: 16px; min-height: 220px;
+  }
+  .card .empty { color: var(--ink-light); font-size: .9rem; }
+  .card .head { display: flex; gap: 12px; align-items: flex-start; margin-bottom: 10px; }
+  .card .avatar {
+    position: relative; width: 72px; height: 96px; border-radius: 6px; flex: none; overflow: hidden;
+    display: grid; place-items: center; color: #fff; font: 700 1.6rem Lora, serif;
+  }
+  .card .avatar img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+  .card .name { font: 700 1.1rem/1.2 Lora, serif; margin: 0; }
+  .card .full { font-size: .8rem; color: var(--ink-light); margin: 2px 0 6px; }
+  .card .tag { display: inline-flex; align-items: center; gap: 6px; font-size: .85rem; }
+  .card .tag .sw { width: 10px; height: 10px; border-radius: 50%; }
+  .card dl { display: grid; grid-template-columns: auto 1fr; gap: 3px 12px; margin: 0; font-size: .86rem; }
+  .card dt { color: var(--ink-light); }
+  .card dd { margin: 0; }
+  .card .actions { margin-top: 10px; font-size: .8rem; display: flex; gap: 12px; }
+  .card button { font: inherit; background: none; border: 0; padding: 0; text-decoration: underline; cursor: pointer; color: var(--ink-mid); }
+
+  /* Ideological scale: one dot per party on the 0-10 axis. */
+  section { margin-top: 36px; }
+  .scale svg { width: 100%; height: auto; display: block; overflow: visible; }
+  .scale .band-label { font: 600 11px "Host Grotesk", sans-serif; fill: var(--ink-mid); text-transform: uppercase; letter-spacing: .03em; }
+  .scale .party-label { font: 12px Lato, sans-serif; fill: var(--ink); }
+  .scale .axis text { font: 11px Lato, sans-serif; fill: var(--ink-light); }
+  .scale .party { cursor: pointer; transition: opacity .15s; }
+  .scale .party-score { font: 11px Lato, sans-serif; fill: var(--ink-light); }
+
+  .blocs { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(260px, 100%), 1fr)); gap: 16px; }
+  .bloc { background: var(--card); border: 1px solid var(--rule); border-radius: 10px; padding: 14px 16px; }
+  .bloc .big { font: 700 2rem Lora, serif; }
+  .bloc p { margin: 4px 0 0; font-size: .9rem; color: var(--ink-mid); }
+  .thresholds { list-style: none; padding: 0; margin: 10px 0 0; font-size: .88rem; }
+  .thresholds li { display: flex; justify-content: space-between; gap: 8px; padding: 4px 0; border-top: 1px solid var(--rule); }
+  .thresholds .ok { color: var(--ink); font-weight: 700; }
+  .thresholds .no { color: var(--ink-light); }
+
+  .method { font-size: .9rem; color: var(--ink-mid); max-width: 80ch; }
+  .method li { margin-bottom: 6px; }
+  footer { margin-top: 32px; font-size: .8rem; color: var(--ink-light); }
+</style>
+</head>
+<body>
+<main>
+  <h1>O Congresso eleito em 2026</h1>
+  <p class="lede">
+    Cada ponto é uma cadeira. Os partidos estão ordenados da esquerda para a
+    direita segundo a nota que cientistas políticos lhes dão numa escala de
+    0 a 10. Passe o mouse ou toque numa cadeira para ver quem a ocupa a
+    partir de fevereiro de 2027.
+  </p>
+
+  <div class="controls">
+    <fieldset id="chamber">
+      <legend class="eyebrow">Casa</legend>
+      <label><input type="radio" name="chamber" value="camara" checked><span class="pill">Câmara</span></label>
+      <label><input type="radio" name="chamber" value="senado"><span class="pill">Senado</span></label>
+    </fieldset>
+    <fieldset id="color">
+      <legend class="eyebrow">Cor</legend>
+      <label><input type="radio" name="color" value="category" checked><span class="pill">Ideologia</span></label>
+      <label><input type="radio" name="color" value="gender"><span class="pill">Gênero</span></label>
+      <label><input type="radio" name="color" value="race"><span class="pill">Cor/raça</span></label>
+    </fieldset>
+    <fieldset>
+      <legend class="eyebrow">Filtrar</legend>
+      <select id="uf" aria-label="Estado"><option value="">Todos os estados</option></select>
+      <input id="search" type="search" placeholder="Buscar nome ou partido" aria-label="Buscar nome ou partido">
+    </fieldset>
+  </div>
+
+  <div class="stage">
+    <div>
+      <div class="hemicycle" id="hemicycle"></div>
+      <div class="legend" id="legend"></div>
+      <p class="legend-note" id="legend-note"></p>
+    </div>
+    <aside class="card" id="card" aria-live="polite"></aside>
+  </div>
+
+  <section class="scale">
+    <h2>Onde cada partido fica na escala</h2>
+    <p class="lede">
+      Nota média dada por cientistas políticos, de 0 (esquerda) a 10
+      (direita). O tamanho do círculo é o número de cadeiras na Casa
+      selecionada. Nenhum partido com assento cai na faixa de centro
+      (4,5 a 5,5). Asterisco: nota atribuída por regra, não pela pesquisa
+      (veja a metodologia).
+    </p>
+    <div id="scale"></div>
+  </section>
+
+  <section>
+    <h2>Quantos votos cada lado reúne</h2>
+    <div class="blocs" id="blocs"></div>
+  </section>
+
+  <section class="method">
+    <h2>Como os dados foram montados</h2>
+    <ul>
+      <li>Eleitos em 2026: arquivo de candidatos do TSE, com a situação de
+        totalização do 1º turno. Votos são os votos nominais válidos somados
+        por município e zona.</li>
+      <li>Senado: além dos 54 eleitos em 2026, seguem até 2031 os 27
+        senadores eleitos em 2022 (círculos vazados). Para eles vale o
+        partido atual, segundo os dados abertos do Senado.</li>
+      <li>Ideologia: média ponderada de 2022 de Bolognesi, Ribeiro, Codato e
+        Silva (<a href="https://periodicos.sbu.unicamp.br/ojs/index.php/op/article/view/8682072">Opinião Pública, 2025</a>),
+        com as faixas dos autores. "Extrema" indica só a posição na escala,
+        sem juízo sobre a atuação do partido. Classificamos partidos, não
+        federações nem coligações.</li>
+      <li>PRD, fusão de PTB e Patriota, recebe a média dos dois. Missão,
+        fundado em 2025 e não avaliado, recebe a nota do Novo.</li>
+      <li>Fotos: só dos senadores eleitos em 2022, carregadas do site do Senado. Os eleitos em 2026 ganham foto oficial quando tomarem posse.</li>
+    </ul>
+  </section>
+
+  <footer id="footer"></footer>
+</main>
+<script src="congresso.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
