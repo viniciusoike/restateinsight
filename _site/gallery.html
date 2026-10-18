@@ -261,7 +261,7 @@ gtag('config', 'G-EJF8PGT67H', { 'anonymize_ip': true});
   position: fixed;
   left: 0;
   right: 0;
-  z-index: 99;          /* below Bootstrap navbar (1030) but above page content */
+  z-index: 1000;        /* below Bootstrap navbar (1030), above the title banner (998) */
   display: flex;
   gap: 1.75rem;
   align-items: center;
@@ -449,6 +449,24 @@ gtag('config', 'G-EJF8PGT67H', { 'anonymize_ip': true});
 .tag-topic  { background: #e8f0fb; color: #1a56a8; }
 .tag-tool   { background: #eef7ef; color: #1e6e2e; }
 .tag-source { background: #fbf1e8; color: #a8531a; }
+.tag-interactive { background: #f1ebfa; color: #5b2a99; }
+
+/* Corner badge marking interactive cards, visible without hovering */
+.interactive-badge {
+  position: absolute;
+  top: 0.6rem;
+  left: 0.6rem;
+  z-index: 1;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  background: var(--primary);
+  color: #fff;
+  font-size: 0.64rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  pointer-events: none;
+}
 
 /* ── LOAD SENTINEL & SPINNER ────────────────────────────────────────────── */
 .load-sentinel {
@@ -489,7 +507,7 @@ gtag('config', 'G-EJF8PGT67H', { 'anonymize_ip': true});
 .lightbox {
   position: fixed;
   inset: 0;
-  z-index: 2000;            /* above navbar (1030) and filter bar (99) */
+  z-index: 2000;            /* above navbar (1030) and filter bar (1000) */
   background: rgba(10, 15, 25, 0.92);
   display: none;
   align-items: center;
@@ -581,6 +599,10 @@ See the <a href="./chart-challenge.html">Chart Challenge archive</a>.</p>
   <div class="filter-group" id="tool-filters" role="group" aria-label="Filter by tool">
     <span class="filter-label">Tool</span>
   </div>
+  <div class="filter-group" id="format-filters" role="group" aria-label="Filter by format">
+    <span class="filter-label">Format</span>
+    <button class="chip" id="interactive-toggle" type="button" aria-pressed="false">Interactive only</button>
+  </div>
 </div>
 <!-- Spacer: height set by JS to match filter bar height so content isn't hidden under the fixed bar -->
 <div id="filter-bar-spacer"></div>
@@ -623,6 +645,12 @@ See the <a href="./chart-challenge.html">Chart Challenge archive</a>.</p>
   */
   const filterBar    = document.getElementById('filter-bar');
   const filterSpacer = document.getElementById('filter-bar-spacer');
+
+  // Quarto's main column is its own stacking context (opacity: 0.999), which
+  // traps fixed children below the title banner (z-index 998) and navbar.
+  // Lift the filter bar and lightbox to <body> so their z-index applies.
+  document.body.appendChild(filterBar);
+  document.body.appendChild(document.getElementById('lightbox'));
 
   function positionFilterBar() {
     // Find the navbar — Quarto/Bootstrap uses .navbar as the top bar
@@ -676,6 +704,8 @@ See the <a href="./chart-challenge.html">Chart Challenge archive</a>.</p>
        year        – year created (number)
        source      – collection name, e.g. "30DayChartChallenge", or null (string | null)
        description – one-sentence description (string)
+       type        – "interactive" for embedded pages; omit for static charts
+       url         – page to open for interactive entries (string)
   ── ─────────────────────────────────────────────────────────────────── */
   let GALLERY_DATA;
   try {
@@ -695,7 +725,7 @@ See the <a href="./chart-challenge.html">Chart Challenge archive</a>.</p>
   const BATCH_SIZE = 12;
 
   /* ── STATE ──────────────────────────────────────────────────────────── */
-  let activeFilters = { topic: 'all', tool: 'all' };
+  let activeFilters = { topic: 'all', tool: 'all', interactiveOnly: false };
   let filtered      = [];
   let rendered      = 0;
   const hasIO       = 'IntersectionObserver' in window;   // lazy-load support
@@ -713,6 +743,19 @@ See the <a href="./chart-challenge.html">Chart Challenge archive</a>.</p>
 
   allTopics.forEach(v => document.getElementById('topic-filters').appendChild(makeChip('topic', v)));
   allTools.forEach(v  => document.getElementById('tool-filters').appendChild(makeChip('tool', v)));
+
+  // Interactive toggle: hidden until the data has at least one interactive entry
+  const isInteractive = c => c.type === 'interactive';
+  const toggle = document.getElementById('interactive-toggle');
+  if (!GALLERY_DATA.some(isInteractive)) {
+    document.getElementById('format-filters').style.display = 'none';
+  }
+  toggle.addEventListener('click', () => {
+    activeFilters.interactiveOnly = !activeFilters.interactiveOnly;
+    toggle.classList.toggle('active', activeFilters.interactiveOnly);
+    toggle.setAttribute('aria-pressed', activeFilters.interactiveOnly ? 'true' : 'false');
+    applyFilters();
+  });
 
   // Re-measure spacer after chips are injected (wrapping can change bar height)
   positionFilterBar();
@@ -743,7 +786,8 @@ See the <a href="./chart-challenge.html">Chart Challenge archive</a>.</p>
     filtered = GALLERY_DATA.filter(c => {
       const topicOk = activeFilters.topic === 'all' || c.topic === activeFilters.topic;
       const toolOk  = activeFilters.tool  === 'all' || c.tool  === activeFilters.tool;
-      return topicOk && toolOk;
+      const formatOk = !activeFilters.interactiveOnly || isInteractive(c);
+      return topicOk && toolOk && formatOk;
     });
 
     rendered = 0;
@@ -769,7 +813,8 @@ See the <a href="./chart-challenge.html">Chart Challenge archive</a>.</p>
     const n     = filtered.length;
     const total = GALLERY_DATA.length;
     const noun  = n === 1 ? 'chart' : 'charts';
-    const isFiltered = activeFilters.topic !== 'all' || activeFilters.tool !== 'all';
+    const isFiltered = activeFilters.topic !== 'all' || activeFilters.tool !== 'all' ||
+                       activeFilters.interactiveOnly;
     document.getElementById('result-count').innerHTML = isFiltered
       ? `<strong>${n}</strong> of ${total} ${noun}`
       : `<strong>${n}</strong> ${noun}`;
@@ -800,6 +845,7 @@ See the <a href="./chart-challenge.html">Chart Challenge archive</a>.</p>
   function buildCard(c, index) {
     const card = document.createElement('div');
     card.className = 'chart-card';
+    const interactive = isInteractive(c);
 
     // Prefer thumbnail for grid; fall back to full image
     const imgSrc = c.thumb || c.img;
@@ -812,6 +858,7 @@ See the <a href="./chart-challenge.html">Chart Challenge archive</a>.</p>
     card.innerHTML = `
       <div class="card-img-wrap">
         ${imageContent}
+        ${interactive ? '<span class="interactive-badge">Interactive</span>' : ''}
         <div class="card-overlay">
           <a class="action-btn${!c.post ? ' disabled' : ''}"
              href="${c.post || '#'}" title="Original post"
@@ -833,6 +880,14 @@ See the <a href="./chart-challenge.html">Chart Challenge archive</a>.</p>
             </svg>
             <span>Code</span>
           </a>
+          ${interactive ? `
+          <a class="action-btn" href="${c.url}" title="Open interactive page">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                 stroke-linecap="round" stroke-linejoin="round">
+              <polygon points="6 4 20 12 6 20 6 4"/>
+            </svg>
+            <span>Open</span>
+          </a>` : `
           <button class="action-btn" type="button" title="View full resolution">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                  stroke-linecap="round" stroke-linejoin="round">
@@ -842,7 +897,7 @@ See the <a href="./chart-challenge.html">Chart Challenge archive</a>.</p>
               <line x1="3" y1="21" x2="10" y2="14"/>
             </svg>
             <span>Full</span>
-          </button>
+          </button>`}
         </div>
       </div>
       <div class="card-body">
@@ -852,13 +907,16 @@ See the <a href="./chart-challenge.html">Chart Challenge archive</a>.</p>
           <span class="tag tag-topic">${esc(c.topic)}</span>
           <span class="tag tag-tool">${esc(c.tool)}</span>
           ${c.source ? `<span class="tag tag-source">${esc(c.source)}</span>` : ''}
+          ${interactive ? '<span class="tag tag-interactive">Interactive</span>' : ''}
         </div>
       </div>`;
 
     // Open the lightbox when the image area (or the "Full" button) is clicked,
-    // but let the real Post/Code anchors navigate normally.
+    // but let the real Post/Code anchors navigate normally. Interactive cards
+    // open their page instead of the lightbox.
     card.querySelector('.card-img-wrap').addEventListener('click', e => {
       if (e.target.closest('a.action-btn')) return;
+      if (interactive) { window.location.href = c.url; return; }
       openLightbox(index);
     });
 
@@ -901,8 +959,17 @@ See the <a href="./chart-challenge.html">Chart Challenge archive</a>.</p>
     m += `<a href="${c.img}" target="_blank" rel="noopener">Open image</a>`;
     lbMeta.innerHTML = m;
 
-    lbPrev.disabled = lbIndex <= 0;
-    lbNext.disabled = lbIndex >= filtered.length - 1;
+    lbPrev.disabled = stepIndex(lbIndex, -1) < 0;
+    lbNext.disabled = stepIndex(lbIndex, 1) < 0;
+  }
+
+  // Next index in `dir` that holds a static chart, or -1. Interactive
+  // entries have no full-resolution image, so the lightbox skips them.
+  function stepIndex(from, dir) {
+    for (let i = from + dir; i >= 0 && i < filtered.length; i += dir) {
+      if (!isInteractive(filtered[i])) return i;
+    }
+    return -1;
   }
 
   function openLightbox(index) {
@@ -923,8 +990,8 @@ See the <a href="./chart-challenge.html">Chart Challenge archive</a>.</p>
   }
 
   function navLightbox(dir) {
-    const n = lbIndex + dir;
-    if (n < 0 || n >= filtered.length) return;
+    const n = stepIndex(lbIndex, dir);
+    if (n < 0) return;
     lbIndex = n;
     renderLightbox();
   }

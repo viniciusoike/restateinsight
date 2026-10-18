@@ -43,7 +43,9 @@ workflow for adding new charts.
   "code":        "https://github.com/...", // string | null — link to source
   "year":        2025,                    // integer
   "source":      "30DayChartChallenge",   // string | null — shown as a tag
-  "description": "One sentence."         // string — shown under the title on the card
+  "description": "One sentence.",        // string — shown under the title on the card
+  "type":        "interactive",           // optional — omit for static charts
+  "url":         "/posts/.../"            // interactive only — page the card opens
 }
 ```
 
@@ -57,7 +59,12 @@ chart type (`Distributions`, `Comparisons` — inherited from
 entries; the chart-type topics should eventually be remapped.
 
 Tools currently in use (extend freely):
-`ggplot2`, `sf`
+`ggplot2`, `sf`, `echarts4r`, `D3`
+
+Interactive entries (`"type": "interactive"`) carry an "Interactive" badge,
+open `url` on click instead of the lightbox, and are skipped by the
+lightbox's prev/next. The "Interactive only" toggle in the filter bar shows
+only these entries; it is hidden when the data has none.
 
 ---
 
@@ -118,6 +125,28 @@ The gallery page fetches the JSON at runtime, so no full rebuild is needed —
 just save the JSON file and refresh the browser.
 
 ---
+
+## Adding an interactive page
+
+Interactive pages are built in the `ekio-viz` repo (`interactive/<name>/`)
+and copied here as static files.
+
+1. Add the page to `pages` in `R/sync_interactive.R` (ekio-viz folder name =
+   slug under `static/interactive/`), then run
+   `Rscript R/sync_interactive.R <name>`. Re-run it whenever the page
+   changes in ekio-viz.
+2. Create a wrapper post that embeds `/static/interactive/<slug>/` in an
+   iframe. Copy the iframe and resize script from
+   `posts/general-posts/2026-10-congresso-2027/index.qmd`; the script grows
+   the iframe to fit the page, so no nested scrollbar appears.
+3. Screenshot the page as a 2400px-wide PNG into `static/images/standalone/`,
+   run `Rscript R/build_thumbs.R`, and add a `gallery.json` entry with
+   `"type": "interactive"` and `"url"` pointing to the wrapper post.
+4. Render the post and `gallery.qmd` with separate `quarto render` calls.
+   Rendering both in one call wrote the post's title into `gallery.html`.
+   Rendering a single post also rebuilds `archive.html`, `blog.html` and
+   `blog.xml` from a partial index, which drops older entries. Check
+   `git diff --stat _site/` before committing.
 
 ## Updating an existing entry
 
