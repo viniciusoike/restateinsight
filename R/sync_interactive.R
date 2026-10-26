@@ -19,7 +19,10 @@ library(fs)
 ekio_viz_dir <- path("..", "ekio-viz", "interactive")
 
 # ekio-viz folder name = blog slug under static/interactive/
-pages <- c(congresso = "congresso-2027")
+pages <- c(
+  congresso = "congresso-2027",
+  `eleicao-br` = "eleicao-br-2026"
+)
 
 # Functions ------------------------------------------------------------------
 

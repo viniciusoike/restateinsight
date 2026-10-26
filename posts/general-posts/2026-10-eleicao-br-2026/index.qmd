@@ -1,0 +1,57 @@
+---
+title: "How Brazil voted for president in 2026"
+date: "2026-10-25"
+categories: ["data-visualization", "interactive", "d3", "maps", "brazil", "elections"]
+description: "An interactive map of the 2026 presidential election in each of Brazil's 5,570 municipalities, with both rounds, the change between them, and a view that turns the map into circles sized by votes."
+image: "/static/images/standalone/eleicao-br-2026.png"
+page-layout: full
+format:
+  html:
+    toc: false
+---
+
+Each municipality is coloured by Lula's share of valid votes. Switch between the first round and the runoff, or choose "Variação" to see where Lula's share changed most between them. The "Círculos" view turns each municipality into a circle sized by its valid votes, which shows where the votes actually are. Choose a state to zoom in, and hover over or tap a municipality to see its result. To zoom with the mouse, hold Ctrl or ⌘ while scrolling.
+
+The page itself is in Portuguese. [Open it full screen](/static/interactive/eleicao-br-2026/) for more room, or on a phone.
+
+```{=html}
+<iframe id="eleicao-br-2026" class="interactive-embed"
+        src="/static/interactive/eleicao-br-2026/"
+        title="Interactive map of Brazil's 2026 presidential election by municipality"
+        loading="lazy" scrolling="no"></iframe>
+
+<style>
+.interactive-embed {
+  display: block;
+  width: 100%;
+  height: 1200px;
+  border: 0;
+}
+</style>
+
+<script>
+// The embedded page is served from this site, so the parent can read its
+// height directly and grow the iframe to fit, avoiding a nested scrollbar.
+(function () {
+  const frame = document.getElementById('eleicao-br-2026');
+  frame.addEventListener('load', () => {
+    const win = frame.contentWindow;
+    const doc = frame.contentDocument;
+    if (!doc) return;
+    const fit = () => {
+      frame.style.height = doc.body.scrollHeight + 'px';
+    };
+    fit();
+    new win.ResizeObserver(fit).observe(doc.body);
+  });
+})();
+</script>
+```
+
+## Data
+
+- Results by municipality come from the TSE results feed, the files behind the electoral court's results site. Valid votes exclude blank and null votes; in the first round, "Outros" adds up every candidate other than Lula and Flávio Bolsonaro.
+- The change view shows Lula's runoff share minus his first-round share, in points of valid votes. The other candidates' votes had to go somewhere in the runoff, so Lula's share rose almost everywhere, and most where those candidates were strong.
+- In the circles view, circle area follows valid votes. A force layout pushes circles apart so none overlap, so in dense areas such as Greater São Paulo they sit off their municipality.
+- National totals include votes cast abroad, which are not on the map. Municipal boundaries are IBGE's 2024 grid, simplified with mapshaper.
+- Code and data preparation are in the [ekio-viz repository](https://github.com/viniciusoike/ekio-viz/tree/main/interactive/eleicao-br).
