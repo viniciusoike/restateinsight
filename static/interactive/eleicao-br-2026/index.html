@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Como o Brasil votou para presidente em 2026</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Host+Grotesk:wght@400;600&family=Lato:wght@400;700&family=Lora:wght@600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/d3@7.9.0/dist/d3.min.js"></script>
+<style>
+  :root {
+    --bg: #FBFBF6;
+    --card: #FFFFFF;
+    --ink: #28292C;       /* gray-800 */
+    --ink-mid: #505358;   /* gray-600 */
+    --ink-light: #898E93; /* gray-400 */
+    --rule: #E4E2DC;
+    --land: #E6E5E0;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font: 15px/1.45 Lato, system-ui, sans-serif;
+  }
+  main { max-width: 1180px; margin: 0 auto; padding: 32px 16px 48px; }
+  h1 { font: 700 2rem/1.15 Lora, Georgia, serif; margin: 0 0 6px; }
+  .lede { color: var(--ink-mid); max-width: 72ch; margin: 0 0 20px; }
+  .eyebrow { font: 600 .82rem "Host Grotesk", sans-serif; color: var(--ink-mid); }
+
+  .controls { display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center; margin-bottom: 12px; }
+  .controls select {
+    font: inherit; font-size: .9rem; padding: 4px 10px; border: 1px solid var(--ink-light);
+    border-radius: 6px; background: var(--card); color: var(--ink); max-width: 100%;
+  }
+  .controls button {
+    font: inherit; font-size: .9rem; padding: 4px 12px; border: 1px solid var(--ink-light);
+    border-radius: 999px; background: none; color: var(--ink); cursor: pointer;
+  }
+  .controls button:disabled { color: var(--ink-light); border-color: var(--rule); cursor: default; }
+  .subcontrol { display: inline-flex; gap: 10px; align-items: center; }
+  .subcontrol[hidden] { display: none; }
+
+  /* Two-way switches: two pills sharing one outline. */
+  .switch { display: inline-flex; border: 1px solid var(--ink-light); border-radius: 999px; padding: 2px; }
+  .controls .switch button { border: 0; padding: 4px 14px; }
+  .controls .switch button[aria-pressed="true"] { background: var(--ink); color: var(--card); }
+
+  /* Map and summary card side by side; stacked on narrow screens. */
+  .stage { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 24px; align-items: start; }
+  @media (max-width: 860px) { .stage { grid-template-columns: 1fr; } }
+  .map { position: relative; }
+  .map svg { width: 100%; height: auto; max-height: 85vh; display: block; touch-action: pan-y; cursor: grab; }
+  .map svg:active { cursor: grabbing; }
+  .muni { cursor: pointer; }
+  .muni.hover, .muni.selected { stroke: var(--ink); }
+  /* In the circles view the shapes are plain land: no hover, no outline. */
+  .dots-mode .muni { pointer-events: none; }
+  .dots-mode .muni.hover, .dots-mode .muni.selected { stroke: var(--land); }
+  .muni.dim, .dot.dim { opacity: .15; }
+  .state { fill: none; stroke: #fff; stroke-linejoin: round; pointer-events: none; }
+  .dots-mode .state { stroke: #BDBAB2; }
+  .dot { stroke: #fff; cursor: pointer; }
+  .dot.hover, .dot.selected { stroke: var(--ink); }
+  .hint { font-size: .8rem; color: var(--ink-light); margin: 4px 0 0; }
+
+  .tooltip {
+    position: absolute; pointer-events: none; background: var(--card); border: 1px solid var(--rule);
+    border-radius: 8px; padding: 10px 12px; font-size: .85rem; width: 240px;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, .08); opacity: 0; transition: opacity .1s;
+  }
+  .tooltip.on { opacity: 1; }
+  .tooltip .name { font: 700 .95rem/1.25 Lora, serif; margin: 0 0 2px; }
+  .tooltip .sub { color: var(--ink-light); margin: 0 0 8px; }
+
+  /* Lula against Flávio Bolsonaro, shared by the tooltip and the card. */
+  .duel { display: grid; grid-template-columns: 1fr auto; gap: 2px 10px; align-items: baseline; }
+  .duel .cand { display: flex; align-items: center; gap: 6px; }
+  .duel .sw { width: 10px; height: 10px; border-radius: 50%; flex: none; }
+  .duel .pct { font-weight: 700; text-align: right; }
+  .duel .votes { grid-column: 1 / -1; color: var(--ink-light); font-size: .8rem; margin-bottom: 4px; }
+  .bar { display: flex; height: 8px; border-radius: 4px; overflow: hidden; margin: 6px 0 2px; }
+  .bar span { display: block; height: 100%; }
+  .count { font-size: .8rem; color: var(--ink-mid); margin: 6px 0 0; }
+
+  .card {
+    background: var(--card); border: 1px solid var(--rule); border-radius: 10px;
+    padding: 16px; position: sticky; top: 16px;
+  }
+  .card h2 { font: 700 1.2rem/1.2 Lora, Georgia, serif; margin: 2px 0 10px; }
+  .card .big { font: 700 2.2rem/1 Lora, serif; margin: 0 0 2px; }
+  .card .big-sub { color: var(--ink-mid); font-size: .88rem; margin: 0 0 12px; }
+  .card .meta { font-size: .82rem; color: var(--ink-light); margin: 10px 0 0; }
+
+  .legend { margin-top: 18px; }
+  .legend-title { font: 600 .82rem "Host Grotesk", sans-serif; color: var(--ink-mid); }
+  .legend .row { display: flex; gap: 2px; margin: 6px 0 3px; }
+  .legend .bin { flex: 1 1 0; min-width: 0; cursor: pointer; }
+  .legend .bin span { display: block; height: 12px; border-radius: 2px; }
+  .legend .ticks { position: relative; height: 1.2em; font-size: .72rem; color: var(--ink-mid); }
+  .legend .ticks span { position: absolute; transform: translateX(-50%); }
+  .legend .bin.off { opacity: .25; }
+  .legend .sizes { display: flex; align-items: flex-end; gap: 16px; margin-top: 6px; }
+  .legend .sizes[hidden] { display: none; }
+  .legend .sizes div { text-align: center; font-size: .75rem; color: var(--ink-mid); }
+  .legend .sizes svg { display: block; margin: 0 auto 2px; overflow: visible; }
+
+  .method { font-size: .9rem; color: var(--ink-mid); max-width: 80ch; margin-top: 36px; }
+  .method h2 { font: 700 1.1rem Lora, serif; color: var(--ink); margin: 0 0 8px; }
+  .method li { margin-bottom: 6px; }
+  footer { margin-top: 32px; font-size: .8rem; color: var(--ink-light); }
+</style>
+</head>
+<body>
+<main>
+  <h1>Como o Brasil votou para presidente em 2026</h1>
+  <p class="lede">
+    Cada município aparece com a cor da fatia de Lula nos votos válidos. Nos
+    círculos, a área segue os votos válidos; em “Variação”, a cor mostra quanto
+    essa fatia mudou entre os turnos. <span id="zoom-hint">Para aproximar, use
+    a roda do mouse ou dois dedos no mapa.</span>
+  </p>
+
+  <div class="controls">
+    <div class="switch" id="rounds" role="group" aria-label="Resultado">
+      <button type="button" data-round="1" aria-pressed="false">1º turno</button>
+      <button type="button" data-round="2" aria-pressed="true">2º turno</button>
+      <button type="button" data-round="change" aria-pressed="false">Variação</button>
+    </div>
+    <div class="switch" id="views" role="group" aria-label="Forma do mapa">
+      <button type="button" data-view="map" aria-pressed="true">Mapa</button>
+      <button type="button" data-view="dots" aria-pressed="false">Círculos</button>
+    </div>
+    <span class="subcontrol">
+      <label class="eyebrow" for="uf">Estado</label>
+      <select id="uf"><option value="">Brasil</option></select>
+    </span>
+    <span id="city-control" class="subcontrol" hidden>
+      <label class="eyebrow" for="city">Município</label>
+      <select id="city"><option value="">Todo o estado</option></select>
+    </span>
+    <button id="reset" type="button" disabled>Ver o país inteiro</button>
+  </div>
+
+  <div class="stage">
+    <div>
+      <div class="map" id="map">
+        <div class="tooltip" id="tooltip" aria-hidden="true"></div>
+      </div>
+      <p class="hint" id="hint"></p>
+    </div>
+
+    <aside class="card" id="card" aria-live="polite">
+      <div id="summary"></div>
+      <div class="legend">
+        <div class="legend-title" id="legend-title">Votos válidos em Lula (%)</div>
+        <div class="row" id="bins"></div>
+        <div class="ticks" id="ticks"></div>
+        <div class="legend-title" id="sizes-title" style="margin-top: 14px" hidden>Votos válidos</div>
+        <div class="sizes" id="sizes" hidden></div>
+      </div>
+    </aside>
+  </div>
+
+  <section class="method">
+    <h2>Dados e método</h2>
+    <ul>
+      <li>Resultados por município nos dois turnos da eleição presidencial de 2026, da divulgação de resultados do TSE. Votos válidos excluem brancos e nulos. No 1º turno, “Outros” soma os demais candidatos.</li>
+      <li id="count-note">O 2º turno vem da apuração em andamento: cada município mostra a parcela de seções já apuradas, e o mapa muda a cada atualização dos dados.</li>
+      <li>A cor mostra a fatia de Lula nos votos válidos nos dois turnos, na mesma escala, para que a troca de turno mostre onde essa fatia aumentou. No 1º turno, uma fatia abaixo de 50% não quer dizer derrota no município.</li>
+      <li>Na variação, a cor mostra quantos pontos a fatia de Lula nos votos válidos mudou do 1º para o 2º turno. Como os votos dos outros candidatos do 1º turno se redistribuem no 2º, a fatia de Lula sobe em quase todo o país, e sobe mais onde esses candidatos foram fortes.</li>
+      <li>Nos círculos, cada município vira um círculo com área proporcional aos votos válidos, perto do seu território. Os círculos se afastam uns dos outros até não se sobreporem, por isso nas áreas densas, como a Grande São Paulo, aparecem deslocados do seu município. Municípios grandes e pouco povoados encolhem; capitais e regiões metropolitanas crescem.</li>
+      <li>O total do Brasil inclui os votos no exterior, que não aparecem no mapa. Os limites municipais são a malha de 2024 do IBGE, simplificada com mapshaper.</li>
+    </ul>
+  </section>
+
+  <footer>Fonte: TSE (divulgação de resultados); IBGE (malha municipal 2024) • EKIO • @viniciusoike</footer>
+</main>
+
+<script src="eleicao-br.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
