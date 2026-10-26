@@ -387,26 +387,23 @@ function duel(t) {
     </div>`;
 }
 
-// Shares in both rounds and their change, for the change view. "Outros"
-// ran only in the 1st round.
+// Each candidate's change in points, with the shares in both rounds below,
+// laid out like the candidate rows of the round views.
 function shift(t1, t2) {
   if (!t1.valid || !t2.valid) return "";
   const pct = (votes, t) => (100 * votes) / t.valid;
   const rows = [
     { name: "Lula", color: lulaColor, a: pct(t1.lula, t1), b: pct(t2.lula, t2) },
     { name: "Flávio Bolsonaro", color: flavioColor, a: pct(t1.flavio, t1), b: pct(t2.flavio, t2) },
-    { name: "Outros", color: otherColor, a: pct(t1.other, t1), b: null },
   ];
   return `
-    <div class="shift">
-      <span></span><span class="head">1º turno</span><span class="head">2º turno</span><span class="head">Var.</span>
+    <div class="duel">
       ${rows
         .map(
           (row) => `
       <span class="cand"><span class="sw" style="background:${row.color}"></span>${row.name}</span>
-      <span>${fmtPct(row.a)}%</span>
-      <span>${row.b === null ? "–" : `${fmtPct(row.b)}%`}</span>
-      <span class="pct">${fmtSigned((row.b ?? 0) - row.a)}</span>`
+      <span class="pct">${fmtSigned(row.b - row.a)}</span>
+      <span class="votes">${fmtPct(row.a)}% no 1º turno → ${fmtPct(row.b)}% no 2º</span>`
         )
         .join("")}
     </div>`;
@@ -425,7 +422,7 @@ function showTooltip(event, d) {
   const t = cur(d);
   tooltip.html(`
     <p class="name">${d.name}</p>
-    <p class="sub">${ufName[d.uf]} · ${fmtInt(t.valid)} votos válidos no ${state.round}º turno</p>
+    <p class="sub">${ufName[d.uf]} · ${fmtInt(t.valid)} votos válidos</p>
     ${changing() ? shift(d.r[1], d.r[2]) : duel(t)}
     ${countLine(t)}`);
   const [mx, my] = d3.pointer(event, mapBox);
@@ -456,10 +453,12 @@ svg.on("pointerdown", (event) => {
 
 // Summary card -------------------------------------------------------------
 
+// The change view already reads in points, so it drops the unit.
 const pointsDiff = (a, b, what) => {
   const diff = a - b;
   const abs = Math.abs(diff);
-  return ` · ${fmtPct(abs)} ponto${abs >= 2 ? "s" : ""} ${diff >= 0 ? "acima" : "abaixo"} ${what}`;
+  const unit = changing() ? "" : ` ponto${abs >= 2 ? "s" : ""}`;
+  return ` · ${fmtPct(abs)}${unit} ${diff >= 0 ? "acima" : "abaixo"} ${what}`;
 };
 
 function cardBody(t, vsText) {
@@ -477,37 +476,41 @@ function changeBody(pair, vsText) {
   if (!t1.valid || !t2.valid) return `<p class="big-sub">Sem votos apurados no 2º turno.</p>${countLine(t2)}`;
   return `
       <p class="big">${fmtSigned(changeOf(pair))}</p>
-      <p class="big-sub">pontos na fatia de Lula nos votos válidos, do 1º para o 2º turno${vsText}</p>
+      <p class="big-sub">pontos para Lula entre os turnos${vsText}</p>
       ${shift(t1, t2)}
       ${countLine(t2)}`;
 }
 
 // Each scope compares with the one above it: a municipality with its state,
-// a state with the country.
+// a state with the country. Only a municipality carries a label, since its
+// name can match its state's.
 function renderSummary() {
-  let eyebrow = "Brasil";
-  let title = "Todo o país";
+  let eyebrow = "";
+  let title = "Brasil";
   let pair = scopePair("br");
   let parent = null;
   let what = "";
   if (state.city) {
     const d = cityByCode.get(state.city);
-    [eyebrow, title, pair, parent, what] = [`Município · ${ufName[d.uf]}`, d.name, d.r, d.uf, "do estado"];
+    [eyebrow, title, pair, parent, what] = [`Município · ${d.uf.toUpperCase()}`, d.name, d.r, d.uf, "do estado"];
   } else if (state.uf) {
-    [eyebrow, title, pair, parent, what] = ["Estado", ufName[state.uf], scopePair(state.uf), "br", "do país"];
+    [title, pair, parent, what] = [ufName[state.uf], scopePair(state.uf), "br", "do país"];
   }
   const value = (p) => (changing() ? changeOf(p) : p[state.round].share);
   const vsText = parent && !Number.isNaN(value(pair)) ? pointsDiff(value(pair), value(scopePair(parent)), what) : "";
   const body = changing() ? changeBody(pair, vsText) : cardBody(pair[state.round], vsText);
-  d3.select("#summary").html(`<div class="eyebrow">${eyebrow}</div><h2>${title}</h2>${body}`);
+  const label = eyebrow ? `<div class="eyebrow">${eyebrow}</div>` : "";
+  d3.select("#summary").html(`${label}<h2>${title}</h2>${body}`);
 }
 
 // Legend -------------------------------------------------------------------
 
-// The bins follow the metric; switching metric shows every bin again.
+// The bins follow the metric; switching metric shows every bin again. Labels
+// sit on the breaks between bins, which reads better than a range under each.
 function renderLegend() {
+  const breaks = (changing() ? changeBinOf : binOf).domain();
   d3.select("#legend-title").text(
-    changing() ? "Variação da fatia de Lula do 1º para o 2º turno (pontos)" : "Votos válidos em Lula (%)"
+    changing() ? "Variação de Lula entre os turnos (pontos)" : "Votos válidos em Lula (%)"
   );
   d3.select("#bins")
     .selectAll("div")
@@ -516,7 +519,9 @@ function renderLegend() {
     .attr("class", "bin")
     .attr("role", "button")
     .attr("tabindex", 0)
-    .html((d) => `<span style="background:${d.color}"></span>${d.label}`)
+    .attr("aria-label", (d) => d.label)
+    .attr("title", (d) => d.label)
+    .html((d) => `<span style="background:${d.color}"></span>`)
     .on("click", (event, d) => toggleBin(binsNow().indexOf(d)))
     .on("keydown", (event, d) => {
       if (event.key === "Enter" || event.key === " ") {
@@ -524,6 +529,12 @@ function renderLegend() {
         toggleBin(binsNow().indexOf(d));
       }
     });
+  d3.select("#ticks")
+    .selectAll("span")
+    .data(breaks)
+    .join("span")
+    .style("left", (d, i) => `${(100 * (i + 1)) / binsNow().length}%`)
+    .text((d) => fmtInt(d));
 }
 
 function toggleBin(i) {
@@ -548,17 +559,19 @@ sizes
   .attr("fill", otherColor);
 sizes.append("span").text((d) => fmtShort(d));
 
-// Hint and method note follow the count.
+// Hint and method note follow the count; the hint shows only while the
+// count runs.
 function renderNotes() {
   const t = scopeTotals.get(2).get("br");
-  const status =
-    t.counted >= 100
-      ? "Apuração do 2º turno concluída."
-      : `2º turno com ${fmtPct(t.counted)}% das seções apuradas no país, atualizado em ${updatedText(t)}.`;
-  d3.select("#hint").text(`${status} Em cinza, municípios ainda sem votos apurados.`);
   if (t.counted >= 100) {
+    d3.select("#hint").property("hidden", true);
     d3.select("#count-note").text("Os dois turnos estão totalmente apurados.");
+    return;
   }
+  d3.select("#hint").text(
+    `2º turno com ${fmtPct(t.counted)}% das seções apuradas no país, atualizado em ${updatedText(t)}. ` +
+      "Em cinza, municípios ainda sem votos apurados."
+  );
 }
 
 // Update -------------------------------------------------------------------

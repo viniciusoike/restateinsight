@@ -28,7 +28,7 @@
   main { max-width: 1180px; margin: 0 auto; padding: 32px 16px 48px; }
   h1 { font: 700 2rem/1.15 Lora, Georgia, serif; margin: 0 0 6px; }
   .lede { color: var(--ink-mid); max-width: 72ch; margin: 0 0 20px; }
-  .eyebrow { font: 600 .78rem "Host Grotesk", sans-serif; text-transform: uppercase; letter-spacing: .04em; color: var(--ink-mid); }
+  .eyebrow { font: 600 .82rem "Host Grotesk", sans-serif; color: var(--ink-mid); }
 
   .controls { display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center; margin-bottom: 12px; }
   .controls select {
@@ -56,6 +56,9 @@
   .map svg:active { cursor: grabbing; }
   .muni { cursor: pointer; }
   .muni.hover, .muni.selected { stroke: var(--ink); }
+  /* In the circles view the shapes are plain land: no hover, no outline. */
+  .dots-mode .muni { pointer-events: none; }
+  .dots-mode .muni.hover, .dots-mode .muni.selected { stroke: var(--land); }
   .muni.dim, .dot.dim { opacity: .15; }
   .state { fill: none; stroke: #fff; stroke-linejoin: round; pointer-events: none; }
   .dots-mode .state { stroke: #BDBAB2; }
@@ -80,13 +83,6 @@
   .duel .votes { grid-column: 1 / -1; color: var(--ink-light); font-size: .8rem; margin-bottom: 4px; }
   .bar { display: flex; height: 8px; border-radius: 4px; overflow: hidden; margin: 6px 0 2px; }
   .bar span { display: block; height: 100%; }
-  /* Shares in both rounds and their change, for the change view. */
-  .shift { display: grid; grid-template-columns: 1fr auto auto auto; gap: 3px 10px; align-items: baseline; margin-top: 6px; }
-  .shift > span:not(.cand) { text-align: right; }
-  .shift .cand { display: flex; align-items: center; gap: 6px; }
-  .shift .sw { width: 10px; height: 10px; border-radius: 50%; flex: none; }
-  .shift .head { font-size: .72rem; color: var(--ink-light); }
-  .shift .pct { font-weight: 700; }
   .count { font-size: .8rem; color: var(--ink-mid); margin: 6px 0 0; }
 
   .card {
@@ -99,9 +95,12 @@
   .card .meta { font-size: .82rem; color: var(--ink-light); margin: 10px 0 0; }
 
   .legend { margin-top: 18px; }
-  .legend .row { display: flex; flex-wrap: wrap; gap: 2px; margin: 6px 0 2px; }
-  .legend .bin { flex: 1 1 0; min-width: 0; cursor: pointer; text-align: center; font-size: .68rem; white-space: nowrap; color: var(--ink-mid); }
-  .legend .bin span { display: block; height: 12px; border-radius: 2px; margin-bottom: 3px; }
+  .legend-title { font: 600 .82rem "Host Grotesk", sans-serif; color: var(--ink-mid); }
+  .legend .row { display: flex; gap: 2px; margin: 6px 0 3px; }
+  .legend .bin { flex: 1 1 0; min-width: 0; cursor: pointer; }
+  .legend .bin span { display: block; height: 12px; border-radius: 2px; }
+  .legend .ticks { position: relative; height: 1.2em; font-size: .72rem; color: var(--ink-mid); }
+  .legend .ticks span { position: absolute; transform: translateX(-50%); }
   .legend .bin.off { opacity: .25; }
   .legend .sizes { display: flex; align-items: flex-end; gap: 16px; margin-top: 6px; }
   .legend .sizes[hidden] { display: none; }
@@ -118,13 +117,10 @@
 <main>
   <h1>Como o Brasil votou para presidente em 2026</h1>
   <p class="lede">
-    Cada município aparece com a cor da fatia de Lula nos votos válidos.
-    Troque o mapa por círculos para ver onde estão os votos: a área de cada
-    círculo segue os votos válidos do município. Alterne entre os dois turnos
-    ou veja em “Variação” onde a fatia de Lula mais mudou de um turno para o
-    outro. Escolha um estado para vê-lo de perto e passe o mouse ou toque num
-    município para ver o resultado. <span id="zoom-hint">Para aproximar, use a
-    roda do mouse ou dois dedos no mapa.</span>
+    Cada município aparece com a cor da fatia de Lula nos votos válidos. Nos
+    círculos, a área segue os votos válidos; em “Variação”, a cor mostra quanto
+    essa fatia mudou entre os turnos. <span id="zoom-hint">Para aproximar, use
+    a roda do mouse ou dois dedos no mapa.</span>
   </p>
 
   <div class="controls">
@@ -137,8 +133,10 @@
       <button type="button" data-view="map" aria-pressed="true">Mapa</button>
       <button type="button" data-view="dots" aria-pressed="false">Círculos</button>
     </div>
-    <label class="eyebrow" for="uf">Estado</label>
-    <select id="uf"><option value="">Brasil</option></select>
+    <span class="subcontrol">
+      <label class="eyebrow" for="uf">Estado</label>
+      <select id="uf"><option value="">Brasil</option></select>
+    </span>
     <span id="city-control" class="subcontrol" hidden>
       <label class="eyebrow" for="city">Município</label>
       <select id="city"><option value="">Todo o estado</option></select>
@@ -157,9 +155,10 @@
     <aside class="card" id="card" aria-live="polite">
       <div id="summary"></div>
       <div class="legend">
-        <div class="eyebrow" id="legend-title">Votos válidos em Lula (%)</div>
+        <div class="legend-title" id="legend-title">Votos válidos em Lula (%)</div>
         <div class="row" id="bins"></div>
-        <div class="eyebrow" id="sizes-title" style="margin-top: 14px" hidden>Votos válidos no município</div>
+        <div class="ticks" id="ticks"></div>
+        <div class="legend-title" id="sizes-title" style="margin-top: 14px" hidden>Votos válidos</div>
         <div class="sizes" id="sizes" hidden></div>
       </div>
     </aside>
