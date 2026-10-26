@@ -180,6 +180,8 @@ const dots = layer
 const maxZoom = 40;
 let zoomK = 1;
 let morphing = false;
+// Each morph gets an id, so an interrupted morph cannot finish a newer one.
+let morphId = 0;
 
 // On touch screens one finger scrolls the page and two fingers pan or zoom
 // the map, so the map never traps the scroll. Embedded in another page, the
@@ -300,17 +302,19 @@ function morph(view) {
   d3.select("#sizes-title").property("hidden", view !== "dots");
   hideTooltip();
   morphing = true;
+  const id = ++morphId;
   const ease = d3.easeCubicInOut;
   if (view === "dots") {
     layoutDots();
     dots
       .interrupt()
+      .interrupt("paint")
       .attr("display", (d) => (hidden(d) ? "none" : null))
       .attr("fill", fillOf)
       .attr("cx", (d) => d.px)
       .attr("cy", (d) => d.py)
       .attr("r", (d) => d.areaRadius);
-    munis.interrupt().transition().duration(400).attr("fill", landColor).attr("stroke", landColor);
+    munis.interrupt().interrupt("paint").transition().duration(400).attr("fill", landColor).attr("stroke", landColor);
     dots
       .transition()
       .delay(350)
@@ -321,10 +325,13 @@ function morph(view) {
       .attr("cy", (d) => d.dy)
       .end()
       .catch(() => {})
-      .finally(() => (morphing = false));
+      .finally(() => {
+        if (id === morphId) morphing = false;
+      });
   } else {
     dots
       .interrupt()
+      .interrupt("paint")
       .transition()
       .duration(1100)
       .ease(ease)
@@ -334,6 +341,7 @@ function morph(view) {
       .end()
       .catch(() => {})
       .finally(() => {
+        if (id !== morphId) return;
         morphing = false;
         if (state.view !== "map") return;
         munis.transition().duration(400).attr("fill", muniFill).attr("stroke", muniFill);
@@ -596,7 +604,8 @@ function update() {
 
 // Colours follow the round; only a switch animates them.
 function paint(animate) {
-  const t = (sel) => (animate ? sel.transition().duration(500) : sel);
+  // Named, so a colour change cannot interrupt a running morph.
+  const t = (sel) => (animate ? sel.transition("paint").duration(500) : sel);
   if (state.view === "map") t(munis).attr("fill", muniFill).attr("stroke", muniFill);
   else munis.attr("fill", landColor).attr("stroke", landColor);
   // One transition for fill and radius: a second one would cancel the first.
